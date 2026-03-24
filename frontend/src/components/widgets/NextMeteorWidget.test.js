@@ -58,7 +58,7 @@ describe('NextMeteorWidget', () => {
     await nextTick()
 
     expect(getMock).toHaveBeenCalledWith('/events/widget/next-meteor-shower')
-    expect(wrapper.text()).toContain('Najbližší meteorický roj')
+    expect(wrapper.text()).toContain('Padajúce hviezdy')
     expect(wrapper.text()).toContain('Meteorický roj')
     expect(wrapper.find('a[href="/events/77"]').exists()).toBe(true)
   })

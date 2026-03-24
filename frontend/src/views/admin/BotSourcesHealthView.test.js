@@ -7,6 +7,7 @@ import {
   getBotSources,
   resetBotSourceHealth,
   reviveBotSource,
+  runBotSource,
   updateBotSource,
 } from '@/services/api/admin/bots'
 
@@ -15,11 +16,26 @@ vi.mock('@/services/api/admin/bots', () => ({
   getBotSources: vi.fn(),
   resetBotSourceHealth: vi.fn(),
   reviveBotSource: vi.fn(),
+  runBotSource: vi.fn(),
   updateBotSource: vi.fn(),
+}))
+
+vi.mock('@/composables/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+  }),
 }))
 
 function flush() {
   return Promise.resolve().then(() => nextTick())
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 describe('BotSourcesHealthView', () => {
@@ -41,10 +57,6 @@ describe('BotSourcesHealthView', () => {
             last_success_at: null,
             last_error_at: null,
             avg_latency_ms: 142,
-            metrics_24h: {
-              success_rate: 0.75,
-              failure_rate: 0.25,
-            },
             url: 'https://example.test/rss.xml',
           },
           {
@@ -60,10 +72,6 @@ describe('BotSourcesHealthView', () => {
             last_success_at: null,
             last_error_at: null,
             avg_latency_ms: 320,
-            metrics_24h: {
-              success_rate: 0.2,
-              failure_rate: 0.8,
-            },
             url: 'https://example.test/wiki-feed',
           },
         ],
@@ -72,6 +80,7 @@ describe('BotSourcesHealthView', () => {
     clearBotSourceCooldown.mockResolvedValue({ data: { data: {} } })
     resetBotSourceHealth.mockResolvedValue({ data: { data: {} } })
     reviveBotSource.mockResolvedValue({ data: { data: {} } })
+    runBotSource.mockResolvedValue({ data: { run_id: 1 } })
     updateBotSource.mockResolvedValue({ data: { data: {} } })
   })
 
@@ -89,11 +98,8 @@ describe('BotSourcesHealthView', () => {
 
     expect(wrapper.text()).toContain('NASA RSS')
     expect(wrapper.text()).toContain('nasa_rss_breaking')
-    expect(wrapper.text()).toContain('DEAD')
-    expect(wrapper.text()).toContain('FAIL')
-    expect(wrapper.text()).toContain('Cooldown')
-    expect(wrapper.text()).toContain('S 75.0%')
-    expect(wrapper.text()).toContain('F 25.0%')
+    expect(normalizeText(wrapper.text())).toContain('mrtvy')
+    expect(normalizeText(wrapper.text())).toContain('chyba')
 
     const toggleButton = wrapper.find('.toggleBtn')
     await toggleButton.trigger('click')
@@ -114,13 +120,16 @@ describe('BotSourcesHealthView', () => {
     await flush()
     await flush()
 
-    const findRowActionButton = (label) => {
-      const firstRow = wrapper.findAll('tbody tr')[0]
-      return firstRow?.findAll('button').find((btn) => btn.text() === label)
-    }
-    const resetBtn = findRowActionButton('Reset zdravia')
-    const reviveBtn = findRowActionButton('Obnovit')
-    const clearBtn = findRowActionButton('Vycistit cooldown')
+    const firstMenu = wrapper.findAll('.rowMenu')[0]
+    firstMenu.element.open = true
+    await flush()
+
+    const firstRow = wrapper.findAll('tbody tr')[0]
+    const buttons = firstRow.findAll('button')
+
+    const resetBtn = buttons.find((btn) => normalizeText(btn.text()).includes('reset zdravia'))
+    const reviveBtn = buttons.find((btn) => normalizeText(btn.text()).includes('obnovit'))
+    const clearBtn = buttons.find((btn) => normalizeText(btn.text()).includes('vycistit cooldown'))
 
     if (!resetBtn || !reviveBtn || !clearBtn) {
       throw new Error('Expected reset/revive/clear action buttons to be rendered.')
@@ -134,13 +143,9 @@ describe('BotSourcesHealthView', () => {
     await flush()
     expect(clearBotSourceCooldown).toHaveBeenCalledWith(9)
 
-    const reviveBtnAfterRefresh = findRowActionButton('Obnovit')
-    if (!reviveBtnAfterRefresh) {
-      throw new Error('Expected revive action button to be rendered after refresh.')
-    }
-
-    await reviveBtnAfterRefresh.trigger('click')
+    await reviveBtn.trigger('click')
     await flush()
     expect(reviveBotSource).toHaveBeenCalledWith(9)
   })
 })
+

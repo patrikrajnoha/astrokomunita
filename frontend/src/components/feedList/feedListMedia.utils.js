@@ -58,7 +58,7 @@ export function formatEventRange(startAt, endAt) {
   const start = parseEventDate(startAt)
   const end = parseEventDate(endAt)
 
-  if (!start && !end) return 'Datum upresnime'
+  if (!start && !end) return 'Dátum upresníme'
   if (start && !end) return start.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
   if (!start && end) return end.toLocaleDateString('sk-SK', { day: '2-digit', month: 'short', year: 'numeric' })
 

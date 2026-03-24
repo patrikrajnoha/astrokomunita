@@ -24,6 +24,7 @@ const ObservingWeatherWidget = defineAsyncComponent(() => import('@/components/s
 const SpaceWeatherWidget = defineAsyncComponent(() => import('@/components/sky/SpaceWeatherWidget.vue'))
 const AuroraWatchWidget = defineAsyncComponent(() => import('@/components/sky/AuroraWatchWidget.vue'))
 const NightSkyWidget = defineAsyncComponent(() => import('@/components/sky/NightSkyWidget.vue'))
+const ConstellationsNowWidget = defineAsyncComponent(() => import('@/components/widgets/ConstellationsNowWidget.vue'))
 const IssPassWidget = defineAsyncComponent(() => import('@/components/sky/IssPassWidget.vue'))
 const GuestObservingPromptWidget = defineAsyncComponent(() => import('@/components/sky/GuestObservingPromptWidget.vue'))
 const LatestArticlesWidget = defineAsyncComponent(() => import('@/components/widgets/LatestArticlesWidget.vue'))
@@ -35,7 +36,6 @@ const NeoWatchlistWidget = defineAsyncComponent(() => import('@/components/widge
 const UpcomingLaunchesWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingLaunchesWidget.vue'))
 const UpcomingEventsWidget = defineAsyncComponent(() => import('@/components/widgets/UpcomingEventsWidget.vue'))
 const MoonPhasesWidget = defineAsyncComponent(() => import('@/components/widgets/MoonPhasesWidget.vue'))
-const MoonOverviewWidget = defineAsyncComponent(() => import('@/components/widgets/MoonOverviewWidget.vue'))
 const MoonEventsWidget = defineAsyncComponent(() => import('@/components/widgets/MoonEventsWidget.vue'))
 const SidebarWidgetRenderer = defineAsyncComponent(() => import('@/components/widgets/SidebarWidgetRenderer.vue'))
 
@@ -46,6 +46,7 @@ export const sidebarComponentMap = {
   space_weather: SpaceWeatherWidget,
   aurora_watch: AuroraWatchWidget,
   night_sky: NightSkyWidget,
+  constellations_now: ConstellationsNowWidget,
   iss_pass: IssPassWidget,
   [GUEST_OBSERVING_PROMPT_SECTION_KEY]: GuestObservingPromptWidget,
   nasa_apod: NasaHighlightsWidget,
@@ -57,7 +58,6 @@ export const sidebarComponentMap = {
   latest_articles: LatestArticlesWidget,
   upcoming_events: UpcomingEventsWidget,
   moon_phases: MoonPhasesWidget,
-  moon_overview: MoonOverviewWidget,
   moon_events: MoonEventsWidget,
 }
 
@@ -100,6 +100,10 @@ const sidebarIconMap = {
   night_sky: {
     viewBox: '0 0 24 24',
     paths: ['M17.2 4.8a7.5 7.5 0 1 0 2 10.4 6.2 6.2 0 0 1-2-10.4Z', 'M5 4h.01', 'M8 2h.01', 'M12 6h.01'],
+  },
+  constellations_now: {
+    viewBox: '0 0 24 24',
+    paths: ['M12 3.2 13.9 8l5.1.3-4 3.2 1.3 5-4.3-2.7-4.3 2.7 1.3-5-4-3.2 5.1-.3Z', 'M18.5 4.5h.01', 'M6 18h.01'],
   },
   iss_pass: {
     viewBox: '0 0 24 24',
@@ -182,10 +186,6 @@ const sidebarIconMap = {
     viewBox: '0 0 24 24',
     paths: ['M12 2a10 10 0 1 0 8.6 15.1A8.3 8.3 0 0 1 12 2Z'],
   },
-  moon_overview: {
-    viewBox: '0 0 24 24',
-    paths: ['M12 3a9 9 0 1 0 7.8 13.6A7.4 7.4 0 0 1 12 3Z', 'M7 20h10', 'M7 17h7'],
-  },
   moon_events: {
     viewBox: '0 0 24 24',
     paths: ['M5 4h14v16H5z', 'M8 8h8', 'M8 12h6', 'M8 16h4', 'M16 4v3', 'M8 4v3'],
@@ -212,12 +212,33 @@ const normalizePreferredSectionKeys = (value) => {
 }
 
 const observingSectionKeySet = new Set(OBSERVING_SECTION_KEYS)
+const BUILTIN_SECTION_TITLES = Object.freeze({
+  observing_conditions: 'Pozorovanie dnes',
+  observing_weather: 'Počasie na pozorovanie',
+  night_sky: 'Nočná obloha',
+  iss_pass: 'ISS nad tebou',
+  search: 'Hľadaj',
+  nasa_apod: 'Astrofoto dňa',
+  next_event: 'Najbližšia udalosť',
+  latest_articles: 'Astro čítanie',
+  upcoming_events: 'Udalosti v kalendári',
+  moon_phases: 'Fázy Mesiaca',
+  space_weather: 'Slnečná aktivita',
+  aurora_watch: 'Polárna žiara',
+  neo_watchlist: 'Asteroidy nablízku',
+  upcoming_launches: 'Štarty do vesmíru',
+  constellations_now: 'Viditeľné súhvezdia',
+  next_eclipse: 'Zatmenie na obzore',
+  next_meteor_shower: 'Padajúce hviezdy',
+  moon_events: 'Lunárny kalendár',
+  guest_observing_prompt: 'Pozorovanie dnes',
+})
 
 const toGuestObservingPromptSection = (section) => {
   return {
     kind: 'builtin',
     section_key: GUEST_OBSERVING_PROMPT_SECTION_KEY,
-    title: 'Astronomicke podmienky',
+    title: 'Pozorovanie dnes',
     custom_component_id: null,
     custom_component: null,
     order: toSafeNumber(section?.order, 0),
@@ -274,9 +295,9 @@ const collapseObservingSectionsForMissingLocation = (sections, options = {}) => 
 }
 
 const resolveBuiltinSectionTitle = (sectionKey, title) => {
-  if (sectionKey === 'nasa_apod') {
-    return 'NASA Novinky'
-  }
+  const normalizedSectionKey = String(sectionKey || '').trim()
+  const canonicalTitle = BUILTIN_SECTION_TITLES[normalizedSectionKey]
+  if (canonicalTitle) return canonicalTitle
 
   return title
 }

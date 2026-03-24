@@ -172,7 +172,7 @@
           >
             <div class="min-w-0">
               <p class="text-sm font-semibold text-[var(--text-primary)]">Upozorniť ma na ISS prelet</p>
-              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostaneš upozornenie pred ďalším dobre viditeľným preletom ISS.</p>
+              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostaneš upozornenie pred ďalším dobré viditeľným preletom ISS.</p>
             </div>
             <button
               type="button"

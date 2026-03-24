@@ -62,7 +62,7 @@
                   :disabled="editSavingId === root?.id"
                   @click="saveInlineEdit(root)"
                 >
-                  {{ editSavingId === root?.id ? 'Ukladam...' : 'Ulozit' }}
+                  {{ editSavingId === root?.id ? 'Ukladám...' : 'Ulozit' }}
                 </button>
                 <button
                   class="replyBtn"
@@ -94,7 +94,7 @@
               </p>
             </div>
             <button class="replyBtn" type="button" @click="openAttachedEvent(root)">
-              Otvorit udalost
+              Otvoriť udalost
             </button>
           </div>
 
@@ -109,7 +109,10 @@
               :src="attachmentSrc(root)"
               alt="Priloha prispevku"
               :blurred="isAttachmentPending(root)"
+              :status="root?.attachment_moderation_status"
+              :post-id="root?.id"
               pending-label="Kontrolujem..."
+              @unblurred="(d) => onAttachmentUnblurred(root, d)"
             />
 
             <a
@@ -222,7 +225,7 @@
                       :disabled="editSavingId === r.id"
                       @click="saveInlineEdit(r)"
                     >
-                      {{ editSavingId === r.id ? 'Ukladam...' : 'Ulozit' }}
+                      {{ editSavingId === r.id ? 'Ukladám...' : 'Ulozit' }}
                     </button>
                     <button
                       class="replyBtn"
@@ -248,7 +251,10 @@
                   :src="attachmentSrc(r)"
                   alt="Priloha prispevku"
                   :blurred="isAttachmentPending(r)"
+                  :status="r?.attachment_moderation_status"
+                  :post-id="r?.id"
                   pending-label="Kontrolujem..."
+                  @unblurred="(d) => onAttachmentUnblurred(r, d)"
                 />
 
                 <a
@@ -335,7 +341,7 @@
                             :disabled="editSavingId === c.id"
                             @click="saveInlineEdit(c)"
                           >
-                            {{ editSavingId === c.id ? 'Ukladam...' : 'Ulozit' }}
+                            {{ editSavingId === c.id ? 'Ukladám...' : 'Ulozit' }}
                           </button>
                           <button
                             class="replyBtn"
@@ -361,7 +367,10 @@
                         :src="attachmentSrc(c)"
                         alt="Priloha prispevku"
                         :blurred="isAttachmentPending(c)"
+                        :status="c?.attachment_moderation_status"
+                        :post-id="c?.id"
                         pending-label="Kontrolujem..."
+                        @unblurred="(d) => onAttachmentUnblurred(c, d)"
                       />
 
                       <a

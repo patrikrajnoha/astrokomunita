@@ -2,7 +2,7 @@ import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/util
 import { eventDisplayShort, eventDisplayTitle } from '@/utils/translatedFields'
 
 const STAR_NAMES = new Set([
-  'Regulus', 'Pollux', 'Castor', 'Spica', 'Antares', 'Aldebaran',
+  'Regulus', 'Pollux', 'Castor', 'Spica', 'Spika', 'Antares', 'Aldebaran',
   'Arcturus', 'Sirius', 'Vega', 'Deneb', 'Altair', 'Betelgeuse',
   'Rigel', 'Capella', 'Procyon', 'Canopus', 'Fomalhaut', 'Achernar',
   'Algol', 'Mira', 'Elnath', 'Mimosa', 'Hadar', 'Acrux', 'Gacrux',
@@ -11,11 +11,19 @@ const STAR_NAMES = new Set([
   'Menkar', 'Menkib', 'Sheratan', 'Hamal', 'Almach', 'Mirach',
 ])
 
+function normalizeStarNameForDisplay(value) {
+  if (typeof value !== 'string' || value === '') return value
+  return value
+    .replace(/\bSpica\b/g, 'Spika')
+    .replace(/\bspica\b/g, 'spika')
+}
+
 export function prependStarLabel(title) {
-  if (!title || title === '-') return title
-  const firstWord = title.split(/[\s,°]/)[0]
-  if (STAR_NAMES.has(firstWord)) return `Hviezda ${title}`
-  return title
+  const normalizedTitle = normalizeStarNameForDisplay(title)
+  if (!normalizedTitle || normalizedTitle === '-') return normalizedTitle
+  const firstWord = normalizedTitle.split(/[\s,°]/)[0]
+  if (STAR_NAMES.has(firstWord)) return `Hviezda ${normalizedTitle}`
+  return normalizedTitle
 }
 
 export function formatEventCardTitle(eventItem) {
@@ -76,11 +84,11 @@ export function publicConfidenceTooltip(eventItem) {
 }
 
 export function eventCardSummary(eventItem) {
-  const summary = eventDisplayShort(eventItem)
+  const summary = normalizeStarNameForDisplay(eventDisplayShort(eventItem))
   if (!summary || summary === '-') return ''
 
   const normalizedSummary = normalizeText(summary)
-  const normalizedTitle = normalizeText(eventDisplayTitle(eventItem))
+  const normalizedTitle = normalizeText(normalizeStarNameForDisplay(eventDisplayTitle(eventItem)))
 
   if (!normalizedSummary || normalizedSummary === normalizedTitle) return ''
   if (isRedundantEventSummary(summary)) return ''

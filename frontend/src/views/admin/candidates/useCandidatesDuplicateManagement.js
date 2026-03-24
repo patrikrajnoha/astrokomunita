@@ -15,6 +15,7 @@ export function useCandidatesDuplicateManagement({
   const duplicateDryRunning = ref(false)
   const duplicateGroupLimit = ref(8)
   const duplicatePerGroup = ref(3)
+  const mergeResult = ref(null)
 
   let reloadCandidates = async () => {}
 
@@ -90,6 +91,7 @@ export function useCandidatesDuplicateManagement({
     if (!ok) return
 
     duplicateMerging.value = true
+    const groupsSnapshot = duplicateGroups.value.slice()
     try {
       const params = buildDuplicateParams()
       const result = await eventCandidates.mergeDuplicates({
@@ -98,10 +100,16 @@ export function useCandidatesDuplicateManagement({
         dry_run: false,
       })
       const merged = Number(result?.summary?.merged_candidates || 0)
-      toast.success(`Deduplikacia hotova, oznacene duplicate: ${merged}.`)
+      mergeResult.value = {
+        merged_candidates: merged,
+        group_count: Number(result?.summary?.group_count || 0),
+        groups: groupsSnapshot,
+        dry_run: false,
+      }
+      toast.success(`Deduplikácia hotová, označené duplicate: ${merged}.`)
       await reloadCandidates()
     } catch (e) {
-      const message = e?.response?.data?.message || 'Deduplikacia zlyhala'
+      const message = e?.response?.data?.message || 'Deduplikácia zlyhala'
       error.value = message
       toast.error(message)
     } finally {
@@ -123,10 +131,10 @@ export function useCandidatesDuplicateManagement({
 
       const groups = Number(result?.summary?.group_count || 0)
       const merged = Number(result?.summary?.merged_candidates || 0)
-      toast.success(`Dry-run: skupiny ${groups}, navrh duplicit ${merged}.`)
+      toast.success(`Dry-run: skupiny ${groups}, návrh duplicit ${merged}.`)
       await loadDuplicatePreview()
     } catch (e) {
-      const message = e?.response?.data?.message || 'Dry-run deduplikacie zlyhal'
+      const message = e?.response?.data?.message || 'Dry-run deduplikácie zlyhal'
       error.value = message
       toast.error(message)
     } finally {
@@ -153,6 +161,7 @@ export function useCandidatesDuplicateManagement({
     duplicateSummary,
     loadDuplicatePreview,
     mergeDuplicateGroups,
+    mergeResult,
     setDuplicateReloadHandler,
   }
 }

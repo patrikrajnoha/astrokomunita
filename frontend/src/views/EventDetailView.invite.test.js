@@ -218,6 +218,26 @@ describe('EventDetailView', () => {
     expect(rendered).not.toContain('Cas "Maximum" znamena astronomicky vrchol javu')
   })
 
+  it('uses neutral time label when forecast rating is bad', async () => {
+    viewingForecastStateMock.value = {
+      loading: false,
+      missingLocation: false,
+      viewingWindow: {
+        start_at: '2026-04-02T02:12:00Z',
+        end_at: '2026-04-02T04:29:00Z',
+      },
+      summary: {
+        rating: 'bad',
+        label_sk: 'Zlé',
+      },
+    }
+
+    const { wrapper } = await mountView()
+
+    expect(wrapper.text()).toContain('Možné okno')
+    expect(wrapper.text()).not.toContain('Najlepší čas')
+  })
+
   it('navigates to next event on swipe left', async () => {
     apiGetMock.mockImplementation((url) => {
       if (url === '/events/12') {

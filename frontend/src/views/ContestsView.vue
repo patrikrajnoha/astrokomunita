@@ -14,7 +14,7 @@ const activeContest = computed(() => activeContests.value[0] || null)
 const finishedContest = computed(() => latestFinished.value || null)
 
 const instructionText = computed(() => {
-  if (!activeContest.value) return 'Aktualne neprebieha ziadna sutaz.'
+  if (!activeContest.value) return 'Aktuálne neprebieha ziadna sutaz.'
   return `Pre ucast pouzite hashtag #${activeContest.value.hashtag}`
 })
 

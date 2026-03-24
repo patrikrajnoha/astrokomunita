@@ -1,5 +1,5 @@
 <template>
-  <div class="rich-editor" :class="{ 'is-disabled': disabled }">
+  <div class="rich-editor" :class="{ 'is-disabled': disabled, 'is-dragging-image': isDragOverImage }">
     <div class="rich-editor__toolbar" role="toolbar" aria-label="Formatovanie textu">
       <button
         type="button"
@@ -34,7 +34,11 @@
         @mousedown.prevent
         @click="openImageDialog"
       >
-        🖼
+        <svg class="rich-editor__tool-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z" />
+          <path d="m8 15 2.5-2.5 2 2 2.5-3 3 3.5" />
+          <circle cx="9" cy="10" r="1.2" />
+        </svg>
       </button>
 
       <label class="rich-editor__format">
@@ -84,27 +88,59 @@
         @keydown.enter.prevent="confirmImageInsert"
         @keydown.esc.prevent="imageDialogVisible = false"
       />
+      <button
+        type="button"
+        class="rich-editor__tool"
+        :disabled="isUploadingImage"
+        @click="openImageFileDialog"
+      >Nahrať súbor</button>
       <button type="button" class="rich-editor__tool" @click="confirmImageInsert">Vložiť</button>
       <button type="button" class="rich-editor__tool" @click="imageDialogVisible = false">Zrušiť</button>
     </div>
 
+    <input
+      ref="imageFileInputRef"
+      class="rich-editor__image-file-input"
+      type="file"
+      accept="image/*"
+      @change="handleImageFileChange"
+    />
+
+    <div v-if="isUploadingImage || imageUploadError" class="rich-editor__status">
+      <span v-if="isUploadingImage">Nahrávam obrázok...</span>
+      <span v-else class="rich-editor__status-error">{{ imageUploadError }}</span>
+    </div>
+
     <div
-      ref="editorRef"
-      class="rich-editor__surface"
-      :class="{ 'is-empty': isEmpty }"
-      :style="surfaceStyle"
-      :contenteditable="(!disabled).toString()"
-      role="textbox"
-      aria-multiline="true"
-      :data-placeholder="placeholder"
-      @input="handleInput"
-      @focus="captureSelection"
-      @keyup="captureSelection"
-      @mouseup="captureSelection"
-      @keydown="handleKeydown"
-      @blur="handleBlur"
-      @paste="handlePaste"
-    ></div>
+      class="rich-editor__surface-wrap"
+      :class="{ 'is-drag-over': isDragOverImage, 'is-uploading': isUploadingImage }"
+    >
+      <div
+        ref="editorRef"
+        class="rich-editor__surface"
+        :class="{ 'is-empty': isEmpty }"
+        :style="surfaceStyle"
+        :contenteditable="(!disabled).toString()"
+        role="textbox"
+        aria-multiline="true"
+        :data-placeholder="placeholder"
+        @input="handleInput"
+        @focus="captureSelection"
+        @keyup="captureSelection"
+        @mouseup="captureSelection"
+        @keydown="handleKeydown"
+        @blur="handleBlur"
+        @paste="handlePaste"
+        @dragenter="handleDragEnter"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop"
+      ></div>
+
+      <div v-if="isDragOverImage" class="rich-editor__drop-hint">
+        Pusti obrázok sem a pridám ho do článku.
+      </div>
+    </div>
   </div>
 </template>
 
@@ -119,9 +155,10 @@ import {
 
 const FONT_SIZE_OPTIONS = [14, 16, 18, 20, 24, 30, 36];
 const BLOCK_FORMAT_OPTIONS = [
+  { value: "p", label: "Normálny text" },
   { value: "h2", label: "Nadpis 2" },
   { value: "h3", label: "Nadpis 3" },
-  { value: "ul", label: "• Odrážky" },
+  { value: "ul", label: "Odrážky" },
   { value: "ol", label: "1. Číslovanie" },
 ];
 const BLOCK_FORMAT_TAGS = new Set(["p", "h2", "h3"]);
@@ -133,7 +170,7 @@ const props = defineProps({
   },
   placeholder: {
     type: String,
-    default: "Napis obsah...",
+    default: "Napíš obsah...",
   },
   minHeight: {
     type: Number,
@@ -142,6 +179,10 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false,
+  },
+  imageUploadHandler: {
+    type: Function,
+    default: null,
   },
 });
 
@@ -154,14 +195,81 @@ const editorRef = ref(null);
 const isEmpty = ref(true);
 const lastEmittedValue = ref("");
 const selectedFontSize = ref(16);
-const selectedBlockTag = ref("");
+const selectedBlockTag = ref("p");
 const selectionRange = ref(null);
 const imageDialogVisible = ref(false);
 const imageDialogUrl = ref("");
+const imageFileInputRef = ref(null);
+const isUploadingImage = ref(false);
+const imageUploadError = ref("");
+const isDragOverImage = ref(false);
 
 const surfaceStyle = computed(() => ({
   minHeight: `${Math.max(160, Number(props.minHeight) || 280)}px`,
 }));
+
+function escapeAttributeValue(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function extractImageFile(dataTransfer) {
+  if (!dataTransfer) return null;
+
+  const files = Array.from(dataTransfer.files || []);
+  const fileFromList = files.find(
+    (file) => typeof file?.type === "string" && file.type.toLowerCase().startsWith("image/")
+  );
+  if (fileFromList) return fileFromList;
+
+  const items = Array.from(dataTransfer.items || []);
+  for (const item of items) {
+    if (item?.kind !== "file") continue;
+    const file = item.getAsFile?.();
+    if (!file) continue;
+    if (typeof file.type === "string" && file.type.toLowerCase().startsWith("image/")) {
+      return file;
+    }
+  }
+
+  return null;
+}
+
+function hasImageFile(dataTransfer) {
+  return Boolean(extractImageFile(dataTransfer));
+}
+
+function resetDragState() {
+  isDragOverImage.value = false;
+}
+
+function placeCaretFromPoint(clientX, clientY) {
+  if (typeof document === "undefined" || typeof window === "undefined") return;
+
+  const selection = window.getSelection?.();
+  if (!selection) return;
+
+  let range = null;
+  if (typeof document.caretRangeFromPoint === "function") {
+    range = document.caretRangeFromPoint(clientX, clientY);
+  } else if (typeof document.caretPositionFromPoint === "function") {
+    const position = document.caretPositionFromPoint(clientX, clientY);
+    if (position?.offsetNode) {
+      range = document.createRange();
+      range.setStart(position.offsetNode, position.offset || 0);
+      range.collapse(true);
+    }
+  }
+
+  if (!range || !editorContainsNode(range.commonAncestorContainer)) return;
+
+  selection.removeAllRanges();
+  selection.addRange(range);
+  selectionRange.value = range.cloneRange();
+}
 
 function toEditorHtml(value) {
   const raw = String(value || "").trim();
@@ -238,12 +346,13 @@ function restoreSelection() {
   const selection = window.getSelection?.();
   if (!selection) return;
 
+  const savedRange = selectionRange.value;
   editor.focus();
 
-  if (!selectionRange.value) return;
+  if (!savedRange) return;
   try {
     selection.removeAllRanges();
-    selection.addRange(selectionRange.value);
+    selection.addRange(savedRange);
   } catch {
     // Ignore stale ranges from DOM updates.
   }
@@ -272,12 +381,12 @@ function setCaretPosition(selection, node, offset) {
 }
 
 function resolveSelectionBlockTag() {
-  if (typeof window === "undefined") return "p";
+  if (typeof window === "undefined") return null;
   const selection = window.getSelection?.();
-  if (!selection || selection.rangeCount === 0) return "p";
+  if (!selection || selection.rangeCount === 0) return null;
 
   let node = selection.anchorNode || selection.getRangeAt(0).startContainer;
-  if (!editorContainsNode(node)) return "p";
+  if (!editorContainsNode(node)) return null;
 
   if (node.nodeType === TEXT_NODE) {
     node = node.parentNode;
@@ -302,7 +411,9 @@ function resolveSelectionBlockTag() {
 }
 
 function syncSelectionFormattingState() {
-  selectedBlockTag.value = resolveSelectionBlockTag();
+  const resolvedTag = resolveSelectionBlockTag();
+  if (!resolvedTag) return;
+  selectedBlockTag.value = resolvedTag;
 }
 
 function applyBlockFormat() {
@@ -316,7 +427,7 @@ function applyBlockFormat() {
   } else if (selectedBlockTag.value === "ol") {
     document.execCommand("insertOrderedList", false);
   } else if (BLOCK_FORMAT_TAGS.has(selectedBlockTag.value)) {
-    document.execCommand("formatBlock", false, `<${selectedBlockTag.value}>`);
+    document.execCommand("formatBlock", false, selectedBlockTag.value);
   }
 
   emitEditorValue();
@@ -409,8 +520,88 @@ function applyFontSize() {
 function openImageDialog() {
   if (props.disabled) return;
   captureSelection();
+  imageUploadError.value = "";
   imageDialogUrl.value = "";
   imageDialogVisible.value = true;
+}
+
+function insertImageAtSelection(url, alt = "") {
+  restoreSelection();
+  focusEditor();
+  const safeUrl = escapeAttributeValue(url);
+  const safeAlt = escapeAttributeValue(alt);
+  document.execCommand("insertHTML", false, `<img src="${safeUrl}" alt="${safeAlt}" />`);
+  emitEditorValue();
+  captureSelection();
+  syncSelectionFormattingState();
+}
+
+function resolveUploadErrorMessage(error) {
+  const responseMessage = String(error?.response?.data?.message || "").trim();
+  if (responseMessage) return responseMessage;
+
+  const validationMessage = String(error?.response?.data?.errors?.image?.[0] || "").trim();
+  if (validationMessage) return validationMessage;
+
+  const localMessage = String(error?.message || "").trim();
+  if (localMessage) return localMessage;
+
+  return "Nepodarilo sa nahrať obrázok.";
+}
+
+async function uploadImageFromFile(file) {
+  if (props.disabled || !file) return false;
+  if (isUploadingImage.value) return false;
+
+  const mime = String(file.type || "").toLowerCase();
+  if (!mime.startsWith("image/")) {
+    imageUploadError.value = "Vyber súbor typu obrázok.";
+    return false;
+  }
+
+  if (typeof props.imageUploadHandler !== "function") {
+    imageUploadError.value = "Upload obrázka nie je dostupný.";
+    return false;
+  }
+
+  imageUploadError.value = "";
+  isUploadingImage.value = true;
+
+  try {
+    const response = await props.imageUploadHandler(file);
+    const uploadedUrl =
+      typeof response === "string" ? response.trim() : String(response?.url || "").trim();
+
+    if (!uploadedUrl) {
+      throw new Error("Server nevrátil URL obrázka.");
+    }
+
+    insertImageAtSelection(uploadedUrl, file.name || "");
+    imageDialogVisible.value = false;
+    return true;
+  } catch (error) {
+    imageUploadError.value = resolveUploadErrorMessage(error);
+    return false;
+  } finally {
+    isUploadingImage.value = false;
+  }
+}
+
+function openImageFileDialog() {
+  if (props.disabled || isUploadingImage.value) return;
+  captureSelection();
+  imageFileInputRef.value?.click?.();
+}
+
+async function handleImageFileChange(event) {
+  const input = event?.target;
+  const file = input?.files?.[0] || null;
+  if (input) {
+    input.value = "";
+  }
+
+  if (!file) return;
+  await uploadImageFromFile(file);
 }
 
 function confirmImageInsert() {
@@ -418,11 +609,8 @@ function confirmImageInsert() {
   imageDialogVisible.value = false;
   if (!url) return;
 
-  restoreSelection();
-  focusEditor();
-  document.execCommand("insertHTML", false, `<img src="${url}" alt="" />`);
-  emitEditorValue();
-  captureSelection();
+  imageUploadError.value = "";
+  insertImageAtSelection(url);
 }
 
 function handleInput() {
@@ -474,8 +662,58 @@ function handleBlur() {
   syncSelectionFormattingState();
 }
 
-function handlePaste(event) {
+function handleDragEnter(event) {
+  if (props.disabled || isUploadingImage.value) return;
+  if (!hasImageFile(event.dataTransfer)) return;
+
+  event.preventDefault();
+  isDragOverImage.value = true;
+}
+
+function handleDragOver(event) {
+  if (props.disabled || isUploadingImage.value) return;
+  if (!hasImageFile(event.dataTransfer)) return;
+
+  event.preventDefault();
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = "copy";
+  }
+  isDragOverImage.value = true;
+}
+
+function handleDragLeave(event) {
+  if (!isDragOverImage.value) return;
+
+  const relatedTarget = event.relatedTarget;
+  if (relatedTarget && editorContainsNode(relatedTarget)) {
+    return;
+  }
+
+  isDragOverImage.value = false;
+}
+
+async function handleDrop(event) {
+  if (props.disabled || isUploadingImage.value) return;
+  event.preventDefault();
+  const imageFile = extractImageFile(event.dataTransfer);
+  resetDragState();
+  if (!imageFile) return;
+
+  placeCaretFromPoint(event.clientX, event.clientY);
+  captureSelection();
+  await uploadImageFromFile(imageFile);
+}
+
+async function handlePaste(event) {
   if (props.disabled) return;
+
+  const imageFile = extractImageFile(event.clipboardData);
+  if (imageFile) {
+    event.preventDefault();
+    captureSelection();
+    await uploadImageFromFile(imageFile);
+    return;
+  }
 
   event.preventDefault();
   const plainText = event.clipboardData?.getData("text/plain") || "";
@@ -508,6 +746,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener("selectionchange", handleSelectionChange);
+  resetDragState();
 });
 </script>
 
@@ -534,6 +773,9 @@ onBeforeUnmount(() => {
 }
 
 .rich-editor__tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 36px;
   min-height: 32px;
   padding: 0 10px;
@@ -542,6 +784,16 @@ onBeforeUnmount(() => {
   background: rgb(var(--color-text-secondary-rgb) / 0.1);
   color: inherit;
   cursor: pointer;
+}
+
+.rich-editor__tool-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .rich-editor__tool:disabled {
@@ -593,6 +845,35 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.rich-editor__image-file-input {
+  display: none;
+}
+
+.rich-editor__status {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--divider-color);
+  background: rgb(var(--color-bg-rgb) / 0.65);
+  font-size: 12px;
+  color: rgb(var(--color-surface-rgb) / 0.74);
+}
+
+.rich-editor__status-error {
+  color: var(--color-danger);
+}
+
+.rich-editor__surface-wrap {
+  position: relative;
+  transition: background-color 160ms ease;
+}
+
+.rich-editor__surface-wrap.is-drag-over {
+  background: rgb(var(--color-primary-rgb) / 0.08);
+}
+
+.rich-editor__surface-wrap.is-uploading {
+  cursor: progress;
+}
+
 .rich-editor__surface :deep(img) {
   max-width: 100%;
   height: auto;
@@ -606,6 +887,22 @@ onBeforeUnmount(() => {
   padding: 12px;
   outline: none;
   line-height: 1.7;
+}
+
+.rich-editor__drop-hint {
+  position: absolute;
+  inset: 12px;
+  border: 1px dashed rgb(var(--color-primary-rgb) / 0.5);
+  border-radius: 10px;
+  background: rgb(var(--color-primary-rgb) / 0.1);
+  color: rgb(var(--color-primary-rgb) / 1);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px;
+  pointer-events: none;
 }
 
 .rich-editor__surface.is-empty::before {
@@ -653,4 +950,17 @@ onBeforeUnmount(() => {
   color: var(--color-primary);
   text-decoration: underline;
 }
+
+@media (hover: none) and (pointer: coarse) {
+  .rich-editor__tool {
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .rich-editor__format select,
+  .rich-editor__size select {
+    min-height: 40px;
+  }
+}
 </style>
+

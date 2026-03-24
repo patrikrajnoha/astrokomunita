@@ -97,7 +97,7 @@ describe('NightSkyWidget', () => {
     // No old table labels
     expect(wrapper.text()).not.toContain('Svetelne znecistenie')
     expect(wrapper.text()).not.toContain('Bortle')
-    expect(wrapper.text()).not.toContain('Viditelne planety')
+    expect(wrapper.text()).not.toContain('Viditeľné planety')
   })
 
   it('shows Výborné podmienky for dark sky (Bortle ≤ 2)', async () => {

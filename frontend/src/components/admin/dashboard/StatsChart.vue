@@ -53,6 +53,29 @@ const labelStep = computed(() => {
   return Math.ceil(count / 4)
 })
 
+const xLabelIndices = computed(() => {
+  const count = displayed.value.length
+  if (!count) return new Set()
+  if (count <= 4) return new Set(Array.from({ length: count }, (_, i) => i))
+
+  const indices = new Set([0, count - 1])
+  for (let i = labelStep.value; i < count - 1; i += labelStep.value) {
+    indices.add(i)
+  }
+
+  // Avoid adjacent labels at the end (e.g. 21.03 and 23.03 on narrow widths).
+  const sorted = Array.from(indices).sort((a, b) => a - b)
+  const compact = new Set()
+  let last = -10
+  for (const idx of sorted) {
+    if (idx === count - 1 || idx - last >= 2 || idx === 0) {
+      compact.add(idx)
+      last = idx
+    }
+  }
+  return compact
+})
+
 const maxValue = computed(() => {
   const all = displayed.value.map((point) => point.value)
   const max = Math.max(0, ...all)
@@ -143,9 +166,7 @@ function formatTooltip(point) {
 
 function shouldShowLabel(index) {
   if (!Number.isFinite(index)) return false
-  if (index === 0 || index === displayed.value.length - 1) return true
-
-  return index % labelStep.value === 0
+  return xLabelIndices.value.has(index)
 }
 </script>
 

@@ -70,6 +70,16 @@ const trendPointsByKey = computed(() => {
   return map
 })
 
+const summaryTiles = computed(() => {
+  const perKey = Array.isArray(metrics.value?.last_run_per_key) ? metrics.value.last_run_per_key : []
+  const find = (prefix) => perKey.find((r) => String(r?.key || '').startsWith(prefix)) ?? null
+  return [
+    { id: 'events_list', label: 'Events list', row: find('events_list_') },
+    { id: 'canonical', label: 'Kanonické', row: find('canonical_') },
+    { id: 'bot', label: 'Bot import', row: find('bot_run_') },
+  ]
+})
+
 const allLogs = computed(() => (Array.isArray(metrics.value?.logs) ? metrics.value.logs : []))
 
 const sortedLogs = computed(() => {
@@ -358,6 +368,14 @@ function trendForRow(row) {
     tone: 'neutral',
     text: t('trend.noData'),
   }
+}
+
+function latencyTone(avgMs) {
+  const n = Number(avgMs)
+  if (!Number.isFinite(n)) return 'neutral'
+  if (n < 100) return 'good'
+  if (n < 400) return 'warn'
+  return 'bad'
 }
 
 function openDetail(row) {

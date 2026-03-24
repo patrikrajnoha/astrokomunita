@@ -130,7 +130,7 @@ describe('admin nested section routes', () => {
     expect(router.resolve({ name: 'admin.newsletter' }).meta.adminTab).toBe('newsletter')
 
     expect(router.resolve({ name: 'admin.bots' }).meta.adminSection).toBe('automation')
-    expect(router.resolve({ name: 'admin.bots' }).meta.adminTab).toBe('overview')
+    expect(router.resolve({ name: 'admin.bots' }).meta.adminTab).toBe('dashboard')
 
     expect(router.resolve({ name: 'admin.bots.sources' }).meta.adminSection).toBe('automation')
     expect(router.resolve({ name: 'admin.bots.sources' }).meta.adminTab).toBe('sources')
@@ -139,10 +139,10 @@ describe('admin nested section routes', () => {
     expect(router.resolve({ name: 'admin.bots.schedules' }).meta.adminTab).toBe('schedules')
 
     expect(router.resolve({ name: 'admin.bots.engine' }).meta.adminSection).toBe('automation')
-    expect(router.resolve({ name: 'admin.bots.engine' }).meta.adminTab).toBe('engine')
+    expect(router.resolve({ name: 'admin.bots.engine' }).meta.adminTab).toBe('legacy-tools')
 
     expect(router.resolve({ name: 'admin.bots.activity' }).meta.adminSection).toBe('automation')
-    expect(router.resolve({ name: 'admin.bots.activity' }).meta.adminTab).toBe('activity')
+    expect(router.resolve({ name: 'admin.bots.activity' }).meta.adminTab).toBe('logs')
   })
 
   it('provides admin section meta for standalone named admin routes', () => {

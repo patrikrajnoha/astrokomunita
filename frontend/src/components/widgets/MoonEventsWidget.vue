@@ -69,7 +69,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Najbližšie lunárne udalosti',
+      default: 'Lunárny kalendár',
     },
     lat: {
       type: [Number, String],
@@ -95,13 +95,13 @@ export default {
 
     const buildQuery = () => {
       const query = {}
-      const lat = Number(props.lat)
-      const lon = Number(props.lon)
+      const lat = toFiniteCoordinate(props.lat)
+      const lon = toFiniteCoordinate(props.lon)
       const tz = String(props.tz || '').trim()
       const requestedYear = resolveYearFromDate(props.date)
 
-      if (Number.isFinite(lat)) query.lat = lat
-      if (Number.isFinite(lon)) query.lon = lon
+      if (lat !== null) query.lat = lat
+      if (lon !== null) query.lon = lon
       if (tz) query.tz = tz
       if (Number.isInteger(requestedYear)) query.year = requestedYear
 
@@ -236,6 +236,18 @@ function formatShortDate(value) {
   } catch {
     return ''
   }
+}
+
+function toFiniteCoordinate(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+
+  const normalized = value.trim()
+  if (!normalized) return null
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
 }
 </script>
 

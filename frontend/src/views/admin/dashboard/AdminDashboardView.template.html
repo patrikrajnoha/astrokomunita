@@ -1,107 +1,109 @@
+<AdminPageShell title="Prehľad">
+  <template #right-actions>
+    <button type="button" class="ui-btn ui-btn--primary" :disabled="loading" @click="loadDashboard(true)">
+      {{ loading ? 'Načítavam...' : 'Obnoviť' }}
+    </button>
+    <button type="button" class="ui-btn ui-btn--secondary" :disabled="exporting" @click="exportCsv">
+      {{ exporting ? 'Exportujem...' : 'Export CSV' }}
+    </button>
+  </template>
 
-  <AdminPageShell title="Prehľad">
-    <template #right-actions>
-      <button type="button" class="ui-btn ui-btn--primary" :disabled="loading" @click="loadDashboard(true)">
-        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
-      </button>
-      <button type="button" class="ui-btn ui-btn--secondary" :disabled="exporting" @click="exportCsv">
-        {{ exporting ? 'Exportujem...' : 'Export CSV' }}
-      </button>
-    </template>
-
-    <div class="dashboardView">
-      <div v-if="error" class="dashboardAlert">
-        <InlineStatus
-          variant="error"
-          :message="error"
-          action-label="Skúsiť znova"
-          @action="loadDashboard(true)"
-        />
-      </div>
-
-      <section class="kpiGrid sectionFade" aria-label="Kľúčové ukazovatele">
-        <template v-if="loading && !stats">
-          <div v-for="idx in 5" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
-        </template>
-
-        <template v-else>
-          <KpiCard
-            v-for="item in kpiCards"
-            :key="item.key"
-            :label="item.label"
-            :value="formatNumber(item.value)"
-            :view-to="item.viewTo"
-            :tone="item.tone || 'default'"
-          />
-        </template>
-      </section>
-
-      <section class="mainGrid sectionFade" aria-label="Trend a rýchle akcie">
-        <DashboardSection title="Trend (30 dní)">
-          <template #header-actions>
-            <div class="metricTabs" role="group" aria-label="Prepínanie trendu">
-              <button
-                v-for="option in trendMetricOptions"
-                :key="option.key"
-                type="button"
-                class="metricBtn"
-                :class="{ active: trendMetric === option.key }"
-                @click="trendMetric = option.key"
-              >
-                {{ option.label }}
-              </button>
-            </div>
-          </template>
-
-          <StatsChart :points="trendPoints" :metric-key="trendMetric" />
-        </DashboardSection>
-
-        <DashboardSection title="Rýchle akcie">
-          <div class="actionList">
-            <QuickActionTile
-              v-for="action in quickActions"
-              :key="action.title"
-              :title="action.title"
-              :subtitle="action.subtitle"
-              :to="action.to"
-              :badge="formatNumber(action.badge)"
-              :badge-tone="action.badgeTone || 'neutral'"
-            />
-          </div>
-        </DashboardSection>
-      </section>
-
-      <section class="summaryStrip sectionFade" aria-label="Rozloženie účtov">
-        <div class="summaryGroup">
-          <p class="summaryLabel">Podľa rolí</p>
-          <div class="summaryItems">
-            <div v-for="item in byRoleList" :key="item.key" class="summaryItem">
-              <strong>{{ formatNumber(item.value) }}</strong>
-              <span>{{ item.label }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="summaryGroup">
-          <p class="summaryLabel">Podľa regiónu (profil)</p>
-          <div class="summaryItems">
-            <div v-for="item in byRegionProfileList" :key="item.key" class="summaryItem">
-              <span class="summaryFlag" aria-hidden="true">{{ item.icon }}</span>
-              <strong>{{ formatNumber(item.value) }}</strong>
-              <span>{{ item.label }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="summaryGroup">
-          <p class="summaryLabel">Aktivita (30 dní)</p>
-          <div class="summaryItems">
-            <div v-for="item in activityHighlights" :key="item.key" class="summaryItem">
-              <strong>{{ formatNumber(item.value) }}</strong>
-              <span>{{ item.label }}</span>
-            </div>
-          </div>
-        </div>
-      </section>
+  <div class="dashboardView">
+    <div v-if="error" class="dashboardAlert">
+      <InlineStatus
+        variant="error"
+        :message="error"
+        action-label="Skúsiť znova"
+        @action="loadDashboard(true)"
+      />
     </div>
-  </AdminPageShell>
+
+    <section class="kpiGrid sectionFade" aria-label="Kľúčové ukazovatele">
+      <template v-if="loading && !stats">
+        <div v-for="idx in 4" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
+      </template>
+
+      <template v-else>
+        <KpiCard
+          v-for="item in kpiCards"
+          :key="item.key"
+          :label="item.label"
+          :value="formatNumber(item.value)"
+          :view-to="item.viewTo"
+          :weight="item.weight || 'default'"
+        />
+      </template>
+    </section>
+
+    <section class="mainGrid sectionFade" aria-label="Trend a operatívne centrum">
+      <DashboardSection title="Trend (30 dní)" subtitle="Vývoj nových záznamov za posledných 30 dní">
+        <template #header-actions>
+          <div class="metricTabs" role="group" aria-label="Prepínanie trendu">
+            <button
+              v-for="option in trendMetricOptions"
+              :key="option.key"
+              type="button"
+              class="metricBtn"
+              :class="{ active: trendMetric === option.key }"
+              @click="trendMetric = option.key"
+            >
+              {{ option.label }}
+            </button>
+          </div>
+        </template>
+
+        <StatsChart :points="trendPoints" :metric-key="trendMetric" />
+      </DashboardSection>
+
+      <DashboardSection title="Operatívne centrum" subtitle="Čo sa deje teraz a kam pokračovať">
+        <div class="moderationPulse">
+          <div class="pulseMetric">
+            <span>Na moderáciu</span>
+            <strong>{{ formatNumber(moderationSnapshot.pending + moderationSnapshot.flagged) }}</strong>
+          </div>
+          <div class="pulseMeta">
+            <span>Nahlásené: {{ formatNumber(moderationSnapshot.flagged) }}</span>
+            <span>Spracované celkom: {{ formatNumber(moderationSnapshot.processed) }}</span>
+          </div>
+        </div>
+
+        <div class="actionList">
+          <QuickActionTile
+            v-for="action in quickActions"
+            :key="action.title"
+            :title="action.title"
+            :subtitle="action.subtitle"
+            :to="action.to"
+            :badge="action.badge !== undefined ? formatNumber(action.badge) : null"
+            :badge-tone="action.badgeTone || 'neutral'"
+          />
+        </div>
+      </DashboardSection>
+    </section>
+
+    <section class="analyticsCard sectionFade" aria-label="Sekundárna analytika">
+      <header class="analyticsHeader">
+        <h2>Sekundárna analytika</h2>
+        <div class="analyticsTabs" role="tablist" aria-label="Prehľad statistik">
+          <button
+            v-for="tab in secondaryTabs"
+            :key="tab.key"
+            type="button"
+            class="analyticsTab"
+            :class="{ active: secondaryTab === tab.key }"
+            @click="secondaryTab = tab.key"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </header>
+
+      <div class="analyticsList">
+        <div v-for="item in secondaryStats" :key="item.key" class="analyticsRow">
+          <span class="analyticsLabel">{{ item.label }}</span>
+          <strong class="analyticsValue">{{ formatNumber(item.value) }}</strong>
+        </div>
+      </div>
+    </section>
+  </div>
+</AdminPageShell>

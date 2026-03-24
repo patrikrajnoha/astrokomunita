@@ -88,7 +88,7 @@ describe('EventFormView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).not.toContain('AI: Zlep')
+    expect(wrapper.text()).not.toContain('AI: Zlép')
     expect(wrapper.findAll('button').find((button) => button.text().includes('Navrhn'))).toBeFalsy()
     expect(wrapper.find('[data-testid="event-title-apply-btn"]').exists()).toBe(false)
   })
@@ -100,7 +100,7 @@ describe('EventFormView', () => {
 
     const aiDescriptionButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Vylep'))
+      .find((button) => button.text().includes('Pouzit navrh'))
 
     expect(aiDescriptionButton).toBeTruthy()
     await aiDescriptionButton.trigger('click')
@@ -112,6 +112,29 @@ describe('EventFormView', () => {
       mode: 'ollama',
       fallback: 'base',
       force: true,
+    })
+  })
+
+  it('supports dry-run AI preview action', async () => {
+    const wrapper = mount(EventFormView)
+    await flush()
+    await flush()
+
+    const previewButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('Otestovat navrh'))
+
+    expect(previewButton).toBeTruthy()
+    await previewButton.trigger('click')
+    await flush()
+    await flush()
+
+    expect(generateAdminEventDescriptionMock).toHaveBeenCalledWith(12, {
+      sync: true,
+      mode: 'ollama',
+      fallback: 'skip',
+      force: false,
+      dry_run: true,
     })
   })
 })

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <SettingsDetailShell
     title="Aktivita používateľa"
     subtitle="Sekcia je štandardne skrytá. Otvorte ju iba keď ju potrebujete."

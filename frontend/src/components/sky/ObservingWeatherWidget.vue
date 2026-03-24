@@ -1,6 +1,6 @@
 <template>
   <section class="panel">
-    <h3 class="panelTitle sidebarSection__header">Počasie pre pozorovanie</h3>
+    <h3 class="panelTitle sidebarSection__header">Počasie na pozorovanie</h3>
 
     <!-- Loading -->
     <div v-if="showLoading" class="skeletonStack">

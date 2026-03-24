@@ -138,8 +138,11 @@ function cellTooltip(cell) {
   const items = eventsByDay.value[toYMD(cell.date)] || []
   if (!items.length) return ''
 
-  const shown = items.slice(0, 2).map((event) => prependStarLabel(event.title)).join(' · ')
-  if (items.length > 2) return `${shown} · a ${items.length - 2} ďalších`
+  const shown = items
+    .slice(0, 2)
+    .map((event) => `${eventTypeEmoji(event)} ${prependStarLabel(event.title)}`)
+    .join(' · ')
+  if (items.length > 2) return `${shown} · a ${items.length - 2} dalších`
   return shown
 }
 
@@ -154,6 +157,69 @@ function typeDot(type) {
   }
 
   return map[type] || 'dot-blue'
+}
+
+const PLANET_KEYWORDS = [
+  'mars',
+  'jupiter',
+  'saturn',
+  'venus',
+  'venusa',
+  'venera',
+  'merkur',
+  'uran',
+  'neptun',
+  'pluto',
+]
+
+function normalizeEventToken(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function eventTypeEmoji(event) {
+  const type = normalizeEventToken(event?.type)
+  const title = normalizeEventToken(event?.title)
+
+  if (type === 'aurora' || title.includes('aurora') || title.includes('polarna ziara')) return '\u{1F30C}'
+  if (type === 'meteor_shower' || type === 'meteors' || title.includes('meteor')) return '\u2604\uFE0F'
+  if (type === 'comet' || title.includes('komet')) return '\u2604\uFE0F'
+  if (type === 'asteroid' || title.includes('asteroid')) return '\u{1FAA8}'
+  if (
+    type === 'eclipse'
+    || type === 'eclipse_lunar'
+    || type === 'eclipse_solar'
+    || title.includes('zatmen')
+  ) return '\u{1F318}'
+  if (type === 'mission' || title.includes('misia') || title.includes('launch')) return '\u{1F680}'
+  if (type === 'conjunction' || type === 'planetary_event') return '\u{1FA90}'
+  if (PLANET_KEYWORDS.some((keyword) => title.includes(keyword))) return '\u{1FA90}'
+  if (title.includes('mesiac') || title.includes('moon')) return '\u{1F319}'
+  return '\u2728'
+}
+
+function eventTypeEmojiLabel(event) {
+  const type = normalizeEventToken(event?.type)
+  const title = normalizeEventToken(event?.title)
+
+  if (type === 'aurora' || title.includes('aurora') || title.includes('polarna ziara')) return 'Polarna ziara'
+  if (type === 'meteor_shower' || type === 'meteors' || title.includes('meteor')) return 'Meteoricky roj'
+  if (type === 'comet' || title.includes('komet')) return 'Kometa'
+  if (type === 'asteroid' || title.includes('asteroid')) return 'Asteroid'
+  if (
+    type === 'eclipse'
+    || type === 'eclipse_lunar'
+    || type === 'eclipse_solar'
+    || title.includes('zatmen')
+  ) return 'Zatmenie'
+  if (type === 'mission' || title.includes('misia') || title.includes('launch')) return 'Misia'
+  if (type === 'conjunction' || type === 'planetary_event') return 'Planetarny ukaz'
+  if (PLANET_KEYWORDS.some((keyword) => title.includes(keyword))) return 'Planetarny ukaz'
+  if (title.includes('mesiac') || title.includes('moon')) return 'Mesiac'
+  return 'Astronomicka udalost'
 }
 
 function formatEventTime(event) {

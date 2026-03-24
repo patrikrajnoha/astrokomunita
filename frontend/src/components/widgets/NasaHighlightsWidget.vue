@@ -58,7 +58,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'NASA Novinky',
+      default: 'Astrofoto dňa',
     },
     initialPayload: {
       type: Object,

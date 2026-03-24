@@ -66,7 +66,7 @@ describe('eventPreferences sidebar widget getters', () => {
           supported_event_types: ['meteors'],
           supported_regions: ['sk', 'eu', 'global'],
           supported_interests: ['visual'],
-          supported_sidebar_widgets: [{ section_key: 'neo_watchlist', title: 'NEO watchlist' }],
+          supported_sidebar_widgets: [{ section_key: 'neo_watchlist', title: 'Asteroidy nablízku' }],
           supported_sidebar_scopes: ['home', 'events'],
         },
       },

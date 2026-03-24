@@ -1,11 +1,13 @@
-<script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+﻿<script setup>
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import { useToast } from '@/composables/useToast'
 import {
   clearBotSourceCooldown,
   getBotSources,
   resetBotSourceHealth,
   reviveBotSource,
+  runBotSource,
   updateBotSource,
 } from '@/services/api/admin/bots'
 
@@ -14,17 +16,23 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  refreshToken: {
+    type: Number,
+    default: 0,
+  },
 })
+
+const toast = useToast()
 
 const loading = ref(false)
 const savingId = ref(null)
+const runningSourceKey = ref('')
 const error = ref('')
 const rows = ref([])
 
 const filters = reactive({
   q: '',
-  enabled: '',
-  failing_only: false,
+  status: 'all',
 })
 
 const editor = reactive({
@@ -34,19 +42,47 @@ const editor = reactive({
 })
 
 const hasActiveFilters = computed(() => {
-  return (
-    String(filters.q || '').trim() !== '' ||
-    filters.enabled === '1' ||
-    filters.enabled === '0' ||
-    filters.failing_only
-  )
+  return String(filters.q || '').trim() !== '' || filters.status !== 'all'
+})
+
+const filteredRows = computed(() => {
+  const search = String(filters.q || '').trim().toLowerCase()
+
+  return rows.value.filter((row) => {
+    if (filters.status === 'failing' && !isFailingStatus(row)) {
+      return false
+    }
+
+    if (filters.status === 'inactive' && row?.is_enabled !== false) {
+      return false
+    }
+
+    if (!search) {
+      return true
+    }
+
+    const haystack = [
+      row?.key,
+      row?.name,
+      row?.url,
+      row?.source_type,
+      row?.status,
+    ]
+      .map((value) => String(value || '').toLowerCase())
+      .join(' ')
+
+    return haystack.includes(search)
+  })
 })
 
 const summaryLine = computed(() => {
-  const count = rows.value.length
-  if (loading.value) return 'Načítavam zdroje...'
-  if (hasActiveFilters.value) return `${count} zdrojov pre aktivne filtre`
-  return `${count} zdrojov`
+  if (loading.value) return 'Načítavam zdroje…'
+
+  if (hasActiveFilters.value) {
+    return `${filteredRows.value.length} / ${rows.value.length} zdrojov`
+  }
+
+  return `${rows.value.length} zdrojov`
 })
 
 function formatDateTime(value) {
@@ -56,38 +92,61 @@ function formatDateTime(value) {
   return parsed.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-function formatRate(value) {
+function formatLatency(value) {
   const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric < 0) return '-'
-  return `${(numeric * 100).toFixed(1)}%`
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-'
+  if (numeric < 1000) {
+    return `${Math.round(numeric)} ms`
+  }
+
+  return `${Math.round(numeric / 1000)} s`
 }
 
-function requestParams() {
-  const params = {}
-  if (String(filters.q || '').trim() !== '') params.q = String(filters.q).trim()
-  if (filters.enabled === '1' || filters.enabled === '0') params.enabled = Number(filters.enabled)
-  if (filters.failing_only) params.failing_only = 1
-  return params
+function isFailingStatus(row) {
+  const status = String(row?.status || '').trim().toLowerCase()
+  return status === 'fail' || status === 'warn' || Boolean(row?.is_dead)
+}
+
+function sourceStatusLabel(row) {
+  if (row?.is_enabled === false) return 'Neaktívny'
+  if (row?.is_dead) return 'Mŕtvy'
+
+  const status = String(row?.status || '').trim().toLowerCase()
+  if (status === 'fail') return 'Chyba'
+  if (status === 'warn') return 'Upozornenie'
+  if (status === 'ok') return 'OK'
+
+  return 'Neznáme'
+}
+
+function sourceStatusClass(row) {
+  if (row?.is_enabled === false) return 'status status--inactive'
+  if (row?.is_dead) return 'status status--dead'
+
+  const status = String(row?.status || '').trim().toLowerCase()
+  if (status === 'fail') return 'status status--fail'
+  if (status === 'warn') return 'status status--warn'
+  if (status === 'ok') return 'status status--ok'
+
+  return 'status'
 }
 
 async function load() {
   loading.value = true
   error.value = ''
   try {
-    const response = await getBotSources(requestParams())
+    const response = await getBotSources()
     rows.value = Array.isArray(response?.data?.data) ? response.data.data : []
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nacitanie zdrojov zlyhalo.'
+    error.value = e?.response?.data?.message || 'Načítanie zdrojov zlyhalo.'
   } finally {
     loading.value = false
   }
 }
 
-async function clearFilters() {
+function clearFilters() {
   filters.q = ''
-  filters.enabled = ''
-  filters.failing_only = false
-  await load()
+  filters.status = 'all'
 }
 
 function startEdit(row) {
@@ -113,7 +172,7 @@ async function saveEdit() {
     cancelEdit()
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Ulozenie source konfiguracie zlyhalo.'
+    error.value = e?.response?.data?.message || 'Uloženie source konfigurácie zlyhalo.'
   } finally {
     savingId.value = null
   }
@@ -125,9 +184,28 @@ async function toggleEnabled(row) {
     await updateBotSource(row.id, { is_enabled: !row.is_enabled })
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Aktualizacia source statusu zlyhala.'
+    error.value = e?.response?.data?.message || 'Aktualizácia source statusu zlyhala.'
   } finally {
     savingId.value = null
+  }
+}
+
+async function runSourceNow(row) {
+  const sourceKey = String(row?.key || '').trim()
+  if (!sourceKey) return
+
+  runningSourceKey.value = sourceKey
+  try {
+    await runBotSource(sourceKey, {
+      mode: 'auto',
+      force_manual_override: true,
+    })
+    toast.success(`Zdroj ${sourceKey} bol spustený.`)
+    await load()
+  } catch (e) {
+    toast.error(e?.response?.data?.message || `Spustenie zdroja ${sourceKey} zlyhalo.`)
+  } finally {
+    runningSourceKey.value = ''
   }
 }
 
@@ -149,7 +227,7 @@ async function clearCooldown(row) {
     await clearBotSourceCooldown(row.id)
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Clear cooldown zlyhal.'
+    error.value = e?.response?.data?.message || 'Vyčistenie cooldownu zlyhalo.'
   } finally {
     savingId.value = null
   }
@@ -161,11 +239,18 @@ async function reviveSource(row) {
     await reviveBotSource(row.id)
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Revive source zlyhal.'
+    error.value = e?.response?.data?.message || 'Obnovenie zdroja zlyhalo.'
   } finally {
     savingId.value = null
   }
 }
+
+watch(
+  () => props.refreshToken,
+  () => {
+    void load()
+  },
+)
 
 onMounted(() => {
   void load()

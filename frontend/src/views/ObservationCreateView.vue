@@ -135,7 +135,7 @@ const saving = ref(false)
 const error = ref('')
 const openPostAfterCreate = ref(true)
 const submitLabel = computed(() => {
-  if (saving.value) return 'Ukladam...'
+  if (saving.value) return 'Ukladám...'
   if (form.isPublic && openPostAfterCreate.value) return 'Vytvoriť a otvoriť príspevok'
   return 'Vytvoriť pozorovanie'
 })

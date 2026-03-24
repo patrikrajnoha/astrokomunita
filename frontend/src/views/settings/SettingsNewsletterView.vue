@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <SettingsDetailShell
     title="Týždenný newsletter"
     subtitle="Dostávajte týždenný výber udalostí, článkov a jeden astronomický tip."

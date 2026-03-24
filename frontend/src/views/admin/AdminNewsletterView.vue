@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { getEvents } from '@/services/api/admin/events'
 import {
@@ -9,6 +9,8 @@ import {
   sendNewsletter,
   updateNewsletterFeaturedEvents,
 } from '@/services/api/admin/newsletter'
+
+const COPY_DRAFT_STORAGE_KEY = 'admin.newsletter.copy_draft.v1'
 
 const loading = ref(false)
 const savingSelection = ref(false)
@@ -21,12 +23,15 @@ const newsletterSubject = ref('')
 const newsletterIntro = ref('')
 const newsletterTipText = ref('')
 const localCopyEdited = ref(false)
+const draftHydrated = ref(false)
+const draftSavedAt = ref('')
 
 const preview = ref(null)
 const runs = ref([])
 const selectedEventIds = ref([])
 const candidateEvents = ref([])
 const maxFeaturedEvents = ref(10)
+const eventSelectionRef = ref(null)
 
 const sendOptions = reactive({
   force: false,
@@ -40,15 +45,53 @@ const canSaveSelection = computed(
     !savingSelection.value &&
     selectedCount.value <= maxFeaturedEvents.value,
 )
+const weekStart = computed(() => String(preview.value?.week?.start || '-'))
+const weekEnd = computed(() => String(preview.value?.week?.end || '-'))
+const pageTitle = computed(() => `Newsletter - Tyzden ${weekStart.value} az ${weekEnd.value}`)
+const previewTopEvents = computed(() => (Array.isArray(preview.value?.top_events) ? preview.value.top_events : []))
+const topArticles = computed(() => (Array.isArray(preview.value?.top_articles) ? preview.value.top_articles : []))
+const selectedEventsForSummary = computed(() => previewTopEvents.value.slice(0, 5))
+const selectionMode = computed(() => String(preview.value?.selection?.mode || 'manual'))
+const isAutoSelectionMode = computed(() => selectionMode.value === 'automatic_fallback')
+const selectionModeLabel = computed(() => (isAutoSelectionMode.value ? 'Automaticky vyber' : 'Rucny vyber'))
+const draftStatusLabel = computed(() => {
+  if (!draftSavedAt.value) return ''
+  return `Draft sa ulozil ${formatDateTime(draftSavedAt.value)}`
+})
+const visibleCandidateEvents = computed(() => {
+  if (!Array.isArray(candidateEvents.value) || candidateEvents.value.length === 0) {
+    return []
+  }
+
+  const startRaw = preview.value?.week?.start
+  const endRaw = preview.value?.week?.end
+  if (!startRaw || !endRaw) {
+    return candidateEvents.value
+  }
+
+  const start = new Date(`${startRaw}T00:00:00`)
+  const end = new Date(`${endRaw}T23:59:59`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return candidateEvents.value
+  }
+
+  const filtered = candidateEvents.value.filter((event) => {
+    const parsed = new Date(event.start_at)
+    if (Number.isNaN(parsed.getTime())) return false
+    return parsed >= start && parsed <= end
+  })
+
+  return filtered.length > 0 ? filtered : candidateEvents.value
+})
 
 function defaultNewsletterSubject() {
-  return 'Nebeský sprievodca: Týždenný newsletter'
+  return 'Nebesky sprievodca: Tyzdenny newsletter'
 }
 
 function defaultNewsletterIntro() {
   const start = preview.value?.week?.start || '-'
   const end = preview.value?.week?.end || '-'
-  return `Prehľad na týždeň ${start} až ${end}.`
+  return `Prehlad na tyzden ${start} az ${end}.`
 }
 
 function syncLocalCopyFieldsFromPreview() {
@@ -63,8 +106,89 @@ function syncLocalCopyFieldsFromPreview() {
   }
 }
 
+function supportsLocalStorage() {
+  try {
+    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+  } catch {
+    return false
+  }
+}
+
+function saveCopyDraft() {
+  if (!supportsLocalStorage()) return
+
+  const payload = {
+    subject: String(newsletterSubject.value || '').trim(),
+    intro: String(newsletterIntro.value || '').trim(),
+    tip: String(newsletterTipText.value || '').trim(),
+    saved_at: new Date().toISOString(),
+  }
+
+  window.localStorage.setItem(COPY_DRAFT_STORAGE_KEY, JSON.stringify(payload))
+  draftSavedAt.value = payload.saved_at
+}
+
+function hydrateCopyDraftOnce() {
+  if (draftHydrated.value || !supportsLocalStorage()) {
+    draftHydrated.value = true
+    return
+  }
+
+  const raw = window.localStorage.getItem(COPY_DRAFT_STORAGE_KEY)
+  draftHydrated.value = true
+  if (!raw) return
+
+  try {
+    const decoded = JSON.parse(raw)
+    const subject = String(decoded?.subject || '').trim()
+    const intro = String(decoded?.intro || '').trim()
+    const tip = String(decoded?.tip || '').trim()
+
+    if (!subject && !intro && !tip) {
+      return
+    }
+
+    newsletterSubject.value = subject || defaultNewsletterSubject()
+    newsletterIntro.value = intro || defaultNewsletterIntro()
+    newsletterTipText.value = tip || newsletterTipText.value
+    draftSavedAt.value = String(decoded?.saved_at || '')
+    localCopyEdited.value = true
+  } catch {
+    window.localStorage.removeItem(COPY_DRAFT_STORAGE_KEY)
+  }
+}
+
+function clearCopyDraft() {
+  if (!supportsLocalStorage()) return
+  window.localStorage.removeItem(COPY_DRAFT_STORAGE_KEY)
+  draftSavedAt.value = ''
+}
+
 function markLocalCopyEdited() {
   localCopyEdited.value = true
+  saveCopyDraft()
+}
+
+function resetCopyToSuggested() {
+  localCopyEdited.value = false
+  syncLocalCopyFieldsFromPreview()
+  clearCopyDraft()
+}
+
+async function focusEventSelection() {
+  await nextTick()
+
+  const root = eventSelectionRef.value
+  if (!root || typeof root.scrollIntoView !== 'function') {
+    return
+  }
+
+  root.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+  const firstCheckbox = root.querySelector('input[type="checkbox"]')
+  if (firstCheckbox && typeof firstCheckbox.focus === 'function') {
+    firstCheckbox.focus()
+  }
 }
 
 async function load() {
@@ -80,11 +204,19 @@ async function load() {
 
     preview.value = previewRes?.data?.data || null
     maxFeaturedEvents.value = Number(previewRes?.data?.meta?.max_featured_events || 10)
-    selectedEventIds.value = Array.isArray(preview.value?.top_events)
+
+    const explicitSelectionIds = Array.isArray(preview.value?.selection?.admin_selected_event_ids)
+      ? preview.value.selection.admin_selected_event_ids
+          .map((row) => Number(row || 0))
+          .filter((id) => id > 0)
+      : null
+    const fallbackSelectionIds = Array.isArray(preview.value?.top_events)
       ? preview.value.top_events
           .map((row) => Number(row?.id || 0))
           .filter((id) => id > 0)
       : []
+
+    selectedEventIds.value = explicitSelectionIds ?? fallbackSelectionIds
 
     runs.value = Array.isArray(runsRes?.data?.data) ? runsRes.data.data : []
 
@@ -92,14 +224,15 @@ async function load() {
     candidateEvents.value = Array.isArray(eventsPayload)
       ? eventsPayload.map((item) => ({
           id: Number(item.id),
-          title: item.title,
+          title: String(item.title || ''),
           start_at: item.start_at,
         }))
       : []
 
     syncLocalCopyFieldsFromPreview()
+    hydrateCopyDraftOnce()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa načítať dáta newslettera.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa nacitat data newslettera.'
   } finally {
     loading.value = false
   }
@@ -135,10 +268,10 @@ async function saveFeaturedEvents() {
       event_ids: selectedEventIds.value,
     })
 
-    success.value = 'Vybrané udalosti boli uložené.'
+    success.value = 'Vyber udalosti bol ulozeny.'
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa uložiť vybrané udalosti.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa ulozit vybrane udalosti.'
   } finally {
     savingSelection.value = false
   }
@@ -160,12 +293,12 @@ async function triggerSend() {
     const reason = response?.data?.reason || 'created'
     const runId = response?.data?.data?.id
     success.value = runId
-      ? `Newsletter run ${runId} accepted (${reason}).`
-      : `Newsletter action completed (${reason}).`
+      ? `Newsletter run ${runId} bol prijaty (${reason}).`
+      : `Newsletter akcia skoncila (${reason}).`
 
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa spustiť odoslanie newslettera.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslat newsletter.'
   } finally {
     sending.value = false
   }
@@ -176,7 +309,7 @@ async function triggerPreviewSend() {
 
   const normalizedEmail = String(previewEmail.value || '').trim()
   if (!normalizedEmail) {
-    error.value = 'Email pre náhľad je povinný.'
+    error.value = 'Email pre test je povinny.'
     success.value = ''
     return
   }
@@ -210,9 +343,9 @@ async function triggerPreviewSend() {
     const eventsCount = Number(data?.events_count || 0)
     const articlesCount = Number(data?.articles_count || 0)
 
-    success.value = `Náhľad odoslaný na ${email} (${eventsCount} udalostí, ${articlesCount} články).`
+    success.value = `Test bol odoslany na ${email} (${eventsCount} udalosti, ${articlesCount} clanky).`
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslať preview email.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslat test.'
   } finally {
     previewSending.value = false
   }

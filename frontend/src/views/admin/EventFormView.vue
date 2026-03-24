@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import api from '@/services/api'
@@ -25,7 +25,11 @@ const aiNotice = ref('')
 const aiRawStatusCode = ref(null)
 const aiUndoSnapshot = ref(null)
 const aiShortDraft = ref('')
+const aiProgressPercent = ref(null)
 const descriptionPreviewRef = ref(null)
+let aiProgressIntervalId = null
+let aiProgressResetTimeoutId = null
+let aiProgressStartedAt = 0
 
 const isEdit = computed(() => typeof route.params.id !== 'undefined')
 const eventId = computed(() => Number(route.params.id))
@@ -68,6 +72,46 @@ function normalizeAiStatus(value, fallback = 'idle') {
   return ['idle', 'success', 'fallback', 'error'].includes(fallbackNormalized)
     ? fallbackNormalized
     : 'idle'
+}
+
+function clearAiProgressTimers() {
+  if (aiProgressIntervalId !== null) {
+    clearInterval(aiProgressIntervalId)
+    aiProgressIntervalId = null
+  }
+
+  if (aiProgressResetTimeoutId !== null) {
+    clearTimeout(aiProgressResetTimeoutId)
+    aiProgressResetTimeoutId = null
+  }
+}
+
+function startAiProgressBar() {
+  clearAiProgressTimers()
+  aiProgressStartedAt = Date.now()
+  aiProgressPercent.value = 6
+
+  aiProgressIntervalId = setInterval(() => {
+    const elapsedMs = Math.max(0, Date.now() - aiProgressStartedAt)
+    const easedValue = 6 + (1 - Math.exp(-elapsedMs / 22_000)) * 84
+    const nextValue = Math.round(easedValue)
+    const currentValue = Number(aiProgressPercent.value || 0)
+
+    aiProgressPercent.value = Math.min(90, Math.max(currentValue, nextValue))
+  }, 320)
+}
+
+function stopAiProgressBar(success) {
+  clearAiProgressTimers()
+
+  if (success) {
+    aiProgressPercent.value = 100
+  }
+
+  aiProgressResetTimeoutId = setTimeout(() => {
+    aiProgressPercent.value = null
+    aiProgressResetTimeoutId = null
+  }, success ? 550 : 250)
 }
 
 async function focusDescriptionPreview() {
@@ -156,7 +200,21 @@ async function submit() {
 }
 
 async function runAiGenerateDescription() {
+  await runAiDescription({ dryRun: false, mode: 'ollama' })
+}
+
+async function runAiPreviewDescription() {
+  await runAiDescription({ dryRun: true, mode: 'ollama' })
+}
+
+async function runTemplateDescription() {
+  await runAiDescription({ dryRun: false, mode: 'template' })
+}
+
+async function runAiDescription({ dryRun = false, mode = 'ollama' } = {}) {
   if (aiLoading.value || !aiEnabled.value) return
+  const selectedMode = String(mode || '').trim().toLowerCase() === 'template' ? 'template' : 'ollama'
+  const modeLabel = selectedMode === 'template' ? 'Sablona' : 'AI popis'
 
   const previousDescription = String(form.description || '')
   const previousShort = String(aiShortDraft.value || '')
@@ -167,14 +225,20 @@ async function runAiGenerateDescription() {
   aiRawStatusCode.value = null
   aiStatus.value = 'idle'
   aiResult.value = null
+  startAiProgressBar()
 
   try {
-    const response = await generateAdminEventDescription(eventId.value, {
+    const payload = {
       sync: true,
-      mode: 'ollama',
-      fallback: 'base',
-      force: true,
-    })
+      mode: selectedMode,
+      fallback: dryRun ? 'skip' : 'base',
+      force: !dryRun,
+    }
+    if (dryRun) {
+      payload.dry_run = true
+    }
+
+    const response = await generateAdminEventDescription(eventId.value, payload)
 
     const data = response?.data?.data || {}
     aiLastRun.value = response?.data?.last_run || aiLastRun.value
@@ -188,46 +252,100 @@ async function runAiGenerateDescription() {
       fallbackUsed: Boolean(data.fallback_used),
     }
 
-    if (aiResult.value.description) {
+    if (!dryRun && aiResult.value.description) {
       form.description = aiResult.value.description
     }
-    if (aiResult.value.short) {
+    if (!dryRun && aiResult.value.short) {
       aiShortDraft.value = aiResult.value.short
     }
 
-    aiUndoSnapshot.value = {
-      description: previousDescription,
-      short: previousShort,
+    if (!dryRun) {
+      aiUndoSnapshot.value = {
+        description: previousDescription,
+        short: previousShort,
+      }
+      aiNotice.value = `${modeLabel} bol aplikovany.`
+    } else {
+      aiUndoSnapshot.value = null
+      aiNotice.value = 'Navrh pripraveny (bez ulozenia).'
     }
-    aiNotice.value = 'Opis aktualizovaný.'
 
     await focusDescriptionPreview()
   } catch (e) {
+    const backendMessage = String(e?.response?.data?.message || '').trim()
+    const normalizedUserMessage = String(e?.userMessage || '').trim()
+    const normalizedTransportMessage = String(e?.message || '').toLowerCase()
+    const isTimeout = e?.code === 'ECONNABORTED' || normalizedTransportMessage.includes('timeout')
+
     aiStatus.value = 'error'
-    aiError.value = 'Nepodarilo sa vylepšiť opis.'
+    if (backendMessage !== '') {
+      aiError.value = backendMessage
+    } else if (isTimeout) {
+      aiError.value = 'AI generovanie trva dlhsie ako limit klienta. Skus to znova o chvilu.'
+    } else if (normalizedUserMessage !== '') {
+      aiError.value = normalizedUserMessage
+    } else {
+      aiError.value = 'Nepodarilo sa vylepsit opis.'
+    }
     aiRawStatusCode.value = Number(e?.response?.status || 0) || null
   } finally {
     aiLoading.value = false
+    stopAiProgressBar(aiStatus.value !== 'error')
     await loadAiConfig()
   }
 }
 
-function undoAiDescription() {
-  if (!aiUndoSnapshot.value) return
+async function undoAiDescription() {
+  if (!aiUndoSnapshot.value || aiLoading.value || eventId.value <= 0) return
 
-  form.description = aiUndoSnapshot.value.description
-  aiShortDraft.value = aiUndoSnapshot.value.short
+  const snapshot = {
+    description: String(aiUndoSnapshot.value.description || ''),
+    short: String(aiUndoSnapshot.value.short || ''),
+  }
+
+  aiLoading.value = true
+  aiError.value = ''
+  aiRawStatusCode.value = null
+
+  try {
+    await api.put(`/admin/events/${eventId.value}`, {
+      title: form.title,
+      description: snapshot.description !== '' ? snapshot.description : null,
+      short: snapshot.short !== '' ? snapshot.short : null,
+      type: form.type,
+      start_at: form.start_at,
+      end_at: form.end_at || null,
+      visibility: form.visibility,
+    })
+
+    form.description = snapshot.description
+    aiShortDraft.value = snapshot.short
+    aiStatus.value = 'success'
+    aiNotice.value = 'Opis bol vrateny.'
+  } catch (e) {
+    aiStatus.value = 'error'
+    aiError.value = String(e?.response?.data?.message || 'Vratenie povodneho opisu zlyhalo.')
+    aiRawStatusCode.value = Number(e?.response?.status || 0) || null
+    return
+  } finally {
+    aiLoading.value = false
+    await loadAiConfig()
+  }
+
   aiResult.value = {
-    description: aiUndoSnapshot.value.description,
-    short: aiUndoSnapshot.value.short,
+    description: snapshot.description,
+    short: snapshot.short,
     fallbackUsed: false,
   }
-  aiNotice.value = ''
   aiUndoSnapshot.value = null
 }
 
 onMounted(async () => {
   await Promise.all([loadEvent(), loadAiConfig()])
+})
+
+onBeforeUnmount(() => {
+  clearAiProgressTimers()
 })
 </script>
 <template>
@@ -252,9 +370,9 @@ onMounted(async () => {
       <template v-if="aiPanelReady">
         <AdminAiActionPanel
           class="aiPanel aiPanelSecondary"
-          title="AI pomocník"
-          description="Vylepší opis aktuálnej udalosti."
-          action-label="Vylepšiť opis"
+          title="AI asistent"
+          description="Minimalny flow: otestuj navrh, potom pouzi navrh."
+          action-label="Pouzit navrh"
           :enabled="aiEnabled"
           :status="aiStatus"
           :latency-ms="aiLastRun?.latency_ms ?? null"
@@ -262,6 +380,7 @@ onMounted(async () => {
           :retry-count="aiLastRun?.retry_count ?? null"
           :raw-status-code="aiRawStatusCode"
           :is-loading="aiLoading"
+          :progress-percent="aiProgressPercent"
           :error-message="aiError"
           @run="runAiGenerateDescription"
         >
@@ -269,27 +388,50 @@ onMounted(async () => {
             Panel sa aktivuje po uložení eventu.
           </p>
           <template v-else>
+            <div class="aiNoticeRow">
+              <button
+                type="button"
+                @click="runAiPreviewDescription"
+                class="aiInlineBtn"
+                :disabled="aiLoading || !aiEnabled"
+              >
+                Otestovat navrh
+              </button>
+              <button
+                type="button"
+                @click="runTemplateDescription"
+                class="aiInlineBtn"
+                :disabled="aiLoading || !aiEnabled"
+              >
+                Pouzit sablonu
+              </button>
+            </div>
+            <p class="aiPanelHint">Krok 1: otestuj navrh. Krok 2: pouzi navrh.</p>
             <div
               v-if="aiNotice"
               class="aiNoticeRow"
             >
-              <span class="aiNoticeText">Opis aktualizovaný.</span>
+              <span class="aiNoticeText">{{ aiNotice }}</span>
               <button
                 v-if="aiUndoSnapshot"
                 type="button"
                 @click="undoAiDescription"
                 class="aiInlineBtn"
+                :disabled="aiLoading || !aiUndoSnapshot"
               >
-                Undo
+                Vratit
               </button>
             </div>
             <span
               v-if="aiStatus === 'fallback'"
               class="aiFallbackBadge"
             >
-              Použitý fallback
+              Pouzity bezpecny fallback
             </span>
-            <p class="aiProposalLine"><strong>Krátky opis:</strong> {{ aiShortDraft || '-' }}</p>
+            <div class="aiProposalCard">
+              <p class="aiProposalLine"><strong>Kratky opis:</strong> {{ aiResult?.short || aiShortDraft || '-' }}</p>
+              <p class="aiProposalLine"><strong>AI navrh:</strong> {{ aiResult?.description || '-' }}</p>
+            </div>
           </template>
         </AdminAiActionPanel>
       </template>
@@ -339,10 +481,10 @@ onMounted(async () => {
         <div class="formActions">
           <button
             @click="submit"
-            :disabled="loading"
+            :disabled="loading || aiLoading"
             class="saveBtn"
           >
-            {{ loading ? 'Ukladám...' : 'Uložiť' }}
+            {{ aiLoading ? 'AI generuje opis...' : (loading ? 'Ukladám...' : 'Uložiť') }}
           </button>
         </div>
       </div>
@@ -547,3 +689,6 @@ onMounted(async () => {
   }
 }
 </style>
+
+
+

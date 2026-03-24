@@ -4,6 +4,7 @@ import {
   getTranslationArtifactsReport,
   repairTranslationArtifacts,
 } from '@/services/api/admin/eventSources'
+import { eventCandidates } from '@/services/eventCandidates'
 
 export function useEventSourcesTranslationQuality({
   t,
@@ -53,10 +54,7 @@ export function useEventSourcesTranslationQuality({
 
   const translationProgressLabel = computed(() => {
     if (!translationIsActive.value) return t('progress.translateIdle')
-    return t('progress.translateRunning', {
-      pending: translationPendingCount.value,
-      queued: translationQueuedJobs.value,
-    })
+    return t('progress.translateRunning')
   })
 
   const artifactsSuspiciousCount = computed(() => Number(artifactsSummary.value?.suspicious_candidates || 0))

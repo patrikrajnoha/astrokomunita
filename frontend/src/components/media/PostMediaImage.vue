@@ -4,13 +4,14 @@
       ref="frameRef"
       class="feed-media-frame"
       :class="{
-        'feed-media-frame--blurred': blurred,
-        'feed-media-frame--pending': blurred && isPendingStatus,
+        'feed-media-frame--blurred': effectiveBlurred,
+        'feed-media-frame--pending': effectiveBlurred && isPendingStatus,
+        'feed-media-frame--revealing': isRevealing,
       }"
       :style="frameStyle"
       role="button"
       tabindex="0"
-      :aria-label="blurred ? `Obrázok: ${resolvedPendingLabel}` : 'Otvoriť celý obrázok'"
+      :aria-label="effectiveBlurred ? `Obrázok: ${resolvedPendingLabel}` : 'Otvoriť celý obrázok'"
       @click.stop="openLightbox"
       @keydown.enter.prevent="openLightbox"
       @keydown.space.prevent="openLightbox"
@@ -33,9 +34,19 @@
           Zobrazit cele
         </button>
       </div>
-      <div v-if="blurred" class="media-state-overlay" :class="{ 'media-state-overlay--animated': isPendingStatus }">
-        <span>{{ resolvedPendingLabel }}</span>
+      <div v-if="effectiveBlurred" class="media-state-overlay" :class="{ 'media-state-overlay--animated': isPendingStatus }">
+        <span>
+          <svg v-if="isPendingStatus" class="media-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="44 14" />
+          </svg>
+          {{ resolvedPendingLabel }}
+        </span>
       </div>
+      <transition name="reveal-badge">
+        <div v-if="showBadge" class="media-reveal-badge" aria-hidden="true">
+          <span>&#10003; Schválené</span>
+        </div>
+      </transition>
     </div>
 
     <ImageLightbox :open="isLightboxOpen" :src="src" :alt="altText" @close="closeLightbox" />
@@ -43,7 +54,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ImageLightbox from '@/components/media/ImageLightbox.vue'
 
 const props = defineProps({
@@ -61,7 +72,10 @@ const props = defineProps({
   },
   frameAspectRatio: { type: String, default: '' },
   showOversizeOverlay: { type: Boolean, default: true },
+  postId: { type: Number, default: 0 },
 })
+
+const emit = defineEmits(['unblurred'])
 
 const frameRef = ref(null)
 const naturalWidth = ref(0)
@@ -69,16 +83,33 @@ const naturalHeight = ref(0)
 const frameHeight = ref(null)
 const isOversized = ref(false)
 const isLightboxOpen = ref(false)
+const isRevealing = ref(false)
+const showBadge = ref(false)
 let resizeRaf = null
+let pollTimer = null
 
 const altText = computed(() => props.alt || 'Priloha')
+const effectiveBlurred = computed(() => props.blurred && !isRevealing.value)
 const normalizedStatus = computed(() => String(props.status || '').trim().toLowerCase())
 const isPendingStatus = computed(() => {
-  return normalizedStatus.value === 'processing' || normalizedStatus.value === 'pending_moderation'
+  const status = normalizedStatus.value
+  if (status === 'blocked' || status === 'flagged' || status === 'ok') {
+    return false
+  }
+
+  return (
+    status === ''
+    || status === 'pending'
+    || status === 'pending_moderation'
+    || status === 'processing'
+    || status === 'queued'
+  )
 })
 const resolvedPendingLabel = computed(() => {
   if (normalizedStatus.value === 'processing') return 'Publikuje sa...'
+  if (normalizedStatus.value === 'queued') return 'Caka sa na kontrolu...'
   if (normalizedStatus.value === 'pending_moderation') return 'Kontroluje sa...'
+  if (normalizedStatus.value === 'pending') return 'Kontroluje sa...'
   return props.pendingLabel || 'Kontroluje sa...'
 })
 const hasFixedAspectRatio = computed(() => String(props.frameAspectRatio || '').trim() !== '')
@@ -102,7 +133,7 @@ const frameStyle = computed(() => {
   }
 })
 const shouldShowOversizeOverlay = computed(() => {
-  if (props.blurred) return false
+  if (effectiveBlurred.value) return false
   if (!props.showOversizeOverlay) return false
   if (props.fit !== 'contain') return false
   if (hasFixedAspectRatio.value) return false
@@ -151,8 +182,112 @@ function getMaxHeight() {
     : props.maxHeightDesktop
 }
 
+function startPolling() {
+  if (!props.postId || !props.blurred) return
+  stopPolling()
+  pollTimer = setInterval(async () => {
+    if (!props.blurred || isRevealing.value) {
+      stopPolling()
+      return
+    }
+    try {
+      const res = await fetch(`/api/posts/${props.postId}`, {
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+        },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const postPayload = resolvePostPayload(data, props.postId)
+      if (!postPayload) return
+
+      const stillBlurred = postPayload.attachment_is_blurred === true
+      const moderationStatus = String(postPayload.attachment_moderation_status || '').trim().toLowerCase()
+
+      if (!stillBlurred || moderationStatus === 'ok') {
+        triggerReveal({ isBlurred: false, status: moderationStatus })
+        return
+      }
+
+      if (moderationStatus === 'blocked' || moderationStatus === 'flagged') {
+        stopPolling()
+        emit('unblurred', { isBlurred: true, status: moderationStatus })
+      }
+    } catch {
+      // silently ignore network errors, keep polling
+    }
+  }, 4000)
+}
+
+function resolvePostPayload(data, postId) {
+  if (!data || typeof data !== 'object') return null
+
+  const targetId = Number(postId)
+  const matchesTarget = (item) => Number(item?.id || 0) === targetId
+  const hasAttachmentState = (item) =>
+    item
+    && typeof item === 'object'
+    && Object.prototype.hasOwnProperty.call(item, 'attachment_is_blurred')
+
+  if (hasAttachmentState(data) && (!targetId || matchesTarget(data))) {
+    return data
+  }
+
+  const post = data.post
+  if (hasAttachmentState(post) && matchesTarget(post)) {
+    return post
+  }
+
+  const root = data.root
+  if (hasAttachmentState(root) && matchesTarget(root)) {
+    return root
+  }
+
+  const thread = Array.isArray(data.thread) ? data.thread : []
+  const threadMatch = thread.find((item) => hasAttachmentState(item) && matchesTarget(item))
+  if (threadMatch) {
+    return threadMatch
+  }
+
+  const nestedReplies = Array.isArray(data.replies) ? data.replies : []
+  return findReplyById(nestedReplies, targetId)
+}
+
+function findReplyById(items, targetId) {
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue
+    if (Number(item.id || 0) === targetId && Object.prototype.hasOwnProperty.call(item, 'attachment_is_blurred')) {
+      return item
+    }
+
+    const nested = Array.isArray(item.replies) ? item.replies : []
+    const nestedMatch = findReplyById(nested, targetId)
+    if (nestedMatch) return nestedMatch
+  }
+
+  return null
+}
+
+function stopPolling() {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+function triggerReveal(payload) {
+  stopPolling()
+  isRevealing.value = true
+  showBadge.value = true
+  setTimeout(() => {
+    showBadge.value = false
+  }, 2200)
+  emit('unblurred', payload)
+}
+
 function openLightbox() {
-  if (props.blurred) return
+  if (effectiveBlurred.value) return
   isLightboxOpen.value = true
 }
 
@@ -160,7 +295,26 @@ function closeLightbox() {
   isLightboxOpen.value = false
 }
 
+onMounted(() => {
+  if (props.blurred && props.postId) {
+    startPolling()
+  }
+})
+
+watch(
+  () => props.blurred,
+  (val) => {
+    if (val && props.postId) {
+      isRevealing.value = false
+      startPolling()
+    } else {
+      stopPolling()
+    }
+  }
+)
+
 onBeforeUnmount(() => {
+  stopPolling()
   window.removeEventListener('resize', onResize)
   if (resizeRaf) {
     window.cancelAnimationFrame(resizeRaf)
@@ -220,6 +374,17 @@ onBeforeUnmount(() => {
 .feed-media-frame--blurred .feed-media-img {
   filter: blur(8px) saturate(0.7);
   transform: scale(1.05);
+}
+
+.feed-media-frame--revealing .feed-media-img {
+  filter: blur(0) saturate(1);
+  transform: scale(1);
+  transition: filter 0.55s ease, transform 0.55s ease;
+}
+
+.feed-media-frame--revealing .feed-media-bg {
+  opacity: 0;
+  transition: opacity 0.55s ease;
 }
 
 .media-overlay-wrap {
@@ -313,6 +478,60 @@ onBeforeUnmount(() => {
   }
   50% {
     filter: blur(12px) saturate(0.7);
+  }
+}
+
+.media-reveal-badge {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.media-reveal-badge span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgb(16 185 129 / 0.92);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 16px rgb(16 185 129 / 0.4);
+}
+
+.reveal-badge-enter-active {
+  animation: reveal-badge-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.reveal-badge-leave-active {
+  animation: reveal-badge-out 0.38s ease-in both;
+  animation-delay: 1.2s;
+}
+
+@keyframes reveal-badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes reveal-badge-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.85) translateY(-6px);
   }
 }
 

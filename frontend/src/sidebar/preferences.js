@@ -7,6 +7,11 @@ export const resolvePreferredSidebarWidgetKeys = ({
 } = {}) => {
   const normalizedScope = String(scope || DEFAULT_SIDEBAR_SCOPE).trim() || DEFAULT_SIDEBAR_SCOPE
 
+  // Home scope is admin-driven and should not be overridden by per-user preferences.
+  if (normalizedScope === DEFAULT_SIDEBAR_SCOPE) {
+    return null
+  }
+
   if (isAuthed && preferences?.loaded) {
     const selected = typeof preferences.sidebarWidgetKeysForScope === 'function'
       ? preferences.sidebarWidgetKeysForScope(normalizedScope)

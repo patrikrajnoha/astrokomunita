@@ -65,7 +65,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Blížiace sa štarty',
+      default: 'Štarty do vesmíru',
     },
     initialPayload: {
       type: Object,

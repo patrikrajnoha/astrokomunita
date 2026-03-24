@@ -265,7 +265,7 @@ loadQueue()
             v-model="note"
             class="note"
             rows="3"
-            placeholder="Admin poznamka"
+            placeholder="Admin poznámka"
           />
 
           <div class="actions">

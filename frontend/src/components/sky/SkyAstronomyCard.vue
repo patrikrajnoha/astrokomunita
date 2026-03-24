@@ -1,7 +1,7 @@
 <template>
   <article class="skyCard">
     <header class="cardHead">
-      <h2>Astronomicke podmienky</h2>
+      <h2>Pozorovanie dnes</h2>
       <p>Faza mesiaca a casy vychodu/zapadu</p>
     </header>
 

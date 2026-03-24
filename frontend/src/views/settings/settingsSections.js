@@ -1,4 +1,4 @@
-export const legacySettingsSectionToRouteName = {
+﻿export const legacySettingsSectionToRouteName = {
   account: 'settings.email',
   activity: 'settings.activity',
   data: 'settings.data-export',
@@ -21,7 +21,7 @@ export const settingsGroups = [
         key: 'email',
         routeName: 'settings.email',
         title: 'E-mail',
-        description: 'Stav overenia, overovací kód a bezpečná zmena emailu.',
+        description: 'Stav overenia, overovací kód a bezpečná zmena e-mailu.',
         iconPaths: [
           'M4.5 6.25h15a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-9.5a1 1 0 0 1 1-1Z',
           'm4.25 7.75 7.75 5.5 7.75-5.5',
@@ -74,7 +74,7 @@ export const settingsGroups = [
       {
         key: 'data-export',
         routeName: 'settings.data-export',
-        title: 'Export dat',
+        title: 'Export dát',
         description: 'Stiahnite profilové dáta vo formáte JSON pre zálohu alebo GDPR požiadavky.',
         iconPaths: [
           'M12 4.5v10.25',

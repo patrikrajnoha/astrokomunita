@@ -1,7 +1,7 @@
 
   <div class="uxOverview uxOverview--manual">
     <div class="uxOverview__item">
-      <span>Na stranke</span>
+      <span>Na stránke</span>
       <strong>{{ props.manualStats.total }}</strong>
     </div>
     <div class="uxOverview__item">
@@ -9,7 +9,7 @@
       <strong>{{ props.manualStats.draft }}</strong>
     </div>
     <div class="uxOverview__item">
-      <span>Publikovane</span>
+      <span>Publikované</span>
       <strong>{{ props.manualStats.published }}</strong>
     </div>
   </div>
@@ -21,7 +21,7 @@
       :disabled="props.manualLoading"
       @click="openManualFormCreate"
     >
-      Vytvorit manualnu udalost
+      Vytvoriť manuálnu udalosť
     </button>
     <button
       type="button"
@@ -29,7 +29,7 @@
       :disabled="props.manualLoading"
       @click="clearManualFilters"
     >
-      Resetovat filtre
+      Resetovať filtre
     </button>
   </div>
 
@@ -43,8 +43,8 @@
           :disabled="props.manualLoading"
           @change="updateManualStatus($event.target.value)"
         >
-          <option value="draft">Navrh</option>
-          <option value="published">Publikovane</option>
+          <option value="draft">Návrh</option>
+          <option value="published">Publikované</option>
         </select>
       </div>
 
@@ -56,18 +56,18 @@
           :disabled="props.manualLoading"
           @change="updateManualType($event.target.value)"
         >
-          <option value="">vsetky</option>
+          <option value="">Všetky</option>
           <option value="eclipse_lunar">Zatmenie Mesiaca</option>
           <option value="eclipse_solar">Zatmenie Slnka</option>
-          <option value="meteor_shower">Meteoricky roj</option>
-          <option value="planetary_event">Planetarny ukaz</option>
-          <option value="aurora">Polarna ziara</option>
-          <option value="other">Ina udalost</option>
+          <option value="meteor_shower">Meteoritický roj</option>
+          <option value="planetary_event">Planetárny úkaz</option>
+          <option value="aurora">Polárna žiara</option>
+          <option value="other">Iná udalosť</option>
         </select>
       </div>
 
       <div class="filterField">
-        <label>Na stranku</label>
+        <label>Na stránku</label>
         <select
           class="filterInput"
           :value="props.manualPerPage"
@@ -82,12 +82,12 @@
       </div>
 
       <div class="filterField filterField--wide">
-        <label>Hladaj</label>
+        <label>Hľadaj</label>
         <input
           class="filterInput"
           :value="props.manualQ"
           :disabled="props.manualLoading"
-          placeholder="hladaj v nazve"
+          placeholder="Hľadaj v názve"
           @input="updateManualQ($event.target.value)"
           @keyup.enter="searchManual"
         />
@@ -100,7 +100,7 @@
           :disabled="props.manualLoading"
           @click="searchManual"
         >
-          Hladat
+          Hľadať
         </button>
       </div>
     </div>
@@ -110,9 +110,9 @@
     <div class="manualFormHeader">
       <div>
         <div class="manualFormTitle">
-          {{ props.manualEditingId ? 'Upravit manualny navrh' : 'Novy manualny navrh' }}
+          {{ props.manualEditingId ? 'Upraviť manuálny návrh' : 'Nový manuálny návrh' }}
         </div>
-        <div class="manualFormHint">Vypln nazov, typ a termin. Zvysok mozes doplnit neskor.</div>
+        <div class="manualFormHint">Vyplň názov, typ a termín. Zvyšok môžeš doplniť neskôr.</div>
       </div>
       <div class="manualQuickActions">
         <button
@@ -121,7 +121,7 @@
           :disabled="props.manualLoading"
           @click="setManualStartNow"
         >
-          Zaciatok teraz
+          Začiatok teraz
         </button>
         <button
           type="button"
@@ -144,13 +144,13 @@
 
     <div class="manualFormGrid">
       <div class="manualField manualField--wide">
-        <label>Nazov udalosti *</label>
+        <label>Názov udalosti *</label>
         <input
           type="text"
           class="filterInput manualInput"
           :value="props.manualForm.title || ''"
           :disabled="props.manualLoading"
-          placeholder="napr. Pozorovanie mesiaca na hvezdarni"
+          placeholder="napr. Pozorovanie Mesiaca na hvezdárni"
           @input="updateManualFormField('title', $event.target.value)"
         />
       </div>
@@ -170,7 +170,7 @@
       </div>
 
       <div class="manualField">
-        <label>Zaciatok *</label>
+        <label>Začiatok *</label>
         <input
           type="datetime-local"
           class="filterInput manualInput"
@@ -181,7 +181,7 @@
       </div>
 
       <div class="manualField">
-        <label>Koniec (volitelne)</label>
+        <label>Koniec (voliteľné)</label>
         <input
           type="datetime-local"
           class="filterInput manualInput"
@@ -198,7 +198,7 @@
           class="filterInput manualTextarea"
           :value="props.manualForm.description || ''"
           :disabled="props.manualLoading"
-          placeholder="Kratky popis, co sa deje a kedy je najlepsie pozorovanie."
+          placeholder="Krátky popis, čo sa deje a kedy je najlepšie pozorovanie."
           @input="updateManualFormField('description', $event.target.value)"
         ></textarea>
       </div>
@@ -215,7 +215,7 @@
         :disabled="props.manualLoading"
         @click="closeManualForm"
       >
-        Zrusit
+        Zrušiť
       </button>
       <button
         type="button"
@@ -223,7 +223,7 @@
         :disabled="props.manualLoading || !props.manualCanSave"
         @click="saveManual"
       >
-        {{ props.manualLoading ? 'Uklada sa...' : 'Ulozit navrh' }}
+        {{ props.manualLoading ? 'Ukladá sa...' : 'Uložiť návrh' }}
       </button>
     </div>
   </section>
@@ -232,15 +232,15 @@
     {{ props.manualError }}
   </div>
 
-  <div v-if="props.manualLoading" class="inlineLoading">Nacitavam...</div>
+  <div v-if="props.manualLoading" class="inlineLoading">Načítavam...</div>
 
   <div v-if="props.manualData && !props.manualLoading" class="manualTableWrap">
     <table class="manualTable">
       <thead>
         <tr>
-          <th>Nazov</th>
+          <th>Názov</th>
           <th>Typ</th>
-          <th>Zaciatok</th>
+          <th>Začiatok</th>
           <th>Stav</th>
           <th>Akcie</th>
         </tr>
@@ -263,7 +263,7 @@
                 :disabled="props.manualLoading"
                 @click="openManualFormEdit(row)"
               >
-                Upravit
+                Upraviť
               </button>
               <button
                 type="button"
@@ -271,7 +271,7 @@
                 :disabled="props.manualLoading"
                 @click="deleteManual(row)"
               >
-                Zmazat
+                Zmazať
               </button>
               <button
                 type="button"
@@ -279,13 +279,13 @@
                 :disabled="props.manualLoading || isPublished(row)"
                 @click="publishManual(row)"
               >
-                Publikovat
+                Publikovať
               </button>
             </div>
           </td>
         </tr>
         <tr v-if="manualRows.length === 0">
-          <td colspan="5" class="tableEmpty">Ziadne drafty.</td>
+          <td colspan="5" class="tableEmpty">Žiadne návrhy.</td>
         </tr>
       </tbody>
     </table>
@@ -311,7 +311,7 @@
           :disabled="props.manualLoading"
           @click="openManualFormEdit(row)"
         >
-          Upravit
+          Upraviť
         </button>
         <button
           type="button"
@@ -319,7 +319,7 @@
           :disabled="props.manualLoading"
           @click="deleteManual(row)"
         >
-          Zmazat
+          Zmazať
         </button>
         <button
           type="button"
@@ -327,11 +327,11 @@
           :disabled="props.manualLoading || isPublished(row)"
           @click="publishManual(row)"
         >
-          Publikovat
+          Publikovať
         </button>
       </div>
     </article>
-    <div v-if="manualRows.length === 0" class="tableEmpty">Ziadne drafty.</div>
+    <div v-if="manualRows.length === 0" class="tableEmpty">Žiadne návrhy.</div>
   </div>
 
   <div v-if="props.manualData" class="pagerRow">
@@ -354,7 +354,7 @@
         :disabled="props.manualLoading || (props.manualData && props.manualPage >= props.manualData.last_page)"
         @click="nextManualPage"
       >
-        Dalsia
+        Ďalšia
       </button>
     </div>
   </div>

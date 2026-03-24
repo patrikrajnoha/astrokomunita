@@ -52,7 +52,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'Čo sa deje',
+      default: 'Udalosti v kalendári',
     },
     showMoreLabel: {
       type: String,

@@ -46,7 +46,13 @@ function makeRouter() {
       {
         path: '/admin/users/:id',
         name: 'admin.users.detail',
-        component: { template: '<div>detail</div>' },
+        alias: ['/admin/users/:id/detail'],
+        component: UsersView,
+      },
+      {
+        path: '/admin/users/:id/full',
+        name: 'admin.users.detail.page',
+        component: { template: '<div>detail-page</div>' },
       },
       {
         path: '/u/:username',
@@ -61,6 +67,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+}
+
 describe('UsersView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -72,16 +85,6 @@ describe('UsersView', () => {
             current_page: 1,
             data: [
               {
-                id: 4,
-                name: 'Kozmo',
-                username: 'kozmobot',
-                role: 'bot',
-                email: 'legacy-bot@example.test',
-                is_bot: true,
-                is_active: true,
-                is_banned: false,
-              },
-              {
                 id: 9,
                 name: 'Regular',
                 username: 'regular',
@@ -92,7 +95,7 @@ describe('UsersView', () => {
                 is_banned: false,
               },
             ],
-            total: 2,
+            total: 1,
             per_page: 20,
             last_page: 1,
           },
@@ -118,7 +121,7 @@ describe('UsersView', () => {
     })
   })
 
-  it('renders bot role badge and hides bot email behind bot-account hint', async () => {
+  it('requests users list with include_bots=false and keeps role filter community-only', async () => {
     const router = makeRouter()
     await router.push('/admin/community/users')
     await router.isReady()
@@ -127,22 +130,26 @@ describe('UsersView', () => {
       global: {
         plugins: [router],
       },
+      attachTo: document.body,
     })
 
     await flush()
     await flush()
 
-    const botRow = wrapper.get('[data-row-id="4"]')
-    expect(botRow.find('.col-role .roleBadge').text()).toBe('bot')
-    expect(botRow.find('.col-email .truncateText').exists()).toBe(false)
-    expect(botRow.find('.default-avatar').exists()).toBe(true)
-
-    const hint = botRow.get('.botEmailBadge')
-    expect(hint.text()).toBe('bot účet')
-    expect(hint.attributes('title')).toContain('Automatizovaný účet')
-
     const regularRow = wrapper.get('[data-row-id="9"]')
     expect(regularRow.find('.col-email .truncateText').text()).toBe('regular@example.test')
+
+    const roleSelect = wrapper.findAll('select.filterSelect')[0]
+    const roleOptions = roleSelect
+      ? roleSelect.findAll('option').map((option) => option.attributes('value'))
+      : []
+    expect(roleOptions).not.toContain('bot')
+
+    expect(apiGetMock).toHaveBeenCalledWith('/admin/users', {
+      params: expect.objectContaining({
+        include_bots: false,
+      }),
+    })
   })
 
   it('shows moderation and editor role actions for eligible non-bot accounts', async () => {
@@ -160,34 +167,20 @@ describe('UsersView', () => {
     await flush()
     await flush()
 
-    const botRow = wrapper.get('[data-row-id="4"]')
-    await botRow.find('.dropdownTrigger').trigger('click')
-    await flush()
-
-    const botMenu = document.body.querySelector('[role="menu"]')
-    expect(botMenu?.textContent || '').toContain('Správa účtu')
-    expect(botMenu?.textContent || '').toContain('Zablokovať účet')
-    expect(botMenu?.textContent || '').toContain('Deaktivovať účet')
-    expect(botMenu?.textContent || '').toContain('Resetovať profil')
-    expect(botMenu?.textContent || '').not.toContain('Pridať rolu editor')
-
-    await botRow.find('.dropdownTrigger').trigger('click')
-    await flush()
-
     const regularRow = wrapper.get('[data-row-id="9"]')
     await regularRow.find('.dropdownTrigger').trigger('click')
     await flush()
 
     const regularMenu = document.body.querySelector('[role="menu"]')
-    expect(regularMenu?.textContent || '').toContain('Zobraziť profil')
-    expect(regularMenu?.textContent || '').toContain('Správa účtu')
-    expect(regularMenu?.textContent || '').toContain('Pridať rolu editor')
-    expect(regularMenu?.textContent || '').toContain('Zablokovať účet')
-    expect(regularMenu?.textContent || '').toContain('Deaktivovať účet')
-    expect(regularMenu?.textContent || '').toContain('Resetovať profil')
+    expect(normalizeText(regularMenu?.textContent || '')).toContain('zobrazit profil')
+    expect(normalizeText(regularMenu?.textContent || '')).toContain('sprava uctu')
+    expect(normalizeText(regularMenu?.textContent || '')).toContain('pridat rolu editor')
+    expect(normalizeText(regularMenu?.textContent || '')).toContain('zablokovat ucet')
+    expect(normalizeText(regularMenu?.textContent || '')).toContain('deaktivovat ucet')
+    expect(normalizeText(regularMenu?.textContent || '')).toContain('resetovat profil')
   })
 
-  it('allows row-click navigation to user detail for both bot and non-bot accounts', async () => {
+  it('opens compact manage modal from row click and stays on users route', async () => {
     const router = makeRouter()
     await router.push('/admin/community/users')
     await router.isReady()
@@ -204,20 +197,20 @@ describe('UsersView', () => {
     const regularRow = wrapper.get('[data-row-id="9"]')
     await regularRow.trigger('click')
     await flush()
+    await flush()
 
-    expect(router.currentRoute.value.name).toBe('admin.users.detail')
-    expect(router.currentRoute.value.params.id).toBe('9')
+    expect(router.currentRoute.value.name).toBe('admin.users')
+    let modal = document.body.querySelector('[data-testid="manage-account-modal"]')
+    expect(modal).toBeTruthy()
+    expect(apiGetMock).toHaveBeenCalledWith('/admin/users/9')
 
     await router.push('/admin/community/users')
     await flush()
     await flush()
 
-    const botRow = wrapper.get('[data-row-id="4"]')
-    await botRow.trigger('click')
-    await flush()
-
-    expect(router.currentRoute.value.name).toBe('admin.users.detail')
-    expect(router.currentRoute.value.params.id).toBe('4')
+    expect(router.currentRoute.value.name).toBe('admin.users')
+    modal = document.body.querySelector('[data-testid="manage-account-modal"]')
+    expect(modal).toBeTruthy()
   })
 
   it('opens manage account as popup from row actions', async () => {
@@ -240,7 +233,7 @@ describe('UsersView', () => {
     await flush()
 
     const manageItem = [...document.body.querySelectorAll('[role="menuitem"]')]
-      .find((node) => (node.textContent || '').includes('Správa účtu'))
+      .find((node) => normalizeText(node.textContent || '').includes('sprava uctu'))
 
     expect(manageItem).toBeTruthy()
     manageItem?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -249,10 +242,81 @@ describe('UsersView', () => {
 
     const modal = document.body.querySelector('[data-testid="manage-account-modal"]')
     expect(modal).toBeTruthy()
-    expect(modal?.textContent || '').toContain('Správa účtu')
+    expect(normalizeText(modal?.textContent || '')).toContain('sprava')
     expect(modal?.textContent || '').toContain('Regular')
     expect(apiGetMock).toHaveBeenCalledWith('/admin/users/9')
 
     wrapper.unmount()
   })
+
+  it('opens manage account popup on /admin/users/:id/detail route', async () => {
+    const router = makeRouter()
+    await router.push('/admin/users/9/detail')
+    await router.isReady()
+
+    const wrapper = mount(UsersView, {
+      global: {
+        plugins: [router],
+      },
+      attachTo: document.body,
+    })
+
+    await flush()
+    await flush()
+
+    const modal = document.body.querySelector('[data-testid="manage-account-modal"]')
+    expect(modal).toBeTruthy()
+    expect(normalizeText(modal?.textContent || '')).toContain('sprava')
+    expect(modal?.textContent || '').toContain('Regular')
+    expect(apiGetMock).toHaveBeenCalledWith('/admin/users/9')
+    expect(router.currentRoute.value.name).toBe('admin.users')
+
+    wrapper.unmount()
+  })
+
+  it('switches from compact summary to embedded detail in the same modal', async () => {
+    const router = makeRouter()
+    await router.push('/admin/community/users')
+    await router.isReady()
+
+    const wrapper = mount(UsersView, {
+      global: {
+        plugins: [router],
+      },
+      attachTo: document.body,
+    })
+
+    await flush()
+    await flush()
+
+    const regularRow = wrapper.get('[data-row-id="9"]')
+    await regularRow.find('.dropdownTrigger').trigger('click')
+    await flush()
+
+    const manageItem = [...document.body.querySelectorAll('[role="menuitem"]')]
+      .find((node) => normalizeText(node.textContent || '').includes('sprava uctu'))
+    expect(manageItem).toBeTruthy()
+    manageItem?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flush()
+    await flush()
+
+    const modal = document.body.querySelector('[data-testid="manage-account-modal"]')
+    expect(modal).toBeTruthy()
+    const openDetailButton = modal?.querySelector('.manageActionBtn--primary')
+    expect(openDetailButton).toBeTruthy()
+    openDetailButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flush()
+    await flush()
+
+    expect(router.currentRoute.value.name).toBe('admin.users')
+    const backToSummaryButton = modal?.querySelector('.manageEmbeddedDetail__top .manageActionBtn')
+    expect(backToSummaryButton).toBeTruthy()
+    expect(normalizeText(modal?.textContent || '')).toContain('informacie o ucte')
+
+    const resolved = router.resolve({ name: 'admin.users.detail.page', params: { id: '9' } })
+    expect(resolved.path).toBe('/admin/users/9/full')
+
+    wrapper.unmount()
+  })
 })
+

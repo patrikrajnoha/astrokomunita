@@ -5,10 +5,10 @@ import NightSkyWidget from '@/components/sky/NightSkyWidget.vue'
 import IssPassWidget from '@/components/sky/IssPassWidget.vue'
 import NasaHighlightsWidget from '@/components/widgets/NasaHighlightsWidget.vue'
 import NextEventWidget from '@/components/widgets/NextEventWidget.vue'
+import ConstellationsNowWidget from '@/components/widgets/ConstellationsNowWidget.vue'
 import LatestArticlesWidget from '@/components/widgets/LatestArticlesWidget.vue'
 import UpcomingEventsWidget from '@/components/widgets/UpcomingEventsWidget.vue'
 import MoonPhasesWidget from '@/components/widgets/MoonPhasesWidget.vue'
-import MoonOverviewWidget from '@/components/widgets/MoonOverviewWidget.vue'
 import MoonEventsWidget from '@/components/widgets/MoonEventsWidget.vue'
 
 const CATEGORY_ORDER = [
@@ -23,7 +23,7 @@ const toInt = (value, fallback = 0) => {
 export const sidebarComponentPlaygroundRegistry = [
   {
     id: 'sidebar-search',
-    label: 'Hľadať',
+    label: 'Hľadaj',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/SearchBar.vue',
     description: 'Reálny search widget zo sidebaru.',
@@ -33,7 +33,7 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-observing-conditions',
-    label: 'Astronomické podmienky',
+    label: 'Pozorovanie dnes',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/RightObservingSidebar.vue',
     description: 'Hlavný summary widget pre rýchly stav oblohy.',
@@ -53,7 +53,7 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-observing-weather',
-    label: 'Počasie pre pozorovanie',
+    label: 'Počasie na pozorovanie',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/sky/ObservingWeatherWidget.vue',
     description: 'Kompaktné metriky počasia pre pozorovanie.',
@@ -89,74 +89,52 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-moon-phases',
-    label: 'Fázy mesiaca',
+    label: 'Fázy Mesiaca',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/MoonPhasesWidget.vue',
     description: 'Všetky fázy mesiaca so start/end intervalom a aktuálnym highlightom.',
     component: MoonPhasesWidget,
     initialProps: {
-      title: 'Fázy mesiaca',
+      title: 'Fázy Mesiaca',
       lat: 48.1486,
       lon: 17.1077,
       tz: 'Europe/Bratislava',
     },
     editableProps: [
-      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Fázy mesiaca' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Fázy Mesiaca' },
       { key: 'lat', label: 'Zemepisná šírka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
       { key: 'lon', label: 'Zemepisná dĺžka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
       { key: 'tz', label: 'Časové pásmo', type: 'text', defaultValue: 'Europe/Bratislava' },
-    ],
-  },
-  {
-    id: 'sidebar-moon-overview',
-    label: 'Mesiac teraz',
-    category: 'Sidebar widgety',
-    sourcePath: 'frontend/src/components/widgets/MoonOverviewWidget.vue',
-    description: 'Aktuálna poloha a stav Mesiaca s najbližším Novom, Splnom a východom.',
-    component: MoonOverviewWidget,
-    initialProps: {
-      title: 'Mesiac teraz',
-      lat: 48.1486,
-      lon: 17.1077,
-      tz: 'Europe/Bratislava',
-      date: '',
-    },
-    editableProps: [
-      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Mesiac teraz' },
-      { key: 'lat', label: 'Zemepisná šírka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
-      { key: 'lon', label: 'Zemepisná dĺžka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
-      { key: 'tz', label: 'Časové pásmo', type: 'text', defaultValue: 'Europe/Bratislava' },
-      { key: 'date', label: 'Datum (YYYY-MM-DD)', type: 'text', defaultValue: '' },
     ],
   },
   {
     id: 'sidebar-moon-events',
-    label: 'Lunárne udalosti',
+    label: 'Lunárny kalendár',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/MoonEventsWidget.vue',
     description: 'Špeciálne lunárne udalosti pre aktuálny rok a lokalitu.',
     component: MoonEventsWidget,
     initialProps: {
-      title: 'Lunárne udalosti',
+      title: 'Lunárny kalendár',
       lat: 48.1486,
       lon: 17.1077,
       tz: 'Europe/Bratislava',
       date: '',
     },
     editableProps: [
-      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Lunárne udalosti' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Lunárny kalendár' },
       { key: 'lat', label: 'Zemepisná šírka', type: 'number', defaultValue: 48.1486, min: -90, max: 90, step: 0.0001 },
       { key: 'lon', label: 'Zemepisná dĺžka', type: 'number', defaultValue: 17.1077, min: -180, max: 180, step: 0.0001 },
       { key: 'tz', label: 'Časové pásmo', type: 'text', defaultValue: 'Europe/Bratislava' },
-      { key: 'date', label: 'Datum (YYYY-MM-DD)', type: 'text', defaultValue: '' },
+      { key: 'date', label: 'Dátum (YYYY-MM-DD)', type: 'text', defaultValue: '' },
     ],
   },
   {
     id: 'sidebar-iss-pass',
-    label: 'ISS prelet',
+    label: 'ISS nad tebou',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/sky/IssPassWidget.vue',
-    description: 'ISS prelet a tracker; pri neviditelnom prelete ukaze fallback stav.',
+    description: 'ISS tracker a najbližší viditeľný prelet pre tvoju polohu.',
     component: IssPassWidget,
     initialProps: {
       lat: 48.1486,
@@ -171,16 +149,16 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-nasa-apod',
-    label: 'NASA Novinky',
+    label: 'Astrofoto dňa',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/NasaHighlightsWidget.vue',
     description: 'NASA novinky widget zo sidebaru.',
     component: NasaHighlightsWidget,
     initialProps: {
-      title: 'NASA Novinky',
+      title: 'Astrofoto dňa',
     },
     editableProps: [
-      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'NASA Novinky' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Astrofoto dňa' },
     ],
   },
   {
@@ -198,15 +176,29 @@ export const sidebarComponentPlaygroundRegistry = [
     ],
   },
   {
+    id: 'sidebar-constellations-now',
+    label: 'Viditeľné súhvezdia',
+    category: 'Sidebar widgety',
+    sourcePath: 'frontend/src/components/widgets/ConstellationsNowWidget.vue',
+    description: 'Rýchly výber súhvezdí, ktoré sa dnes oplatí sledovať.',
+    component: ConstellationsNowWidget,
+    initialProps: {
+      title: 'Viditeľné súhvezdia',
+    },
+    editableProps: [
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Viditeľné súhvezdia' },
+    ],
+  },
+  {
     id: 'sidebar-latest-articles',
-    label: 'Najnovšie články',
+    label: 'Astro čítanie',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/LatestArticlesWidget.vue',
     description: 'Widget pre najnovšie a najčítanejšie články zo sidebaru.',
     component: LatestArticlesWidget,
     initialProps: {
       mostReadTitle: 'Najčítanejšie články',
-      latestTitle: 'Najnovšie články',
+      latestTitle: 'Astro čítanie',
       emptyStateTitle: 'Zatiaľ žiadne články',
       loadErrorTitle: 'Nepodarilo sa načítať',
       switchIntervalMs: 60000,
@@ -214,7 +206,7 @@ export const sidebarComponentPlaygroundRegistry = [
     },
     editableProps: [
       { key: 'mostReadTitle', label: 'Nadpis najčítanejších', type: 'text', defaultValue: 'Najčítanejšie články' },
-      { key: 'latestTitle', label: 'Nadpis najnovších', type: 'text', defaultValue: 'Najnovšie články' },
+      { key: 'latestTitle', label: 'Nadpis najnovších', type: 'text', defaultValue: 'Astro čítanie' },
       { key: 'emptyStateTitle', label: 'Text prázdneho stavu', type: 'text', defaultValue: 'Zatiaľ žiadne články' },
       { key: 'loadErrorTitle', label: 'Nadpis chyby', type: 'text', defaultValue: 'Nepodarilo sa načítať' },
       {
@@ -241,18 +233,18 @@ export const sidebarComponentPlaygroundRegistry = [
   },
   {
     id: 'sidebar-upcoming-events',
-    label: 'Čo sa deje (Nadchádzajúce udalosti)',
+    label: 'Udalosti v kalendári',
     category: 'Sidebar widgety',
     sourcePath: 'frontend/src/components/widgets/UpcomingEventsWidget.vue',
     description: 'Widget upcoming events zo sidebaru.',
     component: UpcomingEventsWidget,
     initialProps: {
-      title: 'Čo sa deje',
+      title: 'Udalosti v kalendári',
       showMoreLabel: 'Zobraziť viac',
       loadErrorTitle: 'Nepodarilo sa načítať',
     },
     editableProps: [
-      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Čo sa deje' },
+      { key: 'title', label: 'Nadpis', type: 'text', defaultValue: 'Udalosti v kalendári' },
       { key: 'showMoreLabel', label: 'Text tlačidla viac', type: 'text', defaultValue: 'Zobraziť viac' },
       { key: 'loadErrorTitle', label: 'Nadpis chyby', type: 'text', defaultValue: 'Nepodarilo sa načítať' },
     ],

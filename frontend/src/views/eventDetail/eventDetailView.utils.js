@@ -92,12 +92,12 @@ export function toNullableString(value) {
 }
 
 export function formatEventMetaDate(item, timeZone) {
-  if (!item) return 'Datum upresnime'
+  if (!item) return 'Dátum upresníme'
 
   const startAt = parseDate(item.start_at || item.starts_at || item.max_at || item.end_at || item.ends_at)
   const endAt = parseDate(item.end_at || item.ends_at)
 
-  if (!startAt) return 'Datum upresnime'
+  if (!startAt) return 'Dátum upresníme'
   if (!endAt || formatDateKey(startAt, timeZone) === formatDateKey(endAt, timeZone)) {
     return formatDateLabel(startAt, timeZone)
   }
@@ -160,9 +160,9 @@ export function mapStatus(item) {
 }
 
 export function mapVisibility(value) {
-  if (value === 1 || value === '1') return 'Viditelne zo Slovenska'
+  if (value === 1 || value === '1') return 'Viditeľné zo Slovenska'
   if (value === 0 || value === '0') return 'Mimo Slovenska'
-  return 'Viditelnost sa upresni'
+  return 'Viditeľnosť sa upresní'
 }
 
 export function mapConfidence(level) {

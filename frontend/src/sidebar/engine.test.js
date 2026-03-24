@@ -7,6 +7,21 @@ import {
 } from '@/sidebar/engine'
 
 describe('sidebar engine constraints', () => {
+  it('normalizes builtin section titles to clean Slovak labels', () => {
+    const enabled = getEnabledSidebarSections([
+      {
+        kind: 'builtin',
+        section_key: 'next_event',
+        title: 'Najbližšia udalosť',
+        order: 0,
+        is_enabled: true,
+      },
+    ])
+
+    expect(enabled).toHaveLength(1)
+    expect(enabled[0].title).toBe('Najbližšia udalosť')
+  })
+
   it('limits enabled widgets to configured maximum', () => {
     const enabled = getEnabledSidebarSections([
       { kind: 'builtin', section_key: 'search', order: 0, is_enabled: true },

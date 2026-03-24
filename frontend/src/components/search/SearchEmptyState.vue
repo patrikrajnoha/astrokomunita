@@ -63,7 +63,7 @@ const iconPaths = computed(() => {
 .searchEmptyState {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: rgb(var(--bg-surface-rgb) / 0.64);
+  background: var(--color-card);
   padding: 1rem 0.9rem;
   display: grid;
   justify-items: center;

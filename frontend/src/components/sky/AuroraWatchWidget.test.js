@@ -55,15 +55,16 @@ describe('AuroraWatchWidget', () => {
     await flushPromises()
     await nextTick()
 
-    expect(getMock).toHaveBeenCalledWith('/sky/aurora', {
+    expect(getMock).toHaveBeenCalledWith('/sky/aurora', expect.objectContaining({
       params: {
         lat: 48.1486,
         lon: 17.1077,
         tz: 'Europe/Bratislava',
       },
       meta: { skipErrorToast: true },
-    })
-    expect(wrapper.text()).toContain('Aurora watch')
+      signal: expect.any(AbortSignal),
+    }))
+    expect(wrapper.text()).toContain('Polárna žiara')
     expect(wrapper.text()).toContain('Vysoká šanca')
     expect(wrapper.text()).toContain('72 / 100')
     expect(wrapper.text()).toContain('Severný koridor')

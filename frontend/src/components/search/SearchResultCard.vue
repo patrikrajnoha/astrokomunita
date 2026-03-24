@@ -186,7 +186,7 @@ const iconPaths = computed(() => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: rgb(var(--color-text-secondary-rgb) / 0.94);
-  background: rgb(var(--bg-surface-rgb) / 0.48);
+  background: rgb(var(--bg-app-rgb) / 0.58);
 }
 
 .searchResultCard__content {

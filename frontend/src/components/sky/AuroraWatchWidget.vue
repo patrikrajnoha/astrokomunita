@@ -1,12 +1,12 @@
 <template>
   <section class="card panel">
-    <h3 class="panelTitle sidebarSection__header">Aurora watch</h3>
+    <h3 class="panelTitle sidebarSection__header">Polárna žiara</h3>
 
     <AsyncState
       v-if="showMissingLocation"
       mode="empty"
       title="Poloha nie je nastavená"
-      message="Nastav polohu pre lokálny aurora watch."
+      message="Nastav polohu pre lokálnu predpoveď polárnej žiary."
       compact
     />
 
@@ -27,7 +27,7 @@
     <AsyncState
       v-else-if="!payload?.available"
       mode="empty"
-      title="Aurora watch je nedostupný"
+      title="Polárna žiara je nedostupná"
       message="NOAA OVATION forecast sa momentálne nepodarilo načítať."
       compact
     />
@@ -134,7 +134,7 @@ async function fetchPayload() {
     error.value = (
       requestError?.response?.data?.message
       || requestError?.message
-      || 'Nepodarilo sa načítať aurora watch.'
+          || 'Nepodarilo sa načítať polárnu žiaru.'
     )
   } finally {
     if (pendingAbort === controller) {

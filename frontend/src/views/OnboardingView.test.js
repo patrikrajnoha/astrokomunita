@@ -16,9 +16,16 @@ const mockPreferences = vi.hoisted(() => ({
   saveOnboarding: vi.fn(async () => {}),
   markOnboardingComplete: vi.fn(async () => {}),
 }))
+const mockOnboardingTour = vi.hoisted(() => ({
+  restartTour: vi.fn(),
+}))
 
 vi.mock('@/stores/eventPreferences', () => ({
   useEventPreferencesStore: () => mockPreferences,
+}))
+
+vi.mock('@/stores/onboardingTour', () => ({
+  useOnboardingTourStore: () => mockOnboardingTour,
 }))
 
 function makeRouter() {
@@ -38,6 +45,7 @@ describe('OnboardingView', () => {
     mockPreferences.ensureInterestsLoaded.mockClear()
     mockPreferences.saveOnboarding.mockClear()
     mockPreferences.markOnboardingComplete.mockClear()
+    mockOnboardingTour.restartTour.mockClear()
   })
 
   it('completing onboarding saves preferences once and redirects home', async () => {
@@ -86,5 +94,29 @@ describe('OnboardingView', () => {
     await vi.waitFor(() => {
       expect(router.currentRoute.value.name).toBe('home')
     })
+  })
+
+  it('restarts onboarding tour when start_tour query is enabled', async () => {
+    const router = makeRouter()
+    await router.push('/onboarding?redirect=/&start_tour=1')
+    await router.isReady()
+
+    const wrapper = mount(OnboardingView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          OnboardingModal: {
+            template: '<button class="finish" @click="$emit(\'finish\', { interests: [] })">finish</button>',
+          },
+        },
+      },
+    })
+
+    await wrapper.find('.finish').trigger('click')
+
+    await vi.waitFor(() => {
+      expect(router.currentRoute.value.name).toBe('home')
+    })
+    expect(mockOnboardingTour.restartTour).toHaveBeenCalledTimes(1)
   })
 })

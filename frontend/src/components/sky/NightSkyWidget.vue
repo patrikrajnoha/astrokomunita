@@ -1,6 +1,6 @@
 <template>
   <section class="panel">
-    <div class="panelTitle sidebarSection__header">Dnes na oblohe</div>
+    <div class="panelTitle sidebarSection__header">Nočná obloha</div>
 
     <!-- Loading -->
     <div v-if="showLoading" class="skeletonStack">

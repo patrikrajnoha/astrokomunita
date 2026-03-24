@@ -28,7 +28,7 @@
       <li v-for="item in items" :key="item.id" class="postCard">
         <div class="postHeader">
           <span class="postBadge">published</span>
-          <span class="postMeta">RSS datum: {{ formatDateTime(item.published_at) }}</span>
+          <span class="postMeta">RSS dátum: {{ formatDateTime(item.published_at) }}</span>
         </div>
 
         <div class="postContent">{{ item.title }}</div>

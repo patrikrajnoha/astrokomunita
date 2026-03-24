@@ -9,6 +9,42 @@ export type CandidateType =
   | "aurora"
   | "other";
 
+export type CandidateAiMode = "ai" | "template" | "mix";
+export type CandidateAiScope = "all" | "missing" | "template";
+export type CandidateDescriptionMode =
+  | "all"
+  | "missing"
+  | "template"
+  | "ai"
+  | "ai_refined"
+  | "translated"
+  | "manual";
+
+export type CandidateApproveBatchRunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "completed_with_failures"
+  | "failed";
+
+export type CandidateApproveBatchRun = {
+  id: number;
+  status: CandidateApproveBatchRunStatus;
+  is_terminal: boolean;
+  publish_generation_mode: CandidateAiMode;
+  total_selected: number;
+  processed: number;
+  published: number;
+  failed: number;
+  limit_applied: number | null;
+  progress_percent: number;
+  started_at: string | null;
+  finished_at: string | null;
+  error_message: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export type CandidateListItem = {
   id: number;
   source_name: string;
@@ -17,6 +53,7 @@ export type CandidateListItem = {
   translated_title: string | null;
   translated_description: string | null;
   translation_status: string | null;
+  translation_mode: "template" | "translated" | "ai_title" | "ai_description" | "ai_refined" | "manual" | null;
   translation_error: string | null;
   translated_at: string | null;
   status: CandidateStatus;
@@ -36,6 +73,7 @@ export type CandidateListItem = {
   reviewed_by: string | null;
   reviewed_at: string | null;
   reject_reason: string | null;
+  published_event_id: number | null;
 
   created_at: string;
   updated_at: string;
@@ -63,6 +101,9 @@ export type LaravelPaginator<T> = {
 export type CandidateDetail = CandidateListItem & {
   source_uid: string;
   source_hash: string;
+
+  original_title: string | null;
+  original_description: string | null;
 
   visibility: string | null;
   raw_payload: string | null;
@@ -92,6 +133,7 @@ export const eventCandidates = {
   async list(params: {
     status?: CandidateStatus;
     type?: CandidateType;
+    description_mode?: CandidateDescriptionMode;
     source?: string;
     source_key?: string;
     run_id?: number;
@@ -118,14 +160,16 @@ export const eventCandidates = {
     return res.data;
   },
 
-  async approve(id: number) {
-    const res = await api.post(`/admin/event-candidates/${id}/approve`);
+  async approve(id: number, options?: { mode?: CandidateAiMode }) {
+    const payload = options?.mode ? { mode: options.mode } : {};
+    const res = await api.post(`/admin/event-candidates/${id}/approve`, payload);
     return res.data;
   },
 
   async approveBatch(params: {
     status?: CandidateStatus;
     type?: CandidateType;
+    description_mode?: CandidateDescriptionMode;
     source?: string;
     source_key?: string;
     run_id?: number;
@@ -136,9 +180,53 @@ export const eventCandidates = {
     date_from?: string;
     date_to?: string;
     limit?: number;
+    mode?: CandidateAiMode;
   }) {
-    const res = await api.post(`/admin/event-candidates/approve-batch`, params);
+    const res = await api.post(`/admin/event-candidates/approve-batch`, params, {
+      timeout: 180000,
+      meta: { skipErrorToast: true },
+    });
     return res.data as { ok: boolean; published: number; failed: number; total_selected: number; limit_applied: number };
+  },
+
+  async approveBatchStart(params: {
+    status?: CandidateStatus;
+    type?: CandidateType;
+    description_mode?: CandidateDescriptionMode;
+    source?: string;
+    source_key?: string;
+    run_id?: number;
+    q?: string;
+    year?: number;
+    month?: number;
+    week?: number;
+    date_from?: string;
+    date_to?: string;
+    limit?: number;
+    mode?: CandidateAiMode;
+  }) {
+    const res = await api.post(`/admin/event-candidates/approve-batch/start`, params, {
+      timeout: 30000,
+      meta: { skipErrorToast: true },
+    });
+
+    return res.data as {
+      ok: boolean;
+      status: "accepted" | "done";
+      run: CandidateApproveBatchRun;
+    };
+  },
+
+  async approveBatchRunStatus(runId: number) {
+    const res = await api.get(`/admin/event-candidates/approve-batch/runs/${runId}`, {
+      timeout: 30000,
+      meta: { skipErrorToast: true },
+    });
+
+    return res.data as {
+      ok: boolean;
+      run: CandidateApproveBatchRun;
+    };
   },
 
   async publishManualBatch(params: {
@@ -158,14 +246,19 @@ export const eventCandidates = {
     return res.data;
   },
 
-  async retranslate(id: number) {
-    const res = await api.post(`/admin/event-candidates/${id}/retranslate`);
+  async retranslate(id: number, options?: { mode?: CandidateAiMode }) {
+    const payload = options?.mode ? { mode: options.mode } : {};
+    const res = await api.post(`/admin/event-candidates/${id}/retranslate`, payload, {
+      timeout: 30000,
+      meta: { skipErrorToast: true },
+    });
     return res.data;
   },
 
   async retranslateBatch(params: {
     status?: CandidateStatus;
     type?: CandidateType;
+    description_mode?: CandidateDescriptionMode;
     source?: string;
     source_key?: string;
     run_id?: number;
@@ -176,9 +269,22 @@ export const eventCandidates = {
     date_from?: string;
     date_to?: string;
     limit?: number;
+    mode?: CandidateAiMode;
+    ai_scope?: CandidateAiScope;
   }) {
-    const res = await api.post(`/admin/event-candidates/retranslate-batch`, params);
-    return res.data as { ok: boolean; queued: number; failed: number; total_selected: number; limit_applied: number };
+    const res = await api.post(`/admin/event-candidates/retranslate-batch`, params, {
+      timeout: 180000,
+      meta: { skipErrorToast: true },
+    });
+    return res.data as {
+      ok: boolean;
+      queued: number;
+      failed: number;
+      total_selected: number;
+      limit_applied: number;
+      mode_applied?: CandidateAiMode;
+      scope_applied?: CandidateAiScope;
+    };
   },
 
   async updateTranslation(
@@ -215,6 +321,11 @@ export const eventCandidates = {
       };
       groups: DuplicateGroupPreview[];
     };
+  },
+
+  async cancelTranslationQueue() {
+    const res = await api.post('/admin/event-candidates/translation-queue/cancel');
+    return res.data as { ok: boolean; deleted_jobs: number };
   },
 
   async mergeDuplicates(payload: {

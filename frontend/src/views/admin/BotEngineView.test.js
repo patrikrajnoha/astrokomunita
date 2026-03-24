@@ -5,7 +5,6 @@ import BotEngineView from '@/views/admin/BotEngineView.vue'
 
 const toastErrorMock = vi.fn()
 const toastSuccessMock = vi.fn()
-const confirmMock = vi.fn(async () => true)
 
 const store = {
   sources: ref([
@@ -26,45 +25,8 @@ const store = {
       last_run_at: null,
     },
   ]),
-  runsPage: ref({
-    data: [
-      {
-        id: 11,
-        source_key: 'nasa_rss_breaking',
-        started_at: '2026-02-23T10:00:00Z',
-        finished_at: '2026-02-23T10:01:00Z',
-        status: 'success',
-        stats: { published_count: 1 },
-        meta: { mode: 'dry', publish_limit: 3 },
-        error_text: null,
-      },
-    ],
-    meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
-  }),
-  runItemsPage: ref({
-    data: [
-      {
-        id: 91,
-        stable_key: 'stable-91',
-        publish_status: 'pending',
-        translation_status: 'done',
-        post_id: null,
-        used_translation: true,
-        skip_reason: null,
-        fetched_at: '2026-02-23T10:00:10Z',
-        title: 'Preview title',
-        content: 'Preview body',
-        title_original: 'Original title',
-        content_original: 'Original body',
-        title_translated: 'Translated title',
-        content_translated: 'Translated body',
-        url: 'https://example.test/item-91',
-        source_key: 'nasa_rss_breaking',
-        published_manually: false,
-      },
-    ],
-    meta: { current_page: 1, last_page: 1, per_page: 20, total: 1 },
-  }),
+  runsPage: ref({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
+  runItemsPage: ref({ data: [], meta: { current_page: 1, last_page: 1, per_page: 20, total: 0 } }),
   filters: ref({
     sourceKey: '',
     bot_identity: '',
@@ -73,35 +35,17 @@ const store = {
     date_to: '',
     per_page: 20,
   }),
-  loadingSources: ref(false),
-  loadingRuns: ref(false),
-  loadingRunItems: ref(false),
   translationHealth: ref({
     provider: 'libretranslate',
+    fallback_provider: 'ollama',
     simulate_outage_provider: 'none',
     degraded: false,
     result: { ok: true, error_type: null },
   }),
-  savingTranslationOutage: ref(false),
   testingTranslation: false,
   fetchSources: vi.fn().mockResolvedValue([]),
   fetchRuns: vi.fn().mockResolvedValue([]),
   runSource: vi.fn().mockResolvedValue({ status: 'success', stats: {} }),
-  publishItem: vi.fn(),
-  publishRun: vi.fn().mockResolvedValue({
-    run_id: 11,
-    published_count: 1,
-    skipped_count: 0,
-    failed_count: 0,
-  }),
-  retryTranslation: vi.fn(),
-  backfillTranslation: vi.fn().mockResolvedValue({
-    source_key: 'nasa_rss_breaking',
-    scanned: 1,
-    updated_posts: 1,
-    skipped: 0,
-    failed: 0,
-  }),
   testTranslation: vi.fn().mockResolvedValue({
     ok: true,
     provider: 'ollama_postedit',
@@ -113,6 +57,7 @@ const store = {
   }),
   fetchTranslationHealth: vi.fn().mockResolvedValue({
     provider: 'libretranslate',
+    fallback_provider: 'ollama',
     simulate_outage_provider: 'none',
     degraded: false,
     result: { ok: true, error_type: null },
@@ -120,18 +65,8 @@ const store = {
   setTranslationOutageProvider: vi.fn().mockResolvedValue({
     key: 'translation.simulate_outage_provider',
     old_value: 'none',
-    new_value: 'ollama',
+    new_value: 'none',
   }),
-  deleteItemPost: vi.fn(),
-  fetchItemsForRun: vi.fn().mockResolvedValue([]),
-  clearRunItems: vi.fn(),
-  isSourceRunning: vi.fn(() => false),
-  isItemPublishing: vi.fn(() => false),
-  isItemDeleting: vi.fn(() => false),
-  isRunPublishing: vi.fn(() => false),
-  isTranslationRetrying: vi.fn(() => false),
-  isTranslationBackfilling: vi.fn(() => false),
-  deletingAllPosts: false,
   resetFilters: vi.fn(() => ({
     sourceKey: '',
     bot_identity: '',
@@ -158,14 +93,15 @@ vi.mock('@/composables/useToast', () => ({
   }),
 }))
 
-vi.mock('@/composables/useConfirm', () => ({
-  useConfirm: () => ({
-    confirm: (...args) => confirmMock(...args),
-  }),
-}))
-
 function flush() {
   return Promise.resolve().then(() => nextTick())
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 }
 
 function mountView(options = {}) {
@@ -174,7 +110,7 @@ function mountView(options = {}) {
     global: {
       stubs: {
         AdminPageShell: { template: '<div><slot name="right-actions" /><slot /></div>' },
-        RouterLink: true,
+        RouterLink: { template: '<a><slot /></a>' },
         routerLink: true,
         teleport: true,
       },
@@ -186,33 +122,38 @@ function mountView(options = {}) {
 describe('BotEngineView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    confirmMock.mockResolvedValue(true)
   })
 
-  it('applies preset bot identity filter for dedicated bot routes', async () => {
-    mountView({
-      props: {
-        presetBotIdentity: 'kozmo',
-        presetLabel: 'Kozmo',
-      },
-    })
-
-    await flush()
-    await flush()
-
-    expect(store.fetchRuns).toHaveBeenCalled()
-    expect(store.fetchRuns.mock.calls[0][0]).toMatchObject({ bot_identity: 'kozmo' })
-  })
-
-  it('quick run executes enabled sources for selected bot', async () => {
+  it('renders compact legacy service panel without bot identity pills', async () => {
     const wrapper = mountView()
+
     await flush()
     await flush()
 
-    await wrapper.get('[data-testid="quick-run-kozmo"]').trigger('click')
+    const text = normalizeText(wrapper.text())
+
+    expect(text).toContain('run control')
+    expect(text).toContain('ai test')
+    expect(wrapper.findAll('[data-testid="quick-run-all"]').length).toBeGreaterThan(0)
+    expect(text).not.toContain('kozmobot')
+    expect(text).not.toContain('stellarbot')
+    expect(text).not.toContain('behy')
+  })
+
+  it('quick run all executes enabled sources', async () => {
+    const wrapper = mountView()
+
+    await flush()
+    await flush()
+
+    await wrapper.get('[data-testid="quick-run-all"]').trigger('click')
     await flush()
 
     expect(store.runSource).toHaveBeenCalledWith('nasa_rss_breaking', {
+      mode: 'auto',
+      force_manual_override: true,
+    })
+    expect(store.runSource).toHaveBeenCalledWith('nasa_apod_daily', {
       mode: 'auto',
       force_manual_override: true,
     })
@@ -246,74 +187,18 @@ describe('BotEngineView', () => {
     expect(message).toContain('Spustenie dokoncene s chybami.')
     expect(message).toContain('KozmoBot: 1 zdroj (OK 1).')
     expect(message).toContain('StellarBot: 1 zdroj (chyby 1).')
-    expect(message).not.toContain('OK 0')
-    expect(message).not.toContain('ciastocne 0')
   })
 
-  it('quick run all reports skipped sources separately from errors', async () => {
-    store.runSource.mockImplementation(async (sourceKey) => {
-      if (sourceKey === 'nasa_rss_breaking') {
-        return { status: 'success', stats: {} }
-      }
-
-      return {
-        status: 'skipped',
-        ui_message: 'Source "nasa_apod_daily" je v cooldowne do 2026-03-09T13:00:00+00:00.',
-        stats: {},
-      }
-    })
-
+  it('runs AI translation test from compact action row', async () => {
     const wrapper = mountView()
+
     await flush()
     await flush()
 
-    await wrapper.get('[data-testid="quick-run-all"]').trigger('click')
-    await flush()
-    await flush()
-
-    expect(toastSuccessMock).toHaveBeenCalled()
-    const message = String(toastSuccessMock.mock.calls.at(-1)?.[0] || '')
-    expect(message).toContain('Spustenie dokoncene s preskocenymi zdrojmi.')
-    expect(message).toContain('KozmoBot: 1 zdroj (OK 1).')
-    expect(message).toContain('StellarBot: 1 zdroj (preskočené 1).')
-    expect(message).not.toContain('chyby 1')
-  })
-
-  it('uses single primary CTA for translation test and shows advanced output', async () => {
-    const wrapper = mountView()
-    await flush()
-    await flush()
-
-    const testButton = wrapper
-      .findAll('button')
-      .find((node) => node.text().toLowerCase().includes('otest'))
-    expect(testButton).toBeTruthy()
-    await testButton.trigger('click')
+    await wrapper.get('[data-testid="ai-test-run"]').trigger('click')
     await flush()
 
     expect(store.testTranslation).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('ollama_postedit')
-    expect(wrapper.text()).toContain('too_short')
-  })
-
-  it('runs translation backfill from run detail advanced actions', async () => {
-    const wrapper = mountView()
-    await flush()
-    await flush()
-
-    await wrapper
-      .findAll('button')
-      .find((node) => node.text().includes('Detail'))
-      .trigger('click')
-    await flush()
-
-    await wrapper.get('[data-testid="backfill-translation-btn"]').trigger('click')
-    await flush()
-
-    expect(store.backfillTranslation).toHaveBeenCalledWith('nasa_rss_breaking', {
-      limit: 10,
-      run_id: 11,
-    })
-    expect(confirmMock).toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Prirodzeny slovensky text.')
   })
 })

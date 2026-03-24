@@ -1,10 +1,12 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
+import AdminUserDetailView from '@/views/admin/AdminUserDetailView.vue'
 import {
   deleteAllBotPosts,
-  getBotOverview,
   getBotPostRetentionSettings,
   runBotPostRetentionCleanup,
   updateBotPostRetentionSettings,
@@ -17,48 +19,90 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  overview: {
+    type: Object,
+    default: () => ({
+      window_hours: 24,
+      generated_at: null,
+      overall: {
+        active_sources: 0,
+        failing_sources: 0,
+        dead_sources: 0,
+        cooldown_skips_24h: 0,
+      },
+      bots: [],
+    }),
+  },
+  overviewLoading: {
+    type: Boolean,
+    default: false,
+  },
+  refreshToken: {
+    type: Number,
+    default: 0,
+  },
 })
 
-const loading = ref(false)
-const error = ref('')
 const retentionLoading = ref(false)
 const retentionSaving = ref(false)
 const retentionRunning = ref(false)
 const deletingAllPosts = ref(false)
+
 const retention = ref({
   enabled: false,
   auto_delete_after_hours: 48,
   allowed_hours: [24, 48, 72, 168],
   scheduled_frequency: 'hourly',
 })
+
 const retentionForm = ref({
   enabled: false,
   auto_delete_after_hours: 48,
 })
-const payload = ref({
-  window_hours: 24,
-  generated_at: null,
-  overall: {
-    active_sources: 0,
-    failing_sources: 0,
-    dead_sources: 0,
-    cooldown_skips_24h: 0,
-  },
-  bots: [],
-})
+
+const botDetailModalOpen = ref(false)
+const selectedBotId = ref(null)
+const selectedBotSnapshot = ref(null)
+const botOverrides = ref({})
+
 const { confirm } = useConfirm()
 const toast = useToast()
 
-const bots = computed(() => (Array.isArray(payload.value?.bots) ? payload.value.bots : []))
-const overall = computed(() => payload.value?.overall || {})
+const bots = computed(() => {
+  const baseRows = Array.isArray(props.overview?.bots) ? props.overview.bots : []
+  return baseRows.map((row) => {
+    const rowId = Number(row?.id || 0)
+    const override = rowId > 0 ? botOverrides.value[rowId] : null
+
+    if (!override) {
+      return row
+    }
+
+    return {
+      ...row,
+      ...override,
+    }
+  })
+})
+const selectedBot = computed(() => {
+  const targetId = Number(selectedBotId.value || 0)
+  if (targetId > 0) {
+    const live = bots.value.find((row) => Number(row?.id || 0) === targetId)
+    if (live) return live
+  }
+
+  return selectedBotSnapshot.value
+})
+
 const retentionAllowedHours = computed(() => {
   const values = Array.isArray(retention.value?.allowed_hours) ? retention.value.allowed_hours : []
   return values.filter((value) => Number.isInteger(Number(value)) && Number(value) > 0)
 })
+
 const retentionStatusLabel = computed(() => (retentionForm.value.enabled ? 'Zapnuté' : 'Vypnuté'))
 const dashboardMetaLine = computed(() => {
-  const windowHours = Number(payload.value?.window_hours || 24)
-  return `Okno ${windowHours}h · aktualizované ${formatDateTime(payload.value?.generated_at)}`
+  const windowHours = Number(props.overview?.window_hours || 24)
+  return `Okno ${windowHours}h · aktualizované ${formatDateTime(props.overview?.generated_at)}`
 })
 
 function formatDateTime(value) {
@@ -68,27 +112,61 @@ function formatDateTime(value) {
   return parsed.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-function rateLimitLabel(row) {
-  const state = row?.rate_limit_state || {}
-  if (state.limited) {
-    return `LIMIT (${Number(state.retry_after_sec || 0)}s)`
-  }
-  const remaining = Number(state.remaining_attempts || 0)
-  const max = Number(state.max_attempts || 0)
-  if (max <= 0) return 'OFF'
-  return `${remaining}/${max}`
+function botDisplayName(row) {
+  return String(row?.name || row?.username || `Bot #${row?.id || '-'}`)
 }
 
-async function load() {
-  loading.value = true
-  error.value = ''
-  try {
-    const response = await getBotOverview()
-    payload.value = response?.data || payload.value
-  } catch (e) {
-    error.value = e?.response?.data?.message || 'Načítanie prehľadu botov zlyhalo.'
-  } finally {
-    loading.value = false
+function botHandle(row) {
+  const username = String(row?.username || '').trim()
+  if (!username) return '-'
+  return `@${username}`
+}
+
+function botAccountStatusLabel(row) {
+  return row?.is_active ? 'Aktívny' : 'Neaktívny'
+}
+
+function botAccountStatusClass(row) {
+  return row?.is_active ? 'is-active' : 'is-inactive'
+}
+
+function selectBotAccount(row) {
+  if (!row) return
+  const parsedId = Number(row.id || 0)
+  selectedBotId.value = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null
+  selectedBotSnapshot.value = { ...row }
+}
+
+function openBotDetailAccount(row) {
+  selectBotAccount(row)
+  botDetailModalOpen.value = true
+}
+
+function handleBotUserUpdated(updatedUser) {
+  const targetId = Number(updatedUser?.id || 0)
+  if (!Number.isFinite(targetId) || targetId <= 0) return
+
+  botOverrides.value = {
+    ...botOverrides.value,
+    [targetId]: {
+      ...(botOverrides.value[targetId] || {}),
+      ...updatedUser,
+    },
+  }
+
+  if (Number(selectedBotId.value || 0) === targetId) {
+    selectedBotSnapshot.value = {
+      ...(selectedBotSnapshot.value || {}),
+      ...updatedUser,
+    }
+  }
+}
+
+function handleBotDetailModalToggle(isOpen) {
+  botDetailModalOpen.value = Boolean(isOpen)
+  if (!isOpen) {
+    selectedBotId.value = null
+    selectedBotSnapshot.value = null
   }
 }
 
@@ -168,7 +246,7 @@ async function deleteAllPublishedBotPosts() {
     toast.success(
       `Vymazané: ${Number(result.deleted_posts || 0)} · chýbajúce: ${Number(result.missing_posts || 0)} · chyby: ${Number(result.failed_items || 0)}.`,
     )
-    await Promise.all([load(), loadRetentionSettings()])
+    await loadRetentionSettings()
   } catch (e) {
     toast.error(e?.response?.data?.message || 'Mazanie príspevkov botov zlyhalo.')
   } finally {
@@ -195,7 +273,6 @@ async function runCleanupNow() {
     toast.success(
       `Cleanup dokončený: vymazané ${Number(result.deleted_posts || 0)}, chyby ${Number(result.failed_items || 0)}.`,
     )
-    await load()
   } catch (e) {
     toast.error(e?.response?.data?.message || 'Retention cleanup zlyhal.')
   } finally {
@@ -203,9 +280,19 @@ async function runCleanupNow() {
   }
 }
 
+async function refreshAuxiliaryData() {
+  await loadRetentionSettings()
+}
+
+watch(
+  () => props.refreshToken,
+  () => {
+    void refreshAuxiliaryData()
+  },
+)
+
 onMounted(() => {
-  void load()
-  void loadRetentionSettings()
+  void refreshAuxiliaryData()
 })
 </script>
 

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
@@ -29,6 +29,7 @@ const retranslateMessage = ref('')
 const retranslateError = ref('')
 const retranslateRawStatus = ref(null)
 const showRaw = ref(false)
+const showOriginal = ref(false)
 const showTranslationEditor = ref(false)
 const translationForm = ref({
   translated_title: '',
@@ -89,9 +90,9 @@ function translationStatusKey(value) {
 
 function translationStatusLabel(value) {
   const status = translationStatusKey(value)
-  if (status === 'success') return 'Preložené'
-  if (status === 'error') return 'Zlyhalo'
-  return 'Čaká'
+  if (status === 'success') return '✅ Preložené'
+  if (status === 'error') return '❌ Zlyhalo'
+  return '⏳ Čaká'
 }
 
 function translationStatusClass(value) {
@@ -99,6 +100,17 @@ function translationStatusClass(value) {
   if (status === 'success') return 'statusBadge--success'
   if (status === 'error') return 'statusBadge--error'
   return 'statusBadge--pending'
+}
+
+function translationModeLabel(value) {
+  const mode = String(value || '').trim().toLowerCase()
+  if (mode === 'template') return '📄 Šablóna'
+  if (mode === 'ai_refined') return '🤖 AI — titul aj popis'
+  if (mode === 'ai_title') return '🤖 AI — len titul'
+  if (mode === 'ai_description') return '🤖 AI — len popis'
+  if (mode === 'translated') return '🌐 Strojový preklad'
+  if (mode === 'manual') return '✍️ Ručne upravené'
+  return '❓ Neznáme'
 }
 
 function canReview() {
@@ -173,8 +185,10 @@ async function reject() {
   }
 }
 
-async function retranslate() {
+async function retranslate(mode = 'ai') {
   if (!candidate.value || retranslateLoading.value) return
+  const selectedMode = String(mode || '').trim().toLowerCase() === 'template' ? 'template' : 'ai'
+  const modeLabel = selectedMode === 'template' ? '📄 Šablóna' : '🤖 AI popis'
 
   retranslateLoading.value = true
   retranslateMessage.value = ''
@@ -183,21 +197,46 @@ async function retranslate() {
   error.value = null
 
   try {
-    const response = await eventCandidates.retranslate(candidate.value.id)
+    const response = await eventCandidates.retranslate(candidate.value.id, { mode: selectedMode })
     const fallbackUsed = Boolean(
       response?.fallback_used
       || response?.candidate?.fallback_used
       || response?.candidate?.translation_fallback_used,
     )
 
-    retranslateMessage.value = fallbackUsed ? 'Použitý fallback' : 'Dokončené'
-    toast.success('Preklad bol znovu spustený.')
+    retranslateMessage.value = fallbackUsed
+      ? `${modeLabel}: použitá šablóna (routing).`
+      : `${modeLabel}: spustené.`
+    toast.success(`${modeLabel} bol spustený.`)
     await load()
+
+    const resolvedMode = String(candidate.value?.translation_mode || '').trim().toLowerCase()
+    if (selectedMode === 'ai' && resolvedMode === 'template') {
+      retranslateMessage.value = `⚠️ AI nevrátila použiteľný výstup — použitá záložná šablóna.`
+      toast.warn(retranslateMessage.value)
+      return
+    }
   } catch (fetchError) {
-    retranslateError.value = 'Nepodarilo sa preložiť znova.'
-    retranslateRawStatus.value = Number(fetchError?.response?.status || 0) || null
-    error.value = fetchError?.response?.data?.message || 'Retranslate zlyhal'
-    toast.error(retranslateError.value)
+    const status = Number(fetchError?.response?.status || 0)
+    const messageText = String(fetchError?.message || '').toLowerCase()
+    const isTimeout = fetchError?.code === 'ECONNABORTED' || messageText.includes('timeout')
+    const isNetwork = !status && (fetchError?.code === 'ERR_NETWORK' || messageText.includes('network'))
+
+    if (isTimeout || isNetwork) {
+      retranslateMessage.value = `⏳ Požiadavka trvá dlhšie — spracovanie beží na pozadí.`
+      toast.warn(retranslateMessage.value)
+      await load()
+      return
+    }
+
+    const resolvedError =
+      fetchError?.response?.data?.message
+      || fetchError?.userMessage
+      || `${modeLabel}: spustenie generovania zlyhalo.`
+    retranslateError.value = resolvedError
+    retranslateRawStatus.value = status || null
+    error.value = resolvedError
+    toast.error(resolvedError)
   } finally {
     retranslateLoading.value = false
   }
@@ -274,7 +313,7 @@ onMounted(load)
 
     <div v-if="candidate && !loading" class="candidateDetailView__sections">
       <section class="card card--wide">
-        <h3 class="card__title">Meta</h3>
+        <h3 class="card__title">📋 Meta</h3>
 
         <div class="detailGrid">
           <div class="detailLabel">ID</div><div class="detailValue">{{ candidate.id }}</div>
@@ -312,20 +351,32 @@ onMounted(load)
       </section>
 
       <section class="card card--wide">
-        <h3 class="card__title">Preklad</h3>
+        <h3 class="card__title">🌐 Preklad & popis</h3>
 
         <div class="actionsRow">
           <button
             type="button"
+            class="btn btn--primary"
+            :disabled="!candidate || retranslateLoading"
+            @click="retranslate('ai')"
+          >
+            {{ retranslateLoading ? '⏳ Pracujem...' : '🤖 Generovať AI popis' }}
+          </button>
+          <button
+            type="button"
             class="btn btn--ghost"
             :disabled="!candidate || retranslateLoading"
-            @click="retranslate"
+            @click="retranslate('template')"
           >
-            {{ retranslateLoading ? 'Pracujem na tom...' : 'Preložit znova' }}
+            📄 Šablóna
           </button>
         </div>
+        <p class="translationPanel__note">🤖 AI — Ollama vylepší titul aj popis do prirodzenej slovenčiny. &nbsp;📄 Šablóna — deterministický text podľa typu udalosti.</p>
         <p v-if="retranslateMessage" class="translationPanel__note">{{ retranslateMessage }}</p>
         <p v-if="retranslateError" class="translationPanel__note">{{ retranslateError }}</p>
+        <div v-if="retranslateLoading" class="translationPanel__progress">
+          <div class="translationPanel__progressBar"></div>
+        </div>
         <p v-if="retranslateRawStatus" class="translationPanel__advanced">
           HTTP status: {{ retranslateRawStatus }}
         </p>
@@ -337,6 +388,8 @@ onMounted(load)
             </span>
           </div>
 
+          <div class="detailLabel">Typ popisu</div>
+          <div class="detailValue">{{ translationModeLabel(candidate.translation_mode) }}</div>
           <div class="detailLabel">Posledná chyba</div>
           <div class="detailValue">{{ candidate.translation_error || '-' }}</div>
 
@@ -350,6 +403,21 @@ onMounted(load)
           <div class="detailValue">{{ candidateDisplayDescription(candidate) }}</div>
         </div>
 
+        <button
+          type="button"
+          class="btn btn--ghost originalToggle"
+          @click="showOriginal = !showOriginal"
+        >
+          {{ showOriginal ? '🙈 Skryť originál' : '🔍 Zobraziť originál (EN)' }}
+        </button>
+
+        <div v-if="showOriginal" class="originalPanel">
+          <div class="originalPanel__label">Originálny názov (EN)</div>
+          <div class="originalPanel__value">{{ candidate.original_title || candidate.title || '—' }}</div>
+          <div class="originalPanel__label">Originálny popis (EN)</div>
+          <div class="originalPanel__value originalPanel__value--desc">{{ candidate.original_description || candidate.description || '—' }}</div>
+        </div>
+
         <div class="actionsRow">
           <button
             type="button"
@@ -357,7 +425,7 @@ onMounted(load)
             :disabled="loading"
             @click="openTranslationEditor"
           >
-            Upraviť preklad
+            ✏️ Upraviť preklad
           </button>
         </div>
 
@@ -399,11 +467,11 @@ onMounted(load)
       </section>
 
       <section class="card">
-        <h3 class="card__title">Čas</h3>
+        <h3 class="card__title">🕐 Čas</h3>
 
         <div class="detailGrid">
           <div class="timezoneInfo">
-            Casove pasmo: {{ timezoneInfoLabel }}
+            Časové pásmo: {{ timezoneInfoLabel }}
           </div>
           <div class="detailLabel">Start</div><div class="detailValue">{{ formatDate(candidate.start_at) }}</div>
           <div class="detailLabel">End</div><div class="detailValue">{{ formatDate(candidate.end_at) }}</div>
@@ -412,7 +480,7 @@ onMounted(load)
       </section>
 
       <section class="card">
-        <h3 class="card__title">Zdroj</h3>
+        <h3 class="card__title">🔗 Zdroj</h3>
 
         <div class="detailGrid">
           <div class="detailLabel">Názov zdroja</div>
@@ -430,7 +498,7 @@ onMounted(load)
       </section>
 
       <section class="card">
-        <h3 class="card__title">Moderácia</h3>
+        <h3 class="card__title">⚖️ Moderácia</h3>
 
         <div class="actionsRow">
           <button
@@ -438,7 +506,7 @@ onMounted(load)
             @click="approve"
             :disabled="!canReview()"
           >
-            Publikovať
+            ✅ Publikovať
           </button>
 
           <button
@@ -446,14 +514,14 @@ onMounted(load)
             @click="reject"
             :disabled="!canReview()"
           >
-            Zamietnuť
+            ❌ Zamietnuť
           </button>
         </div>
       </section>
 
       <section class="card card--wide">
         <div class="rawHeader">
-          <h3 class="card__title">Raw payload</h3>
+          <h3 class="card__title">📦 Raw payload</h3>
 
           <button
             class="btn btn--ghost"
@@ -644,6 +712,26 @@ onMounted(load)
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
+.translationPanel__progress {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgb(var(--color-surface-rgb) / 0.2);
+}
+
+.translationPanel__progressBar {
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgb(var(--color-primary-rgb)) 0%, rgb(var(--color-primary-rgb) / 0.68) 100%);
+  animation: translationPanelSlide 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes translationPanelSlide {
+  from { transform: translateX(-40%); }
+  to { transform: translateX(170%); }
+}
+
 .actionsRow {
   display: flex;
   flex-wrap: wrap;
@@ -741,6 +829,41 @@ onMounted(load)
   text-underline-offset: 2px;
 }
 
+.originalToggle {
+  align-self: start;
+  font-size: 12px;
+}
+
+.originalPanel {
+  display: grid;
+  gap: 4px 10px;
+  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr);
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  background: rgb(var(--color-bg-rgb) / 0.4);
+  font-size: 13px;
+}
+
+.originalPanel__label {
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  align-self: start;
+  padding-top: 2px;
+}
+
+.originalPanel__value {
+  min-width: 0;
+  word-break: break-word;
+}
+
+.originalPanel__value--desc {
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
 .rawHeader {
   display: flex;
   justify-content: space-between;
@@ -804,4 +927,5 @@ onMounted(load)
   }
 }
 </style>
+
 

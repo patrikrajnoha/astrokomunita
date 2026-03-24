@@ -307,6 +307,24 @@
   line-height: 1.35;
 }
 
+.event-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.event-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  font-size: 1rem;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
 .event-time {
   font-size: 12px;
   color: var(--text-dim);
@@ -415,6 +433,36 @@
   .event-list {
     max-height: 240px;
     gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-card {
+    padding: 12px;
+  }
+
+  .month-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 6px;
+  }
+
+  .nav-btn {
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  .day-cell {
+    min-height: 36px;
+    padding: 7px 0;
+  }
+
+  .days-grid {
+    grid-auto-rows: minmax(36px, auto);
+    gap: 4px;
+  }
+
+  .event-list {
+    max-height: 200px;
   }
 }
 

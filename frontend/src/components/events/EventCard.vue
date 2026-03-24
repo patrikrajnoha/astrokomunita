@@ -27,7 +27,7 @@
         </span>
       </div>
       <p class="meta-row">{{ formattedTime }}</p>
-      <p class="visibility-row" :aria-label="`Viditelnost zo Slovenska: ${visibilityText || 'neznamy stav'}`">
+      <p class="visibility-row" :aria-label="`Viditeľnosť zo Slovenska: ${visibilityText || 'neznámy stav'}`">
         {{ `${SK_FLAG} ${visibilityIcon}` }}
       </p>
 
@@ -50,7 +50,7 @@
         </transition>
       </button>
 
-      <button type="button" class="more-btn" aria-label="Otvorit detail udalosti" @click="$emit('open-sheet')">
+      <button type="button" class="more-btn" aria-label="Otvoriť detail udalosti" @click="$emit('open-sheet')">
         Viac detailu
       </button>
     </div>

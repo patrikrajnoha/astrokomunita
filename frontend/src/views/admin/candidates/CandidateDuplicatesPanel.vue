@@ -49,6 +49,10 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  mergeResult: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits([
@@ -92,7 +96,7 @@ function onPerGroupInput(event) {
 <template>
   <div class="duplicatesPanel">
     <div class="duplicatesPanel__head">
-      <strong>Deduplikacia pending kandidatom</strong>
+      <strong>Deduplikácia čakajúcich kandidátov</strong>
       <div class="duplicatesPanel__actions">
         <label>
           Skupiny
@@ -107,7 +111,7 @@ function onPerGroupInput(event) {
           />
         </label>
         <label>
-          Kandidati/skup.
+          Kandidáti/skup.
           <input
             :value="perGroup"
             type="number"
@@ -124,7 +128,7 @@ function onPerGroupInput(event) {
           class="toolbarButton toolbarButton--ghost"
           @click="emit('refresh')"
         >
-          {{ duplicateLoading ? 'Kontrolujem...' : 'Obnovit' }}
+          {{ duplicateLoading ? 'Kontrolujem...' : 'Obnoviť' }}
         </button>
         <button
           type="button"
@@ -140,7 +144,7 @@ function onPerGroupInput(event) {
           class="toolbarButton toolbarButton--success"
           @click="emit('merge')"
         >
-          {{ duplicateMerging ? 'Zlucujem...' : 'Zlucit duplicity' }}
+          {{ duplicateMerging ? 'Zlučujem...' : 'Zlúčiť duplicity' }}
         </button>
       </div>
     </div>
@@ -158,7 +162,7 @@ function onPerGroupInput(event) {
       >
         <div class="dupGroup__key">{{ group.canonical_key }}</div>
         <div class="dupGroup__row">
-          keep #{{ group.keeper.id }} {{ group.keeper.title }}
+          ponechať #{{ group.keeper.id }} {{ group.keeper.title }}
           <span class="cellMuted">
             ({{ sourceLabel(group.keeper.source_name) }}, {{ formatDate(group.keeper.start_at) }})
           </span>
@@ -168,16 +172,51 @@ function onPerGroupInput(event) {
           :key="`dup-${group.canonical_key}-${duplicate.id}`"
           class="dupGroup__row cellMuted"
         >
-          dup #{{ duplicate.id }} {{ duplicate.title }}
+          duplicitný #{{ duplicate.id }} {{ duplicate.title }}
           <span>({{ sourceLabel(duplicate.source_name) }}, {{ formatDate(duplicate.start_at) }})</span>
         </div>
         <div v-if="group.hidden_duplicates > 0" class="dupGroup__row cellMuted">
-          +{{ group.hidden_duplicates }} dalsich duplicit
+          +{{ group.hidden_duplicates }} ďalších duplicít
         </div>
       </article>
     </div>
     <div v-else class="duplicatesPanel__empty">
-      {{ duplicateLoading ? 'Kontrolujem duplicity...' : 'Pre aktuálny filter zatiaľ nie sú nájdené zlúčiteľné duplicity.' }}
+      {{ duplicateLoading ? 'Kontrolujem duplicity...' : 'Pre aktuálny filter zatiaľ nie sú nájdené zlučiteľné duplicity.' }}
+    </div>
+
+    <div v-if="mergeResult" class="mergeResult">
+      <div class="mergeResult__head">
+        <strong>Vyriešené duplikáty</strong>
+        <span class="mergeResult__badge">
+          {{ mergeResult.merged_candidates }} označených · {{ mergeResult.group_count }} skupín
+        </span>
+      </div>
+      <div class="mergeResult__groups">
+        <article
+          v-for="group in mergeResult.groups"
+          :key="group.canonical_key"
+          class="mergeGroup"
+        >
+          <div class="mergeGroup__keeper">
+            <span class="mergeGroup__label mergeGroup__label--keep">Zachovaný</span>
+            <span class="mergeGroup__title">{{ group.keeper.title }}</span>
+            <span class="mergeGroup__meta">
+              #{{ group.keeper.id }} · {{ sourceLabel(group.keeper.source_name) }} · {{ formatDate(group.keeper.start_at) }}
+            </span>
+          </div>
+          <div
+            v-for="dup in group.duplicates"
+            :key="`resolved-${group.canonical_key}-${dup.id}`"
+            class="mergeGroup__dup"
+          >
+            <span class="mergeGroup__label mergeGroup__label--dup">Duplikát</span>
+            <span class="mergeGroup__title">{{ dup.title }}</span>
+            <span class="mergeGroup__meta">
+              #{{ dup.id }} · {{ sourceLabel(dup.source_name) }} · {{ formatDate(dup.start_at) }}
+            </span>
+          </div>
+        </article>
+      </div>
     </div>
   </div>
 </template>
@@ -289,6 +328,89 @@ function onPerGroupInput(event) {
 
 .cellMuted {
   opacity: 0.7;
+}
+
+.mergeResult {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.mergeResult__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mergeResult__badge {
+  font-size: 12px;
+  opacity: 0.8;
+  background: rgb(var(--color-success-rgb) / 0.12);
+  border: 1px solid rgb(var(--color-success-rgb) / 0.25);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.mergeResult__groups {
+  display: grid;
+  gap: 6px;
+}
+
+.mergeGroup {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.mergeGroup__keeper,
+.mergeGroup__dup {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.mergeGroup__label {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mergeGroup__label--keep {
+  background: rgb(var(--color-success-rgb) / 0.15);
+  color: rgb(var(--color-success-rgb));
+}
+
+.mergeGroup__label--dup {
+  background: rgb(var(--color-danger-rgb, 220 38 38) / 0.12);
+  color: rgb(var(--color-danger-rgb, 220 38 38));
+}
+
+.mergeGroup__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mergeGroup__dup .mergeGroup__title {
+  opacity: 0.7;
+}
+
+.mergeGroup__meta {
+  font-size: 11px;
+  opacity: 0.6;
+  flex-shrink: 0;
 }
 
 @media (max-width: 900px) {

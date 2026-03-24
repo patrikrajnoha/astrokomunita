@@ -249,6 +249,7 @@ function sectionFromName() {
   if (
     name === 'admin.users'
     || name === 'admin.users.detail'
+    || name === 'admin.users.detail.page'
     || name === 'admin.moderation'
     || name === 'admin.reports'
   ) {

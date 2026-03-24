@@ -1,6 +1,6 @@
 <template>
   <section class="card panel">
-    <h3 class="panelTitle sidebarSection__header">Vesmírne počasie</h3>
+    <h3 class="panelTitle sidebarSection__header">Slnečná aktivita</h3>
 
     <AsyncState
       v-if="showMissingLocation"
@@ -27,7 +27,7 @@
     <AsyncState
       v-else-if="!payload?.available"
       mode="empty"
-      title="Vesmírne počasie je nedostupné"
+      title="Slnečná aktivita je nedostupná"
       message="NOAA SWPC dáta sa momentálne nepodarilo načítať."
       compact
     />

@@ -1,226 +1,217 @@
-<AdminPageShell
-  title="Newsletter"
-  subtitle="Vyber top obsah týždňa, skontroluj payload a spusti newsletter run."
->
-  <div v-if="error" class="alert alert-error">{{ error }}</div>
-  <div v-if="success" class="alert alert-success">{{ success }}</div>
+<AdminPageShell :title="pageTitle">
+  <div v-if="error" class="alert alert--error">{{ error }}</div>
+  <div v-if="success" class="alert alert--ok">{{ success }}</div>
 
-  <section class="card">
-    <div class="cardHead">
-      <h3>Vybrané udalosti na budúci týždeň</h3>
-      <p class="counter">{{ selectedCount }}/{{ maxFeaturedEvents }}</p>
-    </div>
-    <p class="muted">Vyber max {{ maxFeaturedEvents }} udalostí pre sekciu "Top udalosti budúceho týždňa".</p>
-
-    <div class="eventsGrid">
-      <label
-        v-for="event in candidateEvents"
-        :key="event.id"
-        class="eventOption"
-        :class="{ active: isSelected(event.id) }"
-      >
-        <input
-          type="checkbox"
-          :checked="isSelected(event.id)"
-          :disabled="savingSelection || (!isSelected(event.id) && selectedCount >= maxFeaturedEvents)"
-          @change="toggleSelected(event.id, $event.target.checked)"
-        />
-        <span class="eventTitle">{{ event.title }}</span>
-        <span class="eventDate">{{ formatDateTime(event.start_at) }}</span>
-      </label>
+  <!-- 1. OBSAH -->
+  <section class="panel">
+    <div class="panel__head">
+      <div>
+        <p class="panel__label">1 — Obsah</p>
+        <p class="panel__meta">
+          <span v-if="isAutoSelectionMode">Bez manuálneho výberu sa použije automatický fallback.</span>
+          <span v-else>Používa sa uložený manuálny výber.</span>
+        </p>
+      </div>
+      <span class="countPill">{{ selectedCount }}/{{ maxFeaturedEvents }}</span>
     </div>
 
-    <div class="actions">
-      <button type="button" :disabled="!canSaveSelection" @click="saveFeaturedEvents">
-        {{ savingSelection ? 'Ukladám...' : 'Uložiť vybrané udalosti' }}
+    <div v-if="isAutoSelectionMode" class="emptyHint">
+      <span>Zatiaľ nie sú vybrané top udalosti.</span>
+      <button type="button" class="btn btn--ghost" :disabled="loading" @click="focusEventSelection">
+        Vybrať udalosti
+      </button>
+    </div>
+
+    <div v-else-if="selectedEventsForSummary.length > 0" class="tagRow">
+      <span v-for="event in selectedEventsForSummary" :key="`sel-${event.id}`" class="tag">
+        {{ event.title }}
+      </span>
+    </div>
+
+    <div v-if="topArticles.length > 0" class="subSection">
+      <p class="subLabel">Top články</p>
+      <ul class="compactList">
+        <li v-for="article in topArticles" :key="article.id" class="compactList__row">
+          <span>{{ article.title }}</span>
+          <span class="muted">{{ Number(article.views || 0) }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div ref="eventSelectionRef" class="subSection">
+      <p class="subLabel">Top udalosti</p>
+      <p v-if="visibleCandidateEvents.length === 0" class="muted">Zatiaľ nie sú dostupné udalosti.</p>
+      <div v-else class="eventsList">
+        <label
+          v-for="event in visibleCandidateEvents"
+          :key="event.id"
+          class="eventOption"
+          :class="{ 'eventOption--active': isSelected(event.id) }"
+        >
+          <input
+            type="checkbox"
+            :checked="isSelected(event.id)"
+            :disabled="savingSelection || (!isSelected(event.id) && selectedCount >= maxFeaturedEvents)"
+            @change="toggleSelected(event.id, $event.target.checked)"
+          />
+          <span class="eventOption__title">{{ event.title }}</span>
+          <span class="eventOption__date">{{ formatDateTime(event.start_at) }}</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="panel__foot">
+      <button type="button" class="btn btn--primary" :disabled="!canSaveSelection" @click="saveFeaturedEvents">
+        {{ savingSelection ? 'Ukladám…' : 'Uložiť výber udalostí' }}
       </button>
     </div>
   </section>
 
-  <section class="card">
-    <h3>Náhľad payloadu</h3>
-    <p v-if="loading" class="muted">Načítavam náhľad...</p>
-    <template v-else>
-      <p class="muted">
-        Týždeň: {{ preview?.week?.start || '-' }} - {{ preview?.week?.end || '-' }}
-      </p>
+  <!-- 2. TEXT -->
+  <section class="panel">
+    <div class="panel__head">
+      <p class="panel__label">2 — Text</p>
+      <div class="panel__actions">
+        <span v-if="draftStatusLabel" class="muted">{{ draftStatusLabel }}</span>
+        <button type="button" class="btn btn--ghost" :disabled="loading" @click="resetCopyToSuggested">
+          Obnoviť návrh
+        </button>
+      </div>
+    </div>
 
-      <h4>Top udalosti</h4>
-      <ul>
-        <li v-for="event in preview?.top_events || []" :key="event.id">
-          {{ event.title }}
-        </li>
-      </ul>
-
-      <h4>Top články</h4>
-      <ul>
-        <li v-for="article in preview?.top_articles || []" :key="article.id">
-          {{ article.title }} ({{ article.views }})
-        </li>
-      </ul>
-
-      <h4>Astronomický tip</h4>
-      <p class="muted">{{ preview?.astronomical_tip || '-' }}</p>
-    </template>
-  </section>
-
-  <section class="card">
-    <h3>Predmet a úvod (local preview)</h3>
-    <p class="muted">Úpravy sa použijú pre preview a manuálne odoslanie newslettera.</p>
-
-    <div class="copyEditor">
-      <label class="copyField">
-        <span>Predmet</span>
-        <input
-          v-model.trim="newsletterSubject"
-          type="text"
-          maxlength="80"
-          class="copyInput"
-          @input="markLocalCopyEdited"
-        />
+    <div class="textGrid">
+      <label class="field">
+        <span class="field__label">Predmet</span>
+        <input v-model.trim="newsletterSubject" type="text" maxlength="80" @input="markLocalCopyEdited" />
       </label>
-
-      <label class="copyField">
-        <span>Úvod</span>
-        <textarea
-          v-model.trim="newsletterIntro"
-          rows="2"
-          maxlength="280"
-          class="copyTextarea"
-          @input="markLocalCopyEdited"
-        />
+      <label class="field">
+        <span class="field__label">Úvod</span>
+        <textarea v-model.trim="newsletterIntro" rows="2" maxlength="280" @input="markLocalCopyEdited"></textarea>
       </label>
-
-      <label class="copyField">
-        <span>Tip</span>
-        <textarea
-          v-model.trim="newsletterTipText"
-          rows="3"
-          maxlength="320"
-          class="copyTextarea"
-          @input="markLocalCopyEdited"
-        />
+      <label class="field">
+        <span class="field__label">Astronomický tip</span>
+        <textarea v-model.trim="newsletterTipText" rows="3" maxlength="320" @input="markLocalCopyEdited"></textarea>
       </label>
     </div>
   </section>
 
-  <section class="card">
-    <h3>Náhľad emailu</h3>
-    <p v-if="loading" class="muted">Načítavam náhľad...</p>
+  <!-- 3. NÁHĽAD -->
+  <section class="panel panel--preview">
+    <p class="panel__label">3 — Náhľad</p>
+    <p v-if="loading" class="muted">Načítavam náhľad…</p>
+
     <article v-else class="emailPreview">
       <header class="emailHero">
         <p class="emailEyebrow">Nebeský sprievodca</p>
-        <p class="emailSubjectLine">Predmet: {{ newsletterSubject || '-' }}</p>
+        <p class="emailSubjectLine">Predmet: {{ newsletterSubject || '—' }}</p>
         <h4 class="emailTitle">Top udalosti budúceho týždňa</h4>
-        <p class="emailIntro">{{ newsletterIntro || '-' }}</p>
+        <p class="emailIntro">{{ newsletterIntro || '—' }}</p>
       </header>
 
       <section class="emailSection">
         <h5>Top udalosti</h5>
         <ul>
-          <li v-for="event in preview?.top_events || []" :key="`email-event-${event.id}`">
+          <li v-for="event in previewTopEvents" :key="`pe-${event.id}`">
             <a :href="event.url || '#'" target="_blank" rel="noopener">{{ event.title || 'Udalosť' }}</a>
-            <span>{{ event.start_at || '-' }}</span>
+            <span>{{ formatDateTime(event.start_at) }}</span>
           </li>
-          <li v-if="(preview?.top_events || []).length === 0">Tento týždeň zatiaľ nemá vybrané udalosti.</li>
+          <li v-if="previewTopEvents.length === 0">Tento týždeň ešte nemá vybrané udalosti.</li>
         </ul>
       </section>
 
       <section class="emailSection">
-        <h5>Najčítanejšie články (7 dní)</h5>
+        <h5>Top články</h5>
         <ul>
-          <li v-for="article in preview?.top_articles || []" :key="`email-article-${article.id}`">
+          <li v-for="article in topArticles" :key="`pa-${article.id}`">
             <a :href="article.url || '#'" target="_blank" rel="noopener">{{ article.title || 'Článok' }}</a>
-            <span>Čítania: {{ Number(article.views || 0) }}</span>
+            <span>Čítaní: {{ Number(article.views || 0) }}</span>
           </li>
-          <li v-if="(preview?.top_articles || []).length === 0">Za posledný týždeň ešte nie sú dostupné články.</li>
+          <li v-if="topArticles.length === 0">Zatiaľ nie sú dostupné články.</li>
         </ul>
       </section>
 
       <section class="emailSection">
-        <h5>Astronomický tip týždňa</h5>
-        <p>{{ newsletterTipText || '-' }}</p>
+        <h5>Astronomický tip</h5>
+        <p>{{ newsletterTipText || '—' }}</p>
       </section>
 
       <footer class="emailFooter">
-        <a class="emailBtn emailBtnPrimary" :href="preview?.cta?.calendar_url || '#'" target="_blank" rel="noopener">
+        <a class="emailBtn emailBtn--primary" :href="preview?.cta?.calendar_url || '#'" target="_blank" rel="noopener">
           Otvoriť kalendár
         </a>
-        <a class="emailBtn emailBtnSecondary" :href="preview?.cta?.events_url || '#'" target="_blank" rel="noopener">
+        <a class="emailBtn emailBtn--secondary" :href="preview?.cta?.events_url || '#'" target="_blank" rel="noopener">
           Prejsť na udalosti
         </a>
       </footer>
     </article>
   </section>
 
-  <section class="card">
-    <h3>Manuálne odoslanie</h3>
-    <div class="toggles">
-      <label class="toggleLabel">
+  <!-- 4. AKCIE -->
+  <section class="panel panel--sticky">
+    <div class="panel__head">
+      <p class="panel__label">4 — Odoslať</p>
+    </div>
+
+    <div class="sendRow">
+      <input v-model.trim="previewEmail" type="email" class="sendInput" placeholder="test@priklad.sk" />
+      <button type="button" class="btn btn--ghost" :disabled="previewSending || loading" @click="triggerPreviewSend">
+        {{ previewSending ? 'Odosielam…' : 'Odoslať test' }}
+      </button>
+      <button type="button" class="btn btn--primary" :disabled="sending || loading" @click="triggerSend">
+        {{ sending ? 'Odosielam…' : 'Odoslať newsletter' }}
+      </button>
+    </div>
+
+    <div class="advancedRow">
+      <label class="checkLabel">
         <input v-model="sendOptions.force" type="checkbox" />
         <span>Vynútiť odoslanie</span>
       </label>
-      <label class="toggleLabel">
+      <label class="checkLabel">
         <input v-model="sendOptions.dry_run" type="checkbox" />
         <span>Dry-run</span>
       </label>
     </div>
-    <button type="button" :disabled="sending || loading" @click="triggerSend">
-      {{ sending ? 'Odosielam...' : 'Spustiť newsletter run' }}
-    </button>
   </section>
 
-  <section class="card">
-    <h3>Náhľad</h3>
-    <p class="muted">Odošli preview email na existujúci používateľský účet.</p>
-    <div class="actions">
-      <input
-        v-model.trim="previewEmail"
-        type="email"
-        class="previewInput"
-        placeholder="user@example.com"
-      />
-      <button type="button" :disabled="previewSending || loading" @click="triggerPreviewSend">
-        {{ previewSending ? 'Odosielam...' : 'Odoslať preview' }}
-      </button>
+  <!-- PREDOŠLÉ BEHY -->
+  <details class="collapsible">
+    <summary class="collapsible__trigger">Predošlé behy</summary>
+    <div class="collapsible__body">
+      <p v-if="runs.length === 0" class="muted">Zatiaľ žiadne behy.</p>
+      <table v-else class="runsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Týždeň</th>
+            <th>Stav</th>
+            <th>Celkom</th>
+            <th>Odoslané</th>
+            <th>Test</th>
+            <th>Odhlas.</th>
+            <th>Chyby</th>
+            <th>Príznaky</th>
+            <th>Vytvorené</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="run in runs" :key="run.id">
+            <td>{{ run.id }}</td>
+            <td>{{ run.week_start_date }}</td>
+            <td>{{ run.status }}</td>
+            <td>{{ run.total_recipients }}</td>
+            <td>{{ run.sent_count }}</td>
+            <td>{{ run.preview_count }}</td>
+            <td>{{ run.unsubscribe_count }}</td>
+            <td>{{ run.failed_count }}</td>
+            <td>
+              <span v-if="run.forced" class="runFlag">forced</span>
+              <span v-if="run.dry_run" class="runFlag">dry-run</span>
+            </td>
+            <td>{{ formatDateTime(run.created_at) }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </section>
-
-  <section class="card">
-    <h3>Predošlé runy</h3>
-    <div v-if="runs.length === 0" class="muted">Zatiaľ žiadne runy.</div>
-    <table v-else class="table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Week</th>
-          <th>Status</th>
-          <th>Total</th>
-          <th>Sent</th>
-          <th>Preview</th>
-          <th>Unsubscribe</th>
-          <th>Failed</th>
-          <th>Flags</th>
-          <th>Created</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="run in runs" :key="run.id">
-          <td>{{ run.id }}</td>
-          <td>{{ run.week_start_date }}</td>
-          <td>{{ run.status }}</td>
-          <td>{{ run.total_recipients }}</td>
-          <td>{{ run.sent_count }}</td>
-          <td>{{ run.preview_count }}</td>
-          <td>{{ run.unsubscribe_count }}</td>
-          <td>{{ run.failed_count }}</td>
-          <td>
-            <span v-if="run.forced">forced </span>
-            <span v-if="run.dry_run">dry-run</span>
-          </td>
-          <td>{{ formatDateTime(run.created_at) }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
+  </details>
 </AdminPageShell>

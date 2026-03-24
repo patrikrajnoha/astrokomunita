@@ -35,12 +35,12 @@ export function useCandidatesManualEvents({
   const manualForm = ref(createEmptyManualForm())
 
   const manualTypeOptions = [
-    { value: 'meteor_shower', label: 'Meteoricky roj' },
+    { value: 'meteor_shower', label: 'Meteoritický roj' },
     { value: 'eclipse_lunar', label: 'Zatmenie Mesiaca' },
     { value: 'eclipse_solar', label: 'Zatmenie Slnka' },
-    { value: 'planetary_event', label: 'Planetarny ukaz' },
-    { value: 'aurora', label: 'Polarna ziara' },
-    { value: 'other', label: 'Ina udalost' },
+    { value: 'planetary_event', label: 'Planetárny úkaz' },
+    { value: 'aurora', label: 'Polárna žiara' },
+    { value: 'other', label: 'Iná udalosť' },
   ]
 
   const manualFormErrors = computed(() => {
@@ -95,7 +95,7 @@ export function useCandidatesManualEvents({
       const res = await api.get('/admin/manual-events', { params: buildManualParams() })
       manualData.value = res.data
     } catch (error) {
-      manualError.value = error?.response?.data?.message || 'Chyba pri nacitani draftov'
+      manualError.value = error?.response?.data?.message || 'Chyba pri načítaní návrhov'
     } finally {
       manualLoading.value = false
     }
@@ -166,7 +166,7 @@ export function useCandidatesManualEvents({
 
   async function saveManual() {
     if (!manualCanSave.value) {
-      manualError.value = manualFormErrors.value[0] || 'Skontroluj formular.'
+      manualError.value = manualFormErrors.value[0] || 'Skontroluj formulár.'
       return
     }
 
@@ -193,7 +193,7 @@ export function useCandidatesManualEvents({
       }
       showManualForm.value = false
     } catch (error) {
-      manualError.value = error?.response?.data?.message || 'Ulozenie zlyhalo'
+      manualError.value = error?.response?.data?.message || 'Uloženie zlyhalo'
     } finally {
       manualLoading.value = false
     }
@@ -203,8 +203,8 @@ export function useCandidatesManualEvents({
     if (!row?.id) return
 
     const ok = await confirm({
-      title: 'Zmazať draft',
-      message: `Zmazať draft "${row.title}"?`,
+      title: 'Zmazať návrh',
+      message: `Zmazať návrh "${row.title}"?`,
       confirmText: 'Zmazať',
       cancelText: 'Zrušiť',
       variant: 'danger',
@@ -219,7 +219,7 @@ export function useCandidatesManualEvents({
       if (manualData.value?.data) {
         manualData.value.data = manualData.value.data.filter((entry) => entry.id !== row.id)
       }
-      toast.success('Draft bol zmazaný.')
+      toast.success('Návrh bol zmazaný.')
     } catch (error) {
       manualError.value = error?.response?.data?.message || 'Mazanie zlyhalo'
       toast.error(manualError.value)
@@ -232,8 +232,8 @@ export function useCandidatesManualEvents({
     if (!row?.id) return
 
     const ok = await confirm({
-      title: 'Publikovať draft',
-      message: `Publikovať "${row.title}" do events?`,
+      title: 'Publikovať návrh',
+      message: `Publikovať "${row.title}" do udalostí?`,
       confirmText: 'Publikovať',
       cancelText: 'Zrušiť',
     })
@@ -249,9 +249,9 @@ export function useCandidatesManualEvents({
         status: 'published',
         published_event_id: res.data?.data?.id ?? res.data?.id ?? null,
       })
-      toast.success('Draft bol publikovaný.')
+      toast.success('Návrh bol publikovaný.')
     } catch (error) {
-      manualError.value = error?.response?.data?.message || 'Publish zlyhal'
+      manualError.value = error?.response?.data?.message || 'Publikovanie zlyhalo'
       toast.error(manualError.value)
     } finally {
       manualLoading.value = false

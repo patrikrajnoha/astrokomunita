@@ -5,6 +5,7 @@ export const SIDEBAR_WIDGET_BUNDLE_SECTION_KEYS = new Set([
   'observing_conditions',
   'observing_weather',
   'night_sky',
+  'constellations_now',
   'iss_pass',
   'nasa_apod',
   'next_event',
@@ -29,10 +30,10 @@ function normalizeSidebarWidgetBundleSectionKeys(sectionKeys = []) {
 function normalizeSidebarWidgetBundleQuery(query = {}) {
   const normalized = {}
 
-  const lat = Number(query?.lat)
-  const lon = Number(query?.lon)
-  if (Number.isFinite(lat)) normalized.lat = lat
-  if (Number.isFinite(lon)) normalized.lon = lon
+  const lat = toFiniteCoordinate(query?.lat)
+  const lon = toFiniteCoordinate(query?.lon)
+  if (lat !== null) normalized.lat = lat
+  if (lon !== null) normalized.lon = lon
 
   const tz = String(query?.tz || '').trim()
   if (tz) normalized.tz = tz
@@ -41,6 +42,18 @@ function normalizeSidebarWidgetBundleQuery(query = {}) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) normalized.date = date
 
   return normalized
+}
+
+function toFiniteCoordinate(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+
+  const normalized = value.trim()
+  if (!normalized) return null
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 export function useSidebarWidgetBundle({

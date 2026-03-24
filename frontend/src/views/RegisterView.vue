@@ -6,7 +6,6 @@ import { useRoute, useRouter } from 'vue-router'
 import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
-import { useToast } from '@/composables/useToast'
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script'
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
@@ -15,7 +14,6 @@ let turnstileScriptPromise = null
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
-const toast = useToast()
 
 const turnstileSiteKey = String(import.meta.env.VITE_TURNSTILE_SITE_KEY || '').trim()
 const name = ref('')
@@ -342,32 +340,6 @@ const submit = async () => {
       password_confirmation: passwordConfirmation.value,
       turnstile_token: turnstileToken.value,
     })
-    if (!auth.isAdmin && auth.user?.email && !auth.user?.email_verified_at) {
-      try {
-        if (typeof auth.csrf === 'function') {
-          await auth.csrf()
-        }
-
-        await http.post(
-          '/account/email/verification/send',
-          {},
-          { meta: { skipErrorToast: true } },
-        )
-        toast.success('Poslali sme ti overovací kód.')
-      } catch (sendError) {
-        const sendStatus = Number(sendError?.response?.status || 0)
-        const sendMessage = sendError?.response?.data?.message
-
-        if (sendStatus === 429) {
-          toast.warn(sendMessage || 'Overovací kód bol odoslaný nedávno. Dokonč overenie v Nastaveniach.')
-        } else {
-          toast.warn('Nepodarilo sa poslať overovací kód automaticky. Pokračuj v Nastaveniach > Email.')
-        }
-      }
-
-      await router.push({ name: 'settings.email', query: { redirect: redirect.value } })
-      return
-    }
     await router.push(redirect.value)
   } catch (e) {
     const msg = e?.response?.data?.message

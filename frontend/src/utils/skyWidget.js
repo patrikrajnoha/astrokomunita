@@ -35,11 +35,11 @@ export function getScorePresentation(score) {
   }
 
   if (score >= 60) {
-    return { label: 'Dobre', tone: 'good' }
+    return { label: 'Dobré', tone: 'good' }
   }
 
   if (score >= 40) {
-    return { label: 'Priemerne', tone: 'fair' }
+    return { label: 'Priemerné', tone: 'fair' }
   }
 
   return { label: 'Slabe', tone: 'poor' }
@@ -55,7 +55,7 @@ export function getBortlePresentation(bortle) {
     return {
       levelText: 'Velmi tmava obloha',
       contextText: 'divocina a vysoke hory',
-      impactText: 'Vhodne aj pre slabe deep-sky objekty.',
+      impactText: 'Vhodne aj pre slabé deep-sky objekty.',
       bortle: normalized,
       tone: 'excellent',
     }
@@ -65,7 +65,7 @@ export function getBortlePresentation(bortle) {
     return {
       levelText: 'Tmava obloha',
       contextText: 'vidiek',
-      impactText: 'Dobre podmienky pre vacsinu deep-sky objektov.',
+      impactText: 'Dobré podmienky pre väčšinu deep-sky objektov.',
       bortle: normalized,
       tone: 'good',
     }
@@ -136,7 +136,7 @@ export function getPlanetVisibilityPresentation(visibilityTag) {
   switch (String(visibilityTag || '').toLowerCase()) {
     case 'visible':
       return {
-        label: 'Viditelna',
+        label: 'Viditeľná',
         toneClass: 'planetBadge planetBadge--visible',
       }
     case 'close_to_sun':

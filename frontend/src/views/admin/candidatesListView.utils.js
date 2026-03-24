@@ -1,96 +1,107 @@
 export function normalizeTranslationStatus(value) {
-  const statusValue = String(value || "").trim().toLowerCase();
-  if (statusValue === "done" || statusValue === "translated") return "Prelozene";
-  if (statusValue === "failed" || statusValue === "error") return "Zlyhalo";
-  return "Caka";
+  const statusValue = String(value || '').trim().toLowerCase();
+  if (statusValue === 'done' || statusValue === 'translated') return 'Preložené';
+  if (statusValue === 'failed' || statusValue === 'error') return 'Zlyhalo';
+  return 'Čaká';
+}
+
+export function normalizeTranslationMode(value) {
+  const mode = String(value || '').trim().toLowerCase();
+  if (mode === 'template') return 'Šablóna';
+  if (mode === 'ai_refined') return 'AI: title + popis';
+  if (mode === 'ai_title') return 'AI: iba title';
+  if (mode === 'ai_description') return 'AI: iba popis';
+  if (mode === 'translated') return 'Strojový preklad';
+  if (mode === 'manual') return 'Ručne upravené';
+  return '—';
 }
 
 export function translationStatusStyle(value) {
   const normalized = normalizeTranslationStatus(value);
-  if (normalized === "Prelozene") {
-    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(22,163,74,.25); background:rgba(22,163,74,.05); font-size:12px;";
+  if (normalized === 'Preložené') {
+    return 'display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(22,163,74,.25); background:rgba(22,163,74,.05); font-size:12px;';
   }
-  if (normalized === "Zlyhalo") {
-    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(239,68,68,.25); background:rgba(239,68,68,.05); font-size:12px;";
+  if (normalized === 'Zlyhalo') {
+    return 'display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(239,68,68,.25); background:rgba(239,68,68,.05); font-size:12px;';
   }
-  return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(245,158,11,.25); background:rgba(245,158,11,.05); font-size:12px;";
+  return 'display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(245,158,11,.25); background:rgba(245,158,11,.05); font-size:12px;';
 }
 
 export function formatDate(value, timeZone) {
-  if (!value) return "-";
+  if (!value) return '-';
   const d = new Date(value);
   if (isNaN(d.getTime())) return String(value);
 
   try {
-    return d.toLocaleString("sk-SK", {
-      dateStyle: "medium",
-      timeStyle: "short",
+    return d.toLocaleString('sk-SK', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
       ...(timeZone ? { timeZone } : {}),
     });
   } catch {
-    return d.toLocaleString("sk-SK", {
-      dateStyle: "medium",
-      timeStyle: "short",
+    return d.toLocaleString('sk-SK', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
     });
   }
 }
 
 export function isPendingTranslation(candidate) {
-  const statusValue = String(candidate?.translation_status || "").trim().toLowerCase();
-  return statusValue === "pending";
+  const statusValue = String(candidate?.translation_status || '').trim().toLowerCase();
+  return statusValue === 'pending';
 }
 
 export function candidatePreviewShort(candidate, fallbackFormatter) {
   if (!isPendingTranslation(candidate)) {
-    return typeof fallbackFormatter === "function" ? fallbackFormatter(candidate) : "-";
+    return typeof fallbackFormatter === 'function' ? fallbackFormatter(candidate) : '-';
   }
 
-  const translated = String(candidate?.translated_description || candidate?.translated_title || "").trim();
-  if (translated !== "") {
+  const translated = String(candidate?.translated_description || candidate?.translated_title || '').trim();
+  if (translated !== '') {
     return translated;
   }
 
-  return "Preklad prebieha...";
+  return 'Preklad prebieha...';
 }
 
 export function formatAstronomyTime(value, timeZone) {
-  if (typeof value !== "string" || value.trim() === "") return "-";
+  if (typeof value !== 'string' || value.trim() === '') return '-';
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "-";
+  if (Number.isNaN(parsed.getTime())) return '-';
 
   try {
-    return new Intl.DateTimeFormat("sk-SK", {
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Intl.DateTimeFormat('sk-SK', {
+      hour: '2-digit',
+      minute: '2-digit',
       hour12: false,
       ...(timeZone ? { timeZone } : {}),
     }).format(parsed);
   } catch {
-    return new Intl.DateTimeFormat("sk-SK", {
-      hour: "2-digit",
-      minute: "2-digit",
+    return new Intl.DateTimeFormat('sk-SK', {
+      hour: '2-digit',
+      minute: '2-digit',
       hour12: false,
     }).format(parsed);
   }
 }
 
 export function moonPhaseLabel(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (normalized === "new_moon") return "Nov";
-  if (normalized === "waxing_crescent") return "Dorastajúci kosáčik";
-  if (normalized === "first_quarter") return "Prvá štvrt";
-  if (normalized === "waxing_gibbous") return "Dorastajúci Mesiac";
-  if (normalized === "full_moon") return "Spln";
-  if (normalized === "waning_gibbous") return "Ubúdajúci Mesiac";
-  if (normalized === "last_quarter") return "Posledná štvrt";
-  if (normalized === "waning_crescent") return "Ubúdajúci kosáčik";
-  return "-";
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'new_moon') return 'Nov';
+  if (normalized === 'waxing_crescent') return 'Dorastajúci kosáčik';
+  if (normalized === 'first_quarter') return 'Prvá štvrť';
+  if (normalized === 'waxing_gibbous') return 'Dorastajúci Mesiac';
+  if (normalized === 'full_moon') return 'Spln';
+  if (normalized === 'waning_gibbous') return 'Ubúdajúci Mesiac';
+  if (normalized === 'last_quarter') return 'Posledná štvrť';
+  if (normalized === 'waning_crescent') return 'Ubúdajúci kosáčik';
+  return '-';
 }
 
 export function formatConfidence(value) {
-  if (value === null || value === undefined || value === "") return "-";
+  if (value === null || value === undefined || value === '') return '-';
   const numeric = Number(value);
-  if (Number.isNaN(numeric)) return "-";
+  if (Number.isNaN(numeric)) return '-';
   return numeric.toFixed(2);
 }
 
@@ -102,10 +113,10 @@ export function clampInteger(value, min, max, fallback) {
 
 export function toIsoDate(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
+  if (Number.isNaN(date.getTime())) return '';
   const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -153,12 +164,12 @@ export function resolveIsoWeekRange(year, week) {
 }
 
 export function resolveTimeFilterParams({ preset, filterYear, filterMonth, filterWeek, now = new Date() }) {
-  const safePreset = String(preset || "none");
+  const safePreset = String(preset || 'none');
   const safeYear = clampInteger(filterYear, 2000, 2100, now.getFullYear());
   const safeMonth = clampInteger(filterMonth, 1, 12, now.getMonth() + 1);
   const safeWeek = clampInteger(filterWeek, 1, 53, getIsoWeek(now));
 
-  if (safePreset === "month") {
+  if (safePreset === 'month') {
     return {
       year: safeYear,
       month: safeMonth,
@@ -168,7 +179,7 @@ export function resolveTimeFilterParams({ preset, filterYear, filterMonth, filte
     };
   }
 
-  if (safePreset === "year") {
+  if (safePreset === 'year') {
     return {
       year: safeYear,
       month: undefined,
@@ -178,7 +189,7 @@ export function resolveTimeFilterParams({ preset, filterYear, filterMonth, filte
     };
   }
 
-  if (safePreset === "week") {
+  if (safePreset === 'week') {
     const range = resolveIsoWeekRange(safeYear, safeWeek);
     return {
       year: range.year,
@@ -189,7 +200,7 @@ export function resolveTimeFilterParams({ preset, filterYear, filterMonth, filte
     };
   }
 
-  if (safePreset === "next_7_days") {
+  if (safePreset === 'next_7_days') {
     const from = startOfDay(now);
     const to = endOfDay(new Date(from));
     to.setDate(to.getDate() + 6);
@@ -202,7 +213,7 @@ export function resolveTimeFilterParams({ preset, filterYear, filterMonth, filte
     };
   }
 
-  if (safePreset === "next_30_days") {
+  if (safePreset === 'next_30_days') {
     const from = startOfDay(now);
     const to = endOfDay(new Date(from));
     to.setDate(to.getDate() + 29);
@@ -227,49 +238,49 @@ export function resolveTimeFilterParams({ preset, filterYear, filterMonth, filte
 export function normalizeSources(values) {
   if (!Array.isArray(values)) return [];
   return values
-    .map((item) => String(item || "").trim().toLowerCase())
+    .map((item) => String(item || '').trim().toLowerCase())
     .filter((item) => item.length > 0);
 }
 
 export function sourceLabel(source) {
-  const key = String(source || "").toLowerCase();
-  if (key === "astropixels") return "AstroPixels";
-  if (key === "imo") return "IMO";
-  if (key === "nasa_watch_the_skies" || key === "nasa_wts") return "NASA WTS";
-  if (key === "nasa") return "NASA";
-  return key || "-";
+  const key = String(source || '').toLowerCase();
+  if (key === 'astropixels') return 'AstroPixels';
+  if (key === 'imo') return 'IMO';
+  if (key === 'nasa_watch_the_skies' || key === 'nasa_wts') return 'NASA WTS';
+  if (key === 'nasa') return 'NASA';
+  return key || '-';
 }
 
 export function sourceBadgeStyle(source) {
-  const key = String(source || "").toLowerCase();
-  if (key === "astropixels") {
-    return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(30,64,175,.24); background:rgba(30,64,175,.04); font-size:12px;";
+  const key = String(source || '').toLowerCase();
+  if (key === 'astropixels') {
+    return 'display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(30,64,175,.24); background:rgba(30,64,175,.04); font-size:12px;';
   }
-  if (key === "imo") {
-    return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(6,95,70,.24); background:rgba(6,95,70,.04); font-size:12px;";
+  if (key === 'imo') {
+    return 'display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(6,95,70,.24); background:rgba(6,95,70,.04); font-size:12px;';
   }
-  if (key === "nasa" || key === "nasa_wts" || key === "nasa_watch_the_skies") {
-    return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(107,33,168,.24); background:rgba(107,33,168,.04); font-size:12px;";
+  if (key === 'nasa' || key === 'nasa_wts' || key === 'nasa_watch_the_skies') {
+    return 'display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgba(107,33,168,.24); background:rgba(107,33,168,.04); font-size:12px;';
   }
-  return "display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .16); background:transparent; font-size:12px;";
+  return 'display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; border:1px solid rgb(var(--color-surface-rgb) / .16); background:transparent; font-size:12px;';
 }
 
 export function statusBadgeStyle(value) {
-  const key = String(value || "").toLowerCase();
-  if (key === "approved") {
-    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(22,163,74,.24); background:rgba(22,163,74,.05); font-size:12px;";
+  const key = String(value || '').toLowerCase();
+  if (key === 'approved') {
+    return 'display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(22,163,74,.24); background:rgba(22,163,74,.05); font-size:12px;';
   }
-  if (key === "rejected" || key === "duplicate") {
-    return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(239,68,68,.24); background:rgba(239,68,68,.05); font-size:12px;";
+  if (key === 'rejected' || key === 'duplicate') {
+    return 'display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(239,68,68,.24); background:rgba(239,68,68,.05); font-size:12px;';
   }
-  return "display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(245,158,11,.24); background:rgba(245,158,11,.05); font-size:12px;";
+  return 'display:inline-flex; align-items:center; padding:2px 7px; border-radius:999px; border:1px solid rgba(245,158,11,.24); background:rgba(245,158,11,.05); font-size:12px;';
 }
 
 export function toLocalInput(value) {
-  if (!value) return "";
+  if (!value) return '';
   const d = new Date(value);
-  if (isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
@@ -279,7 +290,7 @@ export function nowLocalInput() {
 
 export function addHoursToLocalInput(value, hours) {
   const base = value ? new Date(value) : new Date();
-  if (Number.isNaN(base.getTime())) return "";
+  if (Number.isNaN(base.getTime())) return '';
   base.setHours(base.getHours() + hours);
   return toLocalInput(base.toISOString());
 }

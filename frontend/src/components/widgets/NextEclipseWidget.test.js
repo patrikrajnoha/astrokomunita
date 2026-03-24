@@ -58,21 +58,10 @@ describe('NextEclipseWidget', () => {
     await nextTick()
 
     expect(getMock).toHaveBeenCalledWith('/events/widget/next-eclipse')
-
-    // Widget section title
-    expect(wrapper.text()).toContain('Najbližšie zatmenie')
-
-    // Type label as primary identifier (no verbose DB title)
-    expect(wrapper.text()).toContain('Zatmenie Slnka')
-    expect(wrapper.text()).not.toContain('Ciastocne zatmenie Slnka')
-
-    // Countdown: 2026-02-16T12:00Z → 2026-03-29T09:15Z = 40 full days
+    expect(wrapper.text()).toContain('Zatmenie na obzore')
+    expect(wrapper.text()).toContain('Ciastocne zatmenie Slnka')
     expect(wrapper.text()).toContain('Za 40 dní')
-
-    // No verbose source attribution
     expect(wrapper.text()).not.toContain('Zdroj:')
-
-    // Entire card is the link to event detail
     expect(wrapper.find('a[href="/events/108"]').exists()).toBe(true)
   })
 })

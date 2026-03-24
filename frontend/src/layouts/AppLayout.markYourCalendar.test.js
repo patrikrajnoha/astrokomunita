@@ -626,10 +626,10 @@ describe('AppLayout mark-your-calendar popup', () => {
       location: 'Bratislava',
     }
     sidebarConfigStore.fetchScope.mockResolvedValue([
-      { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmírne počasie', order: 1, is_enabled: true },
-      { kind: 'builtin', section_key: 'moon_phases', title: 'Fazy mesiaca', order: 2, is_enabled: true },
-      { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 3, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_conditions', title: 'Pozorovanie dnes', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'space_weather', title: 'Slnečná aktivita', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'moon_phases', title: 'Fázy Mesiaca', order: 2, is_enabled: true },
+      { kind: 'builtin', section_key: 'neo_watchlist', title: 'Asteroidy nablízku', order: 3, is_enabled: true },
     ])
     getEnabledSidebarSectionsMock.mockImplementation((items) => items)
 
@@ -702,7 +702,7 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        preferredSectionKeys: [],
+        preferredSectionKeys: null,
       }),
     )
   })

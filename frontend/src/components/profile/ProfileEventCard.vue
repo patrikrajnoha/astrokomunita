@@ -4,7 +4,7 @@
       <div class="eventCard__glow"></div>
       <div class="eventCard__status">
         <span class="eventCard__pill">{{ statusLabel }}</span>
-        <span class="eventCard__pill eventCard__pill--muted">Sledujes</span>
+        <span class="eventCard__pill eventCard__pill--muted">Sleduješ</span>
       </div>
     </div>
 
@@ -193,9 +193,9 @@ function formatLongDate(value) {
 }
 
 function mapVisibility(value) {
-  if (value === 1 || value === '1') return 'Viditelne zo Slovenska'
-  if (value === 0 || value === '0') return 'Neviditelne zo Slovenska'
-  return 'Viditelnost upresnime'
+  if (value === 1 || value === '1') return 'Viditeľné zo Slovenska'
+  if (value === 0 || value === '0') return 'Neviditeľné zo Slovenska'
+  return 'Viditeľnosť upresníme'
 }
 
 function toNullableText(value) {

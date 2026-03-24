@@ -16,7 +16,7 @@
         v-bind="ctaLinkProps"
         class="widgetAction"
       >
-        {{ ctaConfig.buttonText || 'Otvorit' }}
+        {{ ctaConfig.buttonText || 'Otvoriť' }}
       </component>
     </template>
 

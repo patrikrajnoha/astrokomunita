@@ -2,16 +2,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import { getBotOverview } from '@/services/api/admin/bots'
+import { getBotOverview, getBotTranslationHealth } from '@/services/api/admin/bots'
 import BotActivityView from '@/views/admin/BotActivityView.vue'
 import BotEngineDashboardView from '@/views/admin/BotEngineDashboardView.vue'
-import BotEngineView from '@/views/admin/BotEngineView.vue'
 import BotSchedulesView from '@/views/admin/BotSchedulesView.vue'
 import BotSourcesHealthView from '@/views/admin/BotSourcesHealthView.vue'
 
 const route = useRoute()
-const loading = ref(false)
+
+const loadingOverview = ref(false)
+const refreshingWorkspace = ref(false)
+const loadingTranslationHealth = ref(false)
 const error = ref('')
+const refreshToken = ref(0)
 const overview = ref({
   generated_at: null,
   overall: {
@@ -22,11 +25,21 @@ const overview = ref({
   },
   bots: [],
 })
+const translationHealth = ref({
+  provider: null,
+  fallback_provider: null,
+  degraded: false,
+  result: {
+    ok: null,
+    error_type: null,
+  },
+  provider_probes: {},
+})
 
 const tabs = Object.freeze([
   {
-    key: 'overview',
-    label: 'Prehľad',
+    key: 'dashboard',
+    label: 'Dashboard',
     routeNames: ['admin.bots'],
     component: BotEngineDashboardView,
   },
@@ -43,30 +56,26 @@ const tabs = Object.freeze([
     component: BotSchedulesView,
   },
   {
-    key: 'engine',
-    label: 'Modul',
-    routeNames: ['admin.bots.engine'],
-    component: BotEngineView,
-  },
-  {
-    key: 'activity',
-    label: 'Aktivita',
+    key: 'logs',
+    label: 'Logy',
     routeNames: ['admin.bots.activity'],
     component: BotActivityView,
   },
 ])
-
-const overall = computed(() => overview.value?.overall || {})
-const botsCount = computed(() => (Array.isArray(overview.value?.bots) ? overview.value.bots.length : 0))
 
 const activeTab = computed(() => {
   const currentName = String(route.name || '')
   return tabs.find((tab) => tab.routeNames.includes(currentName)) || tabs[0]
 })
 
+const isDashboardTab = computed(() => activeTab.value.key === 'dashboard')
+const overall = computed(() => overview.value?.overall || {})
+const botsCount = computed(() => (Array.isArray(overview.value?.bots) ? overview.value.bots.length : 0))
+
 const systemStatus = computed(() => {
   const dead = Number(overall.value.dead_sources || 0)
   const failing = Number(overall.value.failing_sources || 0)
+
   if (dead > 0) {
     return {
       label: 'Kritický',
@@ -87,8 +96,57 @@ const systemStatus = computed(() => {
   }
 })
 
-const overviewMetaLine = computed(() => {
-  return `Aktualizované ${formatDateTime(overview.value?.generated_at)}`
+const overviewMetaLine = computed(() => `Aktualizované ${formatDateTime(overview.value?.generated_at)}`)
+const translationServiceBadges = computed(() => {
+  const health = translationHealth.value || {}
+  const primaryProvider = normalizeTranslationProvider(health.provider)
+  const fallbackProvider = normalizeTranslationProvider(health.fallback_provider)
+  const probes = health?.provider_probes && typeof health.provider_probes === 'object'
+    ? health.provider_probes
+    : {}
+  const providers = []
+
+  for (const value of [primaryProvider, fallbackProvider]) {
+    if (!value) continue
+    if (providers.includes(value)) continue
+    providers.push(value)
+  }
+
+  if (providers.length === 0) {
+    return []
+  }
+
+  return providers.map((providerName) => {
+    const probe = probes[providerName] && typeof probes[providerName] === 'object'
+      ? probes[providerName]
+      : null
+    const probeOk = probe?.ok
+    const isPrimary = providerName === primaryProvider
+    const resultOk = health?.result?.ok
+    const isDegraded = Boolean(health?.degraded)
+
+    let state = 'muted'
+    if (probeOk === true) {
+      state = 'ok'
+    } else if (probeOk === false) {
+      state = isPrimary && isDegraded && resultOk === true ? 'warn' : 'danger'
+    } else if (isPrimary) {
+      if (resultOk === true && isDegraded) {
+        state = 'warn'
+      } else if (resultOk === true) {
+        state = 'ok'
+      } else if (resultOk === false) {
+        state = 'danger'
+      }
+    }
+
+    return {
+      provider: providerName,
+      name: translationProviderLabel(providerName),
+      statusLabel: translationStatusLabel(state),
+      className: `translationPill translationPill--${state}`,
+    }
+  })
 })
 
 function formatDateTime(value) {
@@ -98,8 +156,31 @@ function formatDateTime(value) {
   return parsed.toLocaleString('sk-SK', { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-async function loadOverview() {
-  loading.value = true
+function normalizeTranslationProvider(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized || normalized === 'none' || normalized === 'dummy') return ''
+  if (normalized === 'libre' || normalized === 'http') return 'libretranslate'
+  return normalized
+}
+
+function translationProviderLabel(provider) {
+  const normalized = normalizeTranslationProvider(provider)
+  if (normalized === 'libretranslate') return 'LibreTranslate'
+  if (normalized === 'ollama') return 'Ollama'
+  return normalized || 'Preklad'
+}
+
+function translationStatusLabel(state) {
+  if (state === 'ok') return 'Aktívny'
+  if (state === 'warn') return 'Degradované'
+  if (state === 'danger') return 'Nedostupný'
+  return 'Neznáme'
+}
+
+async function loadOverview({ silent = false } = {}) {
+  if (!silent) {
+    loadingOverview.value = true
+  }
   error.value = ''
 
   try {
@@ -108,29 +189,86 @@ async function loadOverview() {
   } catch (e) {
     error.value = e?.response?.data?.message || 'Načítanie prehľadu botov zlyhalo.'
   } finally {
-    loading.value = false
+    if (!silent) {
+      loadingOverview.value = false
+    }
   }
 }
 
+async function loadTranslationHealth() {
+  loadingTranslationHealth.value = true
+  try {
+    const response = await getBotTranslationHealth()
+    translationHealth.value = response?.data || translationHealth.value
+  } catch {
+    translationHealth.value = {
+      provider: null,
+      fallback_provider: null,
+      degraded: false,
+      result: {
+        ok: false,
+        error_type: 'Nedostupné',
+      },
+      provider_probes: {},
+    }
+  } finally {
+    loadingTranslationHealth.value = false
+  }
+}
+
+async function refreshWorkspace() {
+  if (refreshingWorkspace.value) return
+
+  refreshingWorkspace.value = true
+  await Promise.all([
+    loadOverview(),
+    loadTranslationHealth(),
+  ])
+  refreshToken.value += 1
+  refreshingWorkspace.value = false
+}
+
 onMounted(() => {
-  void loadOverview()
+  void Promise.all([
+    loadOverview(),
+    loadTranslationHealth(),
+  ])
 })
 </script>
 
 <template>
-  <AdminPageShell title="Správa botov" subtitle="Riadenie bot pipeline, zdrojov a behov.">
+  <AdminPageShell title="Správa botov" subtitle="Control panel pre bot pipeline, zdroje, plány a logy.">
     <template #right-actions>
-      <button class="actionBtn" type="button" :disabled="loading" @click="loadOverview">
-        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
+      <button class="actionBtn" type="button" :disabled="loadingOverview || refreshingWorkspace" @click="refreshWorkspace">
+        {{ loadingOverview || refreshingWorkspace ? 'Načítavam…' : 'Obnoviť' }}
       </button>
     </template>
 
-    <section class="metaBar">
+    <section v-if="isDashboardTab" class="metaBar">
       <span :class="systemStatus.className">{{ systemStatus.label }}</span>
       <p class="metaLine">{{ overviewMetaLine }}</p>
+      <div
+        v-if="translationServiceBadges.length > 0 || loadingTranslationHealth"
+        class="translationMeta"
+        aria-label="Stav prekladov"
+      >
+        <span class="translationMetaLabel">Preklady</span>
+        <template v-if="loadingTranslationHealth && translationServiceBadges.length === 0">
+          <span class="translationPill translationPill--muted">Načítavam</span>
+        </template>
+        <template v-else>
+          <span
+            v-for="badge in translationServiceBadges"
+            :key="`translation-badge-${badge.provider}`"
+            :class="badge.className"
+          >
+            {{ badge.name }}: {{ badge.statusLabel }}
+          </span>
+        </template>
+      </div>
     </section>
 
-    <section class="summaryWrap">
+    <section v-if="isDashboardTab" class="summaryWrap" aria-label="Kľúčové metriky botov">
       <article class="summaryCard">
         <p class="summaryLabel">Aktívne zdroje</p>
         <p class="summaryValue">{{ Number(overall.active_sources || 0) }}</p>
@@ -175,7 +313,13 @@ onMounted(() => {
     </section>
 
     <div class="botWorkspace">
-      <component :is="activeTab.component" embedded />
+      <component
+        :is="activeTab.component"
+        embedded
+        :refresh-token="refreshToken"
+        :overview="overview"
+        :overview-loading="loadingOverview"
+      />
     </div>
   </AdminPageShell>
 </template>
@@ -256,6 +400,47 @@ onMounted(() => {
   overflow-wrap: anywhere;
 }
 
+.translationMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.translationMetaLabel {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+}
+
+.translationPill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+}
+
+.translationPill--ok {
+  border-color: rgb(var(--color-success-rgb) / 0.52);
+  color: var(--color-success);
+}
+
+.translationPill--warn {
+  border-color: rgb(var(--color-warning-rgb) / 0.52);
+  color: var(--color-warning);
+}
+
+.translationPill--danger {
+  border-color: rgb(var(--color-danger-rgb) / 0.52);
+  color: var(--color-danger);
+}
+
 .tabHeader {
   display: grid;
   gap: 5px;
@@ -293,27 +478,20 @@ onMounted(() => {
   color: rgb(var(--color-surface-rgb) / 0.98);
 }
 
-
-.actionBtn,
-.ghostBtn {
+.actionBtn {
   border-radius: 8px;
   padding: 5px 9px;
   font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
-}
-
-.actionBtn {
   border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
   background: rgb(var(--color-primary-rgb) / 0.2);
   color: var(--color-surface);
 }
 
-.ghostBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
-  background: rgb(var(--color-bg-rgb) / 0.35);
-  color: rgb(var(--color-surface-rgb) / 0.95);
-  text-decoration: none;
+.actionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .error {
@@ -449,10 +627,6 @@ onMounted(() => {
 
   .botWorkspace :deep(.table) {
     min-width: 620px;
-  }
-
-  .botWorkspace :deep(.botsOverviewTable) {
-    min-width: 0 !important;
   }
 
   .botWorkspace :deep(.activityTable) {

@@ -99,7 +99,7 @@
             </div>
             <p v-if="dobDraftTooYoung" class="fieldHint isError">Musíš mať aspoň 13 rokov.</p>
           </div>
-          <span v-else-if="dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
+          <span v-if="!dobDraftTooYoung && dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
         </label>
       </section>
 

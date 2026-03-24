@@ -1,7 +1,6 @@
-
 .botSection {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .embeddedHeader {
@@ -12,135 +11,240 @@
   flex-wrap: wrap;
 }
 
-.embeddedTitle {
-  margin: 0 0 4px;
-  font-size: 1rem;
-  font-weight: 800;
-}
-
 .embeddedSubtitle {
   margin: 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  font-size: 0.8rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+  font-size: 0.78rem;
 }
 
-.cards {
+/* ── Cards ── */
+.card {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 13px;
+  background: rgb(var(--color-bg-rgb) / 0.55);
+  padding: 14px;
+}
+
+.botAccountsCard {
+  display: grid;
+  gap: 12px;
+}
+
+.botAccountsHeader h3,
+.botMetricsTitle {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.55);
+}
+
+.botAccountsHeader .muted {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.65);
+}
+
+/* ── Bot account list ── */
+.botAccountsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
-.card {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.66);
-  padding: 12px;
-}
-
-.metricCard {
+.botAccountItem {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 11px;
+  background: rgb(var(--color-bg-rgb) / 0.4);
+  padding: 10px 12px;
 }
 
-.metricLabel {
+.botAccountIdentity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.botAccountAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.botAccountText {
+  min-width: 0;
+}
+
+.botAccountName {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botAccountHandle {
+  margin: 2px 0 0;
+  color: rgb(var(--color-text-secondary-rgb) / 0.65);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botAccountMeta {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.botAccountMeta div {
+  min-width: 0;
+}
+
+.botAccountMeta dt {
+  font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+  color: rgb(var(--color-text-secondary-rgb) / 0.5);
 }
 
-.metricValue {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 800;
+.botAccountMeta dd {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
-.quickLinks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.botAccountActions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.quickLink {
-  border: none;
-  border-radius: 999px;
-  padding: 7px 11px;
-  background: var(--color-btn-secondary-bg);
-  color: var(--color-btn-secondary-text);
+/* ── Bot account action buttons ── */
+.botAccountActionBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
   text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 700;
-  transition: background-color 160ms ease, color 160ms ease;
+  white-space: nowrap;
+  transition: background 0.14s;
 }
 
-.quickLink:hover {
-  background: var(--color-nav-hover);
-  color: var(--color-text-primary);
+.botAccountActionBtn:hover:not(:disabled) {
+  background: rgb(var(--color-surface-rgb) / 0.07);
 }
 
+.botAccountActionBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.botAccountActionBtn--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.1);
+  color: var(--color-primary);
+}
+
+.botAccountActionBtn--primary:hover:not(:disabled) {
+  background: rgb(var(--color-primary-rgb) / 0.18);
+}
+
+/* ── Modal deep overrides ── */
+.botDetailModalBody :deep(.userDetailViewport),
+.botDetailModalBody :deep(.userDetailViewport--embedded) {
+  width: 100%;
+}
+
+.botDetailModalBody :deep(.userDetailShell) {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* ── Status badges ── */
+.botStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.botStatusBadge.is-active {
+  border-color: rgb(var(--color-success-rgb) / 0.35);
+  background: rgb(var(--color-success-rgb) / 0.1);
+  color: var(--color-success);
+}
+
+.botStatusBadge.is-inactive {
+  border-color: rgb(var(--color-danger-rgb) / 0.3);
+  background: rgb(var(--color-danger-rgb) / 0.07);
+  color: var(--color-danger);
+}
+
+/* ── Metrics table ── */
 .tableWrap {
   width: 100%;
   overflow-x: auto;
+  margin-top: 8px;
 }
 
 .table {
   width: 100%;
-  min-width: 760px;
   border-collapse: collapse;
 }
 
 .tableWrap--botsOverview {
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .botsOverviewTable {
-  min-width: 0;
-  table-layout: fixed;
+  min-width: 560px;
 }
 
 .table th,
 .table td {
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.08);
   padding: 8px 9px;
   text-align: left;
-  font-size: 0.8rem;
+  font-size: 12.5px;
   overflow-wrap: anywhere;
 }
 
 .table th {
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgb(var(--color-text-secondary-rgb) / 0.5);
 }
 
-.botsOverviewTable th:nth-child(1),
-.botsOverviewTable td:nth-child(1) {
-  width: 15%;
-}
-
-.botsOverviewTable th:nth-child(2),
-.botsOverviewTable td:nth-child(2) {
-  width: 17%;
-}
-
-.botsOverviewTable th:nth-child(3),
-.botsOverviewTable td:nth-child(3),
-.botsOverviewTable th:nth-child(4),
-.botsOverviewTable td:nth-child(4),
-.botsOverviewTable th:nth-child(5),
-.botsOverviewTable td:nth-child(5) {
-  width: 13%;
-}
-
-.botsOverviewTable th:nth-child(6),
-.botsOverviewTable td:nth-child(6) {
-  width: 13%;
-}
-
-.botsOverviewTable th:nth-child(7),
-.botsOverviewTable td:nth-child(7) {
-  width: 16%;
+.table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .botsOverviewTable .activityLink {
@@ -149,40 +253,70 @@
 }
 
 .name {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .muted {
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgb(var(--color-text-secondary-rgb) / 0.65);
   margin: 0;
-}
-
-.rateState {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.rateState.limited {
-  border-color: rgb(var(--color-danger-rgb) / 0.6);
-  color: var(--color-danger);
+  font-size: 11.5px;
 }
 
 .activityLink {
   color: var(--color-primary);
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 12.5px;
+  text-decoration: none;
 }
 
-.error {
-  color: var(--color-danger);
-  margin: 0;
+.activityLink:hover {
+  text-decoration: underline;
 }
 
-.retentionCard {
+/* ── Advanced card (collapsible) ── */
+.advancedCard {
+  padding: 10px 14px;
+}
+
+.advancedCard > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.advancedCard > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advancedCard > summary::before {
+  content: '›';
+  font-size: 15px;
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+.advancedCard[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.advancedBody {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
   display: grid;
-  gap: 8px;
+  gap: 12px;
+}
+
+/* ── Retention panel ── */
+.retentionPanel {
+  display: grid;
+  gap: 10px;
 }
 
 .retentionHead {
@@ -194,48 +328,67 @@
 }
 
 .retentionHead h3 {
-  margin: 0 0 2px;
-  font-size: 0.92rem;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.retentionHint {
+  margin: 3px 0 0;
+  font-size: 11.5px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.65);
 }
 
 .retentionStatus {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   border-radius: 999px;
   padding: 2px 9px;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+  flex-shrink: 0;
 }
 
 .retentionStatus--on {
-  border-color: rgb(var(--color-success-rgb) / 0.55);
+  border-color: rgb(var(--color-success-rgb) / 0.35);
+  background: rgb(var(--color-success-rgb) / 0.08);
   color: var(--color-success);
 }
 
 .retentionMainRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(140px, auto) minmax(96px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(140px, auto) auto;
   gap: 8px;
   align-items: end;
 }
 
 .retentionField {
   display: grid;
-  gap: 5px;
+  gap: 4px;
 }
 
 .retentionField span {
-  font-size: 0.74rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.55);
 }
 
 .retentionField select {
   min-height: 34px;
   border-radius: 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.26);
-  background: rgb(var(--color-bg-rgb) / 0.36);
-  color: var(--color-text-primary);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  background: rgb(var(--color-bg-rgb) / 0.5);
+  color: inherit;
   padding: 0 9px;
+  font-size: 13px;
+  transition: border-color 0.14s;
+}
+
+.retentionField select:focus {
+  outline: none;
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
 }
 
 .retentionField--toggle {
@@ -243,78 +396,128 @@
   display: inline-flex;
   gap: 7px;
   align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.retentionField--toggle span {
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: inherit;
 }
 
 .retentionField--toggle input {
   width: 15px;
   height: 15px;
+  cursor: pointer;
 }
 
-.retentionHint {
-  margin: 0;
-  font-size: 0.76rem;
-}
-
+/* ── Action buttons ── */
 .actionBtn {
-  border: none;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.4);
   border-radius: 8px;
-  background: var(--color-accent);
-  color: var(--color-white);
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  color: var(--color-primary);
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 160ms ease;
+  font-family: inherit;
+  transition: background 0.14s;
+  white-space: nowrap;
 }
 
-.dangerBtn,
-.ghostActionBtn {
-  border: none;
+.actionBtn:hover:not(:disabled) {
+  background: rgb(var(--color-primary-rgb) / 0.2);
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ghostActionBtn,
+.dangerBtn {
   border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 160ms ease;
+  font-family: inherit;
+  transition: background 0.14s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.ghostActionBtn {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  background: transparent;
+  color: inherit;
+}
+
+.ghostActionBtn:hover:not(:disabled) {
+  background: rgb(var(--color-surface-rgb) / 0.07);
 }
 
 .dangerBtn {
-  background: var(--color-danger);
-  color: var(--color-white);
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.35);
+  background: rgb(var(--color-danger-rgb) / 0.1);
+  color: var(--color-danger);
 }
 
-.ghostActionBtn {
-  background: var(--color-btn-secondary-bg);
-  color: var(--color-btn-secondary-text);
+.dangerBtn:hover:not(:disabled) {
+  background: rgb(var(--color-danger-rgb) / 0.18);
 }
 
-.actionBtn:hover:not(:disabled),
-.dangerBtn:hover:not(:disabled),
-.ghostActionBtn:hover:not(:disabled) {
-  opacity: 0.88;
-}
-
-.retentionAdvanced {
-  border-top: 1px solid var(--divider-color);
-  padding-top: 8px;
-}
-
-.retentionAdvanced > summary {
-  cursor: pointer;
-  font-size: 0.76rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+.ghostActionBtn:disabled,
+.dangerBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .retentionDangerActions {
   display: inline-flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 8px;
+  align-items: center;
+  padding-top: 2px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.07);
 }
 
 @media (max-width: 880px) {
+  .botAccountItem {
+    grid-template-columns: 1fr;
+  }
+
+  .botAccountMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .botAccountActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .botAccountActionBtn {
+    text-align: center;
+    justify-content: center;
+  }
+
   .retentionMainRow {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .retentionDangerActions {
+    display: grid;
+  }
+
+  .retentionDangerActions .ghostActionBtn,
+  .retentionDangerActions .dangerBtn {
+    width: 100%;
+    justify-content: center;
   }
 }

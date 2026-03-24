@@ -7,7 +7,6 @@ const authMock = vi.hoisted(() => ({
   loading: false,
   isAdmin: false,
   user: null,
-  csrf: vi.fn(async () => {}),
   register: vi.fn(async () => {
     authMock.user = {
       id: 42,
@@ -19,10 +18,7 @@ const authMock = vi.hoisted(() => ({
 }))
 const httpMock = vi.hoisted(() => ({
   get: vi.fn(async () => ({ data: { reason: 'ok' } })),
-  post: vi.fn(async () => ({ data: { message: 'Verification code sent.' } })),
 }))
-const toastSuccessMock = vi.hoisted(() => vi.fn())
-const toastWarnMock = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock }),
@@ -35,13 +31,6 @@ vi.mock('@/stores/auth', () => ({
 
 vi.mock('@/services/api', () => ({
   default: httpMock,
-}))
-
-vi.mock('@/composables/useToast', () => ({
-  useToast: () => ({
-    success: toastSuccessMock,
-    warn: toastWarnMock,
-  }),
 }))
 
 function flush() {
@@ -73,7 +62,7 @@ async function completeRegisterWizard(wrapper, {
   await wait(450)
   await flush()
 
-  const stepOneNext = wrapper.findAll('button').find((button) => button.text() === 'Pokračovať')
+  const stepOneNext = wrapper.find('button.btn.ui-pill.ui-pill--primary[type="button"]')
   await stepOneNext.trigger('click')
   await flush()
 
@@ -82,7 +71,7 @@ async function completeRegisterWizard(wrapper, {
   await passwordInputs[0].setValue(password)
   await passwordInputs[1].setValue(password)
 
-  const stepTwoNext = wrapper.findAll('button').find((button) => button.text() === 'Pokračovať')
+  const stepTwoNext = wrapper.find('button.btn.ui-pill.ui-pill--primary[type="button"]')
   await stepTwoNext.trigger('click')
   await flush()
 
@@ -111,31 +100,24 @@ describe('RegisterView', () => {
     }
   })
 
-  it('redirects unverified new user to Settings email section and auto-sends verification code', async () => {
+  it('redirects unverified new user to requested route', async () => {
     const wrapper = mountRegisterView()
     await flush()
 
     await completeRegisterWizard(wrapper)
 
     expect(authMock.register).toHaveBeenCalled()
-    expect(httpMock.post).toHaveBeenCalledWith(
-      '/account/email/verification/send',
-      {},
-      { meta: { skipErrorToast: true } },
-    )
-    expect(pushMock).toHaveBeenCalledWith({
-      name: 'settings.email',
-      query: { redirect: '/' },
-    })
-    expect(toastSuccessMock).toHaveBeenCalledWith('Poslali sme ti overovací kód.')
+    expect(pushMock).toHaveBeenCalledWith('/')
   })
 
-  it('still redirects to Settings when auto-send is rate-limited', async () => {
-    httpMock.post.mockRejectedValueOnce({
-      response: {
-        status: 429,
-        data: { message: 'Please wait before requesting another code.' },
-      },
+  it('redirects verified new user to requested route', async () => {
+    authMock.register.mockImplementationOnce(async () => {
+      authMock.user = {
+        id: 50,
+        email: 'verified@example.com',
+        requires_email_verification: true,
+        email_verified_at: '2026-03-24T22:00:00Z',
+      }
     })
 
     const wrapper = mountRegisterView()
@@ -143,13 +125,9 @@ describe('RegisterView', () => {
 
     await completeRegisterWizard(wrapper, {
       username: 'valid_user_two',
-      email: 'verify-me-2@example.com',
+      email: 'verified@example.com',
     })
 
-    expect(pushMock).toHaveBeenCalledWith({
-      name: 'settings.email',
-      query: { redirect: '/' },
-    })
-    expect(toastWarnMock).toHaveBeenCalled()
+    expect(pushMock).toHaveBeenCalledWith('/')
   })
 })

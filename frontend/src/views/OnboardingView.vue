@@ -16,11 +16,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import OnboardingModal from '@/components/onboarding/OnboardingModal.vue'
+import { useOnboardingTourStore } from '@/stores/onboardingTour'
 
 const router = useRouter()
 const route = useRoute()
 const preferences = useEventPreferencesStore()
+const onboardingTour = useOnboardingTourStore()
 const saving = ref(false)
+const shouldStartTourAfterFlow = computed(() => route.query.start_tour === '1')
 
 const initialLocation = computed(() => ({
   location_label: preferences.locationLabel || '',
@@ -39,8 +42,12 @@ async function handleFinish(payload) {
   if (saving.value) return
   saving.value = true
   try {
+    const shouldStartTour = shouldStartTourAfterFlow.value
     await preferences.saveOnboarding(payload)
     await router.replace(resolveRedirectTarget())
+    if (shouldStartTour) {
+      onboardingTour.restartTour()
+    }
   } finally {
     saving.value = false
   }
@@ -50,8 +57,12 @@ async function handleSkip() {
   if (saving.value) return
   saving.value = true
   try {
+    const shouldStartTour = shouldStartTourAfterFlow.value
     await preferences.markOnboardingComplete()
     await router.replace(resolveRedirectTarget())
+    if (shouldStartTour) {
+      onboardingTour.restartTour()
+    }
   } finally {
     saving.value = false
   }

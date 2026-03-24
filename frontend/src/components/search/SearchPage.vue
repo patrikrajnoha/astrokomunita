@@ -15,9 +15,9 @@ const route = useRoute()
 const router = useRouter()
 
 const tabs = [
-  { key: 'trendy', label: 'Top' },
-  { key: 'spravy', label: 'Správy' },
-  { key: 'udalosti', label: 'Udalosti' },
+  { key: 'trendy', label: 'Top', icon: '🔥' },
+  { key: 'spravy', label: 'Správy', icon: '📰' },
+  { key: 'udalosti', label: 'Udalosti', icon: '🌠' },
 ]
 
 const activeTab = ref('trendy')
@@ -138,26 +138,31 @@ const globalSections = computed(() => {
     {
       key: 'users',
       title: 'Používatelia',
+      icon: '👤',
       items: globalResults.value.users.map(toUserItem),
     },
     {
       key: 'posts',
       title: 'Príspevky',
+      icon: '💬',
       items: globalResults.value.posts.map((post) => toPostItem(post, 'Príspevok')),
     },
     {
       key: 'events',
       title: 'Udalosti',
+      icon: '🌌',
       items: globalResults.value.events.map(toEventItem),
     },
     {
       key: 'articles',
       title: 'Články',
+      icon: '📚',
       items: globalResults.value.articles.map(toArticleItem),
     },
     {
       key: 'hashtags',
       title: 'Hashtagy',
+      icon: '🏷️',
       items: globalResults.value.hashtags.map(toHashtagItem),
     },
   ]
@@ -171,11 +176,13 @@ const activeDiscoverySections = computed(() => {
       {
         key: 'news-posts',
         title: 'Správy',
+        icon: '📰',
         items: discovery.value.news.posts.map((post) => toPostItem(post, post.user?.name || 'Bot')),
       },
       {
         key: 'news-articles',
         title: 'Nové články',
+        icon: '📖',
         items: discovery.value.news.articles.map(toArticleItem),
       },
     ].filter((section) => section.items.length > 0)
@@ -186,11 +193,13 @@ const activeDiscoverySections = computed(() => {
       {
         key: 'events-main',
         title: 'Udalosti',
+        icon: '🌠',
         items: discovery.value.events.events.map(toEventItem),
       },
       {
         key: 'events-posts',
         title: 'Súvisiace príspevky',
+        icon: '🧵',
         items: discovery.value.events.posts.map((post) => toPostItem(post, 'Príspevok')),
       },
     ].filter((section) => section.items.length > 0)
@@ -200,11 +209,13 @@ const activeDiscoverySections = computed(() => {
     {
       key: 'trendy-events',
       title: 'Top udalosti',
+      icon: '🚀',
       items: discovery.value.trending.events.map(toEventItem),
     },
     {
       key: 'trendy-posts',
       title: 'Top príspevky',
+      icon: '⭐',
       items: discovery.value.trending.posts.map((post) => toPostItem(post, 'Príspevok')),
     },
   ].filter((section) => section.items.length > 0)

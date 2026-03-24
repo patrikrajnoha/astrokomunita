@@ -1,158 +1,199 @@
+<component
+  :is="props.embedded ? 'section' : AdminPageShell"
+  v-bind="props.embedded ? {} : { title: 'Dashboard botov', subtitle: 'Rýchly prehľad bot pipeline.' }"
+  class="botSection"
+>
+  <div v-if="props.embedded" class="embeddedHeader">
+    <p class="embeddedSubtitle">{{ dashboardMetaLine }}</p>
+  </div>
 
-  <component
-    :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot modul', subtitle: 'Prehlad pipeline za poslednych 24 hodin.' }"
-    class="botSection"
-  >
-    <div v-if="props.embedded" class="embeddedHeader">
-      <p class="embeddedSubtitle">{{ dashboardMetaLine }}</p>
-      <button type="button" class="actionBtn" :disabled="loading" @click="load">
-        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
-      </button>
+  <section class="card botAccountsCard">
+    <div class="botAccountsHeader">
+      <h3>Bot účty</h3>
+      <p class="muted">Identity botov pre automatizované publikovanie.</p>
     </div>
 
-    <template v-if="!props.embedded" #right-actions>
-      <button type="button" class="actionBtn" :disabled="loading" @click="load">
-        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
-      </button>
-    </template>
+    <p v-if="props.overviewLoading && bots.length === 0" class="muted">Načítavam bot účty…</p>
+    <p v-else-if="bots.length === 0" class="muted">Bot účty ešte nie sú dostupné.</p>
 
-    <section v-if="!props.embedded" class="cards">
-      <article class="card metricCard">
-        <p class="metricLabel">Aktívne zdroje</p>
-        <p class="metricValue">{{ Number(overall.active_sources || 0) }}</p>
-      </article>
-      <article class="card metricCard">
-        <p class="metricLabel">Chybové zdroje</p>
-        <p class="metricValue">{{ Number(overall.failing_sources || 0) }}</p>
-      </article>
-      <article class="card metricCard">
-        <p class="metricLabel">Neaktívne zdroje</p>
-        <p class="metricValue">{{ Number(overall.dead_sources || 0) }}</p>
-      </article>
-      <article class="card metricCard">
-        <p class="metricLabel">Preskočenia cooldownu (24h)</p>
-        <p class="metricValue">{{ Number(overall.cooldown_skips_24h || 0) }}</p>
-      </article>
-    </section>
-
-    <section v-if="!props.embedded" class="card quickLinks">
-      <RouterLink :to="{ name: 'admin.bots.sources' }" class="quickLink">Zdravie zdrojov</RouterLink>
-      <RouterLink :to="{ name: 'admin.bots.schedules' }" class="quickLink">Plány</RouterLink>
-      <RouterLink :to="{ name: 'admin.bots.engine' }" class="quickLink">Ovládanie modulu</RouterLink>
-    </section>
-
-    <section class="card retentionCard">
-      <div class="retentionHead">
-        <div>
-          <h3>Čistenie príspevkov botov</h3>
-          <p class="muted retentionHint">
-            Scheduler beží {{ retention.scheduled_frequency || 'hourly' }}. Maže iba príspevky staršie ako zvolený limit.
-          </p>
+    <ul v-else class="botAccountsList">
+      <li v-for="row in bots" :key="`bot-account-${row.id}`" class="botAccountItem">
+        <div class="botAccountIdentity">
+          <span class="botAccountAvatar">
+            <UserAvatar :user="row" :size="42" :alt="`${botDisplayName(row)} avatar`" />
+          </span>
+          <div class="botAccountText">
+            <p class="botAccountName">{{ botDisplayName(row) }}</p>
+            <p class="botAccountHandle">{{ botHandle(row) }}</p>
+          </div>
         </div>
-        <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
-          {{ retentionStatusLabel }}
-        </span>
-      </div>
 
-      <div class="retentionMainRow">
-        <label class="retentionField retentionField--toggle">
-          <input
-            v-model="retentionForm.enabled"
-            type="checkbox"
-            :disabled="retentionLoading || retentionSaving"
-          />
-          <span>Zapnúť automatické mazanie</span>
-        </label>
+        <dl class="botAccountMeta">
+          <div>
+            <dt>Stav</dt>
+            <dd>
+              <span class="botStatusBadge" :class="botAccountStatusClass(row)">
+                {{ botAccountStatusLabel(row) }}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Posledná aktivita</dt>
+            <dd>{{ formatDateTime(row.last_activity_at) }}</dd>
+          </div>
+        </dl>
 
-        <label class="retentionField">
-          <span>Odstrániť po</span>
-          <select
-            v-model.number="retentionForm.auto_delete_after_hours"
-            :disabled="retentionLoading || retentionSaving || !retentionForm.enabled"
+        <div class="botAccountActions">
+          <button
+            type="button"
+            class="botAccountActionBtn botAccountActionBtn--primary"
+            @click="openBotDetailAccount(row)"
           >
-            <option v-for="hours in retentionAllowedHours" :key="`retention-${hours}`" :value="Number(hours)">
-              {{ Number(hours) }} h
-            </option>
-          </select>
-        </label>
+            Detail
+          </button>
+          <RouterLink
+            class="botAccountActionBtn"
+            :to="{ name: 'admin.bots.activity', query: { bot_identity: row.bot_identity || undefined } }"
+          >
+            Logy
+          </RouterLink>
+        </div>
+      </li>
+    </ul>
+  </section>
 
+  <section class="card">
+    <h3 class="botMetricsTitle">Metriky bot pipeline</h3>
+    <p v-if="props.overviewLoading && bots.length === 0" class="muted">Načítavam metriky botov…</p>
+    <p v-else-if="bots.length === 0" class="muted">Zatiaľ nie sú dostupné metriky botov.</p>
+
+    <div v-else class="tableWrap tableWrap--botsOverview">
+      <table class="table botsOverviewTable">
+        <thead>
+          <tr>
+            <th>Bot</th>
+            <th>Stav</th>
+            <th>Posledná aktivita</th>
+            <th>Publikované (24h)</th>
+            <th>Chyby (24h)</th>
+            <th>Akcia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in bots" :key="row.id">
+            <td>
+              <div class="name">{{ row.username || '-' }}</div>
+              <div class="muted">{{ row.role || '-' }}</div>
+            </td>
+            <td>
+              <span class="botStatusBadge" :class="botAccountStatusClass(row)">
+                {{ botAccountStatusLabel(row) }}
+              </span>
+            </td>
+            <td>{{ formatDateTime(row.last_activity_at) }}</td>
+            <td>{{ Number(row.posts_24h || 0) }}</td>
+            <td>{{ Number(row.errors_24h || 0) }}</td>
+            <td>
+              <RouterLink
+                class="activityLink"
+                :to="{ name: 'admin.bots.activity', query: { bot_identity: row.bot_identity || undefined } }"
+              >
+                Zobraziť logy
+              </RouterLink>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <details class="card advancedCard">
+    <summary>Pokročilé nastavenia</summary>
+
+    <div class="advancedBody">
+      <section class="retentionPanel">
+        <div class="retentionHead">
+          <div>
+            <h3>Čistenie príspevkov botov</h3>
+            <p class="muted retentionHint">
+              Scheduler beží {{ retention.scheduled_frequency || 'hourly' }}. Maže iba príspevky staršie ako zvolený limit.
+            </p>
+          </div>
+          <span class="retentionStatus" :class="{ 'retentionStatus--on': retentionForm.enabled }">
+            {{ retentionStatusLabel }}
+          </span>
+        </div>
+
+        <div class="retentionMainRow">
+          <label class="retentionField retentionField--toggle">
+            <input
+              v-model="retentionForm.enabled"
+              type="checkbox"
+              :disabled="retentionLoading || retentionSaving"
+            />
+            <span>Zapnúť automatické mazanie</span>
+          </label>
+
+          <label class="retentionField">
+            <span>Odstrániť po</span>
+            <select
+              v-model.number="retentionForm.auto_delete_after_hours"
+              :disabled="retentionLoading || retentionSaving || !retentionForm.enabled"
+            >
+              <option v-for="hours in retentionAllowedHours" :key="`retention-${hours}`" :value="Number(hours)">
+                {{ Number(hours) }} h
+              </option>
+            </select>
+          </label>
+
+          <button
+            type="button"
+            class="actionBtn"
+            :disabled="retentionLoading || retentionSaving"
+            @click="saveRetentionSettings"
+          >
+            {{ retentionSaving ? 'Ukladám…' : 'Uložiť' }}
+          </button>
+        </div>
+      </section>
+
+      <section class="retentionDangerActions">
         <button
           type="button"
-          class="actionBtn"
-          :disabled="retentionLoading || retentionSaving"
-          @click="saveRetentionSettings"
+          class="ghostActionBtn"
+          :disabled="retentionRunning"
+          @click="runCleanupNow"
         >
-          {{ retentionSaving ? 'Ukladám…' : 'Uložiť' }}
+          {{ retentionRunning ? 'Spúšťam…' : 'Spustiť cleanup teraz' }}
         </button>
-      </div>
+        <button
+          type="button"
+          class="dangerBtn"
+          :disabled="deletingAllPosts"
+          @click="deleteAllPublishedBotPosts"
+        >
+          {{ deletingAllPosts ? 'Mažem…' : 'Vymazať príspevky botov' }}
+        </button>
+        <RouterLink class="ghostActionBtn" :to="{ name: 'admin.bots.engine' }">
+          Legacy nástroje
+        </RouterLink>
+      </section>
+    </div>
+  </details>
 
-      <details class="retentionAdvanced">
-        <summary>Pokročilé akcie</summary>
-        <div class="retentionDangerActions">
-          <button
-            type="button"
-            class="ghostActionBtn"
-            :disabled="retentionRunning"
-            @click="runCleanupNow"
-          >
-            {{ retentionRunning ? 'Spúšťam…' : 'Spustiť cleanup teraz' }}
-          </button>
-          <button
-            type="button"
-            class="dangerBtn"
-            :disabled="deletingAllPosts"
-            @click="deleteAllPublishedBotPosts"
-          >
-            {{ deletingAllPosts ? 'Mažem…' : 'Vymazať príspevky botov' }}
-          </button>
-        </div>
-      </details>
-    </section>
-
-    <section class="card">
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && bots.length === 0" class="muted">Zatiaľ nie sú dostupné metriky botov.</p>
-
-      <div v-else class="tableWrap tableWrap--botsOverview">
-        <table class="table botsOverviewTable">
-          <thead>
-            <tr>
-              <th>Bot</th>
-              <th>Posledná aktivita</th>
-              <th>Príspevky (24h)</th>
-              <th>Duplikáty (24h)</th>
-              <th>Chyby (24h)</th>
-              <th>Rate limit</th>
-              <th>Akcia</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in bots" :key="row.id">
-              <td>
-                <div class="name">{{ row.username || '-' }}</div>
-                <div class="muted">{{ row.role || '-' }}</div>
-              </td>
-              <td>{{ formatDateTime(row.last_activity_at) }}</td>
-              <td>{{ Number(row.posts_24h || 0) }}</td>
-              <td>{{ Number(row.duplicates_24h || 0) }}</td>
-              <td>{{ Number(row.errors_24h || 0) }}</td>
-              <td>
-                <span class="rateState" :class="{ limited: Boolean(row?.rate_limit_state?.limited) }">
-                  {{ rateLimitLabel(row) }}
-                </span>
-              </td>
-              <td>
-                <RouterLink
-                  class="activityLink"
-                  :to="{ name: 'admin.bots.activity', query: { bot_identity: row.bot_identity || undefined } }"
-                >
-                  Zobraziť aktivitu
-                </RouterLink>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </component>
+  <BaseModal
+    :open="botDetailModalOpen"
+    title="Detail účtu bota"
+    test-id="bot-detail-account-modal"
+    close-test-id="bot-detail-account-modal-close"
+    @update:open="handleBotDetailModalToggle"
+  >
+    <div v-if="selectedBot" class="botDetailModalBody">
+      <AdminUserDetailView
+        embedded
+        :user-id="selectedBot.id"
+        @user-updated="handleBotUserUpdated"
+      />
+    </div>
+  </BaseModal>
+</component>

@@ -359,6 +359,11 @@ function prepend(post) {
   }, 1800)
 }
 
+function onPostUnblurred(post, { isBlurred, status }) {
+  post.attachment_is_blurred = isBlurred
+  post.attachment_moderation_status = status
+}
+
 onBeforeUnmount(() => {
   if (highlightTimer) {
     clearTimeout(highlightTimer)

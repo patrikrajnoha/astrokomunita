@@ -20,6 +20,20 @@ describe('resolvePreferredSidebarWidgetKeys', () => {
     })).toBeNull()
   })
 
+  it('ignores user overrides on home scope and keeps admin-configured widgets', () => {
+    const preferences = {
+      loaded: true,
+      sidebarWidgetKeysForScope: vi.fn(() => ['search', 'nasa_apod']),
+      hasSidebarWidgetOverrideForScope: vi.fn(() => true),
+    }
+
+    expect(resolvePreferredSidebarWidgetKeys({
+      isAuthed: true,
+      preferences,
+      scope: 'home',
+    })).toBeNull()
+  })
+
   it('preserves an explicit empty override when preferences are loaded', () => {
     const preferences = {
       loaded: true,

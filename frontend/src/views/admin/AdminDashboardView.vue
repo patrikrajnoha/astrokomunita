@@ -16,6 +16,7 @@ const exporting = ref(false)
 const error = ref('')
 const stats = ref(null)
 const trendMetric = ref('new_posts')
+const secondaryTab = ref('roles')
 
 const trendMetricOptions = [
   { key: 'new_posts', label: 'Príspevky' },
@@ -32,6 +33,7 @@ const kpiCards = computed(() => {
       label: 'Používatelia',
       value: Number(kpi.users_total || 0),
       viewTo: { name: 'admin.users' },
+      weight: 'primary',
     },
     {
       key: 'users_active_30d',
@@ -51,13 +53,6 @@ const kpiCards = computed(() => {
       value: Number(kpi.events_total || 0),
       viewTo: { name: 'admin.events' },
     },
-    {
-      key: 'posts_moderated_total',
-      label: 'Moderované',
-      value: Number(kpi.posts_moderated_total || 0),
-      viewTo: { name: 'admin.moderation' },
-      tone: 'accent',
-    },
   ]
 })
 
@@ -74,10 +69,10 @@ const byRoleList = computed(() => {
 const byRegionProfileList = computed(() => {
   const byRegion = stats.value?.demographics?.by_region || {}
   return [
-    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0), icon: '\u{2754}' },
-    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0), icon: '\u{1F1F8}\u{1F1F0}' },
-    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0), icon: '\u{1F1E8}\u{1F1FF}' },
-    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0), icon: '\u{1F30D}' },
+    { key: 'unknown', label: 'Nezadané', value: Number(byRegion.unknown || 0) },
+    { key: 'sk', label: 'Slovensko', value: Number(byRegion.sk || 0) },
+    { key: 'cz', label: 'Česko', value: Number(byRegion.cz || 0) },
+    { key: 'other', label: 'Ostatné', value: Number(byRegion.other || 0) },
   ]
 })
 
@@ -115,38 +110,58 @@ const activityHighlights = computed(() => {
 
 const quickActions = computed(() => {
   const queues = stats.value?.queues || {}
-  const kpi = stats.value?.kpi || {}
   const moderationAttention =
     Number(queues.moderation_pending || 0) + Number(queues.moderation_flagged || 0)
 
   return [
     {
-      title: 'Centrum zberu',
-      subtitle: 'Zdroje, behy a kandidáti na jednom mieste.',
-      to: { name: 'admin.event-sources' },
-      badge: Number(kpi.events_total || 0),
-    },
-    {
-      title: 'Kontrola kandidátov',
-      subtitle: 'Schválenie alebo odmietnutie čakajúcich udalostí.',
+      title: 'Spracovať kandidátov',
+      subtitle: 'Skontrolovať čakajúce udalosti',
       to: { name: 'admin.event-candidates' },
       badge: Number(queues.event_candidates_pending || 0),
       badgeTone: Number(queues.event_candidates_pending || 0) > 0 ? 'accent' : 'neutral',
     },
     {
-      title: 'Správa používateľov',
-      subtitle: 'Profily, roly, blokácie a stav účtu.',
-      to: { name: 'admin.users' },
-      badge: Number(kpi.users_total || 0),
-    },
-    {
-      title: 'Moderácia',
-      subtitle: 'Obsah čakajúci na zásah moderátora.',
+      title: 'Spravovať moderáciu',
+      subtitle: 'Obsah čakajúci na zásah',
       to: { name: 'admin.moderation' },
       badge: moderationAttention,
       badgeTone: moderationAttention > 0 ? 'accent' : 'neutral',
     },
+    {
+      title: 'Správa používateľov',
+      subtitle: 'Profily, roly a stav účtu',
+      to: { name: 'admin.users' },
+    },
+    {
+      title: 'Centrum zberu',
+      subtitle: 'Zdroje a behy crawlera',
+      to: { name: 'admin.event-sources' },
+    },
   ]
+})
+
+const moderationSnapshot = computed(() => {
+  const queues = stats.value?.queues || {}
+  const kpi = stats.value?.kpi || {}
+
+  return {
+    pending: Number(queues.moderation_pending || 0),
+    flagged: Number(queues.moderation_flagged || 0),
+    processed: Number(kpi.posts_moderated_total || 0),
+  }
+})
+
+const secondaryTabs = [
+  { key: 'roles', label: 'Podľa rolí' },
+  { key: 'region', label: 'Podľa regiónu' },
+  { key: 'activity', label: 'Aktivita (30 dní)' },
+]
+
+const secondaryStats = computed(() => {
+  if (secondaryTab.value === 'region') return byRegionProfileList.value
+  if (secondaryTab.value === 'activity') return activityHighlights.value
+  return byRoleList.value
 })
 
 function formatNumber(value) {

@@ -1,519 +1,159 @@
-﻿  <component
-    :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: pageTitle, subtitle: pageSubtitle }"
-    class="botEngineShell"
-  >
-    <div v-if="props.embedded" class="embeddedHeader">
-      <div>
-        <h2 class="embeddedTitle">{{ pageTitle }}</h2>
-        <p v-if="pageSubtitle" class="embeddedSubtitle">{{ pageSubtitle }}</p>
-      </div>
-      <div class="embeddedHeaderActions">
-        <RouterLink class="runBtn headerRunBtn headerRunBtn--ghost" :to="{ name: 'admin.bots.activity' }">
-          Aktivita
-        </RouterLink>
-        <button
-          type="button"
-          class="runBtn headerRunBtn"
-          data-testid="quick-run-all"
-          :disabled="quickRunBusyIdentity !== '' || !hasEnabledSources"
-          @click="quickRunAll"
-        >
-          {{ quickRunBusyIdentity === 'all' ? 'Spúšťam všetko...' : 'Spustiť všetko' }}
-        </button>
-      </div>
+<component
+  :is="props.embedded ? 'section' : AdminPageShell"
+  v-bind="props.embedded ? {} : { title: pageTitle, subtitle: pageSubtitle }"
+  class="botEngineShell"
+>
+  <div v-if="props.embedded" class="embeddedHeader">
+    <div>
+      <h2 class="embeddedTitle">{{ pageTitle }}</h2>
+      <p v-if="pageSubtitle" class="embeddedSubtitle">{{ pageSubtitle }}</p>
     </div>
+  </div>
 
-    <template v-if="!props.embedded" #right-actions>
-      <RouterLink class="runBtn headerRunBtn headerRunBtn--ghost" :to="{ name: 'admin.bots.activity' }">
-        Aktivita
-      </RouterLink>
-      <button
-        type="button"
-        class="runBtn headerRunBtn"
-        data-testid="quick-run-all"
-        :disabled="quickRunBusyIdentity !== '' || !hasEnabledSources"
-        @click="quickRunAll"
-      >
-        {{ quickRunBusyIdentity === 'all' ? 'Spúšťam všetko...' : 'Spustiť všetko' }}
-      </button>
-    </template>
-
-    <section class="quickStrip" aria-label="Rýchle spustenie">
-      <button
-        type="button"
-        class="quickPill"
-        :class="{ 'quickPill--active': effectiveBotIdentity === 'kozmo' }"
-        data-testid="quick-run-kozmo"
-        :title="sourceCountLabel(enabledSourcesByIdentity.kozmo.length)"
-        :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.kozmo.length === 0"
-        @click="quickRunIdentity('kozmo')"
-      >
-        <span class="quickPill__label">{{
-          quickRunBusyIdentity === 'kozmo' ? 'Spúšťam KozmoBot' : 'KozmoBot'
-        }}</span>
-        <span class="countBadge">{{ enabledSourcesByIdentity.kozmo.length }}</span>
-      </button>
-
-      <button
-        type="button"
-        class="quickPill"
-        :class="{ 'quickPill--active': effectiveBotIdentity === 'stela' }"
-        data-testid="quick-run-stela"
-        :title="sourceCountLabel(enabledSourcesByIdentity.stela.length)"
-        :disabled="quickRunBusyIdentity !== '' || enabledSourcesByIdentity.stela.length === 0"
-        @click="quickRunIdentity('stela')"
-      >
-        <span class="quickPill__label">{{
-          quickRunBusyIdentity === 'stela' ? 'Spúšťam StellarBot' : 'StellarBot'
-        }}</span>
-        <span class="countBadge">{{ enabledSourcesByIdentity.stela.length }}</span>
-      </button>
-    </section>
-
-    <AdminAiActionPanel
-      title="AI pomocník"
-      description="Rýchly test prekladu bez interných detailov."
-      action-label="Otestovať preklad"
-      :enabled="true"
-      :status="aiPanelStatus"
-      :latency-ms="aiPanelLastRun?.latency_ms ?? null"
-      :last-run-at="aiPanelLastRun?.updated_at ?? null"
-      :raw-status-code="aiPanelLastRun?.status_code ?? null"
-      :is-loading="store.testingTranslation"
-      :error-message="aiPanelError"
-      @run="testTranslation"
+  <template v-if="!props.embedded" #right-actions>
+    <button
+      type="button"
+      class="runBtn"
+      data-testid="quick-run-all"
+      :disabled="quickRunBusyIdentity !== '' || !hasEnabledSources"
+      @click="quickRunAll"
     >
-      <p class="translationMetaText">{{ aiPanelRunHint }}</p>
-      <p v-if="aiPanelNotice" class="translationMetaText">{{ aiPanelNotice }}</p>
-      <span v-if="aiPanelStatus === 'fallback'" class="statusBadge statusBadge--partial">Použitý fallback</span>
-      <p v-if="translationTestResult" class="translationMetaText">
-        Posledný výstup: {{ translationTestResult.translated_text || '-' }}
-      </p>
-      <template #advanced>
-        <div class="advancedActions">
-          <label class="filterField filterField--compact">
-            <span>Provider</span>
-            <select v-model="translationTestProvider">
-              <option value="auto">auto</option>
-              <option value="libretranslate">libretranslate</option>
-              <option value="ollama">ollama</option>
-            </select>
-          </label>
-          <label class="filterField filterField--compact">
-            <span>Model</span>
-            <input v-model.trim="translationTestModel" type="text" placeholder="predvoleny" />
-          </label>
-          <label class="filterField filterField--compact">
-            <span>Teplota</span>
-            <input v-model.number="translationTestTemperature" type="number" step="0.1" min="0" max="2" />
-          </label>
-        </div>
-        <label class="filterField">
-          <span>Testovací text</span>
-          <textarea
-            v-model="translationTestText"
-            rows="3"
-            maxlength="5000"
-            placeholder="Krátky anglický text na test prekladu."
-          />
-        </label>
-        <div v-if="translationTestResult" class="translationResult">
-          <div class="inlineActions">
-            <span :class="translationProviderClass(translationTestResult.provider)">
-              {{ translationProviderLabel(translationTestResult.provider) }}
-            </span>
-            <span class="modeHint">{{ Number(translationTestResult.latency_ms || 0) }} ms</span>
-            <span class="modeHint">{{ translationModeLabel(translationTestResult.mode) }}</span>
-          </div>
-          <p class="translationMetaText">
-            Reťazec:
-            {{
-              Array.isArray(translationTestResult.provider_chain) &&
-              translationTestResult.provider_chain.length > 0
-                ? translationTestResult.provider_chain.join(' -> ')
-                : '-'
-            }}
-            · Kvalita:
-            {{
-              Array.isArray(translationTestResult.quality_flags) &&
-              translationTestResult.quality_flags.length > 0
-                ? translationTestResult.quality_flags.join(', ')
-                : 'OK'
-            }}
-          </p>
-          <p>{{ translationTestResult.translated_text || '-' }}</p>
-        </div>
-      </template>
-    </AdminAiActionPanel>
+      {{ quickRunBusyIdentity === 'all' ? 'Spúšťam všetko...' : 'Spustiť všetko' }}
+    </button>
+  </template>
 
-    <section class="panel">
-      <header class="panelHeader">
-        <p class="sectionLabel">Zdroje</p>
-        <button
-          type="button"
-          class="ghostBtn ghostBtn--compact"
-          :disabled="loadingSources"
-          @click="loadSources"
-        >
-          Obnoviť
-        </button>
-      </header>
+  <details class="panel panel--service">
+    <summary class="collapsibleSummary serviceSummary">
+      <p class="sectionLabel">Pokročilé nástroje</p>
+      <span class="summaryMetaValue">Servisná zóna</span>
+    </summary>
 
-      <div class="tableWrap">
-        <table class="table table--sources">
-          <thead>
-            <tr>
-              <th>Zdroj</th>
-              <th>Bot</th>
-              <th>Typ</th>
-              <th>Stav</th>
-              <th>Posledný beh</th>
-              <th class="alignRight">Akcia</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-if="loadingSources">
-              <tr v-for="index in 5" :key="`sources-skeleton-${index}`">
-                <td colspan="6">
-                  <div class="skeletonRow"></div>
-                </td>
-              </tr>
-            </template>
-            <tr v-else-if="filteredSources.length === 0">
-              <td colspan="6" class="emptyCell">Žiadne zdroje.</td>
-            </tr>
-            <tr v-else v-for="source in filteredSources" :key="source.id || source.key">
-              <td>
-                <code>{{ source.key }}</code>
-              </td>
-              <td>{{ botIdentityLabel(normalizeBotIdentity(source.bot_identity)) || '-' }}</td>
-              <td>{{ sourceTypeLabel(source.source_type) }}</td>
-              <td>
-                <span class="stateBadge">
-                  <span
-                    :class="
-                      source.is_enabled
-                        ? 'statusDot statusDot--success'
-                        : 'statusDot statusDot--muted'
-                    "
-                  ></span>
-                  {{ sourceStateLabel(source.is_enabled) }}
-                </span>
-              </td>
-              <td>{{ formatDateTime(source.last_run_at) }}</td>
-              <td class="alignRight">
-                <button
-                  type="button"
-                  class="iconBtn"
-                  :data-testid="`source-run-${source.key}`"
-                  :disabled="!source.is_enabled || store.isSourceRunning(source.key)"
-                  :aria-label="
-                    store.isSourceRunning(source.key)
-                      ? `Spúšťa sa ${source.key}`
-                      : `Spustiť ${source.key}`
-                  "
-                  :title="store.isSourceRunning(source.key) ? 'Spúšťam' : 'Spustiť'"
-                  @click="runNow(source.key, 'auto')"
-                >
-                  <span v-if="store.isSourceRunning(source.key)" class="iconBtn__busy">...</span>
-                  <svg v-else viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M5 3.5v9l7-4.5-7-4.5Z" fill="currentColor" />
-                  </svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <details class="panel panel--collapsible panel--translations">
-      <summary class="collapsibleSummary">
-        <p class="sectionLabel">Preklady</p>
-        <div class="collapsibleMeta">
-          <span class="summaryMetaValue">{{
-            translationProviderLabel(translationHealth?.provider)
-          }}</span>
-          <span :class="translationHealthState.className" data-testid="translation-health-state">
-            {{ translationHealthState.label }}
-          </span>
-        </div>
-      </summary>
-
-      <div class="translationTools">
-        <div class="translationOverview">
-          <div class="miniMetric">
-            <span class="miniLabel">Poskytovateľ</span>
-            <strong>{{ translationProviderLabel(translationHealth?.provider) }}</strong>
-          </div>
-          <div class="miniMetric">
-            <span class="miniLabel">Stav</span>
-            <span :class="translationHealthState.className">
-              {{ translationHealthState.label }}
-            </span>
-          </div>
-        </div>
-
-        <div class="progressWrap progressWrap--compact">
-          <div class="progressHeader">
-            <span>Fronta</span>
-            <strong
-              >{{ translationQueue.done + translationQueue.skipped }}/{{
-                translationQueue.total || 0
-              }}</strong
-            >
-          </div>
-          <div
-            class="progressTrack"
-            role="progressbar"
-            :aria-valuenow="translationQueue.progressPercent"
-            aria-valuemin="0"
-            aria-valuemax="100"
+    <div class="serviceBody">
+      <section class="serviceBlock">
+        <div class="serviceBlockHead">
+          <p class="serviceTitle">Run control</p>
+          <button
+            type="button"
+            class="runBtn"
+            data-testid="quick-run-all"
+            :disabled="quickRunBusyIdentity !== '' || !hasEnabledSources"
+            @click="quickRunAll"
           >
-            <div
-              class="progressFill"
-              :class="{ 'progressFill--active': isTranslationQueueActive }"
-              :style="{ width: `${translationQueue.progressPercent}%` }"
-            ></div>
+            {{ quickRunBusyIdentity === 'all' ? 'Spúšťam všetko...' : 'Spustiť všetko' }}
+          </button>
+        </div>
+        <p class="serviceHint">Manuálne spustenie všetkých aktívnych zdrojov.</p>
+      </section>
+
+      <section v-if="quickRunProgress.active" class="progressWrap quickRunProgress" aria-live="polite">
+        <div class="progressHeader">
+          <span>{{ quickRunProgressLabel }}</span>
+          <strong>{{ quickRunProgress.completed }}/{{ quickRunProgress.total }}</strong>
+        </div>
+        <div
+          class="progressTrack"
+          role="progressbar"
+          :aria-valuenow="quickRunProgressPercent"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <div
+            class="progressFill progressFill--active"
+            :style="{ width: `${quickRunProgressPercent}%` }"
+          ></div>
+        </div>
+        <p class="serviceHint">{{ quickRunProgressHint }}</p>
+      </section>
+
+      <section class="serviceBlock serviceBlock--ai">
+        <div class="serviceBlockHead serviceBlockHead--wrap">
+          <p class="serviceTitle">AI test</p>
+          <div class="inlineActions">
+            <button
+              type="button"
+              class="runBtn"
+              data-testid="ai-test-run"
+              :disabled="store.testingTranslation"
+              @click="testTranslation"
+            >
+              {{ store.testingTranslation ? 'Testujem...' : 'Otestovať preklad' }}
+            </button>
+            <span :class="aiStatus.className">{{ aiStatus.label }}</span>
           </div>
         </div>
+
+        <p class="serviceHint">{{ aiPanelRunHint }}</p>
+        <p v-if="aiPanelNotice" class="serviceHint">{{ aiPanelNotice }}</p>
+        <p v-if="aiPanelError" class="serviceError">{{ aiPanelError }}</p>
+        <p v-if="aiPanelLastRun?.latency_ms" class="serviceHint">
+          Odozva: {{ Number(aiPanelLastRun.latency_ms || 0) }} ms
+        </p>
+        <p v-if="translationTestResult" class="serviceHint">
+          Posledný výstup: {{ translationTestResult.translated_text || '-' }}
+        </p>
 
         <details class="advancedTools">
-          <summary>Rozšírené</summary>
+          <summary>Nastavenie testu</summary>
 
           <div class="advancedTools__body">
             <div class="advancedActions">
               <label class="filterField filterField--compact">
-                <span>Výpadok</span>
-                <select
-                  v-model="translationOutageProvider"
-                  data-testid="translation-outage-provider"
-                >
-                  <option value="none">žiadny</option>
-                  <option value="ollama">ollama</option>
-                  <option value="libretranslate">libretranslate</option>
+                <span>Provider</span>
+                <select v-model="translationTestProvider">
+                  <option
+                    v-for="option in translationTestProviderOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </option>
                 </select>
               </label>
+              <label class="filterField filterField--compact">
+                <span>Model</span>
+                <input v-model.trim="translationTestModel" type="text" placeholder="predvolený" />
+              </label>
+              <label class="filterField filterField--compact">
+                <span>Teplota</span>
+                <input v-model.number="translationTestTemperature" type="number" step="0.1" min="0" max="2" />
+              </label>
+            </div>
 
-              <button
-                type="button"
-                class="ghostBtn"
-                data-testid="translation-outage-save"
-                :disabled="savingTranslationOutage"
-                @click="saveTranslationOutageSimulation"
-              >
-                {{ savingTranslationOutage ? 'Ukladám...' : 'Uložiť' }}
-              </button>
+            <label class="filterField">
+              <span>Testovací text</span>
+              <textarea
+                v-model="translationTestText"
+                rows="3"
+                maxlength="5000"
+                placeholder="Krátky anglický text na test prekladu."
+              />
+            </label>
 
-              <button
-                type="button"
-                class="dangerBtn"
-                :disabled="store.deletingAllPosts"
-                @click="deleteAllBotPostsForFilter"
-              >
-                {{ store.deletingAllPosts ? 'Mažem príspevky...' : 'Vymazať bot príspevky' }}
-              </button>
+            <div v-if="translationTestResult" class="translationResult">
+              <p class="serviceHint">
+                Provider: {{ translationProviderLabel(translationTestResult.provider) }} ·
+                Režim: {{ translationModeLabel(translationTestResult.mode) }} ·
+                Odozva: {{ Number(translationTestResult.latency_ms || 0) }} ms
+              </p>
+              <p class="serviceHint">
+                Reťazec:
+                {{
+                  Array.isArray(translationTestResult.provider_chain) && translationTestResult.provider_chain.length > 0
+                    ? translationTestResult.provider_chain.join(' -> ')
+                    : '-'
+                }}
+              </p>
             </div>
           </div>
         </details>
-      </div>
-    </details>
+      </section>
 
-    <section class="panel panel--runs">
-      <header class="panelHeader">
-        <p class="sectionLabel">Behy</p>
-        <button
-          type="button"
-          class="ghostBtn ghostBtn--compact"
-          :disabled="loadingRuns"
-          @click="loadRuns()"
-        >
-          Obnoviť
-        </button>
-      </header>
-
-      <form class="filters" @submit.prevent="applyRunsFilters">
-        <label v-if="!hasPresetBotIdentity" class="filterField filterField--compact">
-          <span>Bot</span>
-          <select v-model="filterForm.bot_identity">
-            <option value="">Všetky</option>
-            <option value="kozmo">KozmoBot</option>
-            <option value="stela">StellarBot</option>
-          </select>
-        </label>
-        <label v-else class="filterField filterField--compact">
-          <span>Bot</span>
-          <input :value="botIdentityLabel(filterForm.bot_identity) || '-'" type="text" readonly />
-        </label>
-
-        <label class="filterField filterField--compact">
-          <span>Zdroj</span>
-          <select v-model="filterForm.sourceKey">
-            <option value="">Všetky</option>
-            <option v-for="sourceKey in sourceOptions" :key="sourceKey" :value="sourceKey">
-              {{ sourceKey }}
-            </option>
-          </select>
-        </label>
-
-        <label class="filterField filterField--compact">
-          <span>Stav</span>
-          <select v-model="filterForm.status">
-            <option value="">Všetky</option>
-            <option value="success">Hotovo</option>
-            <option value="partial">Čiastočne</option>
-            <option value="failed">Chyba</option>
-          </select>
-        </label>
-
-        <label class="filterField filterField--compact">
-          <span>Na stranu</span>
-          <select v-model.number="filterForm.per_page">
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="30">30</option>
-            <option :value="50">50</option>
-          </select>
-        </label>
-
-        <details class="filtersAdvanced">
-          <summary class="advancedSummary">Pokročilé filtre</summary>
-          <div class="filtersAdvancedBody">
-            <label class="filterField filterField--compact">
-              <span>Od</span>
-              <input v-model="filterForm.date_from" type="date" />
-            </label>
-
-            <label class="filterField filterField--compact">
-              <span>Do</span>
-              <input v-model="filterForm.date_to" type="date" />
-            </label>
-          </div>
-        </details>
-
-        <div class="filterActions">
-          <button type="submit" class="runBtn" :disabled="loadingRuns">Filtrovať</button>
-          <button type="button" class="ghostBtn" :disabled="loadingRuns" @click="resetRunsFilters">
-            Vyčistiť
-          </button>
-        </div>
-      </form>
-
-      <div class="tableWrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Čas</th>
-              <th>Zdroj</th>
-              <th>Stav</th>
-              <th>Nové</th>
-              <th>Publikované</th>
-              <th>Chyby</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-if="loadingRuns">
-              <tr v-for="index in 6" :key="`runs-skeleton-${index}`">
-                <td colspan="6">
-                  <div class="skeletonRow"></div>
-                </td>
-              </tr>
-            </template>
-            <tr v-else-if="runs.length === 0">
-              <td colspan="6" class="emptyCell">Žiadne behy pre zvolený filter.</td>
-            </tr>
-            <tr v-else v-for="run in runs" :key="run.id">
-              <td>
-                <div class="timeCell">
-                  <span>{{ formatDateTime(run.started_at) }}</span>
-                  <button type="button" class="textBtn" @click="openRunDetail(run)">Detail</button>
-                </div>
-              </td>
-              <td>
-                <code>{{ run.source_key || '-' }}</code>
-              </td>
-              <td>
-                <div class="runStatusCell">
-                  <span
-                    :class="statusClass(run)"
-                    :title="runStatusHint(run)"
-                    data-testid="run-status-badge"
-                  >
-                    {{ runStatusLabel(run) }}
-                  </span>
-                  <span :class="runModeClass(run)" data-testid="run-mode-badge">{{
-                    runModeLabel(run)
-                  }}</span>
-                  <span
-                    v-if="runPublishLimit(run) !== null"
-                    class="modeHint"
-                    data-testid="run-mode-limit"
-                  >
-                    limit {{ runPublishLimit(run) }}
-                  </span>
-                </div>
-              </td>
-              <td>{{ runStatCount(run, 'new_count') }}</td>
-              <td>{{ runStatCount(run, 'published_count') }}</td>
-              <td>{{ runStatCount(run, 'failed_count') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <footer v-if="runsMeta" class="pagination">
-        <div class="paginationInfo">
-          Strana {{ runsMeta.current_page }} z {{ runsMeta.last_page }} · {{ runsMeta.total }} spolu
-        </div>
-        <div class="paginationActions">
-          <button
-            type="button"
-            class="ghostBtn ghostBtn--compact"
-            :disabled="!canPrevPage || loadingRuns"
-            @click="goToPage((runsMeta.current_page || 1) - 1)"
-          >
-            Späť
-          </button>
-          <button
-            type="button"
-            class="ghostBtn ghostBtn--compact"
-            :disabled="!canNextPage || loadingRuns"
-            @click="goToPage((runsMeta.current_page || 1) + 1)"
-          >
-            Ďalej
-          </button>
-        </div>
-      </footer>
-    </section>
-
-    <BotRunDetailModal
-      :selected-run="selectedRun"
-      :selected-preview-item="selectedPreviewItem"
-      :run-items="runItems"
-      :run-items-meta="runItemsMeta"
-      :loading-run-items="loadingRunItems"
-      :can-prev-items-page="canPrevItemsPage"
-      :can-next-items-page="canNextItemsPage"
-      :publish-all-limit="publishAllLimit"
-      :retry-translation-limit="retryTranslationLimit"
-      :is-run-publishing="(runId) => store.isRunPublishing(runId)"
-      :is-translation-retrying="(sourceKey) => store.isTranslationRetrying(sourceKey)"
-      :is-translation-backfilling="(sourceKey) => store.isTranslationBackfilling(sourceKey)"
-      :is-item-publishing="(itemId) => store.isItemPublishing(itemId)"
-      :is-item-deleting="(itemId) => store.isItemDeleting(itemId)"
-      @close-run-detail="closeRunDetail"
-      @update:publish-all-limit="publishAllLimit = $event"
-      @publish-all="publishAllForRun"
-      @refresh-items="goToItemsPage(1)"
-      @update:retry-translation-limit="retryTranslationLimit = $event"
-      @retry-translation="retryTranslateForRun"
-      @backfill-translation="backfillTranslateForRun"
-      @go-to-items-page="goToItemsPage"
-      @open-item-preview="openItemPreview"
-      @publish-item="publishItem"
-      @delete-item-post="deleteItemPost"
-      @close-item-preview="closeItemPreview"
-    />
-  </component>
-
+      <p class="serviceCaption">
+        Zdrojové a prevádzkové prehľady patria do tabov
+        <RouterLink class="textLink" :to="{ name: 'admin.bots.sources' }">Zdroje</RouterLink>
+        a
+        <RouterLink class="textLink" :to="{ name: 'admin.bots.activity' }">Logy</RouterLink>.
+      </p>
+    </div>
+  </details>
+</component>

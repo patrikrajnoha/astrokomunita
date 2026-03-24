@@ -55,15 +55,16 @@ describe('SpaceWeatherWidget', () => {
     await flushPromises()
     await nextTick()
 
-    expect(getMock).toHaveBeenCalledWith('/sky/space-weather', {
+    expect(getMock).toHaveBeenCalledWith('/sky/space-weather', expect.objectContaining({
       params: {
         lat: 48.1486,
         lon: 17.1077,
         tz: 'Europe/Bratislava',
       },
       meta: { skipErrorToast: true },
-    })
-    expect(wrapper.text()).toContain('Vesmírne počasie')
+      signal: expect.any(AbortSignal),
+    }))
+    expect(wrapper.text()).toContain('Slnečná aktivita')
     expect(wrapper.text()).toContain('Stredná búrka')
     expect(wrapper.text()).toContain('Kp 6')
     expect(wrapper.text()).not.toContain('šanca')

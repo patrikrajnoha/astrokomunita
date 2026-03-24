@@ -1,8 +1,26 @@
-  <AdminPageShell
-    title="Detail používateľa"
-    :subtitle="profileIdentifier"
+  <div
+    class="userDetailViewport"
+    :class="{ 'userDetailViewport--popup': isFullPopupRoute, 'userDetailViewport--embedded': embedded }"
+    @click.self="handleViewportBackdropClick"
   >
+    <AdminPageShell
+      title="Detail používateľa"
+      :subtitle="profileIdentifier"
+      class="userDetailShell"
+      :class="{ 'userDetailShell--popup': isFullPopupRoute, 'userDetailShell--embedded': embedded }"
+    >
+      <template #right-actions>
+        <button
+          v-if="isFullPopupRoute"
+          type="button"
+          class="btn subtle userDetailCloseBtn"
+          @click="closeDetailPopup"
+        >
+          Zavrieť
+        </button>
+      </template>
     <AdminSectionHeader
+      v-if="!embedded"
       section="community"
       title="Detail používateľa"
       back-label="Späť na používateľov"
@@ -19,7 +37,7 @@
             <UserAvatar class="avatarImg" :user="user" :alt="`${user?.name || 'Používateľ'} avatar`" />
           </div>
           <div class="identityText">
-            <h2 class="identityName">{{ user?.name || 'Pouzivatel' }}</h2>
+            <h2 class="identityName">{{ user?.name || 'Používateľ' }}</h2>
             <p class="identitySubline">{{ profileIdentifier }}</p>
             <div class="identityBadges">
               <span class="statusBadge roleBadge" :class="roleClass(user)">{{ roleText }}</span>
@@ -277,27 +295,6 @@
         </template>
 
         <div class="avatarEditorBody">
-          <div class="avatarModeSwitch" role="tablist" aria-label="Režim profilového avatara">
-            <button
-              type="button"
-              class="modeBtn"
-              :class="{ active: avatarDraft.mode === 'image' }"
-              :disabled="mediaActionBusy"
-              @click="setAvatarMode('image')"
-            >
-              Fotka
-            </button>
-            <button
-              type="button"
-              class="modeBtn"
-              :class="{ active: avatarDraft.mode === 'generated' }"
-              :disabled="mediaActionBusy"
-              @click="setAvatarMode('generated')"
-            >
-              Avatar
-            </button>
-          </div>
-
           <div class="avatarPreviewWrap">
             <div class="avatar avatarPreviewAvatar">
               <UserAvatar
@@ -305,109 +302,65 @@
                 :user="user"
                 :size="112"
                 :avatar-url="avatarSrc"
-                :mode="avatarDraft.mode"
-                :prefer-image="avatarDraft.mode === 'image'"
-                :color-index="avatarDraft.color"
-                :icon-index="avatarDraft.icon"
-                :seed="avatarDraft.seed"
                 :alt="`${user?.name || 'Bot'} avatar`"
               />
             </div>
-            <p class="avatarHint">Pri móde Fotka bez obrázka ostáva fallback avatar.</p>
+            <p class="avatarHint">Bot avatar je viazaný na predpripravené bot assets.</p>
           </div>
 
           <div v-if="avatarErr" class="msg err avatarMsg">{{ avatarErr }}</div>
 
-          <template v-if="avatarDraft.mode === 'image'">
-            <div class="avatarImageActions">
+          <div class="avatarPicker">
+            <div class="avatarPickerLabel">Bot avatar</div>
+            <div class="avatarIconGrid">
               <button
+                v-for="option in botAvatarOptions"
+                :key="option.file"
                 type="button"
-                class="btn outline"
-                data-testid="admin-bot-avatar-upload"
+                class="avatarChoice iconChoice"
+                :class="{ active: selectedBotAvatarFile === option.file }"
                 :disabled="mediaActionBusy"
-                @click="openBotMediaPicker('avatar')"
+                @click="selectBotAvatar(option.file)"
               >
-                {{ avatarUploading ? 'Nahrávam...' : 'Nahrať fotku' }}
+                <img class="choiceAvatar choiceAvatarImage" :src="option.url" :alt="option.file" />
+                <span class="choiceLabel">{{ option.file }}</span>
               </button>
-              <button
-                type="button"
-                class="btn ghost"
-                data-testid="admin-bot-avatar-remove"
-                :disabled="mediaActionBusy"
-                @click="markAvatarImageForRemoval"
-              >
-                {{ avatarRemoving ? 'Odstraňujem...' : 'Odstrániť fotku' }}
-              </button>
-              <input
-                ref="avatarInput"
-                class="fileInput"
-                data-testid="admin-bot-avatar-input"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                :disabled="mediaActionBusy"
-                @change="onBotMediaChange('avatar', $event)"
-              />
             </div>
-            <p class="avatarHint">Odporúčaná veľkosť: aspoň 512×512 px, JPG/PNG/WebP, max 3 MB.</p>
-          </template>
+          </div>
 
-          <template v-else>
-            <div class="avatarPicker">
-              <div class="avatarPickerLabel">Symbol</div>
-              <div class="avatarIconGrid">
-                <button
-                  v-for="option in iconOptions"
-                  :key="option.index"
-                  type="button"
-                  class="avatarChoice iconChoice"
-                  :class="{ active: avatarResolved.iconIndex === option.index }"
-                  :disabled="mediaActionBusy"
-                  @click="selectAvatarIcon(option.index)"
-                >
-                  <DefaultAvatar
-                    class="choiceAvatar"
-                    :size="40"
-                    :color-index="avatarResolved.colorIndex"
-                    :icon-index="option.index"
-                  />
-                  <span class="choiceLabel">{{ option.label }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="avatarPicker">
-              <div class="avatarPickerLabel">Farba</div>
-              <div class="avatarColorGrid">
-                <button
-                  v-for="(color, index) in AVATAR_COLORS"
-                  :key="color"
-                  type="button"
-                  class="avatarChoice colorChoice"
-                  :class="{ active: avatarResolved.colorIndex === index }"
-                  :style="{ '--avatar-choice-color': color }"
-                  :disabled="mediaActionBusy"
-                  @click="selectAvatarColor(index)"
-                >
-                  <span class="colorSwatch" aria-hidden="true"></span>
-                  <span class="choiceLabel">Farba {{ index + 1 }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="avatarActionRow">
-              <button type="button" class="btn outline" :disabled="mediaActionBusy" @click="randomizeAvatar">
-                Náhodne
-              </button>
-              <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="resetGeneratedAvatar">
-                Reset
-              </button>
-            </div>
-          </template>
+          <div class="avatarImageActions">
+            <button
+              type="button"
+              class="btn outline"
+              data-testid="admin-bot-avatar-upload"
+              :disabled="mediaActionBusy"
+              @click="openBotMediaPicker('avatar')"
+            >
+              {{ avatarUploading ? 'Nahrávam...' : 'Nahrať fotku' }}
+            </button>
+            <button
+              type="button"
+              class="btn ghost"
+              data-testid="admin-bot-avatar-remove"
+              :disabled="mediaActionBusy"
+              @click="markAvatarImageForRemoval"
+            >
+              {{ avatarRemoving ? 'Odstraňujem...' : 'Odstrániť fotku' }}
+            </button>
+            <input
+              ref="avatarInput"
+              class="fileInput"
+              data-testid="admin-bot-avatar-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              :disabled="mediaActionBusy"
+              @change="onBotMediaChange('avatar', $event)"
+            />
+          </div>
+          <p class="avatarHint">Ak odstrániš fotku, bot sa vráti na default bot avatar.</p>
 
           <div class="avatarActionRow avatarActionRowSave">
-            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeAvatarEditor">
-              Zavrieť
-            </button>
+            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeAvatarEditor">Zavrieť</button>
             <button
               type="button"
               class="btn"
@@ -475,9 +428,7 @@
           <div v-if="mediaError" class="msg err">{{ mediaError }}</div>
 
           <div class="avatarActionRow avatarActionRowSave">
-            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeCoverEditor">
-              Zavrieť
-            </button>
+            <button type="button" class="btn ghost" :disabled="mediaActionBusy" @click="closeCoverEditor">Zavrieť</button>
             <button
               type="button"
               class="btn"
@@ -491,7 +442,7 @@
         </div>
       </BaseModal>
 
-      <section class="sectionCard reportsSection">
+      <section v-if="canShowReports" class="sectionCard reportsSection">
         <header class="sectionHeader">
           <h3>Reporty</h3>
           <p class="sectionSubline">Nahlásenia spojené s obsahom tohto používateľa.</p>
@@ -601,4 +552,5 @@
         <AdminPagination :meta="reportsData" @page-change="reportsPage = $event" />
       </section>
     </template>
-  </AdminPageShell>
+    </AdminPageShell>
+  </div>

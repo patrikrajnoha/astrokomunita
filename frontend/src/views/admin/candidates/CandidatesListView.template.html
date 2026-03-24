@@ -1,365 +1,492 @@
-
-  <div class="candidatesPage">
-    <div class="pageHeader">
-      <div>
-        <h1 class="pageTitle">Kandidáti udalostí</h1>
-      </div>
-
-      <div class="headerActions">
-        <div class="tabSwitch" role="tablist" aria-label="Typ kandidátov">
-          <button
-            @click="setTab('crawled')"
-            :disabled="loading || manualLoading"
-            :class="['toolbarButton', 'toolbarButton--tab', { 'toolbarButton--active': activeTab === 'crawled' }]"
-          >
-            Crawlovaní kandidáti
-          </button>
-          <button
-            @click="setTab('manual')"
-            :disabled="loading || manualLoading"
-            :class="['toolbarButton', 'toolbarButton--tab', { 'toolbarButton--active': activeTab === 'manual' }]"
-          >
-            Manuálne návrhy
-          </button>
-        </div>
+<div class="candidatesPage">
+  <div
+    v-if="translationQueueTotal > 0"
+    class="translationQueueBar"
+  >
+    <div class="translationQueueBar__head">
+      <span class="translationQueueBar__label">Prekladajú sa udalosti...</span>
+      <div class="translationQueueBar__headRight">
+        <span class="translationQueueBar__elapsed">⏱ {{ translationElapsedLabel }}</span>
         <button
-          @click="openCrawlingHub"
+          type="button"
+          class="translationQueueBar__cancelBtn"
+          :disabled="cancellingQueue"
+          @click="cancelTranslationQueue"
+        >{{ cancellingQueue ? 'Zastavujem...' : 'Zastaviť' }}</button>
+      </div>
+    </div>
+    <div class="translationQueueBar__trackRow">
+      <div class="translationQueueBar__track">
+        <div class="translationQueueBar__fill" :style="{ width: `${translationProgressPercent}%` }"></div>
+      </div>
+      <span class="translationQueueBar__percent">{{ translationProgressPercent }} %</span>
+    </div>
+    <div class="translationQueueBar__summary">
+      <span>{{ Number(translationHealth?.counts_24h?.done || 0) }} z {{ Number(translationHealth?.counts_24h?.total || 0) }} spracovaných</span>
+      <span v-if="Number(translationHealth?.counts_24h?.failed || 0) > 0" class="translationQueueBar__failed">· {{ Number(translationHealth?.counts_24h?.failed || 0) }} zlyhalo</span>
+      <span class="translationQueueBar__remaining">· {{ translationQueueTotal }} zostáva</span>
+    </div>
+  </div>
+
+  <div class="pageHeader">
+    <h1 class="pageTitle">Kandidáti udalostí</h1>
+
+    <div class="headerActions">
+      <div class="tabSwitch" role="tablist" aria-label="Typ kandidátov">
+        <button
+          @click="setTab('crawled')"
           :disabled="loading || manualLoading"
-          class="toolbarButton toolbarButton--ghost"
+          :class="['toolbarButton', 'toolbarButton--tab', { 'toolbarButton--active': activeTab === 'crawled' }]"
         >
-          Centrum crawlovania
+          Crawlovaní kandidáti
+        </button>
+        <button
+          @click="setTab('manual')"
+          :disabled="loading || manualLoading"
+          :class="['toolbarButton', 'toolbarButton--tab', { 'toolbarButton--active': activeTab === 'manual' }]"
+        >
+          Manuálne návrhy
+        </button>
+      </div>
+      <button
+        @click="openCrawlingHub"
+        :disabled="loading || manualLoading"
+        class="toolbarButton toolbarButton--ghost"
+      >
+        Centrum crawlovania
+      </button>
+    </div>
+  </div>
+
+  <div v-if="activeTab === 'crawled'" class="crawledContent">
+
+    <div class="statusTabs">
+      <button type="button" @click="quickSetStatus('')" :class="['statusTab', { 'statusTab--active': !status || status === '' }]" :disabled="loading">
+        <span class="statusTab__label">Všetky</span>
+        <span v-if="!status || status === ''" class="statusTab__count">{{ data?.total ?? '—' }}</span>
+      </button>
+      <button type="button" @click="quickSetStatus('pending')" :class="['statusTab', { 'statusTab--active': status === 'pending' }]" :disabled="loading">
+        <span class="statusTab__label">Čakajúce</span>
+        <span v-if="status === 'pending'" class="statusTab__count">{{ data?.total ?? '—' }}</span>
+      </button>
+      <button type="button" @click="quickSetStatus('approved')" :class="['statusTab', { 'statusTab--active': status === 'approved' }]" :disabled="loading">
+        <span class="statusTab__label">Publikované</span>
+        <span v-if="status === 'approved'" class="statusTab__count">{{ data?.total ?? '—' }}</span>
+      </button>
+      <button type="button" @click="quickSetStatus('rejected')" :class="['statusTab', { 'statusTab--active': status === 'rejected' }]" :disabled="loading">
+        <span class="statusTab__label">Zamietnuté</span>
+        <span v-if="status === 'rejected'" class="statusTab__count">{{ data?.total ?? '—' }}</span>
+      </button>
+
+      <div class="statusTabs__right">
+        <span class="modeCounts" title="Typ popisu na aktuálnej strane">
+          <span title="Šablóna">📋 {{ crawledStats.modeTemplate }}</span>
+          <span v-if="crawledStats.modeAi > 0" title="AI (Ollama)">🤖 {{ crawledStats.modeAi }}</span>
+          <span v-if="crawledStats.modeManual > 0" title="Ručne upravené">✏️ {{ crawledStats.modeManual }}</span>
+        </span>
+        <button
+          v-if="showConfidenceColumn"
+          type="button"
+          class="toolbarButton toolbarButton--ghost toolbarButton--toggle"
+          :class="{ 'toolbarButton--active': showScoreInList }"
+          @click="showScoreInList = !showScoreInList"
+        >
+          {{ showScoreInList ? 'Skryť skóre' : 'Zobraziť skóre' }}
         </button>
       </div>
     </div>
 
-    <div v-if="activeTab === 'crawled'">
-      <div class="uxOverview">
-        <div class="uxOverview__item">
-          <span>Na stránke</span>
-          <strong>{{ crawledStats.total }}</strong>
-        </div>
-        <div class="uxOverview__item">
-          <span>Pending</span>
-          <strong>{{ crawledStats.pending }}</strong>
-        </div>
-        <div class="uxOverview__item">
-          <span>Schvalene</span>
-          <strong>{{ crawledStats.approved }}</strong>
-        </div>
-        <div class="uxOverview__item">
-          <span>Preklad fail</span>
-          <strong>{{ crawledStats.failedTranslation }}</strong>
-        </div>
-      </div>
+    <div v-if="runFilter" class="runFilterBar">
+      <span class="runFilterChip">
+        Run #{{ runFilter.runId }} / {{ sourceLabel(runFilter.sourceKey || '-') }}<span v-if="runFilter.year"> / {{ runFilter.year }}</span>
+      </span>
+      <button type="button" @click="clearRunFilter" class="toolbarButton toolbarButton--ghost">Zrušiť filter runu</button>
+    </div>
 
-      <details class="observationDetails">
-        <summary class="toolbarButton toolbarButton--ghost observationDetails__summary">
-          Podmienky pozorovania
-        </summary>
-        <div class="timeContextBar">
-          <div class="timeContextBar__item">
-            <span>Časové pásmo</span>
-            <strong>{{ timezoneInfoLabel }}</strong>
-          </div>
-          <div class="timeContextBar__item">
-            <span>Západ slnka</span>
-            <strong>
-              {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.sunset_at) : "-" }}
-            </strong>
-          </div>
-          <div class="timeContextBar__item">
-            <span>Koniec ob. súmraku</span>
-            <strong>
-              {{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.civil_twilight_end_at) : "-" }}
-            </strong>
-          </div>
-          <div class="timeContextBar__item">
-            <span>Fáza Mesiaca</span>
-            <strong>
-              {{ astronomyContextAvailable ? moonPhaseLabel(astronomyContext?.moon_phase) : "-" }}
-            </strong>
-          </div>
-          <div v-if="astronomyContextLoading" class="timeContextBar__loading">
-            Načítavam astronomický kontext...
-          </div>
-        </div>
-      </details>
+    <div class="actionToolbar">
+      <button
+        @click="publishAllPending"
+        :disabled="loading"
+        class="toolbarButton toolbarButton--success"
+      >
+        Publikovať všetko
+      </button>
+      <button @click="publishAllByFilter" :disabled="loading" class="toolbarButton toolbarButton--ghost">Publikovať podľa filtra</button>
+      <button @click="clearFilters" :disabled="loading" class="toolbarButton toolbarButton--ghost">Resetovať filtre</button>
 
-      <div v-if="runFilter" class="runFilterBar">
-        <span class="runFilterChip">
-          Run #{{ runFilter.runId }} / {{ sourceLabel(runFilter.sourceKey || '-') }}<span v-if="runFilter.year"> / {{ runFilter.year }}</span>
-        </span>
-        <button
-          type="button"
-          @click="clearRunFilter"
-          class="toolbarButton toolbarButton--ghost"
-        >
-          Zrusit run filter
-        </button>
-      </div>
-
-      <div class="statusPills">
-        <button
-          type="button"
-          @click="quickSetStatus('pending')"
-          :class="['statusPill', { 'statusPill--active': status === 'pending' }]"
-          :disabled="loading"
-        >
-          Pending ({{ crawledStats.pending }})
-        </button>
-        <button
-          type="button"
-          @click="quickSetStatus('approved')"
-          :class="['statusPill', { 'statusPill--active': status === 'approved' }]"
-          :disabled="loading"
-        >
-          Schvalene ({{ crawledStats.approved }})
-        </button>
-        <button
-          type="button"
-          @click="quickSetStatus('rejected')"
-          :class="['statusPill', { 'statusPill--active': status === 'rejected' }]"
-          :disabled="loading"
-        >
-          Zamietnute ({{ crawledStats.rejected }})
-        </button>
-      </div>
-
-      <div class="uxActionBar">
-        <div class="uxActionBar__group">
+      <details class="toolbarDetails">
+        <summary class="toolbarButton toolbarButton--ghost">Ďalšie</summary>
+        <div class="toolbarDetails__menu">
+          <p class="toolbarDetails__section">Generovanie popisov</p>
+          <label class="toolbarFieldLabel">Režim generovania</label>
+          <select v-model="aiDescriptionMode" :disabled="loading || aiDescriptionRunning" class="toolbarSelect toolbarSelect--full">
+            <option value="template">Šablóna</option>
+            <option value="ai">AI popis (Ollama)</option>
+            <option value="mix">Mix (podľa kandidáta)</option>
+          </select>
+          <label class="toolbarFieldLabel">Rozsah</label>
+          <select v-model="aiDescriptionScope" :disabled="loading || aiDescriptionRunning" class="toolbarSelect toolbarSelect--full">
+            <option value="all">Všetci kandidáti podľa filtra</option>
+            <option value="missing">Iba bez popisu</option>
+            <option value="template">Iba so šablónou</option>
+          </select>
+          <label class="toolbarFieldLabel">Limit (max 2000)</label>
+          <input
+            v-model.number="aiDescriptionLimit"
+            :disabled="loading || aiDescriptionRunning"
+            class="toolbarInput toolbarSelect--full"
+            type="number"
+            min="1"
+            max="2000"
+            step="1"
+          />
           <button
-            @click="publishAllVisiblePending"
-            :disabled="loading || visiblePendingCandidateIds.length === 0"
-            class="toolbarButton toolbarButton--success"
-            title="Publikuje všetky pending kandidáty viditeľné na tejto strane"
+            @click="generateAiDescriptionsForCandidates"
+            :disabled="loading || aiDescriptionRunning"
+            class="toolbarButton toolbarButton--primary toolbarButton--full"
           >
-            Publikovať viditeľné
+            {{ aiDescriptionRunning ? 'Generujem...' : (aiDescriptionMode === 'template' ? 'Vygenerovať šablónu' : aiDescriptionMode === 'mix' ? 'Vygenerovať mix' : 'Vygenerovať AI popis') }}
           </button>
-          <button
-            @click="publishAllByFilter"
-            :disabled="loading"
-            class="toolbarButton toolbarButton--success"
-            title="Publikuje všetky pending kandidáty zodpovedajúce aktuálnemu filtru (aj na ďalších stranách)"
-          >
-            Publikovať podľa filtra
-          </button>
-          <details class="toolbarDetails">
-            <summary class="toolbarButton toolbarButton--ghost">Ďalšie publikovanie ▾</summary>
-            <div class="toolbarDetails__menu">
-              <select v-model="publishMode" :disabled="loading" class="toolbarSelect toolbarSelect--full">
-                <option value="crawled">Iba crawlované</option>
-                <option value="manual">Iba manuálne</option>
-                <option value="all">Crawlované aj manuálne</option>
-              </select>
-              <button @click="publishBySelectedMode" :disabled="loading" class="toolbarButton toolbarButton--success toolbarButton--full">
-                Publikovať podľa módu
-              </button>
-            </div>
-          </details>
-        </div>
-        <div class="uxActionBar__group">
+
+          <p class="toolbarDetails__section">Preklad</p>
           <button
             @click="retranslateVisiblePending"
             :disabled="loading || visiblePendingCandidateIds.length === 0"
-            class="toolbarButton toolbarButton--primary"
-            title="Spustí preklad pre viditeľné pending kandidáty"
+            class="toolbarButton toolbarButton--primary toolbarButton--full"
           >
-            Preložiť viditeľné
+            Preložiť viditeľné čakajúce
           </button>
           <button
             @click="retranslateByFilter"
             :disabled="loading"
-            class="toolbarButton toolbarButton--primary"
-            title="Spustí preklad pre všetkých kandidátov zodpovedajúcich filtru"
+            class="toolbarButton toolbarButton--ghost toolbarButton--full"
           >
             Preložiť podľa filtra
           </button>
-          <button @click="clearFilters" :disabled="loading" class="toolbarButton toolbarButton--ghost" title="Resetuje všetky filtre">
-            Resetovať filtre
+
+          <p class="toolbarDetails__section">Publikovanie</p>
+          <select v-model="publishMode" :disabled="loading" class="toolbarSelect toolbarSelect--full">
+            <option value="crawled">Iba crawlovaní</option>
+            <option value="manual">Iba manuálni</option>
+            <option value="all">Crawlovaní aj manuálni</option>
+          </select>
+          <button @click="publishBySelectedMode" :disabled="loading" class="toolbarButton toolbarButton--success toolbarButton--full">
+            Publikovať podľa režimu
+          </button>
+
+          <p class="toolbarDetails__section">Správa</p>
+          <button
+            type="button"
+            class="toolbarButton toolbarButton--ghost toolbarButton--full"
+            @click="duplicatesModalOpen = true; loadDuplicatePreview()"
+          >
+            Správa duplikátov
           </button>
         </div>
-      </div>
-
-      <div v-if="publishProgressActive" class="publishProgress">
-        <div class="publishProgress__meta">
-          <span>{{ publishProgressLabel || 'Publikujem...' }}</span>
-          <strong>{{ publishProgressPercent }}%</strong>
-        </div>
-        <div class="publishProgress__track">
-          <div class="publishProgress__bar" :style="{ width: `${publishProgressPercent}%` }"></div>
-        </div>
-      </div>
-
-      <CandidateCrawledFilterPanel
-        v-model:q="q"
-        v-model:per-page="per_page"
-        v-model:status="status"
-        v-model:time-preset="timePreset"
-        v-model:filter-year="filterYear"
-        v-model:filter-month="filterMonth"
-        v-model:filter-week="filterWeek"
-        v-model:show-advanced-filters="showAdvancedFilters"
-        v-model:type="type"
-        v-model:source="source"
-        :loading="loading"
-        :time-preset-options="timePresetOptions"
-        :month-options="monthOptions"
-        :show-year-filter="showYearFilter"
-        :show-month-filter="showMonthFilter"
-        :show-week-filter="showWeekFilter"
-        @search="resetToFirstPage(); load()"
-      />
-
-      <div v-if="error" class="inlineError">{{ error }}</div>
-      <div v-if="loading" class="inlineLoading">Nacitavam...</div>
-
-      <CandidateCrawledResults
-        :loading="loading"
-        :data="data"
-        :show-confidence-column="showConfidenceColumn"
-        :candidate-preview-short="candidatePreviewShort"
-        :format-date="formatDate"
-        :format-confidence="formatConfidence"
-        :normalize-translation-status="normalizeTranslationStatus"
-        :source-label="sourceLabel"
-        :normalize-sources="normalizeSources"
-        @publish-candidate="publishCandidateQuick"
-        @retranslate-candidate="retranslateCandidateQuick"
-        @open-candidate="openCandidate"
-        @prev-page="prevPage"
-        @next-page="nextPage"
-      />
-
-      <details class="duplicatesDetails">
-        <summary class="toolbarButton toolbarButton--ghost duplicatesDetails__summary">
-          Správa duplikátov
-        </summary>
-        <CandidateDuplicatesPanel
-          :loading="loading"
-          :duplicate-loading="duplicateLoading"
-          :duplicate-merging="duplicateMerging"
-          :duplicate-dry-running="duplicateDryRunning"
-          :can-merge-duplicates="canMergeDuplicates"
-          :group-limit="duplicateGroupLimit"
-          :per-group="duplicatePerGroup"
-          :duplicate-summary="duplicateSummary"
-          :duplicate-groups="duplicateGroups"
-          :source-label="sourceLabel"
-          :format-date="formatDate"
-          @change-group-limit="duplicateGroupLimit = $event"
-          @change-per-group="duplicatePerGroup = $event"
-          @refresh="loadDuplicatePreview"
-          @dry-run="dryRunDuplicateMerge"
-          @merge="mergeDuplicateGroups"
-        />
       </details>
-
-      <BaseModal
-        v-model:open="candidateDetailOpen"
-        :title="detailModalTitle"
-        test-id="candidate-detail-modal"
-        close-test-id="candidate-detail-modal-close"
-        @close="resetCandidateDetailModal"
-      >
-        <div v-if="candidateDetailLoading" class="candidateDetailModalState">Nacitavam...</div>
-        <div v-else-if="candidateDetailError" class="candidateDetailModalState candidateDetailModalState--error">
-          {{ candidateDetailError }}
-        </div>
-        <div v-else-if="candidateDetail" class="candidateDetailModal">
-          <div class="candidateDetailModalGrid">
-            <div class="candidateDetailModalItem">
-              <span>ID</span>
-              <strong>#{{ candidateDetail.id }}</strong>
-            </div>
-            <div class="candidateDetailModalItem">
-              <span>Stav</span>
-              <strong>{{ candidateDetail.status || "-" }}</strong>
-            </div>
-            <div class="candidateDetailModalItem">
-              <span>Zaciatok</span>
-              <strong>{{ formatDate(candidateDetail.start_at) }}</strong>
-            </div>
-            <div class="candidateDetailModalItem">
-              <span>Max</span>
-              <strong>{{ formatDate(candidateDetail.max_at) }}</strong>
-            </div>
-            <div class="candidateDetailModalItem">
-              <span>Zdroj</span>
-              <strong>{{ sourceLabel(candidateDetail.source_name) }}</strong>
-            </div>
-            <div class="candidateDetailModalItem">
-              <span>Typ</span>
-              <strong>{{ candidateTypeLabel(candidateDetail.type) }}</strong>
-            </div>
-            <div v-if="showConfidenceColumn" class="candidateDetailModalItem">
-              <span>Skore zdrojov</span>
-              <strong>{{ formatConfidence(candidateDetail.confidence_score) }}</strong>
-            </div>
-            <div class="candidateDetailModalItem">
-              <span>Preklad</span>
-              <strong>{{ normalizeTranslationStatus(candidateDetail.translation_status) }}</strong>
-            </div>
-          </div>
-
-          <p v-if="candidatePreviewShort(candidateDetail) && candidatePreviewShort(candidateDetail) !== '-'" class="candidateDetailModalText">
-            {{ candidatePreviewShort(candidateDetail) }}
-          </p>
-
-          <div class="candidateDetailModalSources">
-            <span
-              v-for="src in normalizeSources(candidateDetail.matched_sources)"
-              :key="`detail-source-${candidateDetail.id}-${src}`"
-              class="matchedSourceTag"
-            >
-              {{ sourceLabel(src) }}
-            </span>
-            <span v-if="normalizeSources(candidateDetail.matched_sources).length === 0" class="cellMuted">
-              Bez matched source.
-            </span>
-          </div>
-
-          <div class="candidateDetailModalActions">
-            <button type="button" class="toolbarButton toolbarButton--ghost" @click="openCandidateFullDetail">
-              Plny detail
-            </button>
-          </div>
-        </div>
-      </BaseModal>
     </div>
-    <CandidateManualTab
-      v-else
-      :manual-stats="manualStats"
-      :manual-loading="manualLoading"
-      :manual-status="manualStatus"
-      :manual-type="manualType"
-      :manual-per-page="manualPerPage"
-      :manual-q="manualQ"
-      :show-manual-form="showManualForm"
-      :manual-editing-id="manualEditingId"
-      :manual-type-options="manualTypeOptions"
-      :manual-form="manualForm"
-      :manual-form-errors="manualFormErrors"
-      :manual-can-save="manualCanSave"
-      :manual-error="manualError"
-      :manual-data="manualData"
-      :manual-page="manualPage"
-      :format-date="formatDate"
-      @update:manual-status="manualStatus = $event"
-      @update:manual-type="manualType = $event"
-      @update:manual-per-page="manualPerPage = $event"
-      @update:manual-q="manualQ = $event"
-      @update:manual-form="manualForm = $event"
-      @open-manual-form-create="openManualFormCreate"
-      @clear-manual-filters="clearManualFilters"
-      @search-manual="resetManualToFirstPage(); loadManual()"
-      @set-manual-start-now="setManualStartNow"
-      @set-manual-end-by-hours="setManualEndByHours"
-      @close-manual-form="closeManualForm"
-      @save-manual="saveManual"
-      @open-manual-form-edit="openManualFormEdit"
-      @delete-manual="deleteManual"
-      @publish-manual="publishManual"
-      @prev-manual-page="prevManualPage"
-      @next-manual-page="nextManualPage"
+
+    <div v-if="publishProgressActive" class="publishProgress">
+      <div class="publishProgress__meta">
+        <span>{{ publishProgressLabel || 'Publikujem...' }}</span>
+        <strong>{{ publishProgressPercent }}%</strong>
+      </div>
+      <div class="publishProgress__track">
+        <div class="publishProgress__bar" :style="{ width: `${publishProgressPercent}%` }"></div>
+      </div>
+    </div>
+
+    <div v-if="aiDescriptionRunning" class="publishProgress">
+      <div class="publishProgress__meta">
+        <span>{{ aiDescriptionLabel || 'Generujem popisy...' }}</span>
+        <strong>{{ aiDescriptionProgress }}%</strong>
+      </div>
+      <div class="publishProgress__track">
+        <div class="publishProgress__bar" :style="{ width: `${aiDescriptionProgress}%` }"></div>
+      </div>
+    </div>
+
+    <CandidateCrawledFilterPanel
+      v-model:q="q"
+      v-model:per-page="per_page"
+      v-model:status="status"
+      v-model:time-preset="timePreset"
+      v-model:filter-year="filterYear"
+      v-model:filter-month="filterMonth"
+      v-model:filter-week="filterWeek"
+      v-model:show-advanced-filters="showAdvancedFilters"
+      v-model:type="type"
+      v-model:translation-mode="descriptionMode"
+      v-model:source="source"
+      :loading="loading"
+      :time-preset-options="timePresetOptions"
+      :month-options="monthOptions"
+      :show-year-filter="showYearFilter"
+      :show-month-filter="showMonthFilter"
+      :show-week-filter="showWeekFilter"
+      @search="resetToFirstPage(); load()"
     />
+
+    <div v-if="error" class="inlineError">{{ error }}</div>
+    <div v-if="loading" class="inlineLoading">Načítavam...</div>
+
+    <div v-if="selectedIds.size > 0" class="selectionBar">
+      <span class="selectionBar__count">Vybrané: {{ selectedIds.size }}</span>
+      <button type="button" class="toolbarButton toolbarButton--ghost" @click="runBatchForSelected('ai')">AI popis pre vybrané</button>
+      <button type="button" class="toolbarButton toolbarButton--ghost" @click="runBatchForSelected('template')">Šablóna pre vybrané</button>
+      <button type="button" class="toolbarButton toolbarButton--ghost" @click="clearSelection">Zrušiť výber</button>
+    </div>
+
+    <CandidateCrawledResults
+      :loading="loading"
+      :data="data"
+      :show-score-in-list="showConfidenceColumn && showScoreInList"
+      :selected-ids="selectedIds"
+      :format-date="formatDate"
+      :format-confidence="formatConfidence"
+      :source-label="sourceLabel"
+      :normalize-sources="normalizeSources"
+      @publish-candidate="publishCandidateQuick"
+      @open-candidate="openCandidate"
+      @prev-page="prevPage"
+      @next-page="nextPage"
+      @toggle-select="toggleSelect"
+      @select-all="selectAll"
+      @deselect-all="deselectAll"
+    />
+
+    <details v-if="showObservationContext" class="observationDetails">
+      <summary class="toolbarButton toolbarButton--ghost observationDetails__summary">Kontext pozorovania</summary>
+      <div class="timeContextBar">
+        <div class="timeContextBar__item">
+          <span>Časové pásmo</span>
+          <strong>{{ timezoneInfoLabel }}</strong>
+        </div>
+        <div class="timeContextBar__item">
+          <span>Západ slnka</span>
+          <strong>{{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.sunset_at) : '-' }}</strong>
+        </div>
+        <div class="timeContextBar__item">
+          <span>Koniec obc. súmraku</span>
+          <strong>{{ astronomyContextAvailable ? formatAstronomyTime(astronomyContext?.civil_twilight_end_at) : '-' }}</strong>
+        </div>
+        <div class="timeContextBar__item">
+          <span>Fáza Mesiaca</span>
+          <strong>{{ astronomyContextAvailable ? moonPhaseLabel(astronomyContext?.moon_phase) : '-' }}</strong>
+        </div>
+        <div v-if="astronomyContextLoading" class="timeContextBar__loading">Načítavam astronomický kontext...</div>
+      </div>
+    </details>
+
+    <BaseModal
+      v-model:open="duplicatesModalOpen"
+      title="Správa duplikátov"
+      test-id="duplicates-modal"
+      close-test-id="duplicates-modal-close"
+    >
+      <CandidateDuplicatesPanel
+        :loading="loading"
+        :duplicate-loading="duplicateLoading"
+        :duplicate-merging="duplicateMerging"
+        :duplicate-dry-running="duplicateDryRunning"
+        :can-merge-duplicates="canMergeDuplicates"
+        :group-limit="duplicateGroupLimit"
+        :per-group="duplicatePerGroup"
+        :duplicate-summary="duplicateSummary"
+        :duplicate-groups="duplicateGroups"
+        :source-label="sourceLabel"
+        :format-date="formatDate"
+        :merge-result="mergeResult"
+        @change-group-limit="duplicateGroupLimit = $event"
+        @change-per-group="duplicatePerGroup = $event"
+        @refresh="loadDuplicatePreview"
+        @dry-run="dryRunDuplicateMerge"
+        @merge="mergeDuplicateGroups"
+      />
+    </BaseModal>
+
+    <BaseModal
+      v-model:open="candidateDetailOpen"
+      :title="detailModalTitle"
+      test-id="candidate-detail-modal"
+      close-test-id="candidate-detail-modal-close"
+      @close="resetCandidateDetailModal(); showOriginalDescription = false; resetDetailRetranslateState()"
+    >
+      <div v-if="candidateDetailLoading" class="candidateDetailModalState">Načítavam...</div>
+      <div v-else-if="candidateDetailError" class="candidateDetailModalState candidateDetailModalState--error">{{ candidateDetailError }}</div>
+      <div v-else-if="candidateDetail" class="candidateDetailModal">
+        <div class="candidateDetailModalGrid">
+          <div class="candidateDetailModalItem"><span>ID</span><strong>#{{ candidateDetail.id }}</strong></div>
+          <div class="candidateDetailModalItem"><span>Stav</span><strong>{{ candidateDetail.status || '-' }}</strong></div>
+          <div class="candidateDetailModalItem"><span>Začiatok</span><strong>{{ formatDate(candidateDetail.start_at) }}</strong></div>
+          <div class="candidateDetailModalItem"><span>Max</span><strong>{{ formatDate(candidateDetail.max_at) }}</strong></div>
+          <div class="candidateDetailModalItem"><span>Zdroj</span><strong>{{ sourceLabel(candidateDetail.source_name) }}</strong></div>
+          <div class="candidateDetailModalItem"><span>Typ</span><strong>{{ candidateTypeLabel(candidateDetail.type) }}</strong></div>
+          <div v-if="showConfidenceColumn" class="candidateDetailModalItem"><span>Skóre zdrojov</span><strong>{{ formatConfidence(candidateDetail.confidence_score) }}</strong></div>
+          <div class="candidateDetailModalItem"><span>Preklad</span><strong>{{ normalizeTranslationStatus(candidateDetail.translation_status) }}</strong></div>
+          <div class="candidateDetailModalItem">
+            <span>Typ popisu</span>
+            <strong :class="{ loadingDots: isTranslationModeResolving(candidateDetail) }">
+              {{ resolveTranslationModeLabel(candidateDetail) }}
+            </strong>
+          </div>
+          <div v-if="candidateDetail.translated_at" class="candidateDetailModalItem"><span>Preložené</span><strong>{{ formatDate(candidateDetail.translated_at) }}</strong></div>
+        </div>
+
+        <p v-if="candidatePreviewShort(candidateDetail) && candidatePreviewShort(candidateDetail) !== '-'" class="candidateDetailModalText">
+          {{ candidatePreviewShort(candidateDetail) }}
+        </p>
+
+        <div class="candidateDetailOriginal" v-if="showOriginalDescription">
+          <div class="candidateDetailOriginal__header">
+            <span class="candidateDetailOriginal__label">Originál (EN)</span>
+            <button type="button" class="candidateDetailOriginal__close" @click="showOriginalDescription = false">✕</button>
+          </div>
+          <p class="candidateDetailOriginal__title">{{ candidateDetail.original_title || candidateDetail.title || '—' }}</p>
+          <p v-if="candidateDetail.original_description" class="candidateDetailOriginal__text">{{ candidateDetail.original_description }}</p>
+          <p v-else class="candidateDetailOriginal__empty">Originálny popis nie je k dispozícii.</p>
+        </div>
+
+        <div class="candidateDetailModalSources">
+          <span
+            v-for="src in normalizeSources(candidateDetail.matched_sources)"
+            :key="`detail-source-${candidateDetail.id}-${src}`"
+            class="matchedSourceTag"
+          >
+            {{ sourceLabel(src) }}
+          </span>
+          <span v-if="normalizeSources(candidateDetail.matched_sources).length === 0" class="cellMuted">Bez ďalších zdrojov.</span>
+        </div>
+
+        <div v-if="manualEditOpen" class="candidateManualEdit">
+          <label class="candidateManualEdit__label">Názov</label>
+          <input v-model="manualEditTitle" type="text" class="toolbarInput candidateManualEdit__input" />
+          <label class="candidateManualEdit__label">Popis</label>
+          <textarea v-model="manualEditDescription" rows="4" class="toolbarInput candidateManualEdit__textarea"></textarea>
+          <div class="candidateManualEdit__actions">
+            <button type="button" class="toolbarButton toolbarButton--success" :disabled="manualEditSaving" @click="saveManualEdit(candidateDetail)">
+              {{ manualEditSaving ? 'Ukladám...' : 'Uložiť' }}
+            </button>
+            <button type="button" class="toolbarButton toolbarButton--ghost" @click="manualEditOpen = false">Zrušiť</button>
+          </div>
+        </div>
+
+        <div v-if="detailRetranslateRunning || detailRetranslateLabel || detailRetranslateError" class="candidateDetailProgress">
+          <div class="candidateDetailProgress__meta">
+            <span>{{ detailRetranslateError || detailRetranslateLabel || 'Spracovávam...' }}</span>
+            <strong v-if="detailRetranslateRunning">{{ detailRetranslateProgress }}%</strong>
+            <strong v-else-if="detailRetranslateBackgroundPolling">...</strong>
+          </div>
+          <div v-if="detailRetranslateRunning || detailRetranslateBackgroundPolling" class="candidateDetailProgress__track">
+            <div
+              class="candidateDetailProgress__bar"
+              :class="{ 'candidateDetailProgress__bar--indeterminate': detailRetranslateBackgroundPolling }"
+              :style="detailRetranslateRunning ? { width: `${detailRetranslateProgress}%` } : undefined"
+            ></div>
+          </div>
+        </div>
+
+        <div class="candidateDetailModalActions">
+          <button type="button" class="toolbarButton toolbarButton--ghost" :disabled="loading || detailRetranslateBusy" @click="runDetailRetranslate('ai')">
+            {{ detailRetranslateBusy ? 'Generujem...' : 'AI popis' }}
+          </button>
+          <button type="button" class="toolbarButton toolbarButton--ghost" :disabled="loading || detailRetranslateBusy" @click="runDetailRetranslate('template')">
+            {{ detailRetranslateBusy ? 'Čakaj...' : 'Šablóna' }}
+          </button>
+          <button type="button" class="toolbarButton toolbarButton--ghost" @click="openManualEdit(candidateDetail)">Upraviť ručne</button>
+          <button
+            type="button"
+            class="toolbarButton toolbarButton--ghost"
+            :class="{ 'toolbarButton--active': showOriginalDescription }"
+            @click="showOriginalDescription = !showOriginalDescription"
+          >Originál (EN)</button>
+          <button type="button" class="toolbarButton toolbarButton--ghost" @click="openCandidateFullDetail">Plný detail</button>
+        </div>
+      </div>
+    </BaseModal>
   </div>
+
+  <CandidateManualTab
+    v-else
+    :manual-stats="manualStats"
+    :manual-loading="manualLoading"
+    :manual-status="manualStatus"
+    :manual-type="manualType"
+    :manual-per-page="manualPerPage"
+    :manual-q="manualQ"
+    :show-manual-form="showManualForm"
+    :manual-editing-id="manualEditingId"
+    :manual-type-options="manualTypeOptions"
+    :manual-form="manualForm"
+    :manual-form-errors="manualFormErrors"
+    :manual-can-save="manualCanSave"
+    :manual-error="manualError"
+    :manual-data="manualData"
+    :manual-page="manualPage"
+    :format-date="formatDate"
+    @update:manual-status="manualStatus = $event"
+    @update:manual-type="manualType = $event"
+    @update:manual-per-page="manualPerPage = $event"
+    @update:manual-q="manualQ = $event"
+    @update:manual-form="manualForm = $event"
+    @open-manual-form-create="openManualFormCreate"
+    @clear-manual-filters="clearManualFilters"
+    @search-manual="resetManualToFirstPage(); loadManual()"
+    @set-manual-start-now="setManualStartNow"
+    @set-manual-end-by-hours="setManualEndByHours"
+    @close-manual-form="closeManualForm"
+    @save-manual="saveManual"
+    @open-manual-form-edit="openManualFormEdit"
+    @delete-manual="deleteManual"
+    @publish-manual="publishManual"
+    @prev-manual-page="prevManualPage"
+    @next-manual-page="nextManualPage"
+  />
+</div>
+
+<BaseModal
+  v-model:open="aiResultModalOpen"
+  title="Generovanie popisov — výsledok"
+  test-id="ai-result-modal"
+  close-test-id="ai-result-modal-close"
+>
+  <div v-if="aiResultSummary" class="aiResultModal">
+    <div class="aiResultModal__summary">
+      <div class="aiResultModal__row">
+        <span>Režim</span>
+        <strong>{{ aiResultSummary.mode }}</strong>
+      </div>
+      <div class="aiResultModal__row">
+        <span>Rozsah</span>
+        <strong>{{ aiResultSummary.scope }}</strong>
+      </div>
+      <div class="aiResultModal__row">
+        <span>Zaradených do fronty</span>
+        <strong>{{ aiResultSummary.queued }}</strong>
+      </div>
+      <div v-if="aiResultSummary.failed > 0" class="aiResultModal__row aiResultModal__row--error">
+        <span>Zlyhalo pri zaraďovaní</span>
+        <strong>{{ aiResultSummary.failed }}</strong>
+      </div>
+    </div>
+
+    <p class="aiResultModal__hint">
+      Spracovanie prebieha na pozadí. Kandidáti budú aktualizovaní po dokončení jobu.
+    </p>
+
+    <div v-if="aiResultSummary.items.length > 0" class="aiResultModal__list">
+      <p class="aiResultModal__listTitle">Zaradení kandidáti ({{ aiResultSummary.items.length }})</p>
+      <div class="aiResultModal__items">
+        <div
+          v-for="item in aiResultSummary.items"
+          :key="item.id"
+          class="aiResultModal__item"
+        >
+          <span class="aiResultModal__itemId">#{{ item.id }}</span>
+          <span class="aiResultModal__itemTitle">{{ item.title || '—' }}</span>
+          <span v-if="item.source" class="aiResultModal__itemSource">{{ item.source }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</BaseModal>

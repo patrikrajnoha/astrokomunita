@@ -29,7 +29,7 @@ async function loadModerationHealth() {
       status: 'down',
       checkedAt: e?.response?.data?.checked_at || null,
       device: null,
-      error: e?.response?.data?.error?.message || 'Moderacna sluzba nie je dostupna.',
+      error: e?.response?.data?.error?.message || 'Moderacna sluzba nie je dostupná.',
     }
   } finally {
     healthLoading.value = false

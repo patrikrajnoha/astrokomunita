@@ -342,6 +342,14 @@
   border-radius: 999px;
 }
 
+.userInlineLink {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
 .avatar {
   width: 28px;
   height: 28px;
@@ -369,6 +377,10 @@
 
 .userLink {
   color: var(--color-text-primary);
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
   font-weight: 600;
   font-size: 14px;
   line-height: 1.15;
@@ -395,6 +407,12 @@
 .userLink:hover,
 .userSublineLink:hover {
   color: rgb(var(--color-primary-rgb) / 0.98);
+}
+
+.userLink:focus-visible,
+.userInlineLink:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);
 }
 
 .truncateText {
@@ -601,6 +619,25 @@
 
 .manageModalContent {
   display: grid;
+  gap: 10px;
+}
+
+.manageEmbeddedDetail {
+  display: grid;
+  gap: 10px;
+}
+
+.manageEmbeddedDetail__top {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.manageEmbeddedDetail :deep(.adminPageShell) {
+  padding: 0;
+  gap: 10px;
+}
+
+.manageEmbeddedDetail :deep(.adminPageShell__content) {
   gap: 10px;
 }
 

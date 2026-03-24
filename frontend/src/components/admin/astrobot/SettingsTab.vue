@@ -2,7 +2,7 @@
   <div class="settingsTab">
     <div class="settingsCard">
       <h2 class="settingsTitle">Nastavenia AstroBot</h2>
-      <p class="settingsSubtitle">Konfiguracia RSS pipeline a automatizacie (docasne MVP)</p>
+      <p class="settingsSubtitle">Konfiguracia RSS pipeline a automatizacie (dočasne MVP)</p>
 
       <div class="settingsSection">
         <h3>Auto-sync</h3>

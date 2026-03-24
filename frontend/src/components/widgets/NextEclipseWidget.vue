@@ -1,6 +1,6 @@
 <template>
   <NextEventWidget
-    title="Najbližšie zatmenie"
+    title="Zatmenie na obzore"
     endpoint="/events/widget/next-eclipse"
     empty-title="Žiadne blízke zatmenie"
     empty-text="V event databáze zatiaľ nie je žiadne publikované zatmenie."

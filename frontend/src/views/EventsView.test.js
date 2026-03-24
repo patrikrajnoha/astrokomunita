@@ -135,7 +135,7 @@ describe('EventsView', () => {
         data: [
           {
             key: 'aurora_watch',
-            title: 'Aurora watch',
+            title: 'Polárna žiara',
             badge: 'Živé teraz',
             status_label: 'Slabá šanca',
             status_score: 23,
@@ -163,7 +163,7 @@ describe('EventsView', () => {
       lon: 17.1077,
       tz: 'Europe/Bratislava',
     })
-    expect(wrapper.text()).toContain('Aurora watch')
+    expect(wrapper.text()).toContain('Polárna žiara')
     expect(wrapper.text()).toContain('Slabá šanca')
     expect(wrapper.text()).toContain('NOAA SWPC OVATION')
     expect(wrapper.text()).toContain('23/100')
@@ -175,7 +175,7 @@ describe('EventsView', () => {
     const { wrapper } = await mountView()
 
     expect(getEventLiveHighlightsMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).not.toContain('Aurora watch')
+    expect(wrapper.text()).not.toContain('Polárna žiara')
 
     wrapper.unmount()
   })

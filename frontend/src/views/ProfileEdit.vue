@@ -44,13 +44,15 @@ const form = reactive({
 })
 
 const saving = ref(false)
-const geolocating = ref(false)
 const resolvingLocation = ref(false)
 const msg = ref('')
 const err = ref('')
 const savedState = ref(null)
 const locationSectionRef = ref(null)
 const locationHighlightActive = ref(false)
+const locationAutocompleteRef = ref(null)
+const locationSuggestions = ref([])
+const openLocationSuggestions = ref(false)
 
 const LOCATION_FOCUS_MAX_ATTEMPTS = 30
 const LOCATION_FOCUS_RETRY_DELAY_MS = 80
@@ -58,6 +60,8 @@ const LOCATION_HIGHLIGHT_DURATION_MS = 2000
 
 let locationFocusRetryTimer = null
 let locationHighlightTimer = null
+let locationSuggestionsDebounceTimer = null
+let locationSuggestionsRequestId = 0
 
 const fieldErr = reactive({
   name: '',
@@ -68,11 +72,6 @@ const fieldErr = reactive({
   latitude: '',
   longitude: '',
   timezone: '',
-})
-
-const locationModeLabel = computed(() => {
-  if (form.locationMode === 'gps') return 'GPS'
-  return 'Ručne'
 })
 
 const embedded = computed(() => props.embedded)
@@ -136,7 +135,7 @@ function normalizeText(value) {
 
 function normalizeSource(value) {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
-  return ['preset', 'gps', 'manual'].includes(raw) ? raw : null
+  return ['preset', 'manual'].includes(raw) ? raw : null
 }
 
 function sanitizeTimezone(value, fallback = browserTimezone()) {
@@ -248,9 +247,7 @@ function buildStateFromUser(user) {
   const presetByCoordinates = hasCoordinates ? findPresetByCoordinates(latitude, longitude) : null
   const preset = presetByLabel || presetByCoordinates
 
-  let source = normalizeSource(location?.source || user?.location_source)
-  if (source === 'gps' && !hasCoordinates) source = 'manual'
-  if (source !== 'gps') source = 'manual'
+  const source = 'manual'
   const normalizedLabel = presetByLabel ? presetByLabel.label : label
 
   return {
@@ -285,8 +282,8 @@ function syncFromUser(user) {
   applyState(state)
 }
 
-function setLocationMode(mode) {
-  form.locationMode = mode === 'gps' ? 'gps' : 'manual'
+function setLocationMode() {
+  form.locationMode = 'manual'
   fieldErr.locationSource = ''
   if (form.locationMode === 'manual') {
     form.presetKey = ''
@@ -388,6 +385,104 @@ function clearManualCoordinates() {
   fieldErr.timezone = ''
 }
 
+function clearLocationSuggestions() {
+  locationSuggestions.value = []
+  openLocationSuggestions.value = false
+}
+
+function normalizeLocationSuggestion(row) {
+  if (!row || typeof row !== 'object') return null
+
+  const latitude = toFiniteNumber(row.lat ?? row.latitude)
+  const longitude = toFiniteNumber(row.lon ?? row.longitude)
+  if (latitude === null || longitude === null) return null
+
+  const label = String(row.label || '').trim()
+  if (!label) return null
+
+  return {
+    place_id: String(row.place_id || `${label}:${latitude}:${longitude}`),
+    label,
+    lat: latitude,
+    lon: longitude,
+    timezone: sanitizeTimezone(row.timezone, form.timezone || browserTimezone()),
+    country: String(row.country || '').trim(),
+  }
+}
+
+function queueLocationSuggestions(query) {
+  const normalizedQuery = String(query || '').trim()
+
+  if (locationSuggestionsDebounceTimer) {
+    clearTimeout(locationSuggestionsDebounceTimer)
+    locationSuggestionsDebounceTimer = null
+  }
+
+  if (normalizedQuery.length < 2) {
+    clearLocationSuggestions()
+    return
+  }
+
+  locationSuggestionsDebounceTimer = setTimeout(async () => {
+    const requestId = ++locationSuggestionsRequestId
+    try {
+      const response = await searchOnboardingLocations(normalizedQuery, 8)
+      if (requestId !== locationSuggestionsRequestId) return
+
+      const rows = Array.isArray(response?.data?.data) ? response.data.data : []
+      const nextSuggestions = rows
+        .map((row) => normalizeLocationSuggestion(row))
+        .filter((row) => row !== null)
+
+      locationSuggestions.value = nextSuggestions
+      openLocationSuggestions.value = nextSuggestions.length > 0
+    } catch {
+      if (requestId !== locationSuggestionsRequestId) return
+      clearLocationSuggestions()
+    } finally {
+      if (requestId === locationSuggestionsRequestId) {
+        locationSuggestionsDebounceTimer = null
+      }
+    }
+  }, 300)
+}
+
+function onLocationLabelFocus() {
+  const query = String(form.locationLabel || '').trim()
+  if (query.length < 2) return
+
+  if (locationSuggestions.value.length > 0) {
+    openLocationSuggestions.value = true
+    return
+  }
+
+  queueLocationSuggestions(query)
+}
+
+function onLocationSuggestionSelect(option) {
+  if (!option) return
+  fieldErr.locationLabel = ''
+  fieldErr.locationSource = ''
+  err.value = ''
+
+  applyManualResolvedLocation({
+    label: option.label,
+    latitude: option.lat,
+    longitude: option.lon,
+    timezone: option.timezone,
+  })
+  clearLocationSuggestions()
+  msg.value = `Poloha nastavena: ${option.label}.`
+}
+
+function onLocationAutocompleteOutsidePointerDown(event) {
+  if (!openLocationSuggestions.value) return
+  const root = locationAutocompleteRef.value
+  if (!root) return
+  if (root === event.target || root.contains(event.target)) return
+  openLocationSuggestions.value = false
+}
+
 function onLocationLabelInput() {
   const label = String(form.locationLabel || '').trim()
   fieldErr.locationLabel = ''
@@ -399,21 +494,25 @@ function onLocationLabelInput() {
     setLocationMode('manual')
     form.presetKey = ''
     clearManualCoordinates()
+    clearLocationSuggestions()
     return
   }
 
   const exactPreset = findPresetByLabel(label)
   if (exactPreset) {
     applyPreset(exactPreset.key)
+    clearLocationSuggestions()
     return
   }
 
   setLocationMode('manual')
   form.presetKey = ''
   clearManualCoordinates()
+  queueLocationSuggestions(label)
 }
 
 async function fillLocationFromLabel() {
+  clearLocationSuggestions()
   fieldErr.locationLabel = ''
   fieldErr.latitude = ''
   fieldErr.longitude = ''
@@ -433,7 +532,7 @@ async function fillLocationFromLabel() {
 
   if (!resolved) {
     clearManualCoordinates()
-    fieldErr.locationLabel = 'Nepodarilo sa doplniť súradnice pre zadané mesto. Skús presnejší názov alebo GPS.'
+    fieldErr.locationLabel = 'Nepodarilo sa doplniť súradnice pre zadané mesto. Skús presnejší názov.'
     return
   }
 
@@ -453,7 +552,7 @@ function buildProfilePayload(state) {
 }
 
 function buildLocationPayload(state) {
-  const locationSource = normalizeSource(state?.locationMode) === 'gps' ? 'gps' : 'manual'
+  const locationSource = 'manual'
   const locationLabel = String(state?.locationLabel || '').trim() || null
 
   return {
@@ -503,7 +602,7 @@ async function validateLocationPayload() {
 
       if (!resolved) {
         clearManualCoordinates()
-        fieldErr.locationLabel = 'Nepodarilo sa doplniť súradnice pre zadané mesto. Skús presnejší názov alebo použi GPS.'
+        fieldErr.locationLabel = 'Nepodarilo sa doplniť súradnice pre zadané mesto. Skús presnejší názov.'
         return null
       }
 
@@ -535,7 +634,7 @@ async function validateLocationPayload() {
     valid = false
   }
 
-  if (!['gps', 'manual'].includes(payload.location_source)) {
+  if (payload.location_source !== 'manual') {
     fieldErr.locationSource = 'Vyber validny sposob polohy.'
     valid = false
   }
@@ -715,48 +814,8 @@ async function save() {
   }
 }
 
-async function useMyLocation() {
-  clearErrors()
-
-  if (typeof navigator === 'undefined' || !navigator.geolocation) {
-    err.value = 'Geolokácia nie je podporovaná. Zadaj mesto ručne.'
-    return
-  }
-
-  geolocating.value = true
-  try {
-    const position = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      })
-    })
-
-    const lat = Number(position?.coords?.latitude)
-    const lon = Number(position?.coords?.longitude)
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      err.value = 'Nepodarilo sa získať GPS súradnice.'
-      return
-    }
-
-    form.locationMode = 'gps'
-    form.latitude = formatCoordinate(lat)
-    form.longitude = formatCoordinate(lon)
-    form.timezone = browserTimezone()
-    form.presetKey = ''
-    if (!form.locationLabel.trim() || normalizeSource(savedState.value?.locationMode) === 'gps') {
-      form.locationLabel = 'Moja poloha'
-    }
-    msg.value = 'GPS súradnice nastavené.'
-  } catch {
-    err.value = 'GPS zlyhalo. Skús to znovu alebo zadaj mesto ručne.'
-  } finally {
-    geolocating.value = false
-  }
-}
-
 onMounted(async () => {
+  document.addEventListener('pointerdown', onLocationAutocompleteOutsidePointerDown)
   if (!auth.initialized) {
     await auth.fetchUser()
   }
@@ -780,6 +839,11 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  if (locationSuggestionsDebounceTimer) {
+    clearTimeout(locationSuggestionsDebounceTimer)
+    locationSuggestionsDebounceTimer = null
+  }
+  document.removeEventListener('pointerdown', onLocationAutocompleteOutsidePointerDown)
   clearLocationFocusRetryTimer()
   clearLocationHighlightTimer()
 })

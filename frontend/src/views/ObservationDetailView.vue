@@ -288,7 +288,7 @@ async function saveChanges() {
   saveSuccess.value = ''
   const observedAtIso = fromDateTimeLocal(form.observedAt)
   if (!observedAtIso) {
-    saveError.value = 'Zadaj platny datum a cas pozorovania.'
+    saveError.value = 'Zadaj platny dátum a cas pozorovania.'
     return
   }
 

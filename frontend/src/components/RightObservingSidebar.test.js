@@ -84,7 +84,7 @@ describe('RightObservingSidebar', () => {
 
     await wait()
 
-    expect(wrapper.text()).toContain('Astronomické podmienky')
+    expect(wrapper.text()).toContain('Pozorovanie dnes')
     expect(wrapper.text()).toContain('/ 100')
     expect(wrapper.text()).toContain('Výborné podmienky')
     expect(wrapper.text()).toContain('Jasno · 9.4 °C')
@@ -139,36 +139,12 @@ describe('RightObservingSidebar', () => {
 
   it('treats out-of-range coordinates as missing location and avoids API calls', async () => {
     const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 120.5, lon: 220.1, tz: 'Europe/Bratislava', locationName: 'Ivanka pri Nitre' },
+      props: { lat: 122, lon: -200, tz: 'Europe/Bratislava', locationName: '' },
     })
 
     await wait()
 
     expect(getMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Poloha nie je nastavená')
-  })
-
-  it('does not show moon data (handled by separate moon widget)', async () => {
-    getMock.mockImplementation(async (url) => {
-      if (url === '/sky/weather') return weatherPayload()
-      if (url === '/sky/astronomy') {
-        return {
-          data: {
-            ...astronomyPayload().data,
-            moon_illumination_percent: null,
-          },
-        }
-      }
-      return { data: {} }
-    })
-
-    const wrapper = mount(RightObservingSidebar, {
-      props: { lat: 48.14, lon: 17.1, tz: 'Europe/Bratislava', locationName: 'Bratislava' },
-    })
-
-    await wait()
-
-    expect(wrapper.text()).not.toContain('Mesiac')
-    expect(wrapper.text()).toContain('Jasno')
   })
 })

@@ -95,7 +95,7 @@ describe('AdminFeaturedEventsView', () => {
     await flush()
 
     expect(getFeaturedEventsMock).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Používa sa: Auto fallback')
+    expect(wrapper.text()).toContain('Automatický výber (bez AI)')
     expect(wrapper.text()).toContain('Meteor Shower')
   })
 
@@ -104,7 +104,7 @@ describe('AdminFeaturedEventsView', () => {
     await flush()
     await flush()
 
-    const button = wrapper.findAll('button').find((node) => node.text().includes('Použiť ako admin výber'))
+    const button = wrapper.findAll('button').find((node) => node.text().includes('Použiť ako manuálny výber'))
     expect(button).toBeTruthy()
 
     await button.trigger('click')

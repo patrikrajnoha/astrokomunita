@@ -12,6 +12,7 @@ Thumbs.db
 
 # Node
 node_modules/
+.vite/
 frontend/node_modules
 frontend/dist
 

@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { normalizeAvatarUrl, resolveAvatarState } from '@/utils/avatar'
+import { getBotAvatar, isBotUser } from '@/utils/botAvatar'
 import { avatarDebug } from '@/utils/avatarDebug'
 import { compressImageFileToMaxBytes } from '@/utils/imageCompression'
 import {
@@ -15,6 +16,13 @@ import { extractFirstError } from '../profileView.utils'
 
 const PROFILE_MEDIA_TARGET_MAX_BYTES = 3072 * 1024
 const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 20480 * 1024
+
+function revokeObjectUrlIfNeeded(url) {
+  const value = String(url || '').trim()
+  if (value.startsWith('blob:')) {
+    URL.revokeObjectURL(value)
+  }
+}
 
 function normalizeAvatarIndex(value, max) {
   const index = coerceAvatarIndex(value, max)
@@ -73,10 +81,22 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     icon: null,
     seed: '',
   })
+  const selectedBotAvatarFile = ref('')
 
-  const avatarSrc = computed(() =>
-    avatarPreview.value || normalizeAvatarUrl(auth.user?.avatar_url || auth.user?.avatarUrl || '')
+  const isBotAvatarUser = computed(() => isBotUser(auth.user))
+
+  const botAvatarState = computed(() =>
+    getBotAvatar(auth.user, {
+      avatarPath: auth.user?.avatar_path || auth.user?.avatarPath || '',
+      avatarUrl: avatarPreview.value || auth.user?.avatar_url || auth.user?.avatarUrl || '',
+      color: auth.user?.avatar_color ?? auth.user?.avatarColor ?? null,
+    }),
   )
+  const avatarSrc = computed(() => {
+    if (avatarPreview.value) return avatarPreview.value
+    if (isBotAvatarUser.value && botAvatarState.value?.url) return botAvatarState.value.url
+    return normalizeAvatarUrl(auth.user?.avatar_url || auth.user?.avatarUrl || '')
+  })
   const coverSrc = computed(() =>
     coverPreview.value || normalizeAvatarUrl(auth.user?.cover_url || auth.user?.coverUrl || '')
   )
@@ -96,6 +116,20 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       label: formatIconLabel(iconKey),
     })),
   )
+  const botAvatarOptions = computed(() => {
+    const botAvatar = botAvatarState.value
+    if (!botAvatar) return []
+
+    return botAvatar.files.map((file) => {
+      const path = `bots/${botAvatar.username}/${file}`
+      const resolved = getBotAvatar(auth.user, { avatarPath: path, avatarUrl: '' })
+      return {
+        file,
+        path,
+        url: resolved?.url || '',
+      }
+    })
+  })
 
   function logAvatarProfileState(scope, extra = {}) {
     avatarDebug(`ProfileView:${scope}`, {
@@ -126,6 +160,11 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     const snapshot = buildAvatarSnapshot(auth.user)
     avatarSnapshot.value = snapshot
     applyAvatarSnapshot(avatarDraft, snapshot)
+    const botAvatar = botAvatarState.value
+    selectedBotAvatarFile.value = botAvatar?.file || ''
+    if (!isBotAvatarUser.value) {
+      selectedBotAvatarFile.value = ''
+    }
   }
 
   function openAvatarEditor() {
@@ -137,29 +176,55 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
   }
 
   function setAvatarMode(mode) {
+    if (isBotAvatarUser.value) return
     avatarDraft.mode = mode === 'generated' ? 'generated' : 'image'
     avatarErr.value = ''
     logAvatarProfileState('set-mode', { nextMode: avatarDraft.mode })
   }
 
   function selectAvatarColor(index) {
+    if (isBotAvatarUser.value) return
     avatarDraft.color = normalizeAvatarIndex(index, AVATAR_COLORS.length - 1)
     avatarErr.value = ''
   }
 
   function selectAvatarIcon(index) {
+    if (isBotAvatarUser.value) return
     avatarDraft.icon = normalizeAvatarIndex(index, AVATAR_ICONS.length - 1)
     avatarErr.value = ''
   }
 
   function resetGeneratedAvatar() {
+    if (isBotAvatarUser.value) return
     avatarDraft.color = null
     avatarDraft.icon = null
     avatarDraft.seed = ''
     avatarErr.value = ''
   }
 
-  async function saveAvatarPreferences(successMessage = 'Avatar ulozeny.') {
+  function selectedBotAvatarPath() {
+    const username = String(auth.user?.username || '').trim().toLowerCase()
+    const file = String(selectedBotAvatarFile.value || '').trim()
+    if (!username) return ''
+    if (!file) {
+      return getBotAvatar(auth.user)?.path || ''
+    }
+    return `bots/${username}/${file}`
+  }
+
+  function selectBotAvatar(file) {
+    if (!isBotAvatarUser.value) return
+    selectedBotAvatarFile.value = String(file || '').trim()
+    avatarErr.value = ''
+
+    const next = getBotAvatar(auth.user, {
+      avatarPath: selectedBotAvatarPath(),
+      avatarUrl: '',
+    })
+    avatarPreview.value = next?.url || ''
+  }
+
+  async function saveAvatarPreferences(successMessage = 'Avatar uložený.') {
     if (!auth.user || avatarSaving.value) return
 
     avatarErr.value = ''
@@ -171,10 +236,13 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       await auth.csrf()
 
       const payload = {
-        avatar_mode: avatarDraft.mode,
-        avatar_color: avatarDraft.color,
-        avatar_icon: avatarDraft.icon,
-        avatar_seed: avatarDraft.seed || null,
+        avatar_mode: isBotAvatarUser.value ? 'image' : avatarDraft.mode,
+        avatar_color: isBotAvatarUser.value ? null : avatarDraft.color,
+        avatar_icon: isBotAvatarUser.value ? null : avatarDraft.icon,
+        avatar_seed: isBotAvatarUser.value ? null : (avatarDraft.seed || null),
+        ...(isBotAvatarUser.value
+          ? { avatar_path: selectedBotAvatarPath() || (getBotAvatar(auth.user)?.path || null) }
+          : {}),
       }
 
       const { data } = await http.patch('/me/avatar', payload)
@@ -190,6 +258,9 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       }
 
       syncAvatarDraftFromUser()
+      if (avatarPreview.value) {
+        avatarPreview.value = ''
+      }
       logAvatarProfileState('save-preferences:success')
       toast.success(successMessage)
     } catch (e) {
@@ -210,7 +281,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
           extractFirstError(data.errors, 'avatar_seed') ||
           'Skontroluj nastavenia avatara.'
       } else if (status === 401) {
-        avatarErr.value = 'Prihlas sa.'
+        avatarErr.value = 'Prihlás sa.'
       } else {
         avatarErr.value = data?.message || 'Ukladanie avatara zlyhalo.'
       }
@@ -222,6 +293,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
   }
 
   async function randomizeAvatar() {
+    if (isBotAvatarUser.value) return
     if (!auth.user || avatarSaving.value) return
 
     const seed = buildRandomAvatarSeed(auth.user?.id)
@@ -229,10 +301,11 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     avatarDraft.color = pickDeterministicAvatarIndex(seed, 'color', AVATAR_COLORS.length)
     avatarDraft.icon = pickDeterministicAvatarIndex(seed, 'icon', AVATAR_ICONS.length)
 
-    await saveAvatarPreferences('Nahodny avatar ulozeny.')
+    await saveAvatarPreferences('Náhodný avatar uložený.')
   }
 
   async function removeAvatarImage() {
+    if (isBotAvatarUser.value) return
     if (!auth.user || avatarRemoving.value || avatarUploading.value) return
 
     const approved = await confirm({
@@ -256,7 +329,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       avatarDebug('ProfileView:remove-image:response', { response: data })
 
       if (avatarPreview.value) {
-        URL.revokeObjectURL(avatarPreview.value)
+        revokeObjectUrlIfNeeded(avatarPreview.value)
         avatarPreview.value = ''
       }
 
@@ -280,9 +353,9 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       const status = e?.response?.status
       const data = e?.response?.data
       if (status === 401) {
-        avatarErr.value = 'Prihlas sa.'
+        avatarErr.value = 'Prihlás sa.'
       } else {
-        avatarErr.value = data?.message || 'Odstranenie fotky zlyhalo.'
+        avatarErr.value = data?.message || 'Odstránenie fotky zlyhalo.'
       }
     } finally {
       avatarRemoving.value = false
@@ -290,6 +363,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
   }
 
   function openPicker(type) {
+    if (type === 'avatar' && isBotAvatarUser.value) return
     const input = type === 'avatar' ? avatarInput.value : coverInput.value
     if (input && !avatarUploading.value && !avatarRemoving.value && !coverUploading.value) {
       input.click()
@@ -299,28 +373,28 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
   function setPreview(type, file) {
     const url = URL.createObjectURL(file)
     if (type === 'avatar') {
-      if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+      if (avatarPreview.value) revokeObjectUrlIfNeeded(avatarPreview.value)
       avatarPreview.value = url
     } else {
-      if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
+      if (coverPreview.value) revokeObjectUrlIfNeeded(coverPreview.value)
       coverPreview.value = url
     }
   }
 
   function clearPreview(type) {
     if (type === 'avatar') {
-      if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+      if (avatarPreview.value) revokeObjectUrlIfNeeded(avatarPreview.value)
       avatarPreview.value = ''
       return
     }
 
-    if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
+    if (coverPreview.value) revokeObjectUrlIfNeeded(coverPreview.value)
     coverPreview.value = ''
   }
 
   async function uploadMedia(type, file) {
     if (!auth.user) {
-      mediaErr.value = 'Prihlas sa.'
+      mediaErr.value = 'Prihlás sa.'
       return
     }
 
@@ -368,7 +442,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       logAvatarProfileState('upload-media:success', { type })
 
       if (type === 'avatar') {
-        toast.success('Profilova fotka bola ulozena.')
+        toast.success('Profilová fotka bola uložená.')
       }
     } catch (e) {
       avatarDebug('ProfileView:upload-media:error', {
@@ -381,7 +455,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       const data = e?.response?.data
 
       if (status === 401) {
-        mediaErr.value = 'Prihlas sa.'
+        mediaErr.value = 'Prihlás sa.'
       } else if (status === 422 && data?.errors) {
         mediaErr.value =
           extractFirstError(data.errors, 'file') ||
@@ -404,6 +478,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
   }
 
   async function onMediaChange(type, event) {
+    if (type === 'avatar' && isBotAvatarUser.value) return
     const selectedFile = event?.target?.files?.[0]
     if (!selectedFile) return
     event.target.value = ''
@@ -425,7 +500,7 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     }
 
     if ((uploadFile?.size || 0) > PROFILE_MEDIA_UPLOAD_MAX_BYTES) {
-      mediaErr.value = 'Subor je prilis velky. Maximalna velkost je 20 MB.'
+      mediaErr.value = 'Súbor je príliš veľký. Maximálna veľkosť je 20 MB.'
       if (type === 'avatar') {
         avatarErr.value = mediaErr.value
       }
@@ -449,6 +524,8 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       auth.user?.avatar_seed,
       auth.user?.avatar_url,
       auth.user?.avatar_path,
+      auth.user?.role,
+      auth.user?.is_bot,
     ],
     () => {
       if (!auth.user) return
@@ -472,13 +549,17 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
       if (!isOpen && wasOpen) {
         syncAvatarDraftFromUser()
         avatarErr.value = ''
+        if (avatarPreview.value) {
+          revokeObjectUrlIfNeeded(avatarPreview.value)
+          avatarPreview.value = ''
+        }
       }
     },
   )
 
   onBeforeUnmount(() => {
-    if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
-    if (coverPreview.value) URL.revokeObjectURL(coverPreview.value)
+    if (avatarPreview.value) revokeObjectUrlIfNeeded(avatarPreview.value)
+    if (coverPreview.value) revokeObjectUrlIfNeeded(coverPreview.value)
   })
 
   return {
@@ -497,6 +578,8 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     coverSrc,
     coverUploading,
     iconOptions,
+    isBotAvatarUser,
+    botAvatarOptions,
     logAvatarProfileState,
     mediaErr,
     onCoverImageError,
@@ -504,6 +587,8 @@ export function useProfileAvatarEditor({ auth, confirm, http, toast }) {
     openAvatarEditor,
     openPicker,
     randomizeAvatar,
+    selectedBotAvatarFile,
+    selectBotAvatar,
     removeAvatarImage,
     resetGeneratedAvatar,
     saveAvatarPreferences,

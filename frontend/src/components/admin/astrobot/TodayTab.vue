@@ -45,7 +45,7 @@
         <div v-if="item.summary" class="itemSummary">{{ truncate(item.summary, 260) }}</div>
 
         <div class="itemMeta">
-          <span v-if="item.published_at">RSS datum: {{ formatDateTime(item.published_at) }}</span>
+          <span v-if="item.published_at">RSS dátum: {{ formatDateTime(item.published_at) }}</span>
           <span v-if="item.fetched_at">Sync: {{ formatDateTime(item.fetched_at) }}</span>
         </div>
 

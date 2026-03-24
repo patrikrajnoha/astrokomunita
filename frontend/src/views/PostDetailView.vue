@@ -265,6 +265,7 @@ function closeShareModal() {
 
 function openReport(post) {
   if (!post?.id) return
+  if (!canReportPost(post, auth.user)) return
   reportTarget.value = post
   reportNotice.value = ''
 }
@@ -273,11 +274,16 @@ function menuItemsForPost(post) {
   const items = []
 
   if (hasOriginalDownload(post)) {
-    items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
+    items.push({
+      key: 'download_original',
+      label: 'Stiahnu\u0165 v plnej kvalite',
+      danger: false,
+      icon: 'download',
+    })
   }
 
   if (canReportPost(post, auth.user)) {
-    items.push({ key: 'report', label: 'Nahlasit', danger: false })
+    items.push({ key: 'report', label: 'Nahlásiť', danger: false, icon: 'report' })
   }
 
   if (canAdminEditBotPost(post)) {
@@ -387,7 +393,7 @@ function downloadOriginalAttachment(post) {
   const url = attachmentDownloadSrc(post)
   if (!url) return
 
-  toastInfo('Stahujem...')
+  toastInfo('S\u0165ahujem...')
   try {
     window.open(url, '_blank', 'noopener')
   } catch {
@@ -410,10 +416,22 @@ function onPollLoginRequired() {
   reportNotice.value = 'Prihlas sa pre hlasovanie.'
 }
 
+function onAttachmentUnblurred(item, { isBlurred, status }) {
+  if (!item || typeof item !== 'object') return
+  item.attachment_is_blurred = isBlurred
+  if (typeof status === 'string' && status.trim() !== '') {
+    item.attachment_moderation_status = status
+  }
+}
+
 
 async function submitReport() {
   const post = reportTarget.value
   if (!post?.id) return
+  if (!canReportPost(post, auth.user)) {
+    closeReport()
+    return
+  }
 
   try {
     await auth.csrf()

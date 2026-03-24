@@ -255,12 +255,22 @@
 }
 
 .actBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.55);
   background: rgb(var(--color-bg-rgb) / 0.18);
   color: var(--color-text-secondary);
   border-radius: 0.9rem;
   padding: 0.45rem 0.65rem;
   font-size: 0.88rem;
+}
+
+.actIco {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  flex: 0 0 auto;
 }
 
 .likeBtn {
@@ -508,6 +518,10 @@
   }
   
   .actBtn {
-    min-height: 40px;
+    min-height: 44px;
+  }
+
+  .postCard {
+    gap: 0.6rem;
   }
 }

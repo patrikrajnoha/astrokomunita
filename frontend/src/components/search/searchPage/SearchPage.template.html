@@ -23,7 +23,8 @@
             :class="{ 'is-active': activeTab === tab.key }"
             @click="activeTab = tab.key"
           >
-            {{ tab.label }}
+            <span v-if="tab.icon" class="searchPage__tabIcon" aria-hidden="true">{{ tab.icon }}</span>
+            <span>{{ tab.label }}</span>
           </button>
         </nav>
       </section>
@@ -51,7 +52,10 @@
             :aria-label="section.title"
           >
             <header class="searchSection__header">
-              <h2 class="searchSection__title">{{ section.title }}</h2>
+              <h2 class="searchSection__title">
+                <span v-if="section.icon" class="searchSection__titleIcon" aria-hidden="true">{{ section.icon }}</span>
+                <span>{{ section.title }}</span>
+              </h2>
               <span class="searchSection__count">{{ section.items.length }}</span>
             </header>
 
@@ -71,7 +75,10 @@
 
           <section v-if="globalResults.keywords.length" class="searchSection" aria-label="Kľúčové slová">
             <header class="searchSection__header">
-              <h2 class="searchSection__title">Kľúčové slová</h2>
+              <h2 class="searchSection__title">
+                <span class="searchSection__titleIcon" aria-hidden="true">🏷️</span>
+                <span>Kľúčové slová</span>
+              </h2>
               <span class="searchSection__count">{{ globalResults.keywords.length }}</span>
             </header>
             <div class="searchSection__keywords">
@@ -120,7 +127,10 @@
             :aria-label="section.title"
           >
             <header class="searchSection__header">
-              <h2 class="searchSection__title">{{ section.title }}</h2>
+              <h2 class="searchSection__title">
+                <span v-if="section.icon" class="searchSection__titleIcon" aria-hidden="true">{{ section.icon }}</span>
+                <span>{{ section.title }}</span>
+              </h2>
               <span class="searchSection__count">{{ section.items.length }}</span>
             </header>
 
@@ -140,7 +150,10 @@
 
           <section v-if="discovery.keywords.length" class="searchSection" aria-label="Populárne kľúčové slová">
             <header class="searchSection__header">
-              <h2 class="searchSection__title">Populárne kľúčové slová</h2>
+              <h2 class="searchSection__title">
+                <span class="searchSection__titleIcon" aria-hidden="true">✨</span>
+                <span>Populárne kľúčové slová</span>
+              </h2>
               <span class="searchSection__count">{{ discovery.keywords.length }}</span>
             </header>
             <div class="searchSection__keywords">

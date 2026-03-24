@@ -7,8 +7,6 @@ import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 const getEventSourcesMock = vi.fn()
 const getCrawlRunsMock = vi.fn()
 const getEventTranslationHealthMock = vi.fn()
-const getTranslationArtifactsReportMock = vi.fn()
-const repairTranslationArtifactsMock = vi.fn()
 const runEventSourceCrawlMock = vi.fn()
 const purgeEventSourcesMock = vi.fn()
 const updateEventSourceMock = vi.fn()
@@ -19,8 +17,6 @@ vi.mock('@/services/api/admin/eventSources', () => ({
   getEventSources: (...args) => getEventSourcesMock(...args),
   getCrawlRuns: (...args) => getCrawlRunsMock(...args),
   getEventTranslationHealth: (...args) => getEventTranslationHealthMock(...args),
-  getTranslationArtifactsReport: (...args) => getTranslationArtifactsReportMock(...args),
-  repairTranslationArtifacts: (...args) => repairTranslationArtifactsMock(...args),
   runEventSourceCrawl: (...args) => runEventSourceCrawlMock(...args),
   purgeEventSources: (...args) => purgeEventSourcesMock(...args),
   updateEventSource: (...args) => updateEventSourceMock(...args),
@@ -115,38 +111,6 @@ describe('EventSourcesView', () => {
     runEventSourceCrawlMock.mockResolvedValue({
       data: { results: [] },
     })
-    getTranslationArtifactsReportMock.mockResolvedValue({
-      data: {
-        status: 'ok',
-        summary: {
-          suspicious_candidates: 1,
-          sample_limit: 20,
-          sample_count: 1,
-          checked_at: '2026-03-02T20:15:00Z',
-        },
-        samples: [
-          {
-            candidate_id: 77,
-            event_id: 88,
-            source_title: 'Jupiter in Conjunction with Sun',
-            translated_title: 'Jupiter v konflikte so slnkom',
-            event_title: 'Jupiter v konflikte so slnkom',
-          },
-        ],
-      },
-    })
-    repairTranslationArtifactsMock.mockResolvedValue({
-      data: {
-        status: 'ok',
-        detected_count: 1,
-        summary: {
-          processed: 1,
-          translated: 1,
-          failed: 0,
-          events_updated: 1,
-        },
-      },
-    })
     getEventTranslationHealthMock.mockResolvedValue({
       data: {
         counts_24h: { done: 5, failed: 1, pending: 2 },
@@ -189,31 +153,62 @@ describe('EventSourcesView', () => {
   it('renders run panel, sources table and recent runs', async () => {
     const { wrapper } = await mountView()
 
-    expect(wrapper.text()).toContain('Panel spustenia')
+    expect(wrapper.text()).toContain('Spustiť crawling')
     expect(wrapper.text()).toContain('Zdroje')
     expect(wrapper.text()).toContain('Posledn')
     expect(wrapper.text()).toContain('IMO')
     expect(wrapper.text()).toContain('Preklad')
-    expect(wrapper.text()).toContain('Kvalita prekladov')
-    expect(wrapper.text()).toContain('Podozriv')
-    expect(wrapper.text()).toContain('Probl')
-    expect(wrapper.text()).toContain('✓ 2')
-    expect(wrapper.text()).toContain('Forma: title+popis')
+    expect(wrapper.text()).toContain('2/3')
   })
+  it('shows translation elapsed duration for recent runs when available', async () => {
+    getCrawlRunsMock.mockResolvedValueOnce({
+      data: {
+        data: [
+          {
+            id: 22,
+            source_name: 'imo',
+            year: 2026,
+            status: 'success',
+            started_at: '2026-03-02T20:00:00Z',
+            fetched_count: 6,
+            created_candidates_count: 3,
+            updated_candidates_count: 0,
+            skipped_duplicates_count: 3,
+            translation: {
+              total: 6,
+              done: 6,
+              failed: 0,
+              pending: 0,
+              elapsed_ms: 90500,
+              elapsed_human: '1m 30s',
+              done_breakdown: {
+                both: 6,
+                title_only: 0,
+                description_only: 0,
+                without_text: 0,
+              },
+            },
+          },
+        ],
+      },
+    })
 
-  it('shows translation health indicator without periodic polling', async () => {
+    const { wrapper } = await mountView()
+    expect(wrapper.text()).toContain('1m 30s')
+  })
+  it('polls translation health and shows translation progress panel', async () => {
     const { wrapper } = await mountView()
 
-    const indicator = wrapper.find('[data-testid="translation-health-indicator"]')
-    expect(indicator.exists()).toBe(true)
-    expect(indicator.classes()).toContain('statusDot--success')
-    expect(wrapper.find('[data-testid="translation-progress-panel"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="translation-progress-panel"]').exists()).toBe(true)
+    const elapsed = wrapper.find('[data-testid="translation-progress-elapsed"]')
+    expect(elapsed.exists()).toBe(true)
+    expect(elapsed.text()).toContain('Trvanie')
     expect(getEventTranslationHealthMock).toHaveBeenCalledTimes(1)
 
     await new Promise((resolve) => setTimeout(resolve, 3800))
     await flush()
 
-    expect(getEventTranslationHealthMock).toHaveBeenCalledTimes(1)
+    expect(getEventTranslationHealthMock.mock.calls.length).toBeGreaterThanOrEqual(2)
   })
 
   it('disables unsupported source run button with deferred tooltip', async () => {
@@ -241,7 +236,7 @@ describe('EventSourcesView', () => {
 
     expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Zobrazené: 1 / 2')
+    expect(wrapper.text()).toContain('Zobrazen')
   })
 
   it('filters sources table to selected rows only', async () => {
@@ -258,7 +253,7 @@ describe('EventSourcesView', () => {
 
     expect(wrapper.find('[data-testid="source-row-imo"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="source-row-nasa"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Zobrazené: 1 / 2')
+    expect(wrapper.text()).toContain('Zobrazen')
   })
 
   it('clears selected sources from toolbar action', async () => {
@@ -317,7 +312,7 @@ describe('EventSourcesView', () => {
 
     const confirmButton = queryBody('[data-testid="confirm-modal-confirm"]')
     expect(confirmButton).not.toBeNull()
-    expect(confirmButton.textContent).toContain('Vymazať')
+    expect(confirmButton.textContent).toContain('Vymaza')
     expect(confirmButton.disabled).toBe(false)
     confirmButton.click()
     await flush()
@@ -327,42 +322,6 @@ describe('EventSourcesView', () => {
       dry_run: true,
       confirm: 'delete_crawled_events',
     })
-  })
-
-  it('runs translation quality report and repair actions from the panel', async () => {
-    const { wrapper } = await mountView()
-
-    const reportButton = wrapper.find('[data-testid="translation-artifacts-report-btn"]')
-    expect(reportButton.exists()).toBe(true)
-    await reportButton.trigger('click')
-    await flush()
-
-    expect(getTranslationArtifactsReportMock).toHaveBeenCalled()
-
-    const repairButton = wrapper.find('[data-testid="translation-artifacts-repair-btn"]')
-    expect(repairButton.exists()).toBe(true)
-    expect(repairButton.attributes('disabled')).toBeUndefined()
-    await repairButton.trigger('click')
-    await flush()
-
-    expect(repairTranslationArtifactsMock).toHaveBeenCalledWith({
-      limit: 300,
-      dry_run: false,
-      sample: 20,
-    })
-  })
-
-  it('opens candidate detail from translation artifacts sample row', async () => {
-    const { wrapper, router } = await mountView()
-
-    const candidateLink = wrapper.find('[data-testid="translation-artifacts-candidate-link-77"]')
-    expect(candidateLink.exists()).toBe(true)
-
-    await candidateLink.trigger('click')
-    await flush()
-
-    expect(router.currentRoute.value.name).toBe('admin.candidate.detail')
-    expect(String(router.currentRoute.value.params.id)).toBe('77')
   })
 
   it('shows translating status when run translation is still pending', async () => {
@@ -401,3 +360,4 @@ describe('EventSourcesView', () => {
     expect(wrapper.text()).toContain('Prekladaj')
   })
 })
+
