@@ -46,7 +46,7 @@ Tento krok je potrebny iba pre funkcie, ktore realne volaju Ollama (AI generovan
 | Emaily       | http://127.0.0.1:8025        |
 | Databáza     | http://127.0.0.1:8086        |
 
-> **Databáza (Adminer):** server `your_db_host`, user `your_db_user`, heslo `your_db_password`, databáza `your_db_name`
+> **Databáza (Adminer):** prihlasovacie údaje sú v lokálnom `.env` / `backend/.env`
 
 ### Zastavenie
 
