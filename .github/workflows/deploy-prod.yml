@@ -1,0 +1,133 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-images:
+    name: Build and push production images
+    runs-on: ubuntu-latest
+    outputs:
+      backend_image: ${{ steps.images.outputs.backend_image }}
+      frontend_image: ${{ steps.images.outputs.frontend_image }}
+      sky_image: ${{ steps.images.outputs.sky_image }}
+      moderation_image: ${{ steps.images.outputs.moderation_image }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image names
+        id: images
+        run: |
+          echo "backend_image=ghcr.io/${{ github.repository_owner }}/astrokomunita-backend:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "frontend_image=ghcr.io/${{ github.repository_owner }}/astrokomunita-frontend:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "sky_image=ghcr.io/${{ github.repository_owner }}/astrokomunita-sky:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "moderation_image=ghcr.io/${{ github.repository_owner }}/astrokomunita-moderation:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.backend_image }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.frontend_image }}
+          build-args: |
+            VITE_API_BASE_URL=https://api.${{ vars.PROD_DOMAIN || 'example.com' }}
+            VITE_REVERB_APP_KEY=${{ secrets.PROD_REVERB_APP_KEY }}
+            VITE_REVERB_HOST=ws.${{ vars.PROD_DOMAIN || 'example.com' }}
+            VITE_REVERB_PORT=443
+            VITE_REVERB_SCHEME=https
+            VITE_APP_NAME=${{ vars.PROD_APP_NAME || 'Astrokomunita' }}
+            VITE_LEGAL_CONTROLLER_NAME=${{ vars.PROD_LEGAL_CONTROLLER_NAME || 'Astrokomunita' }}
+            VITE_LEGAL_CONTACT_EMAIL=${{ vars.PROD_LEGAL_CONTACT_EMAIL || 'info@example.com' }}
+            VITE_SENTRY_DSN=${{ secrets.PROD_VITE_SENTRY_DSN }}
+            VITE_SENTRY_ENV=${{ vars.PROD_VITE_SENTRY_ENV || 'production' }}
+            VITE_SENTRY_RELEASE=${{ github.sha }}
+
+      - name: Build and push sky image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/sky
+          file: ./services/sky/Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.sky_image }}
+
+      - name: Build and push moderation image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./moderation-service
+          file: ./moderation-service/Dockerfile
+          push: true
+          tags: ${{ steps.images.outputs.moderation_image }}
+
+  deploy:
+    name: Deploy on production host
+    runs-on: ubuntu-latest
+    needs: build-images
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+    steps:
+      - name: Skip deploy when secrets are missing
+        if: ${{ env.DEPLOY_HOST == '' || env.DEPLOY_USER == '' || env.DEPLOY_SSH_KEY == '' }}
+        run: echo "Skipping deploy job because DEPLOY_HOST/DEPLOY_USER/DEPLOY_SSH_KEY are not configured."
+
+      - name: Deploy over SSH
+        if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_USER != '' && env.DEPLOY_SSH_KEY != '' }}
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_REGISTRY_USER: ${{ secrets.DEPLOY_REGISTRY_USER }}
+          DEPLOY_REGISTRY_TOKEN: ${{ secrets.DEPLOY_REGISTRY_TOKEN }}
+          BACKEND_IMAGE: ${{ needs.build-images.outputs.backend_image }}
+          FRONTEND_IMAGE: ${{ needs.build-images.outputs.frontend_image }}
+          SKY_IMAGE: ${{ needs.build-images.outputs.sky_image }}
+          MODERATION_IMAGE: ${{ needs.build-images.outputs.moderation_image }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: DEPLOY_PATH,DEPLOY_REGISTRY_USER,DEPLOY_REGISTRY_TOKEN,BACKEND_IMAGE,FRONTEND_IMAGE,SKY_IMAGE,MODERATION_IMAGE,VITE_SENTRY_RELEASE
+          script: |
+            set -euo pipefail
+            cd "${DEPLOY_PATH}"
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+
+            echo "${DEPLOY_REGISTRY_TOKEN}" | docker login ghcr.io -u "${DEPLOY_REGISTRY_USER}" --password-stdin
+
+            export BACKEND_IMAGE FRONTEND_IMAGE SKY_IMAGE MODERATION_IMAGE VITE_SENTRY_RELEASE
+
+            docker compose -f docker-compose.prod.yml pull backend frontend sky moderation queue-worker queue-worker-2 queue-worker-3 scheduler reverb
+            docker compose -f docker-compose.prod.yml up -d --no-build
+            docker compose -f docker-compose.prod.yml ps

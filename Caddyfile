@@ -1,0 +1,21 @@
+﻿# Caddyfile - automatic HTTPS via Let's Encrypt
+# DOMAIN env var is set in root .env (for example astrokomunita.sk)
+#
+# Subdomains:
+#   https://{$DOMAIN}      -> Vue frontend
+#   https://api.{$DOMAIN}  -> Laravel API (nginx -> php-fpm)
+#   https://ws.{$DOMAIN}   -> Laravel Reverb websocket server
+
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy frontend:80
+}
+
+api.{$DOMAIN} {
+    encode gzip
+    reverse_proxy backend-api:80
+}
+
+ws.{$DOMAIN} {
+    reverse_proxy reverb:8080
+}

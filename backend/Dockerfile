@@ -8,12 +8,13 @@ RUN composer install \
     --prefer-dist \
     --no-scripts
 
-FROM php:8.4-cli
+FROM php:8.4-fpm
 WORKDIR /var/www/html
 
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
+    libssl-dev \
     pkg-config \
     libzip-dev \
     libsqlite3-dev \
@@ -22,8 +23,11 @@ RUN apt-get update && apt-get install -y \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libicu-dev \
+    libmagickwand-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" pdo_mysql pdo_sqlite mbstring intl zip bcmath gd pcntl \
+    && pecl install redis imagick \
+    && docker-php-ext-enable redis imagick \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
@@ -31,4 +35,4 @@ COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/99-uploads.ini
 COPY --from=vendor /app/vendor /var/www/html/vendor
 COPY . /var/www/html
 
-EXPOSE 8000
+EXPOSE 9000

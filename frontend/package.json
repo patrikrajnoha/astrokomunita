@@ -12,6 +12,8 @@
     "test": "npm run test:unit",
     "test:unit": "vitest run",
     "test:node": "node --test tests-node/**/*.test.*",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test e2e/search-layout.spec.ts e2e/events-filters.spec.ts",
     "test:ui": "vitest run",
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",

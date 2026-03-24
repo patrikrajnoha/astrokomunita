@@ -1,0 +1,320 @@
+﻿# ============================================================
+# Production Docker Compose
+#
+# Prerequisites:
+#   1. cp .env.prod.example .env
+#   2. cp backend/.env.production.example backend/.env
+#   3. docker compose -f docker-compose.prod.yml pull
+#   4. docker compose -f docker-compose.prod.yml up -d --no-build
+#
+# Optional AI profile (Ollama):
+#   docker compose -f docker-compose.prod.yml --profile ai up -d
+# ============================================================
+
+x-backend-common-env: &backend-common-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  BROADCAST_CONNECTION: reverb
+  QUEUE_CONNECTION: redis
+  REVERB_SERVER_HOST: 0.0.0.0
+  REVERB_SERVER_PORT: "8080"
+  REVERB_SERVER_PATH: ""
+  REVERB_HOST: reverb
+  REVERB_PORT: "8080"
+  REVERB_SCHEME: http
+  DB_HOST: mysql
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  MODERATION_BASE_URL: http://moderation:8090
+  LIBRETRANSLATE_BASE_URL: http://libretranslate:5000
+  OLLAMA_BASE_URL: http://ollama:11434
+  OBSERVING_SKY_MICROSERVICE_BASE: http://sky:8010
+  TRANSLATION_SERVICE_URL: http://sky:8010
+  TRANSLATION_PROVIDER: libretranslate
+
+x-backend-service: &backend-service
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  image: ${BACKEND_IMAGE:-astrokomunita-backend:prod}
+  working_dir: /var/www/html
+  env_file:
+    - ./backend/.env
+  environment: *backend-common-env
+  volumes:
+    - backend_storage:/var/www/html/storage/app
+    - ./assets:/var/www/html/assets:ro
+  restart: unless-stopped
+
+services:
+
+  caddy:
+    image: ${CADDY_IMAGE:-caddy:2.8-alpine}
+    container_name: astrokomunita-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+    depends_on:
+      frontend:
+        condition: service_started
+      backend-api:
+        condition: service_healthy
+      reverb:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: https://api.${DOMAIN}
+        VITE_REVERB_APP_KEY: ${REVERB_APP_KEY}
+        VITE_REVERB_HOST: ws.${DOMAIN}
+        VITE_REVERB_PORT: "443"
+        VITE_REVERB_SCHEME: https
+        VITE_APP_NAME: ${APP_NAME:-Astrokomunita}
+        VITE_LEGAL_CONTROLLER_NAME: ${LEGAL_CONTROLLER_NAME:-Astrokomunita}
+        VITE_LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENV: ${VITE_SENTRY_ENV:-production}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
+    image: ${FRONTEND_IMAGE:-astrokomunita-frontend:prod}
+    container_name: astrokomunita-frontend
+    restart: unless-stopped
+
+  sky:
+    build:
+      context: ./services/sky
+      dockerfile: Dockerfile
+    image: ${SKY_IMAGE:-astrokomunita-sky:prod}
+    container_name: astrokomunita-sky
+    working_dir: /app
+    environment:
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 8010), 2); s.close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    <<: *backend-service
+    container_name: astrokomunita-backend
+    environment:
+      <<: *backend-common-env
+      APP_KEY: ${APP_KEY}
+      APP_URL: https://api.${DOMAIN}
+    command: >
+      sh -lc "
+        php artisan storage:link --force 2>/dev/null || true &&
+        php artisan migrate --force &&
+        php artisan bots:sources:sync --quiet-summary &&
+        php-fpm -F
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "php -r '$$s=@fsockopen(\"127.0.0.1\",9000); if(!$$s){exit(1);} fclose($$s);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      moderation:
+        condition: service_healthy
+      libretranslate:
+        condition: service_started
+      sky:
+        condition: service_healthy
+
+  backend-api:
+    image: ${NGINX_IMAGE:-nginx:1.27-alpine}
+    container_name: astrokomunita-backend-api
+    volumes:
+      - ./backend/docker/nginx/api.conf:/etc/nginx/conf.d/default.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  queue-worker:
+    <<: *backend-service
+    container_name: astrokomunita-queue-worker-1
+    command: php artisan queue:work --sleep=1 --tries=5 --timeout=120
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  queue-worker-2:
+    <<: *backend-service
+    container_name: astrokomunita-queue-worker-2
+    command: php artisan queue:work --sleep=1 --tries=5 --timeout=120
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  queue-worker-3:
+    <<: *backend-service
+    container_name: astrokomunita-queue-worker-3
+    command: php artisan queue:work --sleep=1 --tries=5 --timeout=120
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  scheduler:
+    <<: *backend-service
+    container_name: astrokomunita-scheduler
+    command: php artisan schedule:work
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  reverb:
+    <<: *backend-service
+    container_name: astrokomunita-reverb
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    healthcheck:
+      test: ["CMD-SHELL", "php -r '$$s=@fsockopen(\"127.0.0.1\",8080); if(!$$s){exit(1);} fclose($$s);'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    container_name: astrokomunita-mysql
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-astrokomunita}
+      MYSQL_USER: ${DB_USERNAME:-astro}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mysql-backup:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    container_name: astrokomunita-mysql-backup
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${DB_DATABASE:-astrokomunita}
+      MYSQL_USER: ${DB_USERNAME:-astro}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - mysql_backups:/backups
+    command: >
+      sh -lc '
+        set -eu;
+        mkdir -p /backups;
+        while true; do
+          ts=$$(date -u +%Y%m%dT%H%M%SZ);
+          mysqldump -h "$${MYSQL_HOST}" -P "$${MYSQL_PORT}" -u"$${MYSQL_USER}" -p"$${MYSQL_PASSWORD}" "$${MYSQL_DATABASE}" > "/backups/$${MYSQL_DATABASE}_$${ts}.sql";
+          gzip -f "/backups/$${MYSQL_DATABASE}_$${ts}.sql";
+          find /backups -type f -name "*.sql.gz" -mtime +"$${BACKUP_RETENTION_DAYS}" -delete;
+          sleep "$${BACKUP_INTERVAL_SECONDS}";
+        done
+      '
+    restart: unless-stopped
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:7.2-alpine}
+    container_name: astrokomunita-redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: ["sh", "-lc", "redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\""]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  moderation:
+    build:
+      context: ./moderation-service
+      dockerfile: Dockerfile
+    image: ${MODERATION_IMAGE:-astrokomunita-moderation:prod}
+    container_name: astrokomunita-moderation
+    environment:
+      MODERATION_INTERNAL_TOKEN: ${MODERATION_INTERNAL_TOKEN}
+      MODERATION_TEXT_MODEL: ${MODERATION_TEXT_MODEL:-unitary/toxic-bert}
+      MODERATION_HATE_MODEL: ${MODERATION_HATE_MODEL:-cardiffnlp/twitter-roberta-base-hate-latest}
+      MODERATION_ENABLE_HATE_MODEL: ${MODERATION_ENABLE_HATE_MODEL:-true}
+      MODERATION_IMAGE_MODEL: ${MODERATION_IMAGE_MODEL:-Falconsai/nsfw_image_detection}
+      MODERATION_TEXT_FLAG_THRESHOLD: ${MODERATION_TEXT_FLAG_THRESHOLD:-0.70}
+      MODERATION_TEXT_BLOCK_THRESHOLD: ${MODERATION_TEXT_BLOCK_THRESHOLD:-0.90}
+      MODERATION_IMAGE_FLAG_THRESHOLD: ${MODERATION_IMAGE_FLAG_THRESHOLD:-0.60}
+      MODERATION_IMAGE_BLOCK_THRESHOLD: ${MODERATION_IMAGE_BLOCK_THRESHOLD:-0.85}
+      MODERATION_IMAGE_MAX_BYTES: ${MODERATION_IMAGE_MAX_BYTES:-20971520}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 8090), 2); s.close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  libretranslate:
+    image: ${LIBRETRANSLATE_IMAGE:-libretranslate/libretranslate:latest}
+    container_name: astrokomunita-libretranslate
+    environment:
+      LT_LOAD_ONLY: en,sk
+      LT_UPDATE_MODELS: "true"
+    restart: unless-stopped
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    container_name: astrokomunita-ollama
+    profiles:
+      - ai
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  mysql_backups:
+  redis_data:
+  backend_storage:
+  caddy_data:
+  caddy_config:
+  ollama_data:
