@@ -38,6 +38,20 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+function normalizeText(value = "") {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function findButtonByText(wrapper, needle) {
+  const normalizedNeedle = normalizeText(needle);
+  return wrapper
+    .findAll("button")
+    .find((button) => normalizeText(button.text()).includes(normalizedNeedle));
+}
+
 describe("BlogPostsView AI tag suggestions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -50,6 +64,7 @@ describe("BlogPostsView AI tag suggestions", () => {
           title: "Mars observacny plan",
           content: "Obsah clanku o planetach a pozorovani oblohy.",
           published_at: "2026-03-01T10:00:00Z",
+          is_hidden: false,
           views: 321,
           cover_image_url: null,
           tags: [{ id: 1, name: "Mesiac", slug: "mesiac" }],
@@ -74,7 +89,7 @@ describe("BlogPostsView AI tag suggestions", () => {
       fallback_used: false,
       tags: [
         { id: 11, name: "Mars", reason: "Clanok rozobera pozorovanie planety Mars." },
-        { id: 12, name: "Planety", reason: "Hlavna tema su planety a ich viditelnost." },
+        { id: 12, name: "Planety", reason: "Hlavna tema su planety a ich viditeľnosť." },
       ],
       last_run: {
         feature_name: "blog_tag_suggestions",
@@ -113,8 +128,8 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminSuggestTagsMock).toHaveBeenCalledWith(7, {
       mode: "existing_only",
     });
-    expect(wrapper.findAll(".ai-tag-item").length).toBeGreaterThanOrEqual(1);
-    expect(wrapper.findAll(".ai-tag-item").length).toBeLessThanOrEqual(5);
+    expect(wrapper.findAll(".ai-pill").length).toBeGreaterThanOrEqual(1);
+    expect(wrapper.findAll(".ai-pill").length).toBeLessThanOrEqual(5);
     expect(wrapper.text()).toContain("Mars");
     expect(wrapper.text()).toContain("Planety");
   });
@@ -165,7 +180,7 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const applyButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridať vybrané"));
+      .find((button) => button.text().toLowerCase().includes("pridať ("));
     expect(applyButton).toBeTruthy();
 
     await applyButton.trigger("click");
@@ -197,10 +212,8 @@ describe("BlogPostsView AI tag suggestions", () => {
     await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
-    const modeButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("aj nové"));
-    await modeButton.trigger("click");
+    const allowNewCheckbox = wrapper.find('.ai-allow-new-label input[type="checkbox"]');
+    await allowNewCheckbox.setChecked(true);
     await flush();
 
     const suggestButton = wrapper
@@ -216,7 +229,7 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const applyButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridať vybrané"));
+      .find((button) => button.text().toLowerCase().includes("pridať ("));
     expect(applyButton).toBeTruthy();
 
     await applyButton.trigger("click");
@@ -252,8 +265,8 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    expect(wrapper.find(".new-badge").exists()).toBe(true);
-    expect(wrapper.text()).toContain("Nový");
+    expect(wrapper.find(".ai-pill__new").exists()).toBe(true);
+    expect(wrapper.text()).toContain("nový");
   });
 
   it("runs full AI flow: suggest, apply, persist and show sync feedback", async () => {
@@ -346,10 +359,8 @@ describe("BlogPostsView AI tag suggestions", () => {
     await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
     await flush();
 
-    const allowNewButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("aj nové"));
-    await allowNewButton.trigger("click");
+    const allowNewCheckbox = wrapper.find('.ai-allow-new-label input[type="checkbox"]');
+    await allowNewCheckbox.setChecked(true);
     await flush();
 
     const suggestButton = wrapper
@@ -367,7 +378,7 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const applyButton = wrapper
       .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridať vybrané"));
+      .find((button) => button.text().toLowerCase().includes("pridať ("));
     await applyButton.trigger("click");
     await flush();
     await flush();
@@ -384,17 +395,18 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(tagsInput.element.value).toContain("Planety");
   });
 
-  it('renders "Novy clanok" action in both header and empty editor state', async () => {
+  it('renders a single "Novy clanok" action in header while empty state stays informational', async () => {
     const wrapper = mount(BlogPostsView);
     await flush();
     await flush();
 
     const createButtons = wrapper
       .findAll("button")
-      .filter((button) => button.text().trim() === "+ Nový článok");
+      .filter((button) => /\+\s*nov/i.test(button.text()));
 
-    expect(createButtons.length).toBeGreaterThanOrEqual(1);
+    expect(createButtons.length).toBe(1);
     expect(wrapper.text()).toContain("Vyber článok alebo vytvor nový");
+    expect(wrapper.find(".editor-empty .btn-primary").exists()).toBe(false);
   });
 
   it("renders engagement stats on article card", async () => {
@@ -467,6 +479,7 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(actionLabels).not.toContain("Focus");
     expect(actionLabels).toContain("Uložiť");
     expect(actionLabels).toContain("Zrušiť publikovanie");
+    expect(actionLabels).not.toContain("Skryť článok");
     expect(actionLabels).not.toContain("Vymazať článok");
   });
 
@@ -491,6 +504,193 @@ describe("BlogPostsView AI tag suggestions", () => {
       published_at: null,
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Článok bol stiahnutý z publikácie.");
+  });
+
+  it('click on "Skryt clanok" hides a published article', async () => {
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    await wrapper.find("button.article-card").trigger("click");
+    await flush();
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
+    await flush();
+
+    const hideButton = findButtonByText(wrapper, "skryt clanok");
+    expect(hideButton).toBeTruthy();
+
+    await hideButton.trigger("click");
+    await flush();
+    await flush();
+
+    expect(adminUpdateMock).toHaveBeenCalledWith(7, {
+      is_hidden: true,
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Clanok bol skryty.");
+  });
+
+  it('click on "Zobrazit clanok" unhides hidden published article', async () => {
+    adminListMock.mockResolvedValueOnce({
+      current_page: 1,
+      data: [
+        {
+          id: 7,
+          title: "Mars observacny plan",
+          content: "Obsah clanku o planetach a pozorovani oblohy.",
+          published_at: "2026-03-01T10:00:00Z",
+          is_hidden: true,
+          views: 321,
+          cover_image_url: null,
+          tags: [{ id: 1, name: "Mesiac", slug: "mesiac" }],
+          user: { id: 2, name: "Admin", email: "admin@example.com", is_admin: true },
+        },
+      ],
+      first_page_url: null,
+      from: 1,
+      last_page: 1,
+      last_page_url: null,
+      links: [],
+      next_page_url: null,
+      path: "/api/admin/blog-posts",
+      per_page: 10,
+      prev_page_url: null,
+      to: 1,
+      total: 1,
+    });
+
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    await wrapper.find("button.article-card").trigger("click");
+    await flush();
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
+    await flush();
+
+    const unhideButton = findButtonByText(wrapper, "zobrazit clanok");
+    expect(unhideButton).toBeTruthy();
+
+    await unhideButton.trigger("click");
+    await flush();
+    await flush();
+
+    expect(adminUpdateMock).toHaveBeenCalledWith(7, {
+      is_hidden: false,
+    });
+    expect(toastSuccessMock).toHaveBeenCalledWith("Clanok je znovu viditelny.");
+  });
+
+  it("shows clear status when existing cover is already stored", async () => {
+    adminListMock.mockResolvedValueOnce({
+      current_page: 1,
+      data: [
+        {
+          id: 7,
+          title: "Mars observacny plan",
+          content: "Obsah clanku o planetach a pozorovani oblohy.",
+          published_at: "2026-03-01T10:00:00Z",
+          is_hidden: false,
+          views: 321,
+          cover_image_url: "/storage/blog-covers/7/existing-cover.png",
+          tags: [{ id: 1, name: "Mesiac", slug: "mesiac" }],
+          user: { id: 2, name: "Admin", email: "admin@example.com", is_admin: true },
+        },
+      ],
+      first_page_url: null,
+      from: 1,
+      last_page: 1,
+      last_page_url: null,
+      links: [],
+      next_page_url: null,
+      path: "/api/admin/blog-posts",
+      per_page: 10,
+      prev_page_url: null,
+      to: 1,
+      total: 1,
+    });
+
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    await wrapper.find("button.article-card").trigger("click");
+    await flush();
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
+    await flush();
+
+    expect(normalizeText(wrapper.text())).toContain("pouziva sa aktualny ulozeny obrazok");
+  });
+
+  it("shows existing-cover state in custom file picker label", async () => {
+    adminListMock.mockResolvedValueOnce({
+      current_page: 1,
+      data: [
+        {
+          id: 7,
+          title: "Mars observacny plan",
+          content: "Obsah clanku o planetach a pozorovani oblohy.",
+          published_at: "2026-03-01T10:00:00Z",
+          is_hidden: false,
+          views: 321,
+          cover_image_url: "/storage/blog-covers/7/existing-cover.png",
+          tags: [{ id: 1, name: "Mesiac", slug: "mesiac" }],
+          user: { id: 2, name: "Admin", email: "admin@example.com", is_admin: true },
+        },
+      ],
+      first_page_url: null,
+      from: 1,
+      last_page: 1,
+      last_page_url: null,
+      links: [],
+      next_page_url: null,
+      path: "/api/admin/blog-posts",
+      per_page: 10,
+      prev_page_url: null,
+      to: 1,
+      total: 1,
+    });
+
+    const wrapper = mount(BlogPostsView);
+    await flush();
+    await flush();
+
+    await wrapper.find("button.article-card").trigger("click");
+    await flush();
+    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
+    await flush();
+
+    const label = wrapper.find(".cover-file-control__label");
+    expect(label.exists()).toBe(true);
+    expect(normalizeText(label.text())).toContain("pouziva sa aktualny ulozeny obrazok");
+  });
+
+  it("shows selected file name under cover uploader", async () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn(() => "blob:cover-test");
+    URL.revokeObjectURL = vi.fn();
+
+    try {
+      const wrapper = mount(BlogPostsView);
+      await flush();
+      await flush();
+
+      await wrapper.find("button.article-card").trigger("click");
+      await flush();
+      await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
+      await flush();
+
+      const file = new File(["cover-image"], "cover-test.png", { type: "image/png" });
+      wrapper.vm.onCoverChange({
+        target: { files: [file] },
+      });
+      await flush();
+
+      expect(normalizeText(wrapper.text())).toContain("vybrany subor: cover-test.png");
+    } finally {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+    }
   });
 
   it("prevents publish for incomplete draft and shows clear reason", async () => {

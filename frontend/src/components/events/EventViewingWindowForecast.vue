@@ -4,11 +4,11 @@
       <p class="forecastStrip__title">Okno pozorovania</p>
       <span v-if="windowLabel" class="forecastStrip__window">{{ windowLabel }}</span>
       <span
-        v-if="summaryLabel"
+        v-if="summaryBadgeLabel"
         class="forecastStrip__badge"
         :class="`forecastStrip__badge--${summary?.rating || 'avg'}`"
       >
-        {{ summaryLabel }}
+        {{ summaryBadgeLabel }}
       </span>
     </div>
 
@@ -32,7 +32,10 @@
       </span>
     </div>
 
-    <p v-else class="forecastStrip__empty">Predpoveď pre toto okno nie je dostupná.</p>
+    <p v-if="summaryReason" class="forecastStrip__reason">{{ summaryReason }}</p>
+    <p v-if="!loading && !showMissingLocation && !summary" class="forecastStrip__empty">
+      Predpoveď pre toto okno nie je dostupná.
+    </p>
   </section>
 </template>
 
@@ -93,6 +96,56 @@ const windowLabel = computed(() => {
 const summaryLabel = computed(() => {
   if (!summary.value) return ''
   return String(summary.value.label_sk || summary.value.label || '').trim()
+})
+
+const summaryBadgeLabel = computed(() => {
+  if (!summary.value) return ''
+
+  const label = summaryLabel.value || 'Priemerné'
+  const rating = String(summary.value.rating || 'avg').trim()
+  const icon = rating === 'good' ? '✅' : rating === 'bad' ? '❌' : '⚠️'
+
+  return `${icon} ${label}`
+})
+
+const summaryReason = computed(() => {
+  if (!summary.value) return ''
+
+  const clouds = toFiniteNumber(summary.value.clouds_pct)
+  const precipitation = toFiniteNumber(summary.value.precip_pct)
+  const windMs = toFiniteNumber(summary.value.wind_ms)
+  const rating = String(summary.value.rating || 'avg').trim()
+
+  const limits = []
+
+  if (clouds !== null && clouds > 60) {
+    limits.push(`oblačnosť ${Math.round(clouds)}%`)
+  }
+
+  if (precipitation !== null && precipitation > 40) {
+    limits.push(`zrážky ${Math.round(precipitation)}%`)
+  }
+
+  if (windMs !== null && windMs > 10) {
+    limits.push(`vietor ${formatMeasure(windMs, 'm/s')}`)
+  }
+
+  if (rating === 'bad') {
+    if (limits.length > 0) {
+      return `Nepriaznivé hlavne kvôli: ${limits.join(', ')}.`
+    }
+    return 'Nepriaznivé podľa kombinácie počasia v tomto okne.'
+  }
+
+  if (rating === 'good') {
+    return 'Podmienky sú priaznivé na pozorovanie.'
+  }
+
+  if (limits.length > 0) {
+    return `Podmienky sú priemerné (limitujú: ${limits.join(', ')}).`
+  }
+
+  return 'Podmienky sú priemerné.'
 })
 
 watch(
@@ -309,6 +362,13 @@ function formatMeasure(value, unit) {
   line-height: 1.5;
 }
 
+.forecastStrip__reason {
+  margin: -0.2rem 0 0;
+  color: rgb(255 255 255 / 0.66);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
 .forecastStrip__loading {
   display: grid;
   gap: 0.42rem;
@@ -349,3 +409,4 @@ function formatMeasure(value, unit) {
   }
 }
 </style>
+

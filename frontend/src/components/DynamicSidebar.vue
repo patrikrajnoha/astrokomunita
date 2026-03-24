@@ -166,7 +166,6 @@ const propsForSection = (section) => {
     || sectionKey === 'aurora_watch'
     || sectionKey === 'night_sky'
     || sectionKey === 'iss_pass'
-    || sectionKey === 'moon_overview'
     || sectionKey === 'moon_events'
   ) {
     return {
@@ -187,7 +186,6 @@ const propsForSection = (section) => {
       date: props.observingDate,
       tz: props.observingTz,
       locationName: props.observingLocationName,
-      showOverview: !builtins.has('moon_overview'),
       showSpecialEvents: !builtins.has('moon_events'),
     }
   }
@@ -197,6 +195,7 @@ const propsForSection = (section) => {
     || sectionKey === 'next_event'
     || sectionKey === 'next_eclipse'
     || sectionKey === 'next_meteor_shower'
+    || sectionKey === 'constellations_now'
     || sectionKey === 'neo_watchlist'
     || sectionKey === 'upcoming_launches'
     || sectionKey === 'latest_articles'

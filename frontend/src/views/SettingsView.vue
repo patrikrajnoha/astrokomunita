@@ -1,6 +1,7 @@
 <template>
   <div class="settings-page">
     <PageHeader
+      v-if="!isDataExportRoute"
       eyebrow="Účet"
       title="Nastavenia"
       description="Správa účtu, bezpečnosti a súkromia."
@@ -11,14 +12,18 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted, provide } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide } from 'vue'
+import { useRoute } from 'vue-router'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import { settingsContextKey } from '@/composables/settingsContext'
 import { useSettingsState } from '@/composables/useSettingsState'
 import '@/assets/settings.css'
 
+const route = useRoute()
 const settingsState = useSettingsState()
 provide(settingsContextKey, settingsState)
+
+const isDataExportRoute = computed(() => route.name === 'settings.data-export')
 
 const SETTINGS_SCROLLBAR_CLASS = 'settings-hide-scrollbar'
 

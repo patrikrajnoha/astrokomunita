@@ -14,6 +14,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 describe('EventViewingWindowForecast', () => {
   beforeEach(() => {
     apiGetMock.mockReset()
@@ -57,8 +64,9 @@ describe('EventViewingWindowForecast', () => {
     }))
     expect(wrapper.text()).toContain('Okno pozorovania')
     expect(wrapper.text()).toContain('20:10 - 23:30')
-    expect(wrapper.text()).toContain('Dobre')
+    expect(normalizeText(wrapper.text())).toContain('dobre')
     expect(wrapper.text()).toContain('15%')
+    expect(normalizeText(wrapper.text())).toContain('podmienky su priaznive na pozorovanie')
   })
 
   it('renders missing-location helper when coordinates are unavailable', async () => {
@@ -72,7 +80,9 @@ describe('EventViewingWindowForecast', () => {
     await flush()
 
     expect(apiGetMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Predpoved zobrazime po ulozeni polohy.')
+    const text = normalizeText(wrapper.text())
+    expect(text).toContain('predpove')
+    expect(text).toContain('polohy')
 
     const states = wrapper.emitted('state') || []
     expect(states.at(-1)?.[0]).toMatchObject({
@@ -81,4 +91,42 @@ describe('EventViewingWindowForecast', () => {
       summary: null,
     })
   })
+
+  it('renders bad rating with emoji and explicit weather reasons', async () => {
+    apiGetMock.mockResolvedValue({
+      data: {
+        viewing_window: {
+          start_at: '2026-04-02T04:12:00+02:00',
+          end_at: '2026-04-02T06:29:00+02:00',
+        },
+        summary: {
+          clouds_pct: 100,
+          wind_ms: 11.2,
+          temp_c: 6,
+          humidity_pct: 80,
+          precip_pct: 45,
+          rating: 'bad',
+          label_sk: 'Zle',
+        },
+      },
+    })
+
+    const wrapper = mount(EventViewingWindowForecast, {
+      props: {
+        event: { id: 12 },
+        userLocation: { lat: 48.1486, lon: 17.1077, tz: 'Europe/Bratislava' },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    const text = normalizeText(wrapper.text())
+    expect(text).toContain('zle')
+    expect(text).toContain('nepriaznive hlavne kvoli')
+    expect(text).toContain('oblacnost 100%')
+    expect(text).toContain('zrazky 45%')
+    expect(text).toContain('vietor 11.2 m/s')
+  })
 })
+

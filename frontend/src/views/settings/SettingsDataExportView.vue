@@ -1,7 +1,7 @@
 <template>
   <SettingsDetailShell
-    title="Export dat"
-    subtitle="Stiahnite profilové dáta vo formáte JSON pre zálohu alebo GDPR požiadavky."
+    :title="ui.title"
+    :subtitle="ui.subtitle"
   >
     <InlineStatus
       v-if="exportState.success"
@@ -14,39 +14,52 @@
       :message="exportState.error"
     />
 
-    <div class="export-summary">
+    <section class="export-size">
       <p
         v-if="exportSummaryState.loading"
-        class="export-summary-loading"
+        class="section-text"
       >
-        Načítavam rozsah exportu...
+        {{ ui.summaryLoading }}
       </p>
       <p
         v-else-if="exportSummaryState.error"
-        class="export-summary-error"
+        class="section-text section-text-error"
       >
-        {{ exportSummaryState.error }}
+        {{ ui.summaryError }}
       </p>
-      <template v-else-if="exportSummaryState.loaded">
-        <p class="export-summary-size">
-          Odhad veľkosti: <strong>{{ formatExportBytes(exportSummaryState.estimatedBytes) }}</strong>
-        </p>
-        <p class="export-summary-counts">
-          Prispevky: {{ exportSummaryState.counts.posts_count }} |
-          Pozvánky: {{ exportSummaryState.counts.invites_received_count + exportSummaryState.counts.invites_sent_count }} |
-          Pripomienky: {{ exportSummaryState.counts.reminders_count }} |
-          Sledované udalosti: {{ exportSummaryState.counts.followed_events_count }} |
-          Bookmarky: {{ exportSummaryState.counts.bookmarks_count }}
-        </p>
-      </template>
-    </div>
+      <p
+        v-else
+        class="section-text"
+      >
+        <template v-if="exportSummaryState.loaded">
+          {{ ui.sizeLabel }} <strong>{{ formatExportBytes(exportSummaryState.estimatedBytes) }}</strong>
+        </template>
+        <template v-else>
+          {{ ui.summaryLoading }}
+        </template>
+      </p>
+    </section>
 
-    <div class="settings-form">
+    <section class="export-content">
+      <h3 class="section-title">{{ ui.contentTitle }}</h3>
+      <ul class="content-list">
+        <li
+          v-for="item in exportContentItems"
+          :key="item"
+          class="content-list-item"
+        >
+          {{ item }}
+        </li>
+      </ul>
+    </section>
+
+    <section class="settings-form export-confirmation">
+      <h3 class="section-title">{{ ui.passwordSectionTitle }}</h3>
       <label
         class="field-label"
         for="settings-export-password"
       >
-        Potvrďte aktuálnym heslom
+        {{ ui.passwordLabel }}
       </label>
       <input
         id="settings-export-password"
@@ -55,34 +68,30 @@
         type="password"
         autocomplete="current-password"
         :disabled="exportState.loading"
-        placeholder="Zadajte aktuálne heslo"
+        :placeholder="ui.passwordPlaceholder"
       />
       <button
         id="settings-export-button"
         type="button"
         class="btn btn-primary"
-        :disabled="exportState.loading || exportState.retryAfterSeconds > 0"
-        aria-label="Exportovať profilové dáta"
+        :disabled="isSubmitDisabled"
+        :aria-label="ui.primaryCta"
         @click="downloadProfileExport"
       >
         {{
           exportState.loading
-            ? exportState.phase || 'Pripravujem export...'
+            ? exportState.phase || ui.loadingFallback
             : exportState.retryAfterSeconds > 0
-              ? `Skúste znova o ${exportState.retryAfterSeconds}s`
-              : 'Exportovať môj profil'
+              ? `${ui.retryPrefix} ${exportState.retryAfterSeconds}s`
+              : ui.primaryCta
         }}
       </button>
-      <p class="export-note">
-        Obsahuje profil, newsletter, notifikačné nastavenia, aktivitu, príspevky, prijaté aj odoslané pozvánky,
-        pripomienky, sledované udalosti a záložky.
-      </p>
-    </div>
+    </section>
   </SettingsDetailShell>
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useSettingsContext } from '@/composables/settingsContext'
@@ -96,47 +105,93 @@ const {
   formatExportBytes,
 } = useSettingsContext()
 
+const ui = Object.freeze({
+  title: 'Export d\u00E1t',
+  subtitle: 'Stiahnite si k\u00F3piu svojich \u00FAdajov',
+  summaryLoading: 'Pripravujem preh\u013Ead exportu...',
+  summaryError: 'Preh\u013Ead exportu sa nepodarilo na\u010D\u00EDta\u0165.',
+  sizeLabel: 'Ve\u013Ekos\u0165 exportu:',
+  contentTitle: 'Obsah exportu',
+  passwordSectionTitle: 'Potvrdenie heslom',
+  passwordLabel: 'Aktu\u00E1lne heslo',
+  passwordPlaceholder: 'Zadajte heslo',
+  primaryCta: 'Stiahnu\u0165 moje d\u00E1ta',
+  loadingFallback: 'Pripravujem export...',
+  retryPrefix: 'Sk\u00FAste znova o',
+})
+
+const exportContentItems = Object.freeze([
+  'Profil a nastavenia',
+  'Aktivita a pr\u00EDspevky',
+  'Newsletter a notifik\u00E1cie',
+  'Udalosti a z\u00E1lo\u017Eky',
+])
+
+const isSubmitDisabled = computed(() => {
+  const hasPassword = String(exportForm.currentPassword || '').trim() !== ''
+  return exportState.loading || exportState.retryAfterSeconds > 0 || !hasPassword
+})
+
 onMounted(() => {
   loadExportSummary()
 })
 </script>
 
 <style scoped>
-.export-summary {
-  margin-bottom: 0.8rem;
+.export-size {
+  margin-top: 0.15rem;
 }
 
-.export-summary-loading,
-.export-summary-size,
-.export-summary-counts,
-.export-summary-error {
+.section-title {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.28;
+  color: var(--color-surface);
+  font-weight: 700;
+}
+
+.section-text {
   margin: 0;
   font-size: 0.92rem;
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
-.export-summary-size {
-  font-weight: 600;
-}
-
-.export-summary-size strong {
+.section-text strong {
   color: var(--color-text-primary);
+  font-weight: 700;
 }
 
-.export-summary-counts {
-  margin-top: 0.2rem;
-}
-
-.export-summary-error {
+.section-text-error {
   color: rgb(var(--color-danger-rgb) / 0.95);
 }
 
-.export-note {
-  margin-top: 0.55rem;
+.export-content {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.content-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.34rem;
+}
+
+.content-list-item {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.34;
+  color: rgb(var(--color-text-secondary-rgb) / 0.94);
+}
+
+.export-confirmation {
+  margin-top: 1rem;
 }
 
 #settings-export-password {
-  margin-bottom: 0.6rem;
+  margin-bottom: 0.45rem;
   width: min(420px, 100%);
 }
 </style>

@@ -10,11 +10,19 @@ import {
 } from '@/constants/avatar'
 import { compressImageFileToMaxBytes } from '@/utils/imageCompression'
 import { normalizeAvatarUrl, resolveAvatarState } from '@/utils/avatar'
+import { getBotAvatar } from '@/utils/botAvatar'
 import { resolveUserCoverMedia } from '@/utils/profileMedia'
 import { formatIconLabel, resolveMediaErrorMessage } from '../adminUserDetailView.utils'
 
 const PROFILE_MEDIA_TARGET_MAX_BYTES = 3072 * 1024
 const PROFILE_MEDIA_UPLOAD_MAX_BYTES = 20480 * 1024
+
+function revokeObjectUrlIfNeeded(url) {
+  const value = String(url || '').trim()
+  if (value.startsWith('blob:')) {
+    URL.revokeObjectURL(value)
+  }
+}
 
 function normalizeAvatarIndex(value, max) {
   const index = coerceAvatarIndex(value, max)
@@ -81,10 +89,13 @@ export function useAdminUserBotMediaEditor({
     icon: null,
     seed: '',
   })
+  const selectedBotAvatarFile = ref('')
 
-  const avatarSrc = computed(() =>
-    avatarPreview.value || normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl || ''),
-  )
+  const avatarSrc = computed(() => {
+    if (avatarPreview.value) return avatarPreview.value
+    if (botAvatar.value?.url) return botAvatar.value.url
+    return normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl || '')
+  })
   const persistedAvatarMode = computed(() => {
     const persistedImage = normalizeAvatarUrl(user.value?.avatar_url || user.value?.avatarUrl || '')
     const hasImage = String(avatarPreview.value || persistedImage || '').trim() !== '' && !avatarRemoveRequested.value
@@ -107,6 +118,27 @@ export function useAdminUserBotMediaEditor({
       label: formatIconLabel(iconKey),
     })),
   )
+  const botAvatar = computed(() =>
+    getBotAvatar(user.value, {
+      avatarPath: user.value?.avatar_path || user.value?.avatarPath || '',
+      avatarUrl: avatarPreview.value || user.value?.avatar_url || user.value?.avatarUrl || '',
+      color: user.value?.avatar_color ?? user.value?.avatarColor ?? null,
+    }),
+  )
+  const botAvatarOptions = computed(() => {
+    const state = botAvatar.value
+    if (!state) return []
+
+    return state.files.map((file) => {
+      const path = `bots/${state.username}/${file}`
+      const resolved = getBotAvatar(user.value, { avatarPath: path, avatarUrl: '' })
+      return {
+        file,
+        path,
+        url: resolved?.url || '',
+      }
+    })
+  })
   const botCoverMedia = computed(() => resolveUserCoverMedia(user.value))
   const coverEditorMedia = computed(() => {
     if (coverPreview.value) {
@@ -142,19 +174,20 @@ export function useAdminUserBotMediaEditor({
     const snapshot = buildAvatarSnapshot(user.value)
     avatarSnapshot.value = snapshot
     applyAvatarSnapshot(avatarDraft, snapshot)
+    selectedBotAvatarFile.value = botAvatar.value?.file || ''
   }
 
   function clearMediaPreview(type) {
     if (type === 'avatar') {
       if (avatarPreview.value) {
-        URL.revokeObjectURL(avatarPreview.value)
+        revokeObjectUrlIfNeeded(avatarPreview.value)
       }
       avatarPreview.value = ''
       return
     }
 
     if (coverPreview.value) {
-      URL.revokeObjectURL(coverPreview.value)
+      revokeObjectUrlIfNeeded(coverPreview.value)
     }
     coverPreview.value = ''
   }
@@ -321,30 +354,39 @@ export function useAdminUserBotMediaEditor({
     avatarErr.value = ''
 
     try {
+      let changed = false
+
       if (avatarRemoveRequested.value) {
         avatarRemoving.value = true
         const removeResponse = await api.delete(`/admin/users/${user.value.id}/avatar`)
         updateUser(removeResponse.data)
-      }
-
-      if (pendingAvatarFile.value) {
+        changed = true
+      } else if (pendingAvatarFile.value) {
         avatarUploading.value = true
         await uploadBotMedia('avatar', pendingAvatarFile.value)
+        changed = true
+      } else {
+        const selectedPath = selectedBotAvatarPath()
+        if (selectedPath.startsWith('bots/')) {
+          const payload = {
+            avatar_mode: 'image',
+            avatar_color: null,
+            avatar_icon: null,
+            avatar_seed: null,
+            avatar_path: selectedPath || botAvatar.value?.path || null,
+          }
+          const response = await api.patch(`/admin/users/${user.value.id}/avatar/preferences`, payload)
+          updateUser(response.data)
+          changed = true
+        }
       }
-
-      const payload = {
-        avatar_mode: avatarDraft.mode,
-        avatar_color: avatarDraft.color,
-        avatar_icon: avatarDraft.icon,
-        avatar_seed: avatarDraft.seed || null,
-      }
-      const response = await api.patch(`/admin/users/${user.value.id}/avatar/preferences`, payload)
-      updateUser(response.data)
 
       syncAvatarDraftFromUser()
       clearPendingMedia('avatar')
       avatarModalOpen.value = false
-      toast.success('Avatar bota bol aktualizovany.')
+      if (changed) {
+        toast.success('Avatar bota bol aktualizovany.')
+      }
     } catch (error) {
       const message = resolveMediaErrorMessage(error, 'Aktualizacia avatara zlyhala.')
       avatarErr.value = message
@@ -416,6 +458,28 @@ export function useAdminUserBotMediaEditor({
     clearMediaPreview('cover')
   }
 
+  function selectedBotAvatarPath() {
+    const username = String(user.value?.username || '').trim().toLowerCase()
+    const file = String(selectedBotAvatarFile.value || '').trim()
+    if (!username || !file) {
+      return botAvatar.value?.path || ''
+    }
+
+    return `bots/${username}/${file}`
+  }
+
+  function selectBotAvatar(file) {
+    selectedBotAvatarFile.value = String(file || '').trim()
+    pendingAvatarFile.value = null
+    avatarRemoveRequested.value = false
+    avatarErr.value = ''
+    const next = getBotAvatar(user.value, {
+      avatarPath: selectedBotAvatarPath(),
+      avatarUrl: '',
+    })
+    avatarPreview.value = next?.url || ''
+  }
+
   return {
     avatarDraft,
     avatarErr,
@@ -427,6 +491,7 @@ export function useAdminUserBotMediaEditor({
     avatarSrc,
     avatarUploading,
     botCoverMedia,
+    botAvatarOptions,
     clearPendingMedia,
     cleanupBotMediaEditor,
     closeAvatarEditor,
@@ -456,6 +521,8 @@ export function useAdminUserBotMediaEditor({
     saveCoverEditor,
     selectAvatarColor,
     selectAvatarIcon,
+    selectedBotAvatarFile,
+    selectBotAvatar,
     setAvatarMode,
     syncAvatarDraftFromUser,
   }

@@ -20,6 +20,80 @@ export function useBotEngineTranslationTools({
   const aiPanelNotice = ref('')
   const translationHealthPollTimer = ref(null)
 
+  const hasOllamaProvider = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+
+    return normalized === 'ollama' || normalized === 'ollama_postedit'
+  }
+
+  const shouldExposeOllamaControls = computed(() => {
+    const provider = String(translationHealth.value?.provider || '')
+      .trim()
+      .toLowerCase()
+    const fallbackProvider = String(translationHealth.value?.fallback_provider || '')
+      .trim()
+      .toLowerCase()
+    const outageProvider = String(translationOutageProvider.value || '')
+      .trim()
+      .toLowerCase()
+    const testProvider = String(translationTestResult.value?.provider || '')
+      .trim()
+      .toLowerCase()
+    const providerChain = Array.isArray(translationTestResult.value?.provider_chain)
+      ? translationTestResult.value.provider_chain
+      : []
+
+    return (
+      provider === 'ollama' ||
+      fallbackProvider === 'ollama' ||
+      outageProvider === 'ollama' ||
+      hasOllamaProvider(testProvider) ||
+      providerChain.some((item) => hasOllamaProvider(item))
+    )
+  })
+
+  const translationTestProviderOptions = computed(() => {
+    const options = [
+      { value: 'auto', label: 'auto' },
+      { value: 'libretranslate', label: 'libretranslate' },
+    ]
+
+    if (shouldExposeOllamaControls.value) {
+      options.push({ value: 'ollama', label: 'ollama' })
+    }
+
+    return options
+  })
+
+  const translationOutageProviderOptions = computed(() => {
+    const options = [
+      { value: 'none', label: 'žiadny' },
+      { value: 'libretranslate', label: 'libretranslate' },
+    ]
+
+    if (shouldExposeOllamaControls.value) {
+      options.push({ value: 'ollama', label: 'ollama' })
+    }
+
+    return options
+  })
+
+  const ensureAllowedTestProviderSelection = () => {
+    const allowed = new Set(translationTestProviderOptions.value.map((item) => item.value))
+    if (!allowed.has(translationTestProvider.value)) {
+      translationTestProvider.value = 'auto'
+    }
+  }
+
+  const ensureAllowedOutageProviderSelection = () => {
+    const allowed = new Set(translationOutageProviderOptions.value.map((item) => item.value))
+    if (!allowed.has(translationOutageProvider.value)) {
+      translationOutageProvider.value = 'none'
+    }
+  }
+
   const translationHealthState = computed(() => {
     if (!translationHealth.value) {
       return {
@@ -70,12 +144,16 @@ export function useBotEngineTranslationTools({
     if (translationHealth.value?.result?.ok === false) return 'error'
     return 'idle'
   })
-  const aiPanelRunHint = computed(() => (aiPanelLastRun.value?.updated_at ? 'Naposledy: tento beh' : 'Naposledy: -'))
+  const aiPanelRunHint = computed(() =>
+    aiPanelLastRun.value?.updated_at ? 'Naposledy: tento beh' : 'Naposledy: -',
+  )
 
   async function loadTranslationHealth() {
     try {
       const health = await store.fetchTranslationHealth()
       translationOutageProvider.value = normalizeOutageProvider(health?.simulate_outage_provider)
+      ensureAllowedTestProviderSelection()
+      ensureAllowedOutageProviderSelection()
     } catch (error) {
       toast.error(toErrorMessage(error, 'Nepodarilo sa načítať stav prekladov.'))
     }
@@ -98,6 +176,7 @@ export function useBotEngineTranslationTools({
   async function testTranslation() {
     aiPanelError.value = ''
     aiPanelNotice.value = ''
+    ensureAllowedTestProviderSelection()
 
     try {
       const payload = {
@@ -153,6 +232,7 @@ export function useBotEngineTranslationTools({
   }
 
   async function saveTranslationOutageSimulation() {
+    ensureAllowedOutageProviderSelection()
     const provider = normalizeOutageProvider(translationOutageProvider.value)
 
     try {
@@ -180,9 +260,11 @@ export function useBotEngineTranslationTools({
     testTranslation,
     translationHealthState,
     translationOutageProvider,
+    translationOutageProviderOptions,
     translationQueue,
     translationTestModel,
     translationTestProvider,
+    translationTestProviderOptions,
     translationTestResult,
     translationTestTemperature,
     translationTestText,

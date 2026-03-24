@@ -23,6 +23,7 @@ export function useCandidatesCrawledTab({
   activeTab,
   auth,
   confirm,
+  getPublishDescriptionMode,
   route,
   router,
   toast,
@@ -32,6 +33,7 @@ export function useCandidatesCrawledTab({
 
   const status = ref('pending')
   const type = ref('')
+  const descriptionMode = ref('')
   const source = ref('')
   const q = ref('')
   const showAdvancedFilters = ref(false)
@@ -103,10 +105,15 @@ export function useCandidatesCrawledTab({
     const stats = {
       total: rows.length,
       pending: 0,
+      readyToPublish: 0,
       approved: 0,
       rejected: 0,
       translated: 0,
       failedTranslation: 0,
+      modeTemplate: 0,
+      modeAi: 0,
+      modeTranslated: 0,
+      modeManual: 0,
     }
 
     for (const row of rows) {
@@ -118,7 +125,20 @@ export function useCandidatesCrawledTab({
       const translationStatus = String(row?.translation_status || '').toLowerCase()
       if (translationStatus === 'done' || translationStatus === 'translated') stats.translated += 1
       if (translationStatus === 'failed' || translationStatus === 'error') stats.failedTranslation += 1
+      if (
+        rowStatus === 'pending' &&
+        !['failed', 'error', 'pending', 'queued', 'running', 'processing', 'in_progress'].includes(translationStatus)
+      ) {
+        stats.readyToPublish += 1
+      }
+
     }
+
+    const mc = data.value?.mode_counts || {}
+    stats.modeTemplate = mc.template ?? 0
+    stats.modeAi = mc.ai_refined ?? 0
+    stats.modeTranslated = mc.translated ?? 0
+    stats.modeManual = mc.manual ?? 0
 
     return stats
   })
@@ -129,9 +149,9 @@ export function useCandidatesCrawledTab({
   const showWeekFilter = computed(() => String(timePreset.value || '') === 'week')
   const detailModalTitle = computed(() => {
     if (!candidateDetail.value) {
-      return 'Detail kandidata'
+      return 'Detail kandidáta'
     }
-    return candidateDisplayTitle(candidateDetail.value) || 'Detail kandidata'
+    return candidateDisplayTitle(candidateDetail.value) || 'Detail kandidáta'
   })
 
   function applyRunFilterFromRoute() {
@@ -272,6 +292,7 @@ export function useCandidatesCrawledTab({
     return {
       status: status.value || undefined,
       type: type.value || undefined,
+      description_mode: descriptionMode.value || undefined,
       source: sourceValue,
       source_key: sourceValue,
       run_id: runFilter.value?.runId ? Number(runFilter.value.runId) : undefined,
@@ -317,7 +338,7 @@ export function useCandidatesCrawledTab({
       data.value = await eventCandidates.list(buildParams())
       await loadDuplicatePreview()
     } catch (e) {
-      error.value = e?.response?.data?.message || 'Chyba pri nacitani kandidatov'
+      error.value = e?.response?.data?.message || 'Chyba pri načítaní kandidátov'
     } finally {
       loading.value = false
     }
@@ -327,6 +348,7 @@ export function useCandidatesCrawledTab({
   const {
     advancePublishProgress,
     finishPublishProgress,
+    publishAllPending,
     publishAllByFilter,
     publishAllVisiblePending,
     publishCandidateQuick,
@@ -341,6 +363,7 @@ export function useCandidatesCrawledTab({
     buildParams,
     confirm,
     error,
+    getPublishDescriptionMode,
     load,
     loading,
     toast,
@@ -351,6 +374,7 @@ export function useCandidatesCrawledTab({
     const now = new Date()
     status.value = 'pending'
     type.value = ''
+    descriptionMode.value = ''
     source.value = ''
     q.value = ''
     timePreset.value = 'none'
@@ -364,7 +388,7 @@ export function useCandidatesCrawledTab({
   }
 
   function quickSetStatus(nextStatus) {
-    if (!nextStatus || status.value === nextStatus) return
+    if (status.value === nextStatus) return
     status.value = nextStatus
     resetToFirstPage()
     load()
@@ -382,7 +406,7 @@ export function useCandidatesCrawledTab({
     load()
   }
 
-  watch([status, type, per_page, timePreset, filterYear, filterMonth, filterWeek], () => {
+  watch([status, type, descriptionMode, source, per_page, timePreset, filterYear, filterMonth, filterWeek], () => {
     resetToFirstPage()
     if (activeTab.value === 'crawled') load()
   })
@@ -439,6 +463,7 @@ export function useCandidatesCrawledTab({
     crawledStats,
     data,
     detailModalTitle,
+    descriptionMode,
     dryRunDuplicateMerge,
     duplicateDryRunning,
     duplicateGroupLimit,
@@ -466,6 +491,7 @@ export function useCandidatesCrawledTab({
     openCrawlingHub,
     per_page,
     prevPage,
+    publishAllPending,
     publishAllByFilter,
     publishAllVisiblePending,
     publishCandidateQuick,

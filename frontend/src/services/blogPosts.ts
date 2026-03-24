@@ -1,4 +1,5 @@
 import api from "./api";
+import { normalizeMediaPath, normalizeMediaUrl } from "@/utils/profileMedia";
 
 export type BlogPost = {
   id: number;
@@ -7,7 +8,9 @@ export type BlogPost = {
   slug: string;
   content: string;
   published_at: string | null;
+  is_hidden?: boolean;
   cover_image_url?: string | null;
+  cover_image_path?: string | null;
   views?: number;
   tags?: Array<{
     id: number;
@@ -47,6 +50,7 @@ export type LaravelPaginator<T> = {
 };
 
 export type BlogPostStatus = "published" | "draft" | "scheduled";
+export type AdminBlogPostStatus = BlogPostStatus | "hidden";
 
 export type BlogWidgetArticle = {
   id: number;
@@ -77,12 +81,20 @@ export type AdminBlogTagSuggestionResponse = {
   last_run?: Record<string, unknown>;
 };
 
+export type AdminBlogInlineImageUploadResponse = {
+  path: string;
+  url: string;
+  mime?: string;
+  name?: string;
+  size?: number;
+};
+
 export const blogPosts = {
   async listPublic(params: { page?: number; tag?: string; q?: string }) {
     const res = await api.get<LaravelPaginator<BlogPost>>("/blog-posts", {
       params,
     });
-    return res.data;
+    return normalizeBlogPostPaginator(res.data);
   },
 
   async widget() {
@@ -92,12 +104,12 @@ export const blogPosts = {
 
   async getPublic(slug: string) {
     const res = await api.get<BlogPost>(`/blog-posts/${slug}`);
-    return res.data;
+    return normalizeBlogPost(res.data);
   },
 
   async getRelated(slug: string) {
     const res = await api.get<BlogPost[]>(`/blog-posts/${slug}/related`);
-    return res.data;
+    return Array.isArray(res.data) ? res.data.map(normalizeBlogPost) : [];
   },
 
   async listTagsPublic() {
@@ -108,7 +120,7 @@ export const blogPosts = {
   },
 
   async adminList(params: {
-    status?: BlogPostStatus;
+    status?: AdminBlogPostStatus;
     page?: number;
     per_page?: number;
     q?: string;
@@ -116,12 +128,12 @@ export const blogPosts = {
     const res = await api.get<LaravelPaginator<BlogPost>>("/admin/blog-posts", {
       params,
     });
-    return res.data;
+    return normalizeBlogPostPaginator(res.data);
   },
 
   async adminGet(id: number) {
     const res = await api.get<BlogPost>(`/admin/blog-posts/${id}`);
-    return res.data;
+    return normalizeBlogPost(res.data);
   },
 
   async adminCreate(payload: {
@@ -136,7 +148,7 @@ export const blogPosts = {
       "/admin/blog-posts",
       buildBlogPostPayload(payload)
     );
-    return res.data;
+    return normalizeBlogPost(res.data);
   },
 
   async adminUpdate(
@@ -145,6 +157,7 @@ export const blogPosts = {
       title?: string;
       content?: string;
       published_at?: string | null;
+      is_hidden?: boolean;
       cover_image?: File | null;
       tags?: string[];
       tag_ids?: number[];
@@ -154,11 +167,11 @@ export const blogPosts = {
     if (body instanceof FormData) {
       body.append("_method", "PUT");
       const res = await api.post<BlogPost>(`/admin/blog-posts/${id}`, body);
-      return res.data;
+      return normalizeBlogPost(res.data);
     }
 
     const res = await api.put<BlogPost>(`/admin/blog-posts/${id}`, body);
-    return res.data;
+    return normalizeBlogPost(res.data);
   },
 
   async adminDelete(id: number) {
@@ -174,7 +187,21 @@ export const blogPosts = {
   ) {
     const res = await api.post<AdminBlogTagSuggestionResponse>(
       `/admin/blog-posts/${id}/ai/suggest-tags`,
-      payload || {}
+      payload || {},
+      {
+        meta: { skipErrorToast: true },
+      }
+    );
+    return res.data;
+  },
+
+  async adminUploadInlineImage(file: File) {
+    const form = new FormData();
+    form.append("image", file);
+
+    const res = await api.post<AdminBlogInlineImageUploadResponse>(
+      "/admin/blog-posts/images",
+      form
     );
     return res.data;
   },
@@ -184,6 +211,7 @@ function buildBlogPostPayload(payload: {
   title?: string;
   content?: string;
   published_at?: string | null;
+  is_hidden?: boolean;
   cover_image?: File | null;
   tags?: string[];
   tag_ids?: number[];
@@ -199,6 +227,9 @@ function buildBlogPostPayload(payload: {
     if (payload.published_at !== undefined && payload.published_at !== null) {
       form.append("published_at", payload.published_at);
     }
+    if (payload.is_hidden !== undefined) {
+      form.append("is_hidden", payload.is_hidden ? "1" : "0");
+    }
     if (payload.tags && payload.tags.length > 0) {
       payload.tags.forEach((tag) => form.append("tags[]", tag));
     }
@@ -209,10 +240,11 @@ function buildBlogPostPayload(payload: {
     return form;
   }
 
-  const body: Record<string, string | string[] | number[] | null> = {};
+  const body: Record<string, string | string[] | number[] | boolean | null> = {};
   if (payload.title !== undefined) body.title = payload.title;
   if (payload.content !== undefined) body.content = payload.content;
   if (payload.published_at !== undefined) body.published_at = payload.published_at;
+  if (payload.is_hidden !== undefined) body.is_hidden = payload.is_hidden;
   if (payload.tags !== undefined) {
     body.tags = payload.tags;
   }
@@ -220,4 +252,28 @@ function buildBlogPostPayload(payload: {
     body.tag_ids = payload.tag_ids;
   }
   return body;
+}
+
+function normalizeBlogPost(post: BlogPost): BlogPost {
+  if (!post || typeof post !== "object") return post;
+
+  const coverImageUrl =
+    normalizeMediaUrl(post.cover_image_url || "") ||
+    normalizeMediaPath(post.cover_image_path || "");
+
+  return {
+    ...post,
+    cover_image_url: coverImageUrl || null,
+  };
+}
+
+function normalizeBlogPostPaginator(
+  payload: LaravelPaginator<BlogPost>
+): LaravelPaginator<BlogPost> {
+  if (!payload || typeof payload !== "object") return payload;
+
+  return {
+    ...payload,
+    data: Array.isArray(payload.data) ? payload.data.map(normalizeBlogPost) : [],
+  };
 }

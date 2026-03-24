@@ -5,14 +5,18 @@ import { useToast } from "@/composables/useToast";
 import {
   computeStatus,
   formatDate,
+  formatMetricCount,
   fromDateTimeLocal,
   getInitialListDensity,
   persistListDensity,
+  postClickCount,
+  postReadCount,
   readTimeFor,
   slugifyHeading,
   statusLabel,
   toDateTimeLocal,
 } from "../blogPostsView.utils";
+import { useAdminBlogPostsAiTags } from "./useAdminBlogPostsAiTags";
 import {
   hasHtmlMarkup,
   renderArticleContent,
@@ -35,6 +39,7 @@ export function useAdminBlogPostsEditor() {
   const data = ref(null);
 
   const selectedId = ref(null);
+  const creatingNew = ref(false);
   const selectedPostRecord = ref(null);
   const form = ref({
     title: "",
@@ -43,16 +48,12 @@ export function useAdminBlogPostsEditor() {
   });
   const coverFile = ref(null);
   const coverPreview = ref("");
+  const coverInputEl = ref(null);
   const tagsInput = ref("");
   const showPreview = ref(false);
   const listDensity = ref(getInitialListDensity(LIST_DENSITY_STORAGE_KEY));
   const query = ref("");
   const activeTab = ref("content");
-  const aiTagSuggestionsLoading = ref(false);
-  const aiTagSuggestionsError = ref("");
-  const aiTagSuggestions = ref([]);
-  const aiTagFallbackUsed = ref(false);
-  const aiTagSuggestionMode = ref("existing_only");
   const formSnapshot = ref("");
   const lastSavedAt = ref(null);
   const loadToken = ref(0);
@@ -65,7 +66,7 @@ export function useAdminBlogPostsEditor() {
 
   const posts = computed(() => data.value?.data || []);
   const hasQuery = computed(() => query.value.trim() !== "");
-  const isEditing = computed(() => !!selectedId.value);
+  const isEditing = computed(() => creatingNew.value || !!selectedId.value);
   const selectedPost = computed(() => selectedPostRecord.value);
   const selectedStatus = computed(() => {
     if (!isEditing.value) return "draft";
@@ -74,19 +75,6 @@ export function useAdminBlogPostsEditor() {
     if (!fallback) return "draft";
     return computeStatus({ published_at: fallback });
   });
-  const hasSelectedAiTagSuggestions = computed(() =>
-    aiTagSuggestions.value.some((item) => item.checked)
-  );
-  const hasAiSuggestionResult = computed(
-    () => aiTagSuggestions.value.length > 0 || aiTagSuggestionsError.value !== ""
-  );
-  const aiSuggestActionLabel = computed(() =>
-    aiTagSuggestionsLoading.value
-      ? "Navrhujem..."
-      : hasAiSuggestionResult.value
-      ? "Navrhnúť znova"
-      : "Navrhnúť tagy"
-  );
   const isDirty = computed(() => makeFormSnapshot() !== formSnapshot.value);
   const titleLength = computed(() => String(form.value.title || "").trim().length);
   const renderedContent = computed(() => renderArticleContent(form.value.content));
@@ -95,6 +83,15 @@ export function useAdminBlogPostsEditor() {
     () => String(contentPlainText.value || "").trim().split(/\s+/).filter(Boolean).length
   );
   const hasCover = computed(() => Boolean(coverPreview.value));
+  const coverInputLabel = computed(() => {
+    if (coverFile.value?.name) {
+      return coverFile.value.name;
+    }
+    if (coverPreview.value) {
+      return "Pouziva sa aktualny ulozeny obrazok";
+    }
+    return "Nie je vybraty ziaden subor";
+  });
   const tagCount = computed(() => parseTagsInput().length);
   const titleSlugPreview = computed(() =>
     slugifyHeading(form.value.title || "nový-článok")
@@ -175,48 +172,6 @@ export function useAdminBlogPostsEditor() {
     return "";
   });
 
-  function toMetricCount(value) {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) return null;
-    return Math.floor(parsed);
-  }
-
-  function postReadCount(post) {
-    const readMetric =
-      toMetricCount(post?.read_count) ??
-      toMetricCount(post?.reads_count) ??
-      toMetricCount(post?.reads);
-    if (readMetric !== null) return readMetric;
-    return toMetricCount(post?.views_count) ?? toMetricCount(post?.views) ?? 0;
-  }
-
-  function postClickCount(post) {
-    const clickMetric =
-      toMetricCount(post?.click_count) ??
-      toMetricCount(post?.clicks_count) ??
-      toMetricCount(post?.clicks);
-    if (clickMetric !== null) return clickMetric;
-    return postReadCount(post);
-  }
-
-  function formatMetricCount(value) {
-    return Number(value || 0).toLocaleString("sk-SK");
-  }
-
-  function resetAiTagSuggestions() {
-    aiTagSuggestionsLoading.value = false;
-    aiTagSuggestionsError.value = "";
-    aiTagSuggestions.value = [];
-    aiTagFallbackUsed.value = false;
-  }
-
-  function setAiTagSuggestionMode(mode) {
-    if (mode !== "existing_only" && mode !== "allow_new") return;
-    if (aiTagSuggestionMode.value === mode) return;
-    aiTagSuggestionMode.value = mode;
-    resetAiTagSuggestions();
-  }
-
   function parseTagsInput() {
     return tagsInput.value
       .split(",")
@@ -251,6 +206,25 @@ export function useAdminBlogPostsEditor() {
     formSnapshot.value = makeFormSnapshot();
   }
 
+  const aiTags = useAdminBlogPostsAiTags({
+    selectedId,
+    isEditing,
+    titleLength,
+    contentPlainText,
+    saving,
+    formError,
+    selectedPostRecord,
+    tagsInput,
+    selectedPost,
+    lastSavedAt,
+    posts,
+    save,
+    load,
+    selectPost,
+    syncFormSnapshot,
+    parseTagsInput,
+  });
+
   function clearLocalCoverPreview() {
     if (localCoverObjectUrl) {
       URL.revokeObjectURL(localCoverObjectUrl);
@@ -258,9 +232,10 @@ export function useAdminBlogPostsEditor() {
     }
   }
 
-  function applyEmptyForm() {
+  function applyEmptyForm({ openEditor = false } = {}) {
     clearLocalCoverPreview();
     selectedId.value = null;
+    creatingNew.value = Boolean(openEditor);
     selectedPostRecord.value = null;
     form.value = {
       title: "",
@@ -274,13 +249,14 @@ export function useAdminBlogPostsEditor() {
     showPreview.value = false;
     activeTab.value = "content";
     lastSavedAt.value = null;
-    resetAiTagSuggestions();
+    aiTags.resetAiTagSuggestions();
     syncFormSnapshot();
   }
 
   function applyPostToForm(post) {
     clearLocalCoverPreview();
     selectedId.value = post.id;
+    creatingNew.value = false;
     selectedPostRecord.value = post;
     form.value = {
       title: post.title || "",
@@ -296,7 +272,7 @@ export function useAdminBlogPostsEditor() {
     const updated = post?.updated_at ? new Date(post.updated_at) : null;
     lastSavedAt.value =
       updated instanceof Date && !Number.isNaN(updated.getTime()) ? updated : null;
-    resetAiTagSuggestions();
+    aiTags.resetAiTagSuggestions();
     syncFormSnapshot();
   }
 
@@ -312,6 +288,15 @@ export function useAdminBlogPostsEditor() {
   }
 
   async function startNewPost(force = false) {
+    if (!force) {
+      const ok = await confirmDiscardChanges();
+      if (!ok) return false;
+    }
+    applyEmptyForm({ openEditor: true });
+    return true;
+  }
+
+  async function closeEditor(force = false) {
     if (!force) {
       const ok = await confirmDiscardChanges();
       if (!ok) return false;
@@ -361,6 +346,76 @@ export function useAdminBlogPostsEditor() {
     if (!ok) return;
     setPublishNow();
     await save();
+  }
+
+  async function setHiddenState(nextHidden, copy = {}) {
+    if (!selectedId.value) return;
+
+    const ok = await confirm({
+      title: copy.title || (nextHidden ? "Skryt clanok" : "Zobrazit clanok"),
+      message:
+        copy.message ||
+        (nextHidden
+          ? "Clanok zostane publikovany, ale nebude viditelny pre citatelov. Chces pokracovat?"
+          : "Clanok bude znovu viditelny pre citatelov. Chces pokracovat?"),
+      confirmText: copy.confirmText || (nextHidden ? "Skryt" : "Zobrazit"),
+      cancelText: "Spat",
+    });
+    if (!ok) return;
+
+    saving.value = true;
+    formError.value = null;
+
+    try {
+      const saved = await blogPosts.adminUpdate(selectedId.value, {
+        is_hidden: Boolean(nextHidden),
+      });
+
+      if (saved?.id) {
+        selectedPostRecord.value = saved;
+      }
+
+      await load();
+      if (saved?.id) {
+        const found = posts.value.find((post) => post.id === saved.id);
+        if (found) {
+          await selectPost(found, true);
+        } else {
+          syncFormSnapshot();
+        }
+      } else {
+        syncFormSnapshot();
+      }
+
+      lastSavedAt.value = new Date();
+      toast.success(nextHidden ? "Clanok bol skryty." : "Clanok je znovu viditelny.");
+    } catch (e) {
+      formError.value =
+        e?.response?.data?.message ||
+        (nextHidden
+          ? "Nepodarilo sa skryt clanok."
+          : "Nepodarilo sa zobrazit clanok.");
+      toast.error(formError.value);
+    } finally {
+      saving.value = false;
+    }
+  }
+
+  async function hidePublished() {
+    return setHiddenState(true, {
+      title: "Skryt publikovany clanok",
+      message:
+        "Clanok zostane publikovany, ale nebude viditelny pre citatelov. Chces pokracovat?",
+      confirmText: "Skryt",
+    });
+  }
+
+  async function unhidePublished() {
+    return setHiddenState(false, {
+      title: "Zobrazit clanok",
+      message: "Clanok bude znovu viditelny pre citatelov. Chces pokracovat?",
+      confirmText: "Zobrazit",
+    });
   }
 
   async function unpublish() {
@@ -462,6 +517,40 @@ export function useAdminBlogPostsEditor() {
     coverPreview.value = selectedPost.value?.cover_image_url || "";
   }
 
+  function openCoverPicker() {
+    const input = coverInputEl.value;
+    if (!input) return;
+    input.value = "";
+    input.click();
+  }
+
+  async function uploadInlineImage(file) {
+    if (!file || typeof file !== "object") {
+      throw new Error("Neplatny subor.");
+    }
+
+    const mime = String(file.type || "").toLowerCase();
+    if (!mime.startsWith("image/")) {
+      throw new Error("Podporovane su iba obrazky.");
+    }
+
+    try {
+      const payload = await blogPosts.adminUploadInlineImage(file);
+      const url = String(payload?.url || "").trim();
+      if (!url) {
+        throw new Error("Server nevratil URL obrazka.");
+      }
+      return { url };
+    } catch (e) {
+      const msg =
+        e?.response?.data?.errors?.image?.[0] ||
+        e?.response?.data?.message ||
+        e?.message ||
+        "Nepodarilo sa nahrat obrazok.";
+      throw new Error(msg);
+    }
+  }
+
   async function load() {
     const token = ++loadToken.value;
     loading.value = true;
@@ -501,7 +590,7 @@ export function useAdminBlogPostsEditor() {
     }
     saving.value = true;
 
-    const wasEditing = isEditing.value;
+    const wasEditing = !!selectedId.value;
 
     try {
       const tags = parseTagsInput();
@@ -520,6 +609,7 @@ export function useAdminBlogPostsEditor() {
 
       if (saved?.id) {
         selectedId.value = saved.id;
+        creatingNew.value = false;
         selectedPostRecord.value = saved;
       }
 
@@ -559,184 +649,6 @@ export function useAdminBlogPostsEditor() {
   function triggerAutoSave() {
     if (!canAutoSave.value) return;
     save({ silent: true });
-  }
-
-  async function ensureDraftForAiSuggestions() {
-    if (isEditing.value && selectedId.value) return true;
-
-    const hasMinimumContent =
-      titleLength.value >= 3 && String(contentPlainText.value || "").trim().length >= 10;
-
-    if (!hasMinimumContent) {
-      aiTagSuggestionsError.value =
-        "Pre AI tagy doplň aspoň krátky nadpis a obsah (min. 10 znakov).";
-      return false;
-    }
-
-    await save({ silent: true });
-
-    if (!isEditing.value || !selectedId.value) {
-      aiTagSuggestionsError.value =
-        "Nepodarilo sa vytvoriť koncept článku pre AI návrh tagov.";
-      return false;
-    }
-
-    return true;
-  }
-
-  async function suggestAiTags() {
-    if (aiTagSuggestionsLoading.value) return;
-
-    if (!isEditing.value || !selectedId.value) {
-      const ready = await ensureDraftForAiSuggestions();
-      if (!ready) return;
-    }
-
-    aiTagSuggestionsLoading.value = true;
-    aiTagSuggestionsError.value = "";
-    aiTagSuggestions.value = [];
-    aiTagFallbackUsed.value = false;
-
-    try {
-      const response = await blogPosts.adminSuggestTags(selectedId.value, {
-        mode: aiTagSuggestionMode.value,
-      });
-      const items = Array.isArray(response?.tags) ? response.tags : [];
-
-      aiTagSuggestions.value = items
-        .slice(0, 5)
-        .map((item) => ({
-          id: Number(item?.id || 0),
-          name: String(item?.name || "").trim(),
-          reason: String(item?.reason || "").trim(),
-          checked: true,
-        }))
-        .filter((item) => item.id >= 0 && item.name && item.reason);
-      aiTagFallbackUsed.value = Boolean(response?.fallback_used);
-
-      if (aiTagSuggestions.value.length === 0) {
-        if (response?.reason === "provider_error") {
-          aiTagSuggestionsError.value = "AI je dočasne nedostupné.";
-        } else if (response?.reason === "no_existing_tags") {
-          aiTagSuggestionsError.value =
-            "Zatiaľ nemáš žiadne existujúce tagy. Prepni na 'Aj nové'.";
-        } else {
-          aiTagSuggestionsError.value = response?.fallback_used
-            ? "Nenašli sa vhodné fallback tagy."
-            : "Nenašli sa vhodné AI tagy.";
-        }
-      }
-    } catch (e) {
-      aiTagSuggestionsError.value =
-        e?.response?.data?.message || "Nepodarilo sa navrhnúť tagy.";
-    } finally {
-      aiTagSuggestionsLoading.value = false;
-    }
-  }
-
-  async function applySelectedAiTags() {
-    const selected = aiTagSuggestions.value
-      .filter((item) => item.checked)
-      .map((item) => ({
-        id: Number(item?.id || 0),
-        name: String(item?.name || "").trim(),
-      }))
-      .filter((item) => item.id >= 0 && item.name);
-
-    if (selected.length === 0) return;
-    const selectedExisting = selected.filter((item) => item.id > 0);
-    const hasNewTagNames = selected.some((item) => item.id === 0);
-
-    const existingTagIds = Array.isArray(selectedPost.value?.tags)
-      ? selectedPost.value.tags
-          .map((tag) => Number(tag?.id || 0))
-          .filter((id) => id > 0)
-      : [];
-    const mergedTagIds = Array.from(
-      new Set([...existingTagIds, ...selectedExisting.map((item) => item.id)])
-    );
-
-    const existingTags = parseTagsInput();
-    const normalizedExistingNames = new Set(
-      existingTags.map((tag) => String(tag || "").trim().toLowerCase()).filter(Boolean)
-    );
-    const mergedNames = [...existingTags];
-
-    selected.forEach((item) => {
-      const key = item.name.toLowerCase();
-      if (!key || normalizedExistingNames.has(key)) return;
-      normalizedExistingNames.add(key);
-      mergedNames.push(item.name);
-    });
-
-    tagsInput.value = mergedNames.join(", ");
-
-    if (!isEditing.value || !selectedId.value) {
-      return;
-    }
-
-    saving.value = true;
-    formError.value = null;
-
-    try {
-      const attachedBeforeIds = Array.isArray(selectedPost.value?.tags)
-        ? selectedPost.value.tags
-            .map((tag) => Number(tag?.id || 0))
-            .filter((id) => id > 0)
-        : [];
-
-      const payload = hasNewTagNames
-        ? { tags: mergedNames }
-        : { tag_ids: mergedTagIds };
-      const saved = await blogPosts.adminUpdate(selectedId.value, payload);
-      if (saved?.id) {
-        selectedPostRecord.value = saved;
-      }
-
-      const tagSync = saved?.tag_sync || null;
-      await load();
-      if (saved?.id) {
-        const found = posts.value.find((p) => p.id === saved.id);
-        if (found) {
-          await selectPost(found, true);
-        } else {
-          syncFormSnapshot();
-        }
-      } else {
-        syncFormSnapshot();
-      }
-      lastSavedAt.value = new Date();
-      if (tagSync && typeof tagSync === "object") {
-        const createdNew = Number(tagSync.created_new || 0);
-        const attachedExisting = Number(tagSync.attached_existing || 0);
-        const addedTotal = Number(tagSync.added_total || 0);
-        if (addedTotal <= 0) {
-          toast.success("Tagy už boli priradené.");
-        } else {
-          const parts = [];
-          if (attachedExisting > 0) parts.push(`existujúce: ${attachedExisting}`);
-          if (createdNew > 0) parts.push(`nové: ${createdNew}`);
-          const suffix = parts.length ? ` (${parts.join(", ")})` : "";
-          toast.success(`Tagy boli pridané${suffix}.`);
-        }
-      } else {
-        const attachedAfterIds = Array.isArray(saved?.tags)
-          ? saved.tags
-              .map((tag) => Number(tag?.id || 0))
-              .filter((id) => id > 0)
-          : attachedBeforeIds;
-        const addedCount = Math.max(
-          0,
-          attachedAfterIds.filter((id) => !attachedBeforeIds.includes(id)).length
-        );
-        toast.success(addedCount > 0 ? `Tagy boli pridané (${addedCount}).` : "Tagy už boli priradené.");
-      }
-    } catch (e) {
-      formError.value = e?.response?.data?.message || "Nepodarilo sa pridať tagy.";
-      toast.error(formError.value);
-    } finally {
-      saving.value = false;
-    }
   }
 
   async function saveCoverOnly() {
@@ -794,7 +706,7 @@ export function useAdminBlogPostsEditor() {
 
     try {
       await blogPosts.adminDelete(selectedId.value);
-      await startNewPost(true);
+      await closeEditor(true);
       await load();
       toast.success("Článok bol vymazaný.");
     } catch (e) {
@@ -874,19 +786,17 @@ export function useAdminBlogPostsEditor() {
   });
 
   return {
+    ...aiTags,
     activeTab,
-    aiTagFallbackUsed,
-    aiSuggestActionLabel,
-    aiTagSuggestionMode,
-    aiTagSuggestions,
-    aiTagSuggestionsError,
-    aiTagSuggestionsLoading,
-    applySelectedAiTags,
+    closeEditor,
     clearQuery,
     computeStatus,
     contentTabIssues,
     contentWordCount,
     coverFile,
+    coverInputEl,
+    coverInputLabel,
+    openCoverPicker,
     coverPreview,
     data,
     deleting,
@@ -897,11 +807,11 @@ export function useAdminBlogPostsEditor() {
     formatDate,
     hasCover,
     hasQuery,
-    hasSelectedAiTagSuggestions,
     isDirty,
     isEditing,
     listDensity,
     load,
+    loading,
     mediaTabIssues,
     metaTabIssues,
     nextPage,
@@ -933,7 +843,6 @@ export function useAdminBlogPostsEditor() {
     selectedPost,
     selectedStatus,
     selectPost,
-    setAiTagSuggestionMode,
     setListDensity,
     setPublishNow,
     setStatusFilter,
@@ -941,11 +850,13 @@ export function useAdminBlogPostsEditor() {
     startNewPost,
     status,
     statusLabel,
-    suggestAiTags,
+    hidePublished,
     tagCount,
     tagsInput,
     titleLength,
     titleSlugPreview,
+    unhidePublished,
+    uploadInlineImage,
     unpublish,
   };
 }

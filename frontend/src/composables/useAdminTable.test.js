@@ -59,4 +59,30 @@ describe('useAdminTable', () => {
     expect(table.hasNextPage.value).toBe(true)
     expect(table.hasPrevPage.value).toBe(true)
   })
+
+  it('auto fetch reacts to setFilter updates including zero values', async () => {
+    const fetchFunction = vi.fn(async () => ({
+      data: {
+        data: [],
+        meta: {
+          current_page: 1,
+          last_page: 1,
+          per_page: 20,
+          total: 0,
+        },
+      },
+    }))
+
+    const table = useAdminTable(fetchFunction, { autoFetch: true })
+    expect(fetchFunction).toHaveBeenCalledTimes(1)
+
+    table.setFilter('visibility', 0)
+
+    await vi.waitFor(() => {
+      expect(fetchFunction).toHaveBeenCalledTimes(2)
+    })
+    expect(fetchFunction.mock.calls[1][0]).toMatchObject({
+      visibility: 0,
+    })
+  })
 })

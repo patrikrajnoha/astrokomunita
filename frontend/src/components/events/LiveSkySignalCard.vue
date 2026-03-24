@@ -32,7 +32,7 @@
       </span>
 
       <span class="liveSignalMetaItem">
-        Aktualizovane:
+        Aktualizované:
         <time v-if="updatedDateTime" :datetime="updatedDateTime">{{ updatedLabel }}</time>
         <span v-else>{{ updatedLabel }}</span>
       </span>

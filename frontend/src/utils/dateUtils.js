@@ -118,7 +118,7 @@ export function formatRelativeTime(value, locale = 'sk-SK') {
 
 /**
  * Formatuje relativny cas v kratkom tvare (napr. "3d", "2h", "15m")
- * @param {string|Date|null} value - Datum
+ * @param {string|Date|null} value - Dátum
  * @returns {string} Kratky relativny cas
  */
 export function formatRelativeShort(value) {

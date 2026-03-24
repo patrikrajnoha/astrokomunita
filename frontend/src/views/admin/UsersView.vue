@@ -8,6 +8,7 @@ import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import DropdownMenu from '@/components/shared/DropdownMenu.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
+import AdminUserDetailView from '@/views/admin/AdminUserDetailView.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { clearStatsCache } from '@/services/api/admin/stats'
@@ -31,6 +32,7 @@ const manageModalOpen = ref(false)
 const manageModalLoading = ref(false)
 const manageModalError = ref('')
 const manageUser = ref(null)
+const manageModalView = ref('summary')
 let searchDebounce = null
 
 const rows = computed(() => data.value?.data || [])
@@ -41,6 +43,12 @@ const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 const shouldShowPagination = computed(() => Number(data.value?.last_page || 1) > 1)
 const currentPage = computed(() => Number(data.value?.current_page || page.value))
 const lastPage = computed(() => Number(data.value?.last_page || 1))
+const detailRouteUserId = computed(() => {
+  if (route.name !== 'admin.users.detail') return null
+  const rawId = Array.isArray(route.params?.id) ? route.params.id[0] : route.params?.id
+  const parsed = parsePositiveInt(rawId, 0)
+  return parsed > 0 ? parsed : null
+})
 
 const manageAccountInfoRows = computed(() => {
   if (!manageUser.value) return []
@@ -72,11 +80,19 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function sanitizeRoleFilter(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'admin' || normalized === 'editor' || normalized === 'user') {
+    return normalized
+  }
+  return ''
+}
+
 function readQuery(query) {
   const qSearch = typeof query.search === 'string' ? query.search : ''
   const qPage = parsePositiveInt(query.page, 1)
   const qPerPage = parsePositiveInt(query.per_page, 20)
-  const qRole = typeof query.role === 'string' ? query.role : ''
+  const qRole = sanitizeRoleFilter(typeof query.role === 'string' ? query.role : '')
   const qStatus = typeof query.status === 'string' ? query.status : ''
 
   searchInput.value = qSearch
@@ -105,7 +121,7 @@ function currentQuery() {
     page: String(parsePositiveInt(route.query.page, 1)),
     per_page: String(parsePositiveInt(route.query.per_page, 20)),
     search: typeof route.query.search === 'string' ? route.query.search : '',
-    role: typeof route.query.role === 'string' ? route.query.role : '',
+    role: sanitizeRoleFilter(typeof route.query.role === 'string' ? route.query.role : ''),
     status: typeof route.query.status === 'string' ? route.query.status : '',
   }
 }
@@ -211,6 +227,7 @@ async function load() {
     const params = {
       page: page.value,
       per_page: perPage.value,
+      include_bots: false,
     }
 
     if (search.value) params.search = search.value
@@ -245,7 +262,19 @@ function syncManageUser(updated) {
 
 function openUserDetail(user) {
   if (!user?.id) return
-  router.push({ name: 'admin.users.detail', params: { id: user.id } })
+  manageModalView.value = 'summary'
+  manageModalOpen.value = true
+  manageModalLoading.value = false
+  manageModalError.value = ''
+  manageUser.value = { ...user }
+  loadManageUser(user.id)
+}
+
+function openUserDetailPage(user) {
+  if (!user?.id) return
+  manageModalView.value = 'detail'
+  manageModalOpen.value = true
+  manageModalError.value = ''
 }
 
 function openPublicProfile(user) {
@@ -418,15 +447,12 @@ async function loadManageUser(userId) {
 }
 
 function openManageUserModal(user) {
-  if (!user?.id) return
-  manageUser.value = { ...user }
-  manageModalError.value = ''
-  manageModalOpen.value = true
-  loadManageUser(user.id)
+  openUserDetail(user)
 }
 
 function closeManageUserModal(isOpen) {
   if (isOpen) return
+  manageModalView.value = 'summary'
   manageModalOpen.value = false
   manageModalLoading.value = false
   manageModalError.value = ''
@@ -526,6 +552,28 @@ watch([search, filterRole, filterStatus, page, perPage], () => {
   syncQueryWithState()
   load()
 })
+
+watch(
+  () => detailRouteUserId.value,
+  (userId) => {
+    if (!userId) return
+
+    const existing = rows.value.find((row) => Number(row?.id) === Number(userId))
+    if (existing) {
+      manageUser.value = { ...existing }
+    }
+    manageModalError.value = ''
+    manageModalOpen.value = true
+    manageModalView.value = 'summary'
+    loadManageUser(userId)
+
+    router.replace({
+      name: 'admin.users',
+      query: { ...route.query },
+    })
+  },
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
   if (searchDebounce) clearTimeout(searchDebounce)

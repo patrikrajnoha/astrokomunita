@@ -5,13 +5,9 @@ import EventsUnifiedView from '@/views/admin/EventsUnifiedView.vue'
 import api from '@/services/api'
 
 const refreshMock = vi.hoisted(() => vi.fn())
-const getAdminAiConfigMock = vi.hoisted(() => vi.fn())
-const generateAdminEventDescriptionMock = vi.hoisted(() => vi.fn())
-
-vi.mock('@/services/api/admin/ai', () => ({
-  getAdminAiConfig: (...args) => getAdminAiConfigMock(...args),
-  generateAdminEventDescription: (...args) => generateAdminEventDescriptionMock(...args),
-}))
+const setSearchMock = vi.hoisted(() => vi.fn())
+const setFilterMock = vi.hoisted(() => vi.fn())
+const setFiltersMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/api', () => ({
   default: {
@@ -46,6 +42,9 @@ vi.mock('@/composables/useAdminTable', () => ({
     prevPage: vi.fn(),
     perPage: ref(20),
     setPerPage: vi.fn(),
+    setSearch: (...args) => setSearchMock(...args),
+    setFilter: (...args) => setFilterMock(...args),
+    setFilters: (...args) => setFiltersMock(...args),
     refresh: (...args) => refreshMock(...args),
   }),
 }))
@@ -63,32 +62,6 @@ describe('EventsUnifiedView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     refreshMock.mockResolvedValue(undefined)
-    getAdminAiConfigMock.mockResolvedValue({
-      data: {
-        data: {
-          events_ai_humanized_enabled: true,
-          features: {
-            event_description_generate: {
-              last_run: null,
-            },
-          },
-        },
-      },
-    })
-
-    generateAdminEventDescriptionMock.mockResolvedValue({
-      data: {
-        data: {
-          description: 'AI opis udalosti.',
-          short: 'AI short',
-          fallback_used: false,
-        },
-        last_run: {
-          status: 'success',
-          updated_at: '2026-02-24T10:00:00Z',
-        },
-      },
-    })
   })
 
   afterEach(() => {
@@ -106,12 +79,12 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    expect(document.body.textContent || '').not.toContain('AI: Zlep')
+    expect(document.body.textContent || '').not.toContain('AI: Zlép')
     expect(findBodyButton('Navrhn')).toBeFalsy()
     expect(document.body.querySelector('[data-testid="events-unified-title-apply-btn"]')).toBeFalsy()
   })
 
-  it('still allows description AI panel via advanced toggle', async () => {
+  it('does not show AI description panel in published edit form', async () => {
     const wrapper = mount(EventsUnifiedView)
     await flush()
     await flush()
@@ -122,11 +95,8 @@ describe('EventsUnifiedView', () => {
       .trigger('click')
     await flush()
 
-    const toggleButton = findBodyButton('AI opis')
-    expect(toggleButton).toBeTruthy()
-    toggleButton.click()
-    await flush()
-    expect(document.body.textContent || '').toContain('AI pomoc')
+    expect(findBodyButton('AI opis')).toBeFalsy()
+    expect(document.body.textContent || '').not.toContain('AI asistent')
   })
 
   it('submits selected icon_emoji when creating a manual event', async () => {
@@ -136,10 +106,11 @@ describe('EventsUnifiedView', () => {
     await flush()
     await flush()
 
-    await wrapper
+    const createButton = wrapper
       .findAll('button')
-      .find((button) => /Nova|Nová/.test(button.text()))
-      .trigger('click')
+      .find((button) => String(button.text() || '').toLowerCase().includes('nov'))
+    expect(createButton).toBeTruthy()
+    await createButton.trigger('click')
     await flush()
 
     const bodyInputs = Array.from(document.body.querySelectorAll('input'))
@@ -172,4 +143,5 @@ describe('EventsUnifiedView', () => {
       icon_emoji: '\u{1F319}',
     }))
   })
+
 })

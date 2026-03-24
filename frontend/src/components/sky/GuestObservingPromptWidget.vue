@@ -1,6 +1,6 @@
 <template>
   <section class="card panel guestObservingPrompt" aria-labelledby="observing-promo-title">
-    <h3 class="panelTitle sidebarSection__header">Astronomicke podmienky</h3>
+    <h3 class="panelTitle sidebarSection__header">Pozorovanie dnes</h3>
 
     <div class="promoCard">
       <p id="observing-promo-title" class="promoTitle">{{ promptTitle }}</p>

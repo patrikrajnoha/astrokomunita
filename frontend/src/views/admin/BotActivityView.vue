@@ -1,22 +1,32 @@
-<script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+﻿<script setup>
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import { getBotActivity } from '@/services/api/admin/bots'
+import { getBotActivity, getBotRuns } from '@/services/api/admin/bots'
 
 const props = defineProps({
   embedded: {
     type: Boolean,
     default: false,
   },
+  refreshToken: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const route = useRoute()
 const routeQuery = computed(() => route?.query || {})
 
-const loading = ref(false)
+const loadingLogs = ref(false)
+const loadingRuns = ref(false)
 const error = ref('')
 const rows = ref([])
+const runs = ref([])
+const runsTotal = ref(0)
+const filterDebounce = ref(null)
+const syncingFromRoute = ref(false)
+
 const pagination = reactive({
   current_page: 1,
   last_page: 1,
@@ -25,30 +35,31 @@ const pagination = reactive({
 })
 
 const filters = reactive({
-  sourceKey: '',
+  search: '',
   bot_identity: '',
-  action: '',
   outcome: '',
+  action: '',
   date_from: '',
   date_to: '',
 })
 
 const canPrev = computed(() => Number(pagination.current_page || 1) > 1)
 const canNext = computed(() => Number(pagination.current_page || 1) < Number(pagination.last_page || 1))
+
 const hasActiveFilters = computed(() => {
   return (
-    String(filters.sourceKey || '').trim() !== '' ||
+    String(filters.search || '').trim() !== '' ||
     String(filters.bot_identity || '').trim() !== '' ||
-    String(filters.action || '').trim() !== '' ||
     String(filters.outcome || '').trim() !== '' ||
+    String(filters.action || '').trim() !== '' ||
     String(filters.date_from || '').trim() !== '' ||
     String(filters.date_to || '').trim() !== ''
   )
 })
 
 const summaryLine = computed(() => {
-  if (loading.value) return 'Načítavam aktivitu...'
-  return `${pagination.total} zaznamov | strana ${pagination.current_page}/${pagination.last_page}`
+  if (loadingLogs.value) return 'Načítavam logy…'
+  return `${pagination.total} záznamov · strana ${pagination.current_page}/${pagination.last_page}`
 })
 
 function readQueryValue(value) {
@@ -60,13 +71,17 @@ function readQueryValue(value) {
 }
 
 function syncFiltersFromRoute() {
+  syncingFromRoute.value = true
+
   const query = routeQuery.value
-  filters.sourceKey = readQueryValue(query.sourceKey)
+  filters.search = readQueryValue(query.sourceKey)
   filters.bot_identity = readQueryValue(query.bot_identity)
   filters.action = readQueryValue(query.action)
   filters.outcome = readQueryValue(query.outcome)
   filters.date_from = readQueryValue(query.date_from)
   filters.date_to = readQueryValue(query.date_to)
+
+  syncingFromRoute.value = false
 }
 
 function formatDateTime(value) {
@@ -94,11 +109,62 @@ function sourceLabel(row) {
   return key || '-'
 }
 
-function requestParams(page = 1) {
+function normalizeOutcome(value) {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (!normalized) return ''
+
+  if (normalized.includes('duplicate')) return 'duplicate'
+  if (normalized === 'created' || normalized === 'updated') return 'published'
+  if (normalized === 'skipped_cooldown') return 'skipped'
+
+  return normalized
+}
+
+function outcomeLabel(value) {
+  const normalized = normalizeOutcome(value)
+
+  if (normalized === 'published') return 'published'
+  if (normalized === 'success') return 'success'
+  if (normalized === 'skipped') return 'skipped'
+  if (normalized === 'failed') return 'failed'
+  if (normalized === 'duplicate') return 'duplicate'
+  if (normalized === 'partial') return 'partial'
+
+  return normalized || '-'
+}
+
+function outcomeClass(value) {
+  const normalized = normalizeOutcome(value)
+  if (normalized === 'published' || normalized === 'success') return 'outcome outcome--success'
+  if (normalized === 'skipped' || normalized === 'partial') return 'outcome outcome--skipped'
+  if (normalized === 'failed') return 'outcome outcome--failed'
+  if (normalized === 'duplicate') return 'outcome outcome--duplicate'
+
+  return 'outcome'
+}
+
+function runStatusClass(status) {
+  const normalized = String(status || '').trim().toLowerCase()
+  if (normalized === 'success') return 'outcome outcome--success'
+  if (normalized === 'partial') return 'outcome outcome--skipped'
+  if (normalized === 'failed') return 'outcome outcome--failed'
+
+  return 'outcome'
+}
+
+function runStatusFromOutcomeFilter() {
+  const normalized = normalizeOutcome(filters.outcome)
+  if (normalized === 'success') return 'success'
+  if (normalized === 'partial') return 'partial'
+  if (normalized === 'failed') return 'failed'
+  return undefined
+}
+
+function activityParams(page = 1) {
   return {
     page,
     per_page: pagination.per_page,
-    sourceKey: String(filters.sourceKey || '').trim() || undefined,
+    sourceKey: String(filters.search || '').trim() || undefined,
     bot_identity: String(filters.bot_identity || '').trim() || undefined,
     action: String(filters.action || '').trim() || undefined,
     outcome: String(filters.outcome || '').trim() || undefined,
@@ -107,12 +173,24 @@ function requestParams(page = 1) {
   }
 }
 
-async function load(page = 1) {
-  loading.value = true
+function runsParams() {
+  return {
+    page: 1,
+    per_page: 8,
+    sourceKey: String(filters.search || '').trim() || undefined,
+    bot_identity: String(filters.bot_identity || '').trim() || undefined,
+    status: runStatusFromOutcomeFilter(),
+    date_from: String(filters.date_from || '').trim() || undefined,
+    date_to: String(filters.date_to || '').trim() || undefined,
+  }
+}
+
+async function loadLogs(page = 1) {
+  loadingLogs.value = true
   error.value = ''
 
   try {
-    const response = await getBotActivity(requestParams(page))
+    const response = await getBotActivity(activityParams(page))
     const payload = response?.data || {}
 
     rows.value = Array.isArray(payload?.data) ? payload.data : []
@@ -121,76 +199,125 @@ async function load(page = 1) {
     pagination.per_page = Number(payload?.per_page || pagination.per_page)
     pagination.total = Number(payload?.total || rows.value.length)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nacitanie bot aktivity zlyhalo.'
+    error.value = e?.response?.data?.message || 'Načítanie bot logov zlyhalo.'
   } finally {
-    loading.value = false
+    loadingLogs.value = false
   }
 }
 
-function applyFilters() {
-  void load(1)
+async function loadRuns() {
+  loadingRuns.value = true
+
+  try {
+    const response = await getBotRuns(runsParams())
+    const payload = response?.data || {}
+    runs.value = Array.isArray(payload?.data) ? payload.data : []
+    runsTotal.value = Number(payload?.total || runs.value.length)
+  } catch {
+    runs.value = []
+    runsTotal.value = 0
+  } finally {
+    loadingRuns.value = false
+  }
+}
+
+async function loadEverything(page = 1) {
+  await Promise.all([
+    loadLogs(page),
+    loadRuns(),
+  ])
+}
+
+function queueFilterReload() {
+  if (syncingFromRoute.value) return
+
+  if (filterDebounce.value) {
+    clearTimeout(filterDebounce.value)
+  }
+
+  filterDebounce.value = setTimeout(() => {
+    void loadEverything(1)
+  }, 250)
 }
 
 function resetFilters() {
-  filters.sourceKey = ''
+  filters.search = ''
   filters.bot_identity = ''
-  filters.action = ''
   filters.outcome = ''
+  filters.action = ''
   filters.date_from = ''
   filters.date_to = ''
-  void load(1)
+  void loadEverything(1)
 }
 
 function previousPage() {
-  if (!canPrev.value || loading.value) return
-  void load(Number(pagination.current_page || 1) - 1)
+  if (!canPrev.value || loadingLogs.value) return
+  void loadEverything(Number(pagination.current_page || 1) - 1)
 }
 
 function nextPage() {
-  if (!canNext.value || loading.value) return
-  void load(Number(pagination.current_page || 1) + 1)
+  if (!canNext.value || loadingLogs.value) return
+  void loadEverything(Number(pagination.current_page || 1) + 1)
 }
 
-onMounted(() => {
-  syncFiltersFromRoute()
-  void load(1)
-})
+watch(
+  () => [
+    filters.search,
+    filters.bot_identity,
+    filters.outcome,
+    filters.action,
+    filters.date_from,
+    filters.date_to,
+  ],
+  () => {
+    queueFilterReload()
+  },
+)
 
 watch(
   routeQuery,
   () => {
     syncFiltersFromRoute()
-    void load(1)
+    void loadEverything(1)
   },
 )
+
+watch(
+  () => props.refreshToken,
+  () => {
+    void loadEverything(pagination.current_page || 1)
+  },
+)
+
+onMounted(() => {
+  syncFiltersFromRoute()
+  void loadEverything(1)
+})
+
+onBeforeUnmount(() => {
+  if (filterDebounce.value) {
+    clearTimeout(filterDebounce.value)
+  }
+})
 </script>
 
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot aktivita', subtitle: 'Logy publikovania a behov s vysledkami.' }"
+    v-bind="props.embedded ? {} : { title: 'Bot logy', subtitle: 'História behov a publikovania na jednom mieste.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
       <div>
-        <h2 class="embeddedTitle">Aktivita</h2>
+        <h2 class="embeddedTitle">Logy</h2>
         <p class="embeddedSubtitle">{{ summaryLine }}</p>
       </div>
-      <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
-      </button>
     </div>
-
-    <template v-if="!props.embedded" #right-actions>
-      <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
-      </button>
-    </template>
 
     <section class="card filterCard">
       <div class="filterRow">
         <label class="field field--search">
-          <input v-model="filters.sourceKey" type="text" placeholder="Hľadať podľa source key" />
+          <input v-model="filters.search" type="text" placeholder="Hľadať podľa source key" />
         </label>
 
         <label class="field field--compact">
@@ -207,16 +334,18 @@ watch(
           <select v-model="filters.outcome">
             <option value="">Všetky</option>
             <option value="success">success</option>
-            <option value="partial">partial</option>
             <option value="published">published</option>
             <option value="skipped">skipped</option>
             <option value="failed">failed</option>
+            <option value="duplicate">duplicate</option>
+            <option value="partial">partial</option>
           </select>
         </label>
 
         <div class="filterActions">
-          <button class="actionBtn" type="button" :disabled="loading" @click="applyFilters">Filtrovať</button>
-          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="resetFilters">Vyčistiť</button>
+          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loadingLogs" @click="resetFilters">
+            Vyčistiť
+          </button>
         </div>
       </div>
 
@@ -229,6 +358,8 @@ watch(
               <option value="">Všetky</option>
               <option value="run">run</option>
               <option value="publish">publish</option>
+              <option value="ingest">ingest</option>
+              <option value="skipped_cooldown">skipped_cooldown</option>
             </select>
           </label>
           <label class="field field--compact">
@@ -244,8 +375,49 @@ watch(
     </section>
 
     <section class="card tableCard">
+      <div class="tableHeader">
+        <h3>Posledné behy</h3>
+        <span class="muted">{{ loadingRuns ? 'Načítavam…' : `${runsTotal} záznamov` }}</span>
+      </div>
+
+      <p v-if="!loadingRuns && runs.length === 0" class="muted">Žiadne behy pre zvolené filtre.</p>
+
+      <div v-else class="tableWrap">
+        <table class="activityTable activityTable--runs">
+          <thead>
+            <tr>
+              <th>Čas</th>
+              <th>Bot</th>
+              <th>Zdroj</th>
+              <th>Stav</th>
+              <th>Publikované</th>
+              <th>Chyby</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="run in runs" :key="run.id">
+              <td>{{ formatDateTime(run.started_at) }}</td>
+              <td>{{ identityLabel(run.bot_identity) }}</td>
+              <td>{{ run.source_key || '-' }}</td>
+              <td>
+                <span :class="runStatusClass(run.status)">{{ run.status || '-' }}</span>
+              </td>
+              <td>{{ Number(run?.stats?.published_count || 0) }}</td>
+              <td>{{ Number(run?.stats?.failed_count || 0) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card tableCard">
+      <div class="tableHeader">
+        <h3>Aktivita</h3>
+        <span class="muted">{{ summaryLine }}</span>
+      </div>
+
       <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && rows.length === 0" class="muted">Žiadne logy pre zadané filtre.</p>
+      <p v-else-if="!loadingLogs && rows.length === 0" class="muted">Žiadne logy pre zadané filtre.</p>
 
       <div v-else class="tableWrap">
         <table class="activityTable">
@@ -254,11 +426,9 @@ watch(
               <th>Čas</th>
               <th>Bot</th>
               <th>Zdroj</th>
-              <th>Akcia</th>
               <th>Výsledok</th>
-              <th>Item/Post</th>
-              <th>Dôvod</th>
               <th>Správa</th>
+              <th>Detail</th>
             </tr>
           </thead>
           <tbody>
@@ -266,31 +436,30 @@ watch(
               <td>{{ formatDateTime(row.created_at) }}</td>
               <td>{{ identityLabel(row.bot_identity) }}</td>
               <td>{{ sourceLabel(row) }}</td>
-              <td>{{ row.action || '-' }}</td>
               <td>
-                <span class="outcome" :class="`outcome--${String(row.outcome || '').toLowerCase()}`">
-                  {{ row.outcome || '-' }}
+                <span :class="outcomeClass(row.outcome)">
+                  {{ outcomeLabel(row.outcome) }}
                 </span>
               </td>
-              <td class="idCell">
-                <span>ID item: {{ row.bot_item_id || '-' }}</span>
-                <span>ID post: {{ row.post_id || '-' }}</span>
-              </td>
-              <td>{{ row.reason || '-' }}</td>
               <td class="messageCell">{{ row.message || '-' }}</td>
+              <td class="idCell">
+                <span>akcia: {{ row.action || '-' }}</span>
+                <span v-if="row.bot_item_id || row.post_id">item/post: {{ row.bot_item_id || '-' }}/{{ row.post_id || '-' }}</span>
+                <span v-if="row.reason">dôvod: {{ row.reason }}</span>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div class="pager">
-        <button class="ghostBtn" type="button" :disabled="loading || !canPrev" @click="previousPage">
-          Predosla
+        <button class="ghostBtn" type="button" :disabled="loadingLogs || !canPrev" @click="previousPage">
+          Predošlá
         </button>
         <span class="muted">
-          Strana {{ pagination.current_page }} / {{ pagination.last_page }} - {{ pagination.total }} zaznamov
+          Strana {{ pagination.current_page }} / {{ pagination.last_page }} · {{ pagination.total }} záznamov
         </span>
-        <button class="ghostBtn" type="button" :disabled="loading || !canNext" @click="nextPage">
+        <button class="ghostBtn" type="button" :disabled="loadingLogs || !canNext" @click="nextPage">
           Ďalšia
         </button>
       </div>
@@ -396,28 +565,17 @@ watch(
   grid-template-columns: repeat(3, minmax(120px, 1fr));
 }
 
-.actionBtn,
 .ghostBtn {
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
-}
-
-.actionBtn {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.6);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
-}
-
-.ghostBtn {
   border: 1px solid rgb(var(--color-surface-rgb) / 0.24);
   background: transparent;
   color: rgb(var(--color-surface-rgb) / 0.95);
 }
 
-.actionBtn:disabled,
 .ghostBtn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -426,6 +584,19 @@ watch(
 .tableCard {
   display: grid;
   gap: 8px;
+}
+
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tableHeader h3 {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .tableWrap {
@@ -437,7 +608,11 @@ watch(
 .activityTable {
   width: 100%;
   border-collapse: collapse;
-  min-width: 780px;
+  min-width: 760px;
+}
+
+.activityTable--runs {
+  min-width: 640px;
 }
 
 .activityTable th,
@@ -466,13 +641,11 @@ watch(
   font-weight: 700;
 }
 
-.outcome--published,
 .outcome--success {
   border-color: rgb(var(--color-success-rgb) / 0.5);
   color: var(--color-success);
 }
 
-.outcome--partial,
 .outcome--skipped {
   border-color: rgb(var(--color-warning-rgb) / 0.5);
   color: var(--color-warning);
@@ -483,13 +656,21 @@ watch(
   color: var(--color-danger);
 }
 
+.outcome--duplicate {
+  border-color: rgb(var(--color-primary-rgb) / 0.55);
+  color: var(--color-primary);
+}
+
 .idCell {
   display: grid;
   gap: 2px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  font-size: 0.74rem;
 }
 
 .messageCell {
   color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  max-width: 360px;
 }
 
 .pager {
@@ -516,11 +697,6 @@ watch(
     flex-direction: column;
   }
 
-  .embeddedHeader .actionBtn {
-    width: 100%;
-    text-align: center;
-  }
-
   .filterRow {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -534,7 +710,6 @@ watch(
     width: 100%;
   }
 
-  .filterActions .actionBtn,
   .filterActions .ghostBtn {
     flex: 1 1 auto;
     text-align: center;
@@ -543,7 +718,11 @@ watch(
 
 @container (max-width: 720px) {
   .activityTable {
-    min-width: 680px;
+    min-width: 640px;
+  }
+
+  .activityTable--runs {
+    min-width: 560px;
   }
 
   .pager {

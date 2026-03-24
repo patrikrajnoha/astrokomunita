@@ -14,9 +14,7 @@ defineProps({
       <span class="quickActionTitle">{{ title }}</span>
       <span class="quickActionSubtitle">{{ subtitle }}</span>
     </span>
-    <span v-if="badge !== null" class="quickActionBadge" :class="`tone-${badgeTone}`">{{
-      badge
-    }}</span>
+    <span v-if="badge !== null" class="quickActionBadge" :class="`tone-${badgeTone}`">{{ badge }}</span>
   </RouterLink>
 </template>
 
@@ -26,30 +24,27 @@ defineProps({
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  min-height: 48px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
+  min-height: 52px;
+  padding: 9px 10px;
   border-radius: 10px;
-  background: transparent;
+  background: rgb(var(--color-bg-rgb) / 0.35);
   color: inherit;
   text-decoration: none;
   transition:
-    border-color 160ms ease,
     background-color 160ms ease,
     transform 120ms ease,
     box-shadow 120ms ease;
 }
 
 .quickActionTile:hover {
-  border-color: var(--dashboard-border-strong, var(--color-border-strong));
-  background: rgb(var(--color-bg-rgb) / 0.56);
-  transform: translateY(-0.5px);
+  background: rgb(var(--color-bg-rgb) / 0.58);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
 }
 
 .quickActionTile:focus-visible {
   outline: none;
-  border-color: rgb(var(--color-primary-rgb) / 0.32);
-  background: rgb(var(--color-bg-rgb) / 0.46);
+  background: rgb(var(--color-bg-rgb) / 0.58);
   box-shadow: var(--focus-ring);
 }
 
@@ -63,7 +58,6 @@ defineProps({
   color: var(--color-surface);
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0;
 }
 
 .quickActionSubtitle {
@@ -78,12 +72,11 @@ defineProps({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
+  min-width: 30px;
   height: 24px;
   padding: 0 8px;
   border-radius: 999px;
-  border: 1px solid var(--dashboard-border-strong, var(--color-border-strong));
-  background: rgb(var(--color-bg-rgb) / 0.56);
+  background: rgb(var(--color-bg-rgb) / 0.7);
   color: var(--color-surface);
   font-size: 11px;
   font-weight: 700;
@@ -92,18 +85,15 @@ defineProps({
 
 .quickActionBadge.tone-accent,
 .quickActionBadge.tone-attention {
-  border-color: rgb(var(--color-primary-rgb) / 0.26);
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  background: rgb(var(--color-primary-rgb) / 0.18);
 }
 
 .quickActionBadge.tone-warning {
-  border-color: rgb(var(--color-warning-rgb) / 0.32);
   background: rgb(var(--color-warning-rgb) / 0.16);
   color: rgb(var(--color-warning-rgb));
 }
 
 .quickActionBadge.tone-danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.34);
   background: rgb(var(--color-danger-rgb) / 0.16);
   color: rgb(var(--color-danger-rgb));
 }

@@ -54,30 +54,20 @@ describe('resolveAvatarState', () => {
     expect(state.usesImage).toBe(true)
   })
 
-  it('uses the same default avatar resolver for bot and regular user when no avatar is uploaded', () => {
-    const baseUser = {
+  it('uses bot asset avatar when bot has no uploaded avatar', () => {
+    const botState = resolveAvatarState({
       id: 42,
       username: 'kozmobot',
+      role: 'bot',
+      is_bot: true,
       avatar_mode: 'image',
       avatar_url: null,
       avatar_path: null,
-    }
-    const botState = resolveAvatarState({
-      ...baseUser,
-      role: 'bot',
-      is_bot: true,
-    })
-    const regularState = resolveAvatarState({
-      ...baseUser,
-      role: 'user',
-      is_bot: false,
     })
 
-    expect(botState.usesImage).toBe(false)
+    expect(botState.usesImage).toBe(true)
     expect(botState.mode).toBe('image')
-    expect(botState.seed).toBe(regularState.seed)
-    expect(botState.colorIndex).toBe(regularState.colorIndex)
-    expect(botState.iconIndex).toBe(regularState.iconIndex)
+    expect(botState.imageUrl).toContain('/api/bot-avatars/kozmobot/kb_blue.png')
   })
 
   it('uses uploaded avatar for bot when image exists', () => {
@@ -92,5 +82,39 @@ describe('resolveAvatarState', () => {
 
     expect(state.usesImage).toBe(true)
     expect(state.imageUrl).toContain('/api/media/file/avatars/77/bot.png')
+  })
+
+  it('prefers explicit preview avatarUrl for bot even when persisted avatar_path differs', () => {
+    const state = resolveAvatarState({
+      id: 42,
+      username: 'kozmobot',
+      role: 'bot',
+      is_bot: true,
+      avatar_mode: 'image',
+      avatar_path: 'bots/kozmobot/kb_blue.png',
+      avatar_url: '/api/bot-avatars/kozmobot/kb_blue.png',
+    }, {
+      avatarUrl: '/api/bot-avatars/kozmobot/kb_red.png',
+    })
+
+    expect(state.usesImage).toBe(true)
+    expect(state.imageUrl).toContain('/api/bot-avatars/kozmobot/kb_red.png')
+  })
+
+  it('keeps temporary blob preview for bot before save', () => {
+    const state = resolveAvatarState({
+      id: 42,
+      username: 'kozmobot',
+      role: 'bot',
+      is_bot: true,
+      avatar_mode: 'image',
+      avatar_path: 'bots/kozmobot/kb_blue.png',
+      avatar_url: '/api/bot-avatars/kozmobot/kb_blue.png',
+    }, {
+      avatarUrl: 'blob:bot-avatar-preview',
+    })
+
+    expect(state.usesImage).toBe(true)
+    expect(state.imageUrl).toContain('blob:bot-avatar-preview')
   })
 })

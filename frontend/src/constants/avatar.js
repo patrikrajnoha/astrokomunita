@@ -19,12 +19,12 @@ export const AVATAR_ICON_LABELS = {
   planet: 'Planeta',
   star: 'Hviezda',
   comet: 'Kometa',
-  constellation: 'Suhvezdie',
+  constellation: 'Súhvezdie',
   moon: 'Mesiac',
   sun: 'Slnko',
   galaxy: 'Galaxia',
   rocket: 'Raketa',
-  satellite: 'Druzica',
+  satellite: 'Družica',
   meteor: 'Meteor',
 }
 

@@ -369,13 +369,14 @@
 .avatarChoice {
   border: none;
   border-radius: 1rem;
-  padding: 0.48rem 0.42rem;
+  padding: 0.58rem 0.46rem;
   min-height: 84px;
   background: var(--color-btn-secondary-bg);
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: 0.34rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
   color: var(--color-btn-secondary-text);
   transition: background-color 160ms ease, color 160ms ease;
 }
@@ -396,9 +397,17 @@
 }
 
 .choiceAvatar {
-  width: 44px;
-  height: 44px;
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
   box-shadow: 0 8px 18px rgb(var(--bg-app-rgb) / 0.16);
+}
+
+.choiceAvatarImage {
+  border-radius: 999px;
+  object-fit: cover;
 }
 
 .choiceLabel {
@@ -406,10 +415,33 @@
   color: var(--text-secondary);
   line-height: 1.2;
   text-align: center;
+  width: 100%;
 }
 
 .colorChoice {
   min-height: 62px;
+}
+
+.iconChoice {
+  min-height: 92px;
+}
+
+.iconChoice .choiceAvatar :deep(.default-avatar-icon),
+.avatarPreviewAvatar .avatarImg :deep(.default-avatar-icon) {
+  width: 64%;
+  height: 64%;
+  transform: translateY(0.2px);
+}
+
+.iconChoice .choiceAvatar :deep(.default-avatar-icon path),
+.iconChoice .choiceAvatar :deep(.default-avatar-icon circle),
+.iconChoice .choiceAvatar :deep(.default-avatar-icon ellipse),
+.iconChoice .choiceAvatar :deep(.default-avatar-icon rect),
+.avatarPreviewAvatar .avatarImg :deep(.default-avatar-icon path),
+.avatarPreviewAvatar .avatarImg :deep(.default-avatar-icon circle),
+.avatarPreviewAvatar .avatarImg :deep(.default-avatar-icon ellipse),
+.avatarPreviewAvatar .avatarImg :deep(.default-avatar-icon rect) {
+  stroke-width: 2.05px;
 }
 
 .colorSwatch {
@@ -871,6 +903,25 @@
 
   .copyBtn {
     display: none;
+  }
+}
+
+@media (max-width: 479px) {
+  .avatarIconGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .avatarColorGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .avatarChoice {
+    min-height: 72px;
+    padding: 0.45rem 0.3rem;
+  }
+
+  .avatarOpenBtn {
+    min-height: 40px;
   }
 }
 

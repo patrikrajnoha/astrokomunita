@@ -12,6 +12,7 @@ import {
   normalizeMediaPath,
   normalizeMediaUrl,
 } from '@/utils/profileMedia'
+import { getBotAvatar } from '@/utils/botAvatar'
 
 export function normalizeAvatarUrl(url) {
   const normalized = normalizeMediaUrl(url)
@@ -61,11 +62,19 @@ export function resolveAvatarSeed(user, fallbackSeed = '') {
 }
 
 export function resolveAvatarState(user, overrides = {}) {
-  const imageUrlFromUrl = normalizeAvatarUrl(overrides.avatarUrl ?? user?.avatar_url ?? user?.avatarUrl ?? '')
+  const explicitAvatarUrl = normalizeAvatarUrl(overrides.avatarUrl)
+  const botAvatar = getBotAvatar(user, {
+    avatarPath: overrides.avatarPath ?? user?.avatar_path ?? user?.avatarPath ?? '',
+    avatarUrl: overrides.avatarUrl ?? user?.avatar_url ?? user?.avatarUrl ?? '',
+    color: overrides.colorIndex ?? user?.avatar_color ?? user?.avatarColor ?? '',
+  })
+
+  const imageUrlFromUrl =
+    explicitAvatarUrl || botAvatar?.url || normalizeAvatarUrl(user?.avatar_url ?? user?.avatarUrl ?? '')
   const imageUrlFromPath = normalizeAvatarPath(overrides.avatarPath ?? user?.avatar_path ?? user?.avatarPath ?? '')
   const imageUrl = imageUrlFromUrl || imageUrlFromPath
   const hasImage = imageUrl !== ''
-  const mode = normalizeAvatarMode(overrides.mode ?? user?.avatar_mode ?? user?.avatarMode)
+  const mode = botAvatar ? 'image' : normalizeAvatarMode(overrides.mode ?? user?.avatar_mode ?? user?.avatarMode)
   const seed = resolveAvatarSeed(user, overrides.seed ?? '')
 
   const colorIndex =
@@ -82,7 +91,7 @@ export function resolveAvatarState(user, overrides = {}) {
     ) ??
     pickDeterministicAvatarIndex(seed, 'icon', Math.min(LEGACY_AVATAR_ICON_COUNT, AVATAR_ICONS.length))
 
-  const usesImage = hasImage && mode === 'image'
+  const usesImage = hasImage && (botAvatar ? true : mode === 'image')
   const state = {
     mode,
     imageUrl,

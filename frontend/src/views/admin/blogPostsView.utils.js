@@ -31,6 +31,7 @@ export function computeStatus(post) {
   if (!post?.published_at) return 'draft'
   const date = new Date(post.published_at)
   if (Number.isNaN(date.getTime())) return 'draft'
+  if (Boolean(post?.is_hidden) && date.getTime() <= Date.now()) return 'hidden'
   return date.getTime() <= Date.now() ? 'published' : 'scheduled'
 }
 
@@ -38,6 +39,8 @@ export function statusLabel(value) {
   switch (value) {
     case 'published':
       return 'Publikovany'
+    case 'hidden':
+      return 'Skryty'
     case 'scheduled':
       return 'Naplanovany'
     case 'draft':
@@ -175,4 +178,32 @@ export function readTimeFor(text) {
     .filter(Boolean).length
   const minutes = Math.max(1, Math.round(words / 220))
   return `${minutes} min citania`
+}
+
+export function toMetricCount(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  return Math.floor(parsed)
+}
+
+export function postReadCount(post) {
+  const readMetric =
+    toMetricCount(post?.read_count) ??
+    toMetricCount(post?.reads_count) ??
+    toMetricCount(post?.reads)
+  if (readMetric !== null) return readMetric
+  return toMetricCount(post?.views_count) ?? toMetricCount(post?.views) ?? 0
+}
+
+export function postClickCount(post) {
+  const clickMetric =
+    toMetricCount(post?.click_count) ??
+    toMetricCount(post?.clicks_count) ??
+    toMetricCount(post?.clicks)
+  if (clickMetric !== null) return clickMetric
+  return postReadCount(post)
+}
+
+export function formatMetricCount(value) {
+  return Number(value || 0).toLocaleString('sk-SK')
 }

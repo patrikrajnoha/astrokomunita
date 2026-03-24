@@ -1,118 +1,94 @@
-
-  <component
-    :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Bot zdroje', subtitle: 'Monitoring zdravia a konfiguracia zdrojov.' }"
-    class="botSection"
-  >
-    <div v-if="props.embedded" class="embeddedHeader">
-      <div>
-        <h2 class="embeddedTitle">Zdroje</h2>
-        <p class="embeddedSubtitle">{{ summaryLine }}</p>
-      </div>
-      <button class="actionBtn" type="button" :disabled="loading" @click="load">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
-      </button>
+﻿<component
+  :is="props.embedded ? 'section' : AdminPageShell"
+  v-bind="props.embedded ? {} : { title: 'Bot zdroje', subtitle: 'Monitoring zdravia a konfigurácie zdrojov.' }"
+  class="botSection"
+>
+  <div v-if="props.embedded" class="embeddedHeader">
+    <div>
+      <h2 class="embeddedTitle">Zdroje</h2>
+      <p class="embeddedSubtitle">{{ summaryLine }}</p>
     </div>
+  </div>
 
-    <template v-if="!props.embedded" #right-actions>
-      <button class="actionBtn" type="button" :disabled="loading" @click="load">
-        {{ loading ? 'Nacitavam...' : 'Obnovit' }}
-      </button>
-    </template>
+  <template v-if="!props.embedded" #right-actions>
+    <button class="actionBtn" type="button" :disabled="loading" @click="load">
+      {{ loading ? 'Načítavam…' : 'Obnoviť' }}
+    </button>
+  </template>
 
-    <section class="card filterCard">
-      <div class="filterRow">
-        <label class="field field--search">
-          <input v-model="filters.q" type="text" placeholder="Hladat zdroj podla key, nazvu alebo URL" />
-        </label>
+  <section class="card filterCard">
+    <div class="filterRow">
+      <label class="field field--search">
+        <input v-model="filters.q" type="text" placeholder="Hľadať podľa názvu, key alebo URL" />
+      </label>
 
-        <label class="field field--compact">
-          <span>Povolene</span>
-          <select v-model="filters.enabled">
-            <option value="">Vsetky</option>
-            <option value="1">Povolene</option>
-            <option value="0">Zakazane</option>
-          </select>
-        </label>
+      <label class="field field--compact">
+        <span>Stav</span>
+        <select v-model="filters.status">
+          <option value="all">Všetky</option>
+          <option value="failing">Chybové</option>
+          <option value="inactive">Neaktívne</option>
+        </select>
+      </label>
 
-        <label class="field field--toggle">
-          <input v-model="filters.failing_only" type="checkbox" />
-          <span>Iba chybove</span>
-        </label>
-
-        <div class="filterActions">
-          <button class="actionBtn" type="button" :disabled="loading" @click="load">Filtrovat</button>
-          <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="clearFilters">
-            Vycistit
-          </button>
-        </div>
+      <div class="filterActions">
+        <button v-if="hasActiveFilters" class="ghostBtn" type="button" :disabled="loading" @click="clearFilters">
+          Vyčistiť
+        </button>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <section v-if="editor.id" class="card editorCard">
-      <h3>Upravit zdroj #{{ editor.id }}</h3>
-      <div class="editorGrid">
-        <label class="field">
-          <span>Nazov</span>
-          <input v-model="editor.name" type="text" maxlength="160" />
-        </label>
-        <label class="field">
-          <span>URL adresa</span>
-          <input v-model="editor.url" type="url" maxlength="2048" />
-        </label>
-      </div>
-      <div class="editorActions">
-        <button class="actionBtn" type="button" :disabled="savingId === editor.id" @click="saveEdit">Ulozit</button>
-        <button class="ghostBtn" type="button" :disabled="savingId === editor.id" @click="cancelEdit">Zrusit</button>
-      </div>
-    </section>
+  <section v-if="editor.id" class="card editorCard">
+    <h3>Upraviť zdroj #{{ editor.id }}</h3>
+    <div class="editorGrid">
+      <label class="field">
+        <span>Názov</span>
+        <input v-model="editor.name" type="text" maxlength="160" />
+      </label>
+      <label class="field">
+        <span>URL adresa</span>
+        <input v-model="editor.url" type="url" maxlength="2048" />
+      </label>
+    </div>
+    <div class="editorActions">
+      <button class="actionBtn" type="button" :disabled="savingId === editor.id" @click="saveEdit">Uložiť</button>
+      <button class="ghostBtn" type="button" :disabled="savingId === editor.id" @click="cancelEdit">Zrušiť</button>
+    </div>
+  </section>
 
-    <section class="card tableCard">
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && rows.length === 0" class="muted">Ziadne zdroje pre vybrane filtre.</p>
+  <section class="card tableCard">
+    <p v-if="error" class="error">{{ error }}</p>
+    <p v-else-if="!loading && filteredRows.length === 0" class="muted">Žiadne zdroje pre zvolené filtre.</p>
 
-      <div v-else class="tableWrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Nazov</th>
-              <th>Typ</th>
-              <th>Stav</th>
-              <th>Latencia</th>
-              <th>Cooldown</th>
-              <th>Posledny uspech</th>
-              <th>Posledna chyba</th>
-              <th>Zlyhania</th>
-              <th>Miera (24h)</th>
-              <th>Povolene</th>
-              <th>Akcia</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id">
-              <td>
-                <div class="name">{{ row.name || row.key }}</div>
-                <div class="muted muted--small">{{ row.key }}</div>
-              </td>
-              <td>{{ row.source_type || '-' }}</td>
-              <td>
-                <div class="statusCell">
-                  <span class="status" :class="`status--${String(row.status || '').toLowerCase()}`">
-                    {{ String(row.status || 'unknown').toUpperCase() }}
-                  </span>
-                  <span v-if="row.is_dead" class="status status--dead">DEAD</span>
-                </div>
-              </td>
-              <td>{{ row.avg_latency_ms ? `${row.avg_latency_ms} ms` : '-' }}</td>
-              <td>{{ formatDateTime(row.cooldown_until) }}</td>
-              <td>{{ formatDateTime(row.last_success_at) }}</td>
-              <td>{{ formatDateTime(row.last_error_at) }}</td>
-              <td>{{ Number(row.consecutive_failures || 0) }}</td>
-              <td>
-                <div class="muted muted--small">S {{ formatRate(row?.metrics_24h?.success_rate) }}</div>
-                <div class="muted muted--small">F {{ formatRate(row?.metrics_24h?.failure_rate) }}</div>
-              </td>
-              <td>
+    <div v-else class="tableWrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Názov</th>
+            <th>Typ</th>
+            <th>Stav</th>
+            <th>Latencia</th>
+            <th>Posledný úspech</th>
+            <th>Akcia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in filteredRows" :key="row.id">
+            <td>
+              <div class="name">{{ row.name || row.key }}</div>
+              <div class="muted muted--small">{{ row.key }}</div>
+            </td>
+            <td>{{ row.source_type || '-' }}</td>
+            <td>
+              <span :class="sourceStatusClass(row)">
+                {{ sourceStatusLabel(row) }}
+              </span>
+            </td>
+            <td>{{ formatLatency(row.avg_latency_ms) }}</td>
+            <td>{{ formatDateTime(row.last_success_at) }}</td>
+            <td>
+              <div class="rowActions">
                 <button
                   class="toggleBtn"
                   type="button"
@@ -121,36 +97,41 @@
                 >
                   {{ row.is_enabled ? 'ON' : 'OFF' }}
                 </button>
-              </td>
-              <td>
-                <div class="rowActions">
-                  <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
-                    Upravit
-                  </button>
-                  <details class="rowMenu">
-                    <summary>Viac</summary>
-                    <div class="rowMenuBody">
-                      <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="resetHealth(row)">
-                        Reset zdravia
-                      </button>
-                      <button
-                        class="ghostBtn"
-                        type="button"
-                        :disabled="savingId === row.id || !row.cooldown_until"
-                        @click="clearCooldown(row)"
-                      >
-                        Vycistit cooldown
-                      </button>
-                      <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="reviveSource(row)">
-                        Obnovit
-                      </button>
-                    </div>
-                  </details>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </component>
+                <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="startEdit(row)">
+                  Upraviť
+                </button>
+                <details class="rowMenu">
+                  <summary>Viac</summary>
+                  <div class="rowMenuBody">
+                    <button
+                      class="ghostBtn"
+                      type="button"
+                      :disabled="runningSourceKey === row.key"
+                      @click="runSourceNow(row)"
+                    >
+                      {{ runningSourceKey === row.key ? 'Spúšťam…' : 'Spustiť teraz' }}
+                    </button>
+                    <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="resetHealth(row)">
+                      Reset zdravia
+                    </button>
+                    <button
+                      class="ghostBtn"
+                      type="button"
+                      :disabled="savingId === row.id || !row.cooldown_until"
+                      @click="clearCooldown(row)"
+                    >
+                      Vyčistiť cooldown
+                    </button>
+                    <button class="ghostBtn" type="button" :disabled="savingId === row.id" @click="reviveSource(row)">
+                      Obnoviť
+                    </button>
+                  </div>
+                </details>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</component>

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { eventTypeIcon, eventTypeIconLabel } from './eventsViewCard.utils'
+import {
+  eventCardSummary,
+  eventTypeIcon,
+  eventTypeIconLabel,
+  formatEventCardTitle,
+} from './eventsViewCard.utils'
 
 describe('eventsViewCard utils', () => {
   it('uses custom icon when icon_emoji is provided', () => {
@@ -22,5 +27,15 @@ describe('eventsViewCard utils', () => {
     expect(eventTypeIcon(eventItem)).toBeTruthy()
     expect(eventTypeIconLabel(eventItem)).toBe('Meteoricky roj')
   })
-})
 
+  it('normalizes Spica to Spika in event title and summary', () => {
+    const eventItem = {
+      title: 'Spica 1.8°N of Moon',
+      short: 'Spica bude blizko Mesiaca',
+      type: 'other',
+    }
+
+    expect(formatEventCardTitle(eventItem)).toBe('Hviezda Spika 1.8°N of Moon')
+    expect(eventCardSummary(eventItem)).toBe('Spika bude blizko Mesiaca')
+  })
+})

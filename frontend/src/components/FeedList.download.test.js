@@ -111,7 +111,7 @@ describe('FeedList full-quality download menu', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows "Stiahnut v plnej kvalite" when post has image download url', async () => {
+  it('shows "Stiahnuť v plnej kvalite" when post has image download url', async () => {
     api.get.mockResolvedValueOnce({
       data: {
         data: [
@@ -131,7 +131,7 @@ describe('FeedList full-quality download menu', () => {
     const wrapper = mountFeed()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Stiahnut v plnej kvalite')
+    expect(wrapper.text()).toContain('Stiahnuť v plnej kvalite')
   })
 
   it('clicking the menu action opens download_url', async () => {
@@ -159,12 +159,12 @@ describe('FeedList full-quality download menu', () => {
 
     const downloadButton = wrapper
       .findAll('button.menu-item')
-      .find((button) => button.text() === 'Stiahnut v plnej kvalite')
+      .find((button) => button.text() === 'Stiahnuť v plnej kvalite')
 
     expect(downloadButton).toBeTruthy()
     await downloadButton.trigger('click')
 
-    expect(toastInfoMock).toHaveBeenCalledWith('Stahujem...')
+    expect(toastInfoMock).toHaveBeenCalledWith('Sťahujem...')
     expect(openSpy).toHaveBeenCalledTimes(1)
     expect(String(openSpy.mock.calls[0][0])).toContain('/api/media/1/download')
   })
@@ -189,6 +189,6 @@ describe('FeedList full-quality download menu', () => {
     const wrapper = mountFeed()
     await flushPromises()
 
-    expect(wrapper.text()).not.toContain('Stiahnut v plnej kvalite')
+    expect(wrapper.text()).not.toContain('Stiahnuť v plnej kvalite')
   })
 })

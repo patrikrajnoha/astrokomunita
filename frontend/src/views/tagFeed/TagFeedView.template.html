@@ -105,8 +105,25 @@
 
             <!-- bottom actions -->
             <div class="postActions" @click.stop>
-              <button class="actBtn" type="button" title="Nahlasit vo vlakne" @click.stop="openReport(p)">
-                ⚑ Nahlasit
+              <button v-if="canReport(p)" class="actBtn" type="button" title="Nahlásiť vo vlákne" @click.stop="openReport(p)">
+                <svg class="actIco" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M4 15v7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                Nahlásiť
               </button>
               <button class="actBtn" type="button" title="Reagovať" disabled>
                 .. <span>{{ p.replies_count ?? 0 }}</span>

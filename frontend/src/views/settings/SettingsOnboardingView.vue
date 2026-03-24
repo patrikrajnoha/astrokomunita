@@ -1,13 +1,13 @@
-<template>
+﻿<template>
   <SettingsDetailShell
     title="Onboarding sprievodca"
-    subtitle="Interaktivna prehliadka feedu, kalendara a pozorovacich podmienok."
+    subtitle="Interaktívna prehliadka feedu, kalendára a pozorovacích podmienok."
   >
     <div class="settings-form">
       <button
         type="button"
         class="btn btn-primary"
-        aria-label="Start onboarding tour"
+        aria-label="Spustiť onboarding tour"
         @click="startOnboardingTour"
       >
         Spustiť sprievodcu

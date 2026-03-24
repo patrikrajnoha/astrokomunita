@@ -1,14 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useAdminTable } from '@/composables/useAdminTable'
 import { useConfirm } from '@/composables/useConfirm'
-import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import http from '@/services/api'
-import {
-  generateAdminEventDescription,
-  getAdminAiConfig,
-} from '@/services/api/admin/ai'
 
 const mode = ref('list')
 const editingEvent = ref(null)
@@ -16,31 +11,15 @@ const formLoading = ref(false)
 const formError = ref('')
 const formSuccess = ref('')
 const formSubmitAttempted = ref(false)
-const translationActionLoading = ref(false)
-const translationError = ref('')
-const translationSummary = ref(null)
-const showTranslationTools = ref(false)
-const aiConfig = ref(null)
-const aiConfigLoading = ref(false)
-const aiActionLoading = ref(false)
-const aiActionError = ref('')
-const aiActionStatus = ref('idle')
-const aiActionResult = ref(null)
-const aiLastRunByEvent = ref({})
-const aiActionNotice = ref('')
-const aiActionRawStatus = ref(null)
-const aiUndoSnapshot = ref(null)
-const aiShortDraft = ref('')
-const showAdvancedAiInForm = ref(false)
 const { confirm } = useConfirm()
 
 const eventTypes = [
-  { value: 'meteor_shower', label: 'Meteorický roj' },
+  { value: 'meteor_shower', label: 'Meteorick\u00fd roj' },
   { value: 'eclipse_lunar', label: 'Zatmenie Mesiaca' },
   { value: 'eclipse_solar', label: 'Zatmenie Slnka' },
-  { value: 'planetary_event', label: 'Planetárny úkaz' },
-  { value: 'aurora', label: 'Polarna ziara' },
-  { value: 'other', label: 'Iná udalosť' },
+  { value: 'planetary_event', label: 'Planet\u00e1rny \u00fakaz' },
+  { value: 'aurora', label: 'Pol\u00e1rna \u017eiara' },
+  { value: 'other', label: 'In\u00e1 udalos\u0165' },
 ]
 
 const eventIconOptions = [
@@ -51,7 +30,7 @@ const eventIconOptions = [
   { value: '\u{1FA90}', label: '\u{1FA90} Planeta' },
   { value: '\u{1F6F0}\uFE0F', label: '\u{1F6F0}\uFE0F Satelit' },
   { value: '\u{1F680}', label: '\u{1F680} Misia' },
-  { value: '\u2728', label: '\u2728 Vseobecna' },
+  { value: '\u2728', label: '\u2728 V\u0161eobecn\u00e1' },
 ]
 
 const defaultEventTypeIcons = {
@@ -82,6 +61,26 @@ const form = ref({
 const searchQ = ref('')
 const filterType = ref('')
 const filterVisibility = ref('')
+const filterYear = ref('')
+const filterMonth = ref('')
+const filterDay = ref('')
+const filterSourceKind = ref('')
+const filterSourceName = ref('')
+let searchDebounceTimeoutId = null
+const monthOptions = [
+  { value: 1, label: 'Janu\u00e1r' },
+  { value: 2, label: 'Febru\u00e1r' },
+  { value: 3, label: 'Marec' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'Maj' },
+  { value: 6, label: 'J\u00fan' },
+  { value: 7, label: 'J\u00fal' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'Okt\u00f3ber' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+]
 
 const {
   loading,
@@ -96,6 +95,7 @@ const {
   setPerPage,
   setSearch,
   setFilter,
+  setFilters,
   refresh,
 } = useAdminTable(
   async (params) => {
@@ -112,39 +112,139 @@ const isFormModalOpen = computed({
     if (!open) closeForm()
   },
 })
-const formModalTitle = computed(() => (isEdit.value ? 'Upraviť udalosť' : 'Nová udalosť'))
-const editingEventId = computed(() => Number(editingEvent.value?.id || 0))
-const aiEnabled = computed(() => Boolean(aiConfig.value?.events_ai_humanized_enabled))
-const aiPanelEnabled = computed(() => aiEnabled.value && editingEventId.value > 0)
-const aiPanelReady = computed(() => !aiConfigLoading.value && aiConfig.value !== null)
+const formModalTitle = computed(() => (isEdit.value ? 'Upravi\u0165 udalos\u0165' : 'Nov\u00e1 udalos\u0165'))
 const selectedIconPreview = computed(() => {
   const explicit = normalizeIconValue(form.value.icon_emoji)
   if (explicit) return explicit
   return defaultEventTypeIcons[String(form.value.type || '').trim()] || '\u2728'
 })
-const aiEventLastRun = computed(() => {
-  const eventId = editingEventId.value
-  if (eventId > 0 && aiLastRunByEvent.value[eventId]) {
-    return aiLastRunByEvent.value[eventId]
+const yearOptions = computed(() => {
+  const currentYear = new Date().getFullYear()
+  const values = []
+  for (let year = currentYear + 2; year >= currentYear - 10; year -= 1) {
+    values.push(year)
   }
 
-  return aiConfig.value?.features?.event_description_generate?.last_run || null
+  const selectedYear = Number(filterYear.value || 0)
+  if (Number.isInteger(selectedYear) && selectedYear > 0 && !values.includes(selectedYear)) {
+    values.push(selectedYear)
+    values.sort((left, right) => right - left)
+  }
+
+  return values
+})
+const canSelectMonth = computed(() => Number(filterYear.value) > 0)
+const canSelectDay = computed(() => canSelectMonth.value && Number(filterMonth.value) > 0)
+const daysInSelectedMonth = computed(() => {
+  const year = Number(filterYear.value || 0)
+  const month = Number(filterMonth.value || 0)
+  if (year <= 0 || month <= 0) return 31
+  return new Date(Date.UTC(year, month, 0)).getUTCDate()
+})
+const dayOptions = computed(() => {
+  const values = []
+  for (let day = 1; day <= daysInSelectedMonth.value; day += 1) {
+    values.push(day)
+  }
+  return values
+})
+const hasActiveListFilters = computed(() => Boolean(
+  String(searchQ.value || '').trim() !== ''
+  || String(filterType.value || '').trim() !== ''
+  || String(filterVisibility.value || '').trim() !== ''
+  || String(filterYear.value || '').trim() !== ''
+  || String(filterMonth.value || '').trim() !== ''
+  || String(filterDay.value || '').trim() !== ''
+  || String(filterSourceKind.value || '').trim() !== ''
+  || String(filterSourceName.value || '').trim() !== ''
+))
+const hasAdvancedFiltersActive = computed(() => Boolean(
+  String(filterYear.value || '').trim() !== ''
+  || String(filterMonth.value || '').trim() !== ''
+  || String(filterDay.value || '').trim() !== ''
+  || String(filterSourceKind.value || '').trim() !== ''
+  || String(filterSourceName.value || '').trim() !== ''
+))
+const selectedDateLabel = computed(() => {
+  const year = Number(filterYear.value || 0)
+  const month = Number(filterMonth.value || 0)
+  const day = Number(filterDay.value || 0)
+  if (year <= 0) return ''
+
+  const labelParts = [String(year)]
+  if (month > 0) {
+    const monthLabel = monthOptions.find((item) => Number(item.value) === month)?.label || String(month)
+    labelParts.push(monthLabel)
+  }
+  if (day > 0) {
+    labelParts.push(String(day))
+  }
+
+  return labelParts.join(' / ')
+})
+const activeFilterChips = computed(() => {
+  const chips = []
+  const query = String(searchQ.value || '').trim()
+  if (query !== '') {
+    chips.push({
+      key: 'search',
+      label: `N\u00e1zov: ${query}`,
+    })
+  }
+
+  if (String(filterType.value || '').trim() !== '') {
+    chips.push({
+      key: 'type',
+      label: `Typ: ${eventTypeLabel(filterType.value)}`,
+    })
+  }
+
+  if (String(filterVisibility.value || '').trim() !== '') {
+    chips.push({
+      key: 'visibility',
+      label: `Stav: ${Number(filterVisibility.value) === 1 ? 'Verejn\u00e9' : 'Skryt\u00e9'}`,
+    })
+  }
+
+  if (selectedDateLabel.value !== '') {
+    chips.push({
+      key: 'date',
+      label: `D\u00e1tum: ${selectedDateLabel.value}`,
+    })
+  }
+
+  if (String(filterSourceKind.value || '').trim() !== '') {
+    chips.push({
+      key: 'source_kind',
+      label: `P\u00f4vod: ${filterSourceKind.value === 'manual' ? 'Manu\u00e1lne' : 'Crawlovan\u00e9'}`,
+    })
+  }
+
+  const sourceName = String(filterSourceName.value || '').trim()
+  if (sourceName !== '') {
+    chips.push({
+      key: 'source_name',
+      label: `Zdroj: ${sourceName}`,
+    })
+  }
+
+  return chips
 })
 
 const formErrors = computed(() => {
   const errors = []
   if (!String(form.value.title || '').trim()) {
-    errors.push('Názov je povinný.')
+    errors.push('N\u00e1zov je povinn\u00fd.')
   }
   if (!form.value.start_at) {
-    errors.push('Čas začiatku je povinný.')
+    errors.push('\u010cas za\u010diatku je povinn\u00fd.')
   }
 
   if (form.value.start_at && form.value.end_at) {
     const start = new Date(form.value.start_at)
     const end = new Date(form.value.end_at)
     if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start) {
-      errors.push('Koniec nemôže byť skôr ako začiatok.')
+      errors.push('Koniec nem\u00f4\u017ee by\u0165 sk\u00f4r ako za\u010diatok.')
     }
   }
 
@@ -157,7 +257,165 @@ function eventTypeLabel(type) {
 }
 
 function applySearch() {
-  setSearch(searchQ.value)
+  setSearch(String(searchQ.value || '').trim())
+}
+
+function clearSearchDebounce() {
+  if (searchDebounceTimeoutId !== null) {
+    clearTimeout(searchDebounceTimeoutId)
+    searchDebounceTimeoutId = null
+  }
+}
+
+function queueSearch() {
+  clearSearchDebounce()
+  searchDebounceTimeoutId = setTimeout(() => {
+    searchDebounceTimeoutId = null
+    applySearch()
+  }, 260)
+}
+
+function toOptionalFilterInt(value, { min, max }) {
+  const normalized = String(value ?? '').trim()
+  if (normalized === '') return undefined
+  const parsed = Number(normalized)
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function applyDateFilters() {
+  const year = toOptionalFilterInt(filterYear.value, { min: 1900, max: 2200 })
+  const month = year
+    ? toOptionalFilterInt(filterMonth.value, { min: 1, max: 12 })
+    : undefined
+  const day = month
+    ? toOptionalFilterInt(filterDay.value, { min: 1, max: daysInSelectedMonth.value })
+    : undefined
+
+  setFilters({
+    year,
+    month,
+    day,
+  })
+}
+
+function applyYearFilter(value) {
+  filterYear.value = value
+  if (!filterYear.value) {
+    filterMonth.value = ''
+    filterDay.value = ''
+  }
+  if (filterDay.value && Number(filterDay.value) > daysInSelectedMonth.value) {
+    filterDay.value = ''
+  }
+  applyDateFilters()
+}
+
+function applyMonthFilter(value) {
+  filterMonth.value = value
+  if (!filterMonth.value) {
+    filterDay.value = ''
+  }
+  if (filterDay.value && Number(filterDay.value) > daysInSelectedMonth.value) {
+    filterDay.value = ''
+  }
+  applyDateFilters()
+}
+
+function applyDayFilter(value) {
+  filterDay.value = value
+  applyDateFilters()
+}
+
+function applyDatePreset(preset) {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  const normalizedPreset = String(preset || '').trim().toLowerCase()
+
+  if (normalizedPreset === 'today') {
+    filterYear.value = String(year)
+    filterMonth.value = String(month)
+    filterDay.value = String(day)
+    applyDateFilters()
+    return
+  }
+
+  if (normalizedPreset === 'this_month') {
+    filterYear.value = String(year)
+    filterMonth.value = String(month)
+    filterDay.value = ''
+    applyDateFilters()
+    return
+  }
+
+  if (normalizedPreset === 'this_year') {
+    filterYear.value = String(year)
+    filterMonth.value = ''
+    filterDay.value = ''
+    applyDateFilters()
+  }
+}
+
+function clearActiveFilterChip(chipKey) {
+  const normalizedKey = String(chipKey || '').trim().toLowerCase()
+  if (normalizedKey === 'search') {
+    searchQ.value = ''
+    applySearch()
+    return
+  }
+
+  if (normalizedKey === 'type') {
+    applyTypeFilter('')
+    return
+  }
+
+  if (normalizedKey === 'visibility') {
+    applyVisibilityFilter('')
+    return
+  }
+
+  if (normalizedKey === 'date') {
+    filterYear.value = ''
+    filterMonth.value = ''
+    filterDay.value = ''
+    applyDateFilters()
+    return
+  }
+
+  if (normalizedKey === 'source_kind') {
+    applySourceKindFilter('')
+    return
+  }
+
+  if (normalizedKey === 'source_name') {
+    filterSourceName.value = ''
+    applySourceNameFilter()
+  }
+}
+
+function clearListFilters() {
+  clearSearchDebounce()
+  searchQ.value = ''
+  filterType.value = ''
+  filterVisibility.value = ''
+  filterYear.value = ''
+  filterMonth.value = ''
+  filterDay.value = ''
+  filterSourceKind.value = ''
+  filterSourceName.value = ''
+
+  setSearch('')
+  setFilters({
+    type: undefined,
+    visibility: undefined,
+    year: undefined,
+    month: undefined,
+    day: undefined,
+    source_kind: undefined,
+    source_name: undefined,
+  })
 }
 
 function applyTypeFilter(value) {
@@ -170,27 +428,59 @@ function applyVisibilityFilter(value) {
   setFilter('visibility', value !== '' ? Number(value) : undefined)
 }
 
-async function toggleVisibility(event) {
-  const newVisibility = event.visibility === 1 ? 0 : 1
-  try {
-    await http.put(`/admin/events/${event.id}`, { ...event, visibility: newVisibility })
-    event.visibility = newVisibility
-  } catch (err) {
-    // silently ignore — refresh will fix state
-    await refresh()
-  }
+function applySourceKindFilter(value) {
+  filterSourceKind.value = value
+  setFilter('source_kind', value || undefined)
 }
 
-function normalizeAiStatus(value, fallback = 'idle') {
-  const normalized = String(value || '').trim().toLowerCase()
-  if (['idle', 'success', 'fallback', 'error'].includes(normalized)) {
-    return normalized
-  }
+function applySourceNameFilter() {
+  const normalized = String(filterSourceName.value || '').trim()
+  filterSourceName.value = normalized
+  setFilter('source_name', normalized !== '' ? normalized : undefined)
+}
 
-  const fallbackNormalized = String(fallback || '').trim().toLowerCase()
-  return ['idle', 'success', 'fallback', 'error'].includes(fallbackNormalized)
-    ? fallbackNormalized
-    : 'idle'
+async function toggleVisibility(event) {
+  const newVisibility = event.visibility === 1 ? 0 : 1
+  const basePayload = { ...event, visibility: newVisibility }
+
+  try {
+    await http.put(`/admin/events/${event.id}`, basePayload)
+    event.visibility = newVisibility
+  } catch (err) {
+    const errorCode = String(err?.response?.data?.error_code || '').trim().toUpperCase()
+    if (newVisibility === 1 && errorCode === 'AI_DESCRIPTION_REVIEW_REQUIRED') {
+      const gateMessage = String(
+        err?.response?.data?.message
+          || err?.userMessage
+          || 'Udalos\u0165 vy\u017eaduje kontrolu opisu pred zverejnen\u00edm.'
+      ).trim()
+
+      const approved = await confirm({
+        title: 'Publikova\u0165 po kontrole',
+        message: `${gateMessage}\n\nChce\u0161 zverejni\u0165 udalos\u0165 aj tak?`,
+        confirmText: 'Zverejni\u0165 aj tak',
+        cancelText: 'Zru\u0161i\u0165',
+      })
+
+      if (!approved) {
+        return
+      }
+
+      try {
+        await http.put(`/admin/events/${event.id}`, {
+          ...basePayload,
+          force_publish: true,
+        })
+        event.visibility = newVisibility
+        return
+      } catch {
+        await refresh()
+        return
+      }
+    }
+
+    await refresh()
+  }
 }
 
 function normalizeIconValue(value) {
@@ -202,36 +492,6 @@ function eventDisplayIcon(event) {
   const explicit = normalizeIconValue(event?.icon_emoji)
   if (explicit) return explicit
   return defaultEventTypeIcons[String(event?.type || '').trim()] || '\u2728'
-}
-
-async function loadAiConfig(eventId = null) {
-  aiConfigLoading.value = true
-
-  try {
-    const params = {}
-    const normalizedEventId = Number(eventId || 0)
-    if (normalizedEventId > 0) {
-      params.event_id = normalizedEventId
-    }
-
-    const response = await getAdminAiConfig(params)
-    aiConfig.value = response?.data?.data || null
-
-    const run = aiConfig.value?.features?.event_description_generate?.last_run
-    if (normalizedEventId > 0 && run) {
-      aiLastRunByEvent.value = {
-        ...aiLastRunByEvent.value,
-        [normalizedEventId]: run,
-      }
-    }
-    if (run?.status) {
-      aiActionStatus.value = normalizeAiStatus(run.status)
-    }
-  } catch {
-    aiConfig.value = null
-  } finally {
-    aiConfigLoading.value = false
-  }
 }
 
 function openCreate() {
@@ -248,17 +508,7 @@ function openCreate() {
   formError.value = ''
   formSuccess.value = ''
   formSubmitAttempted.value = false
-  aiActionError.value = ''
-  aiActionStatus.value = 'idle'
-  aiActionResult.value = null
-  aiActionNotice.value = ''
-  aiActionRawStatus.value = null
-  aiUndoSnapshot.value = null
-  aiShortDraft.value = ''
-  showAdvancedAiInForm.value = false
   mode.value = 'create'
-  showTranslationTools.value = false
-  loadAiConfig()
 }
 
 function openEdit(event) {
@@ -275,17 +525,7 @@ function openEdit(event) {
   formError.value = ''
   formSuccess.value = ''
   formSubmitAttempted.value = false
-  aiActionError.value = ''
-  aiActionStatus.value = 'idle'
-  aiActionResult.value = null
-  aiActionNotice.value = ''
-  aiActionRawStatus.value = null
-  aiUndoSnapshot.value = null
-  aiShortDraft.value = String(event.short || '')
-  showAdvancedAiInForm.value = false
   mode.value = 'edit'
-  showTranslationTools.value = false
-  loadAiConfig(event?.id)
 }
 
 function closeForm() {
@@ -293,15 +533,6 @@ function closeForm() {
   formError.value = ''
   formSuccess.value = ''
   formSubmitAttempted.value = false
-  aiActionError.value = ''
-  aiActionStatus.value = 'idle'
-  aiActionResult.value = null
-  aiActionNotice.value = ''
-  aiActionRawStatus.value = null
-  aiUndoSnapshot.value = null
-  aiShortDraft.value = ''
-  showAdvancedAiInForm.value = false
-  showTranslationTools.value = false
 }
 
 function formatDate(value) {
@@ -359,152 +590,28 @@ async function submitForm() {
   try {
     if (isEdit.value) {
       await http.put(`/admin/events/${editingEvent.value.id}`, payload)
-      formSuccess.value = 'Udalosť bola upravená.'
+      formSuccess.value = 'Udalos\u0165 bola upraven\u00e1.'
     } else {
       await http.post('/admin/events', payload)
-      formSuccess.value = 'Udalosť bola vytvorená.'
+      formSuccess.value = 'Udalos\u0165 bola vytvoren\u00e1.'
     }
 
     await refresh()
     mode.value = 'list'
   } catch (err) {
-    formError.value = err?.response?.data?.message || 'Uloženie zlyhalo.'
+    formError.value = err?.response?.data?.message || 'Ulo\u017eenie zlyhalo.'
   } finally {
     formLoading.value = false
   }
 }
 
-async function requestTranslationBackfill(dryRun) {
-  translationActionLoading.value = true
-  translationError.value = ''
-  translationSummary.value = null
-
-  try {
-    const response = await http.post('/admin/events/retranslate', {
-      dry_run: dryRun,
-      force: false,
-      limit: 0,
-    })
-    translationSummary.value = response.data
-    if (!dryRun) {
-      await refresh()
-    }
-  } catch (err) {
-    translationError.value = err?.response?.data?.message || 'Retranslate zlyhal.'
-  } finally {
-    translationActionLoading.value = false
-  }
-}
-
-async function previewTranslationBackfill() {
-  await requestTranslationBackfill(true)
-}
-
-async function runTranslationBackfill() {
-  const approved = await confirm({
-    title: 'Spustiť retranslate',
-    message: 'Naozaj spustit retranslate schvalenych udalosti?',
-    confirmText: 'Spustit',
-    cancelText: 'Zrušiť',
-  })
-  if (!approved) return
-  await requestTranslationBackfill(false)
-}
-
-function toggleTranslationTools() {
-  showTranslationTools.value = !showTranslationTools.value
-}
-
-async function runAiGenerateDescription() {
-  const eventId = editingEventId.value
-  if (aiActionLoading.value || eventId <= 0) return
-
-  const previousDescription = String(form.value.description || '')
-  const previousShort = String(aiShortDraft.value || '')
-
-  aiActionLoading.value = true
-  aiActionError.value = ''
-  aiActionNotice.value = ''
-  aiActionRawStatus.value = null
-  aiActionStatus.value = 'idle'
-  aiActionResult.value = null
-
-  try {
-    const response = await generateAdminEventDescription(eventId, {
-      sync: true,
-      mode: 'ollama',
-      fallback: 'base',
-      force: true,
-    })
-
-    const data = response?.data?.data || {}
-    const lastRun = response?.data?.last_run || null
-    if (lastRun) {
-      aiLastRunByEvent.value = {
-        ...aiLastRunByEvent.value,
-        [eventId]: lastRun,
-      }
-    }
-
-    aiActionResult.value = {
-      description: String(data.description || '').trim(),
-      short: String(data.short || '').trim(),
-      fallbackUsed: Boolean(data.fallback_used),
-    }
-    aiActionStatus.value = normalizeAiStatus(
-      lastRun?.status,
-      data.fallback_used ? 'fallback' : 'success',
-    )
-
-    if (aiActionResult.value.description) {
-      form.value.description = aiActionResult.value.description
-    }
-    if (aiActionResult.value.short) {
-      aiShortDraft.value = aiActionResult.value.short
-    }
-
-    aiUndoSnapshot.value = {
-      description: previousDescription,
-      short: previousShort,
-    }
-    aiActionNotice.value = 'Opis aktualizovany.'
-
-    await refresh()
-  } catch (err) {
-    aiActionStatus.value = 'error'
-    aiActionError.value = 'Nepodarilo sa vylepsit opis.'
-    aiActionRawStatus.value = Number(err?.response?.status || 0) || null
-  } finally {
-    aiActionLoading.value = false
-    await loadAiConfig(eventId)
-  }
-}
-
-function undoAiDescription() {
-  if (!aiUndoSnapshot.value) return
-
-  form.value.description = aiUndoSnapshot.value.description
-  aiShortDraft.value = aiUndoSnapshot.value.short
-  aiActionResult.value = {
-    description: aiUndoSnapshot.value.description,
-    short: aiUndoSnapshot.value.short,
-    fallbackUsed: false,
-  }
-  aiActionNotice.value = ''
-  aiUndoSnapshot.value = null
-}
-
-onMounted(() => {
-  loadAiConfig()
+onBeforeUnmount(() => {
+  clearSearchDebounce()
 })
 </script>
 
 <template src="./eventsUnified/EventsUnifiedView.template.html"></template>
 
 <style scoped src="./eventsUnified/EventsUnifiedView.css"></style>
-
-
-
-
 
 

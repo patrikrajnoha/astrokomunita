@@ -82,13 +82,23 @@
             v-for="widget in filteredAvailable"
             :key="widget.section_key"
             class="widgetCard"
-            :class="{ 'widgetCard--dragging': dragKey === widget.section_key }"
-            draggable="true"
+            :class="{
+              'widgetCard--dragging': dragKey === widget.section_key,
+              'widgetCard--locationLocked': requiresLocation(widget),
+            }"
+            :draggable="requiresLocation(widget) ? 'false' : 'true'"
+            :title="requiresLocation(widget) ? 'Vyžaduje polohu používateľa – nie je možné pridať do predvolených widgetov pre hostí' : undefined"
             @dragstart="onDragStart($event, widget, 'available')"
             @dragend="onDragEnd"
           >
             <span class="widgetCard__handle" aria-hidden="true">⠿</span>
             <span class="widgetCard__name">{{ widget.title }}</span>
+            <span v-if="requiresLocation(widget)" class="widgetCard__locationBadge" aria-label="Vyžaduje polohu">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </span>
           </article>
 
           <div v-if="filteredAvailable.length === 0" class="widgetZone__empty">
@@ -103,7 +113,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import { normalizeSidebarSections } from '@/sidebar/engine'
+import { normalizeSidebarSections, OBSERVING_SECTION_KEYS } from '@/sidebar/engine'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 
 const MAX_ENABLED = 3
@@ -155,6 +165,28 @@ const filteredAvailable = computed(() => {
   return availableWidgets.value.filter((s) => s.title.toLowerCase().includes(q))
 })
 
+function requiresLocation(widget) {
+  return OBSERVING_SECTION_KEYS.includes(widget.section_key)
+}
+
+function enforceMaxEnabled(items) {
+  const sorted = [...items].sort((a, b) => a.order - b.order)
+  let enabledCount = 0
+
+  return sorted.map((item, index) => {
+    const keepEnabled = Boolean(item.is_enabled) && enabledCount < MAX_ENABLED
+    if (keepEnabled) {
+      enabledCount += 1
+    }
+
+    return {
+      ...item,
+      is_enabled: keepEnabled,
+      order: index,
+    }
+  })
+}
+
 // ── Drag & Drop ───────────────────────────────────────────────────────────────
 
 function onDragStart(e, widget, zone) {
@@ -187,13 +219,18 @@ function onDrop(zone) {
 
   if (zone === 'active') {
     if (from === 'available') {
+      const widget = sections.value.find((s) => s.section_key === key)
+      if (widget && requiresLocation(widget)) {
+        state.error = 'Widgety vyžadujúce polohu nie je možné pridať – hostia ich neuvidia.'
+        onDragEnd()
+        return
+      }
       if (activeWidgets.value.length >= MAX_ENABLED) {
         state.error = `Môžu byť aktívne najviac ${MAX_ENABLED} widgety.`
         onDragEnd()
         return
       }
       state.error = ''
-      const widget = sections.value.find((s) => s.section_key === key)
       if (widget) {
         widget.is_enabled = true
         rebuildOrder()
@@ -258,7 +295,7 @@ const fetchConfig = async () => {
         is_enabled: item.is_enabled,
       }))
       .sort((a, b) => a.order - b.order)
-    sections.value = items
+    sections.value = enforceMaxEnabled(items)
   } catch (err) {
     state.error = err?.response?.data?.message || 'Nepodarilo sa načítať konfiguráciu sidebaru.'
   } finally {
@@ -276,7 +313,10 @@ const persistConfig = async () => {
   state.saveError = ''
 
   try {
-    const payload = sections.value.map((s, index) => ({
+    const sanitizedSections = enforceMaxEnabled(sections.value)
+    sections.value = sanitizedSections
+
+    const payload = sanitizedSections.map((s, index) => ({
       section_key: s.section_key,
       is_enabled: s.is_enabled,
       order: index,
@@ -495,5 +535,28 @@ onMounted(() => {
 .widgetSearch:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+/* ── Location-locked cards ── */
+.widgetCard--locationLocked {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.widgetCard--locationLocked .widgetCard__handle {
+  opacity: 0.15;
+  cursor: default;
+}
+
+.widgetCard__locationBadge {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-warning, #f59e0b);
+}
+
+.widgetCard__locationBadge svg {
+  width: 0.82rem;
+  height: 0.82rem;
 }
 </style>

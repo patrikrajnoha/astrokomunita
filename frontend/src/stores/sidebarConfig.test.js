@@ -19,18 +19,16 @@ describe('sidebarConfig store', () => {
     api.get.mockReset()
   })
 
-  it('uses local fallback and does not request API for undefined scope', async () => {
+  it('returns empty config and does not request API for undefined scope', async () => {
     const store = useSidebarConfigStore()
 
     const items = await store.fetchScope(undefined)
 
     expect(api.get).not.toHaveBeenCalled()
-    expect(items).toHaveLength(18)
-    expect(items[0].section_key).toBe('observing_conditions')
-    expect(items.at(-1)?.section_key).toBe('upcoming_launches')
+    expect(items).toEqual([])
   })
 
-  it('uses local fallback and does not request API for null-like scopes', async () => {
+  it('returns empty config and does not request API for null-like scopes', async () => {
     const store = useSidebarConfigStore()
 
     await store.fetchScope(null)

@@ -32,10 +32,21 @@
           type="button"
           role="menuitem"
           class="dropdownItem"
-          :class="{ 'dropdownItem--danger': item.danger }"
+          :class="{ 'dropdownItem--danger': item.danger, 'dropdownItem--active': item.active }"
           @click.stop="onSelect(item)"
         >
-          {{ item.label }}
+          <span v-if="resolveIconPath(item.icon)" class="dropdownItemIcon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                :d="resolveIconPath(item.icon)"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="dropdownItemLabel">{{ item.label }}</span>
         </button>
       </div>
     </teleport>
@@ -100,6 +111,21 @@ const toggle = async () => {
 const onSelect = (item) => {
   emit('select', item)
   close(false)
+}
+
+const iconPaths = {
+  download: 'M12 3v11m0 0 4-4m-4 4-4-4M5 21h14',
+  pin: 'M12 17v4m0-4 6-6-3-3-2-6H11L9 8 6 11l6 6Z',
+  unpin: 'M3 3l18 18M12 17v4m0-4 6-6-3-3-2-6H11L9 8 6 11l6 6Z',
+  trash: 'M4 7h16M10 11v6m4-6v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2',
+  report: 'M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1v12Zm0 0v7',
+  lang_sk: 'M3 5h18v14H3zM3 10h18M3 14h18M3 18h18',
+  lang_en: 'M3 5h18v14H3zM12 5v14M3 12h18M5 7l14 10M19 7L5 17',
+}
+
+function resolveIconPath(iconName) {
+  if (!iconName) return ''
+  return iconPaths[iconName] || ''
 }
 
 const onTriggerKeydown = async (event) => {
@@ -299,6 +325,10 @@ defineExpose({ close })
 }
 
 .dropdownItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
   background: transparent;
@@ -308,6 +338,24 @@ defineExpose({ close })
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+}
+
+.dropdownItemIcon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.dropdownItemIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dropdownItemLabel {
+  min-width: 0;
 }
 
 .dropdownItem:hover {
@@ -327,6 +375,17 @@ defineExpose({ close })
 .dropdownItem--danger:hover {
   border-color: rgb(var(--color-danger-rgb) / 0.35);
   background: rgb(var(--color-danger-rgb) / 0.14);
+}
+
+.dropdownItem--active {
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
+  background: rgb(var(--color-primary-rgb) / 0.12);
+  color: var(--color-text-primary);
+}
+
+.dropdownItem--active:hover {
+  border-color: rgb(var(--color-primary-rgb) / 0.56);
+  background: rgb(var(--color-primary-rgb) / 0.16);
 }
 
 @keyframes dropdownIn {

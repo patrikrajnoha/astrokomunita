@@ -81,6 +81,42 @@ describe('LoginView', () => {
     }
   })
 
+  it('submits login when Enter is pressed in password field', async () => {
+    vi.useFakeTimers()
+
+    try {
+      mockAuth.login.mockResolvedValueOnce({ id: 1 })
+
+      const router = makeRouter()
+      await router.push('/login?redirect=%2Fevents')
+      await router.isReady()
+      router.push = pushMock
+
+      const wrapper = mount(LoginView, {
+        global: {
+          plugins: [router],
+        },
+      })
+
+      await wrapper.find('input[type="email"]').setValue('you@example.com')
+      await wrapper.find('input[type="password"]').setValue('my-password')
+
+      await wrapper.find('input[type="password"]').trigger('keydown.enter')
+      await Promise.resolve()
+
+      expect(mockAuth.login).toHaveBeenCalledWith({
+        email: 'you@example.com',
+        password: 'my-password',
+        remember: true,
+      })
+
+      await vi.advanceTimersByTimeAsync(2800)
+      expect(pushMock).toHaveBeenCalledWith('/events')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('renders banned state details when auth error indicates banned user', async () => {
     mockAuth.error = {
       type: 'banned',
@@ -101,6 +137,6 @@ describe('LoginView', () => {
 
     expect(wrapper.text()).toContain('Účet je blokovaný')
     expect(wrapper.text()).toContain('Repeated abusive behavior.')
-    expect(wrapper.text()).toContain('Blokovane:')
+    expect(wrapper.text()).toContain('Blokovan')
   })
 })

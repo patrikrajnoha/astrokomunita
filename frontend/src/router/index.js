@@ -305,8 +305,15 @@ const appShellChildren = [
         component: () => import('@/views/admin/EventFormView.vue'),
       },
       {
-        path: 'users/:id',
+        path: 'users/:id/detail',
         name: 'admin.users.detail',
+        meta: { adminSection: 'community', adminTab: 'users' },
+        alias: ['users/:id'],
+        component: () => import('@/views/admin/UsersView.vue'),
+      },
+      {
+        path: 'users/:id/full',
+        name: 'admin.users.detail.page',
         meta: { adminSection: 'community', adminTab: 'users' },
         component: () => import('@/views/admin/AdminUserDetailView.vue'),
       },
@@ -527,14 +534,14 @@ const appShellChildren = [
       {
         path: 'bots',
         name: 'admin.bots',
-        meta: { adminSection: 'automation', adminTab: 'overview' },
+        meta: { adminSection: 'automation', adminTab: 'dashboard' },
         component: () => import('@/views/admin/BotAdminUnifiedView.vue'),
       },
       {
         path: 'bots/engine',
         name: 'admin.bots.engine',
-        meta: { adminSection: 'automation', adminTab: 'engine' },
-        component: () => import('@/views/admin/BotAdminUnifiedView.vue'),
+        meta: { adminSection: 'automation', adminTab: 'legacy-tools' },
+        component: () => import('@/views/admin/BotEngineView.vue'),
       },
       {
         path: 'bots/sources',
@@ -551,7 +558,7 @@ const appShellChildren = [
       {
         path: 'bots/activity',
         name: 'admin.bots.activity',
-        meta: { adminSection: 'automation', adminTab: 'activity' },
+        meta: { adminSection: 'automation', adminTab: 'logs' },
         component: () => import('@/views/admin/BotAdminUnifiedView.vue'),
       },
       {
@@ -681,25 +688,6 @@ export function applyAuthGuards(routerInstance) {
     const isOnboardingRoute = to.name === 'onboarding'
     const isVerifiedUser = Boolean(auth.isAuthed && auth.user?.email_verified_at)
     const isAdminUser = Boolean(auth.isAdmin)
-    const hasVerifiableEmail = Boolean(auth.user?.email)
-    const routeName = typeof to.name === 'string' ? to.name : ''
-    const isSettingsRoute = routeName === 'settings' || routeName.startsWith('settings.')
-
-    if (
-      auth.isAuthed &&
-      !isAdminUser &&
-      hasVerifiableEmail &&
-      !auth.user?.email_verified_at &&
-      !isVerifyEmailRoute &&
-      !isSettingsRoute
-    ) {
-      return {
-        name: 'settings.email',
-        query: {
-          redirect: redirectTarget,
-        },
-      }
-    }
 
     if (isVerifiedUser && !isAdminUser) {
       if (!preferences.loaded) {

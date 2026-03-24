@@ -1,38 +1,11 @@
 
   <div class="eventsView">
     <section class="panel headerPanel">
-      <div>
-        <h1>Udalosti</h1>
-        <p>Kompaktný prehľad publikovaných a manuálnych udalostí.</p>
-      </div>
+      <h1 class="headerPanel__title">Udalosti</h1>
       <div class="toolbar">
         <button class="btn primary" @click="openCreate">Nová udalosť</button>
       </div>
     </section>
-
-    <details class="panel toolsPanel toolsDetails">
-      <summary class="toolsDetails__summary">
-        <span>Nástroje prekladu</span>
-        <div class="toolbar toolsDetails__toolbar" @click.stop>
-          <button class="btn ghost" :disabled="translationActionLoading" @click="previewTranslationBackfill">Náhľad</button>
-          <button class="btn ghost" :disabled="translationActionLoading" @click="runTranslationBackfill">Spustiť</button>
-        </div>
-      </summary>
-
-      <div class="toolsDetails__body">
-        <p class="toolsPanel__hint">
-          Retranslate používaj po úpravách slovníka alebo pri zistení prekladových artefaktov.
-        </p>
-        <div v-if="translationError" class="notice noticeError">{{ translationError }}</div>
-        <div v-else-if="translationSummary" class="translationSummary">
-          <span class="translationSummary__item">Kandidáti: {{ translationSummary.summary?.total_candidates ?? 0 }}</span>
-          <span class="translationSummary__item translationSummary__item--ok">✓ {{ translationSummary.summary?.translated ?? 0 }} preložené</span>
-          <span class="translationSummary__item translationSummary__item--err">✕ {{ translationSummary.summary?.failed ?? 0 }} zlyhalo</span>
-          <span class="translationSummary__item">↑ {{ translationSummary.summary?.events_updated ?? 0 }} eventov</span>
-          <span v-if="translationSummary.summary?.dry_run" class="translationSummary__item translationSummary__item--warn">dry run</span>
-        </div>
-      </div>
-    </details>
 
     <BaseModal
       v-model:open="isFormModalOpen"
@@ -42,58 +15,6 @@
       @close="closeForm"
     >
       <section class="formPanel">
-        <div v-if="aiEnabled" class="quickBtns">
-          <button
-            class="btn tiny ghost"
-            type="button"
-            @click="showAdvancedAiInForm = !showAdvancedAiInForm"
-          >
-            {{ showAdvancedAiInForm ? 'Skryť AI opis' : '✨ AI opis' }}
-          </button>
-        </div>
-
-      <template v-if="showAdvancedAiInForm">
-        <AdminAiActionPanel
-          v-if="aiPanelReady"
-          class="aiPanelSpacer"
-          title="AI pomocník"
-          description="Vylepší opis udalosti bez zobrazenia interných detailov."
-          action-label="Vylepšiť opis"
-          :enabled="aiPanelEnabled"
-          :status="aiActionStatus"
-          :latency-ms="aiEventLastRun?.latency_ms ?? null"
-          :last-run-at="aiEventLastRun?.updated_at ?? null"
-          :retry-count="aiEventLastRun?.retry_count ?? null"
-          :raw-status-code="aiActionRawStatus"
-          :is-loading="aiActionLoading"
-          :error-message="aiActionError"
-          @run="runAiGenerateDescription"
-        >
-          <p v-if="editingEventId <= 0" class="aiHint">
-            Najprv ulož udalosť, potom môžeš vylepšiť opis.
-          </p>
-          <template v-else>
-            <div v-if="aiActionNotice" class="aiNoticeRow">
-              <span class="aiNotice">Opis aktualizovaný.</span>
-              <button
-                v-if="aiUndoSnapshot"
-                type="button"
-                class="aiUndoBtn"
-                @click="undoAiDescription"
-              >
-                Undo
-              </button>
-            </div>
-            <span v-if="aiActionStatus === 'fallback'" class="aiBadge aiBadge--fallback">Použitý fallback</span>
-            <p class="aiHint"><strong>Krátky opis:</strong> {{ aiShortDraft || '-' }}</p>
-            <p class="aiHint"><strong>Opis:</strong> {{ form.description || aiActionResult?.description || '-' }}</p>
-          </template>
-        </AdminAiActionPanel>
-        <p v-else class="aiHint">
-          Načítavam AI konfiguráciu...
-        </p>
-      </template>
-
       <div v-if="formError" class="notice noticeError">{{ formError }}</div>
       <div v-if="formSuccess" class="notice noticeOk">{{ formSuccess }}</div>
 
@@ -314,3 +235,4 @@
       </div>
     </section>
   </div>
+

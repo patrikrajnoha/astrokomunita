@@ -27,6 +27,7 @@ import { computed, ref, watch } from 'vue'
 import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import { avatarSeed, resolveAvatarState } from '@/utils/avatar'
 import { avatarDebug } from '@/utils/avatarDebug'
+import { getBotAvatar, isBotUser } from '@/utils/botAvatar'
 
 const props = defineProps({
   user: {
@@ -78,6 +79,7 @@ const props = defineProps({
 const imageFailed = ref(false)
 const imageUrl = ref('')
 const imageRetryDone = ref(false)
+const botFallbackRetryDone = ref(false)
 
 const avatarState = computed(() =>
   resolveAvatarState(props.user, {
@@ -95,6 +97,7 @@ watch(
   (nextUrl) => {
     imageFailed.value = false
     imageRetryDone.value = false
+    botFallbackRetryDone.value = false
     imageUrl.value = String(nextUrl || '')
     avatarDebug('UserAvatar:imageUrl-changed', {
       userId: props.user?.id ?? null,
@@ -134,6 +137,24 @@ function onImageError() {
         userId: props.user?.id ?? null,
         username: props.user?.username ?? null,
         fallbackUrl,
+      })
+      return
+    }
+  }
+
+  if (!botFallbackRetryDone.value && isBotUser(props.user)) {
+    botFallbackRetryDone.value = true
+    const botFallbackUrl = getBotAvatar(props.user, {
+      avatarPath: '',
+      avatarUrl: '',
+    })?.url || ''
+
+    if (botFallbackUrl && botFallbackUrl !== imageUrl.value) {
+      imageUrl.value = botFallbackUrl
+      avatarDebug('UserAvatar:image-retry-bot-default', {
+        userId: props.user?.id ?? null,
+        username: props.user?.username ?? null,
+        fallbackUrl: botFallbackUrl,
       })
       return
     }

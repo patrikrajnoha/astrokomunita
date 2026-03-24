@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="settings-nav-groups">
     <section
       v-for="group in settingsGroups"

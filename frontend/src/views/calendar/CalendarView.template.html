@@ -69,7 +69,12 @@
           >
             <span :class="['dot', typeDot(event.type)]" aria-hidden="true"></span>
             <div>
-              <div class="event-title">{{ prependStarLabel(event.title) }}</div>
+              <div class="event-heading">
+                <span class="event-icon" role="img" :aria-label="eventTypeEmojiLabel(event)">
+                  {{ eventTypeEmoji(event) }}
+                </span>
+                <div class="event-title">{{ prependStarLabel(event.title) }}</div>
+              </div>
               <div class="event-time">{{ formatEventTime(event) }}</div>
             </div>
           </li>

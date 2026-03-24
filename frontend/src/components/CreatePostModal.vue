@@ -478,7 +478,7 @@ async function fetchGifResults(query) {
   } catch (error) {
     const status = Number(error?.response?.status || 0)
     gifError.value = status === 429
-      ? 'GIF vyhladavanie je docasne pretazene. Skus neskor.'
+      ? 'GIF vyhladavanie je dočasne pretazene. Skus neskor.'
       : (error?.response?.data?.message || 'GIF vyhladavanie zlyhalo.')
   } finally {
     gifLoading.value = false

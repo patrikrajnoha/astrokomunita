@@ -127,7 +127,7 @@
                       :disabled="editSavingId === p.id"
                       @click.stop="saveInlineEdit(p)"
                     >
-                      {{ editSavingId === p.id ? 'Ukladam...' : 'Ulozit' }}
+                      {{ editSavingId === p.id ? 'Ukladám...' : 'Ulozit' }}
                     </button>
                     <button
                       type="button"
@@ -168,9 +168,7 @@
                     {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
                   </p>
                 </div>
-                <button type="button" class="ui-btn ui-btn--subtle attached-event-btn" @click.stop="openAttachedEvent(p)">
-                  Otvorit udalost
-                </button>
+                <button type="button" class="ui-btn ui-btn--subtle attached-event-btn" @click.stop="openAttachedEvent(p)">                  Otvoriť udalosť</button>
               </div>
 
               <div v-if="!observationForPost(p) && isBotPost(p)" class="source-url source-url--bot" @click.stop>
@@ -193,10 +191,12 @@
                   :src="stelaPreviewImageSrc(p)"
                   alt="Stela APOD nahlad"
                   :blurred="isAttachmentPending(p)"
-                  :status="p?.status"
+                  :status="p?.attachment_moderation_status"
                   fit="cover"
                   frame-aspect-ratio="2 / 1"
                   :show-oversize-overlay="false"
+                  :post-id="p.id"
+                  @unblurred="(d) => onPostUnblurred(p, d)"
                 />
               </div>
 
@@ -212,10 +212,12 @@
                   :src="attachmentSrc(p)"
                   alt="Priloha prispevku"
                   :blurred="isAttachmentPending(p)"
-                  :status="p?.status"
+                  :status="p?.attachment_moderation_status"
                   fit="cover"
                   frame-aspect-ratio="2 / 1"
                   :show-oversize-overlay="false"
+                  :post-id="p.id"
+                  @unblurred="(d) => onPostUnblurred(p, d)"
                 />
 
                 <PostMediaVideo
@@ -234,12 +236,12 @@
                 >
                   <div class="file-icon" aria-hidden="true">&#128206;</div>
                   <div class="file-info">
-                    <div class="file-title">Pr�loha</div>
+                    <div class="file-title">Pr?loha</div>
                     <div class="file-name">
-                      {{ p.attachment_original_name || 'S�bor' }}
+                      {{ p.attachment_original_name || 'S?bor' }}
                     </div>
                   </div>
-                  <div class="file-arrow">�</div>
+                  <div class="file-arrow">?</div>
                 </a>
               </div>
 
@@ -292,7 +294,7 @@
         </div>
 
         <div class="report-form">
-          <div class="report-reasons" role="radiogroup" aria-label="Dôvod nahlásiia">
+          <div class="report-reasons" role="radiogroup" aria-label="Dôvod nahlásenia">
             <label
               v-for="opt in reportOptions"
               :key="opt.value"
@@ -312,7 +314,7 @@
 
           <div class="form-group">
             <label class="form-label" for="report-message">
-              Správa <span class="form-label-optional">(voliteľné)</span>
+              Správa <span class="form-label-optional">(voliteľná)</span>
             </label>
             <textarea
               id="report-message"
@@ -332,4 +334,3 @@
     </div>
     <ShareModal v-if="shareTarget" :open="true" :post="shareTarget" @close="closeShareModal" />
   </section>
-

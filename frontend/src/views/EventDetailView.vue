@@ -160,7 +160,18 @@ const primaryObservationLine = computed(() => {
     return viewingWindowLabel.value
   }
 
-  return 'upresnime'
+  return 'upresníme'
+})
+const observationTimeLabel = computed(() => {
+  if (viewingForecast.value.summary?.rating === 'bad') {
+    return 'Možné okno'
+  }
+
+  if (viewingWindowLabel.value) {
+    return 'Najlepší čas'
+  }
+
+  return 'Čas udalosti'
 })
 
 const verdictLine = computed(() => {

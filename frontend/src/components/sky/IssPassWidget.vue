@@ -1,6 +1,6 @@
 <template>
   <section v-if="showLoading || shouldRender" class="panel issPass">
-    <h3 class="panelTitle sidebarSection__header">ISS prelet</h3>
+    <h3 class="panelTitle sidebarSection__header">ISS nad tebou</h3>
 
     <div v-if="showLoading" class="skeletonStack">
       <div class="skeleton skW65"></div>

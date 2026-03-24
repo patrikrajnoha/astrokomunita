@@ -157,7 +157,7 @@ export function useAdminTable(fetchFunction, options = {}) {
   };
   
   const setFilter = (key, value) => {
-    filters.value[key] = value;
+    filters.value = { ...filters.value, [key]: value };
     page.value = PAGINATION.DEFAULT_PAGE; // Reset page na 1
   };
   

@@ -57,7 +57,6 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
     sectionKey === 'aurora_watch' ||
     sectionKey === 'night_sky' ||
     sectionKey === 'iss_pass' ||
-    sectionKey === 'moon_overview' ||
     sectionKey === 'moon_events'
   ) {
     return {
@@ -78,7 +77,6 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
       date: observingContext.date,
       tz: observingContext.tz,
       locationName: observingContext.locationName,
-      showOverview: !enabledSectionKeys.has('moon_overview'),
       showSpecialEvents: !enabledSectionKeys.has('moon_events'),
     }
   }
@@ -88,6 +86,7 @@ export function buildWidgetProps(sectionKey, title, observingContext, options = 
     sectionKey === 'next_event' ||
     sectionKey === 'next_eclipse' ||
     sectionKey === 'next_meteor_shower' ||
+    sectionKey === 'constellations_now' ||
     sectionKey === 'neo_watchlist' ||
     sectionKey === 'upcoming_launches' ||
     sectionKey === 'latest_articles' ||

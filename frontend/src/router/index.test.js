@@ -123,7 +123,7 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.query.redirect).toBe('/settings')
   })
 
-  it('redirects authenticated unverified users to settings email route', async () => {
+  it('allows authenticated unverified users on requested routes', async () => {
     authState.isAuthed = true
     authState.user = {
       email: 'unverified@example.com',
@@ -135,8 +135,7 @@ describe('router auth guard', () => {
     await router.push('/events')
     await router.isReady()
 
-    expect(router.currentRoute.value.name).toBe('settings.email')
-    expect(router.currentRoute.value.query.redirect).toBe('/events')
+    expect(router.currentRoute.value.name).toBe('events')
   })
 
   it('keeps authenticated non-admin users out of admin routes', async () => {

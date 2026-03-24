@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import { appInitState, setInitError, setInitializing, setMounted } from '@/bootstrap/appInitState'
 import { useAuthStore } from '@/stores/auth'
+import { captureClientError } from '@/services/errorTracker'
 
 function formatError(errorLike) {
   if (!errorLike) return { message: 'Neznáma chyba', stack: '' }
@@ -36,6 +37,7 @@ function ensureFatalOverlay(errorLike, source = 'runtime') {
   const { message, stack } = formatError(errorLike)
 
   console.error(`[APP FATAL][${source}]`, message, errorLike)
+  captureClientError(errorLike, source)
 
   if (!import.meta.env.DEV || typeof document === 'undefined') return
 
@@ -85,6 +87,7 @@ function attachGlobalDiagnostics() {
   window.onerror = function onWindowError(message, source, lineno, colno, error) {
     const lineInfo = source ? `${source}:${lineno || 0}:${colno || 0}` : 'unknown-source'
     console.error('[APP ERROR]', message, lineInfo, error)
+    captureClientError(error || String(message), 'window.onerror')
     ensureFatalOverlay(error || String(message), 'window.onerror')
     return false
   }
@@ -92,6 +95,7 @@ function attachGlobalDiagnostics() {
   window.onunhandledrejection = function onUnhandledRejection(event) {
     const reason = event?.reason || new Error('Nespracované odmietnutie sľubu')
     console.error('[APP ERROR] unhandledrejection', reason)
+    captureClientError(reason, 'unhandledrejection')
     ensureFatalOverlay(reason, 'unhandledrejection')
   }
 }
@@ -126,7 +130,13 @@ async function bootstrap() {
 
   app.config.errorHandler = (error, instance, info) => {
     console.error('[APP ERROR] vue errorHandler', info, instance, error)
-    ensureFatalOverlay(error, 'vue.errorHandler')
+    captureClientError(error, `vue.errorHandler:${info}`)
+    // Only show the fatal overlay during bootstrap (before the app is mounted).
+    // After mount, errors in watchers / navigation hooks are non-fatal and
+    // should not block the entire UI.
+    if (!appInitState.mounted) {
+      ensureFatalOverlay(error, 'vue.errorHandler')
+    }
   }
 
   app.use(pinia)

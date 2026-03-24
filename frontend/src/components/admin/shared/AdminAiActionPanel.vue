@@ -6,7 +6,7 @@ const STATUS_VALUES = ['idle', 'success', 'fallback', 'error']
 const STATUS_LABELS = {
   idle: 'Pripravené',
   success: 'Hotovo',
-  fallback: 'Použitý fallback',
+  fallback: 'Použitá šablóna (routing)',
   error: 'Chyba',
 }
 
@@ -75,7 +75,15 @@ const normalizedStatus = computed(() => {
   return STATUS_VALUES.includes(normalized) ? normalized : 'idle'
 })
 const statusText = computed(() => STATUS_LABELS[normalizedStatus.value] || STATUS_LABELS.idle)
-const statusClass = computed(() => `statusPill statusPill--${normalizedStatus.value}`)
+const displayProgressPercent = computed(() => {
+  if (!Number.isFinite(props.progressPercent)) return null
+  return Math.max(0, Math.min(100, Math.round(Number(props.progressPercent))))
+})
+const runButtonText = computed(() => {
+  if (!props.isLoading) return props.actionLabel
+  if (displayProgressPercent.value === null) return 'Prebieha...'
+  return `Prebieha... ${displayProgressPercent.value}%`
+})
 
 const formattedLastRun = computed(() => {
   if (!props.lastRunAt) return '—'
@@ -117,60 +125,53 @@ function triggerRun() {
 
 <template>
   <section class="aiPanel">
-    <header class="aiPanel__header">
-      <h3 class="aiPanel__title">{{ title }}</h3>
-      <p v-if="description" class="aiPanel__description">{{ description }}</p>
-    </header>
+    <div class="aiPanel__header">
+      <div class="aiPanel__titleRow">
+        <h3 class="aiPanel__title">{{ title }}</h3>
+      </div>
+      <p v-if="description" class="aiPanel__desc">{{ description }}</p>
+    </div>
 
-    <div class="aiPanel__actions">
+    <div class="aiPanel__actionRow">
       <button
         type="button"
         class="aiPanel__runBtn"
         :disabled="!enabled || isLoading"
         @click="triggerRun"
       >
-        {{ isLoading ? 'Prebieha...' : actionLabel }}
+        <span v-if="isLoading" class="aiPanel__spinner" aria-hidden="true"></span>
+        {{ runButtonText }}
       </button>
-      <span :class="statusClass">{{ statusText }}</span>
+      <span v-if="normalizedStatus !== 'idle'" class="aiPanel__statusText" :data-s="normalizedStatus">
+        {{ statusText }}
+      </span>
     </div>
 
-    <div v-if="isLoading || Number.isFinite(progressPercent)" class="aiPanel__progress">
-      <div class="aiPanel__progressLabel">
-        <span class="aiPanel__spinner" aria-hidden="true"></span>
-        <span>{{ isLoading ? 'Pracujem na tom...' : 'Hotovo' }}</span>
-      </div>
-      <AdminProgressBar :active="isLoading" :progress-percent="progressPercent" />
-    </div>
+    <AdminProgressBar
+      v-if="isLoading"
+      :active="isLoading"
+      :progress-percent="progressPercent"
+    />
 
-    <div class="aiPanel__meta">
-      <span>Posledný beh: {{ formattedLastRun }}</span>
-      <span>Odozva: {{ formattedLatency }}</span>
-    </div>
+    <p v-if="hasError" class="aiPanel__error">{{ errorMessage }}</p>
 
-    <p v-if="!enabled" class="aiPanel__hint">AI pomocník je momentálne vypnutý.</p>
+    <p v-if="!enabled" class="aiPanel__hint">AI je momentálne vypnuté.</p>
 
-    <div v-if="hasError" class="aiPanel__errorRow">
-      <p class="aiPanel__error">{{ errorMessage }}</p>
-      <button
-        type="button"
-        class="aiPanel__retryBtn"
-        :disabled="!enabled || isLoading"
-        @click="triggerRun"
-      >
-        Skúsiť znova
-      </button>
-    </div>
-
-    <div v-if="$slots.default" class="aiPanel__content">
+    <div v-if="$slots.default" class="aiPanel__body">
       <slot />
     </div>
 
-    <details v-if="hasAdvancedDetails" class="aiPanel__advanced" :open="advancedOpen">
+    <div v-if="formattedLastRun !== '—'" class="aiPanel__meta">
+      <span>{{ formattedLastRun }}</span>
+      <span v-if="formattedLatency !== '—'">· {{ formattedLatency }}</span>
+    </div>
+
+    <details v-if="hasAdvancedDetails" class="aiPanel__adv" :open="advancedOpen">
       <summary>Rozšírené</summary>
-      <div class="aiPanel__advancedBody">
-        <p class="aiPanel__advancedMeta">latency_ms: {{ formattedLatency }}</p>
-        <p class="aiPanel__advancedMeta">retry_count: {{ formattedRetryCount }}</p>
-        <p class="aiPanel__advancedMeta">status_code: {{ formattedRawStatusCode }}</p>
+      <div class="aiPanel__advBody">
+        <span>latency_ms: {{ formattedLatency }}</span>
+        <span>retry_count: {{ formattedRetryCount }}</span>
+        <span>status_code: {{ formattedRawStatusCode }}</span>
         <slot name="advanced" />
       </div>
     </details>
@@ -179,31 +180,40 @@ function triggerRun() {
 
 <style scoped>
 .aiPanel {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.68);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
+  border-radius: 14px;
+  background: rgb(var(--color-surface-rgb) / 0.04);
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
 
 .aiPanel__header {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aiPanel__titleRow {
+  display: flex;
+  align-items: center;
 }
 
 .aiPanel__title {
   margin: 0;
-  font-size: 1rem;
-}
-
-.aiPanel__description {
-  margin: 0;
   font-size: 13px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  font-weight: 600;
 }
 
-.aiPanel__actions {
+.aiPanel__desc {
+  margin: 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.72);
+  line-height: 1.4;
+}
+
+.aiPanel__actionRow {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -211,144 +221,108 @@ function triggerRun() {
 }
 
 .aiPanel__runBtn {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: rgb(var(--color-primary-rgb) / 0.12);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgb(var(--color-primary-rgb) / 0.32);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgb(var(--color-primary-rgb) / 0.10);
   color: inherit;
+  font-size: 12.5px;
   font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.aiPanel__runBtn:not(:disabled):hover {
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
 }
 
 .aiPanel__runBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.statusPill {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 12px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-}
-
-.statusPill--success {
-  border-color: rgb(22 163 74 / 0.45);
-  background: rgb(22 163 74 / 0.12);
-}
-
-.statusPill--fallback {
-  border-color: rgb(245 158 11 / 0.45);
-  background: rgb(245 158 11 / 0.14);
-}
-
-.statusPill--error {
-  border-color: rgb(239 68 68 / 0.45);
-  background: rgb(239 68 68 / 0.14);
-}
-
-.statusPill--idle {
-  border-color: rgb(var(--color-surface-rgb) / 0.25);
-  background: rgb(var(--color-surface-rgb) / 0.08);
-}
-
-.aiPanel__progress {
-  display: grid;
-  gap: 6px;
-}
-
-.aiPanel__progressLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  opacity: 0.4;
+  cursor: default;
 }
 
 .aiPanel__spinner {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  border: 2px solid rgb(var(--color-primary-rgb) / 0.25);
-  border-top-color: rgb(var(--color-primary-rgb) / 0.9);
-  animation: ai-panel-spin 0.8s linear infinite;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid rgb(var(--color-primary-rgb) / 0.25);
+  border-top-color: rgb(var(--color-primary-rgb));
+  animation: ai-spin 0.75s linear infinite;
+  flex-shrink: 0;
 }
 
-@keyframes ai-panel-spin {
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
 }
 
-.aiPanel__meta {
-  display: flex;
+.aiPanel__statusText {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  padding: 2px 8px;
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+}
+
+.aiPanel__statusText[data-s="success"] { color: rgb(22 163 74 / 0.9); }
+.aiPanel__statusText[data-s="error"]   { color: rgb(220 38 38 / 0.9); }
+.aiPanel__statusText[data-s="fallback"] { color: rgb(245 158 11 / 0.9); }
+
+.aiPanel__error {
+  margin: 0;
   font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgb(220 38 38 / 0.85);
 }
 
 .aiPanel__hint {
   margin: 0;
   font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.85);
+  color: rgb(var(--color-text-secondary-rgb) / 0.55);
 }
 
-.aiPanel__errorRow {
+.aiPanel__body {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.aiPanel__error {
-  margin: 0;
-  font-size: 13px;
-  color: rgb(185 28 28);
-}
-
-.aiPanel__retryBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.25);
-  border-radius: 10px;
-  padding: 6px 10px;
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-}
-
-.aiPanel__retryBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.aiPanel__content {
-  display: grid;
-  gap: 8px;
-}
-
-.aiPanel__advanced {
-  border-top: 1px solid var(--divider-color);
-  padding-top: 8px;
-}
-
-.aiPanel__advanced > summary {
-  cursor: pointer;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-}
-
-.aiPanel__advancedBody {
-  margin-top: 8px;
-  display: grid;
+  flex-direction: column;
   gap: 6px;
 }
 
-.aiPanel__advancedMeta {
-  margin: 0;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+.aiPanel__meta {
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.45);
+}
+
+.aiPanel__adv {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  padding-top: 8px;
+}
+
+.aiPanel__adv > summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.6);
+  user-select: none;
+}
+
+.aiPanel__advBody {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aiPanel__advBody span {
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
 }
 </style>
+
+
+

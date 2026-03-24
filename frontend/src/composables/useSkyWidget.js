@@ -17,6 +17,27 @@ import {
   resolveNightTiming,
   toFiniteNumber,
 } from './skyWidget/skyPhase'
+import {
+  SHARED_SKY_CACHE_TTL_MS,
+  EMPTY_PLANETS_PAYLOAD,
+  EMPTY_ISS_PREVIEW,
+  EMPTY_EPHEMERIS_PAYLOAD,
+  fetchWithSharedSkyCache,
+} from './skyWidget/skyCache'
+import {
+  formatTime,
+  formatIsoShort,
+  formatTimeOrDash,
+  resolvePayloadTimestamp,
+  normalizeSourceLabel,
+  formatPercent,
+  formatTemperature,
+  formatWind,
+  formatDurationMinutes,
+  sanitizeLabel,
+  formatFreshness,
+  toFriendlyError,
+} from './skyWidget/formatters'
 
 export { SKY_PHASE, classifySkyPhase, classifySkyPhaseFromTimeline }
 
@@ -25,63 +46,6 @@ const ASTRONOMY_REFRESH_MS = 60 * 60 * 1000
 const FRESHNESS_TICK_MS = 60 * 1000
 const SKY_ALTITUDE_STALE_MINUTES = 120
 const DEFERRED_SKY_FETCH_MS = 250
-
-const SHARED_SKY_CACHE_TTL_MS = Object.freeze({
-  weather: 2 * 60 * 1000,
-  astronomy: 2 * 60 * 1000,
-  planets: 2 * 60 * 1000,
-  iss: 2 * 60 * 1000,
-  light: 5 * 60 * 1000,
-  ephemeris: 5 * 60 * 1000,
-})
-const EMPTY_PLANETS_PAYLOAD = Object.freeze({ planets: [], sample_at: null, sun_altitude_deg: null })
-const EMPTY_ISS_PREVIEW = Object.freeze({ available: false })
-const EMPTY_EPHEMERIS_PAYLOAD = Object.freeze({ planets: [], comets: [], asteroids: [], source: null, sample_at: null })
-
-const sharedSkyPayloadCache = new Map()
-const sharedSkyPendingRequests = new Map()
-
-function getFreshSharedSkyPayload(cacheKey, ttlMs) {
-  const entry = sharedSkyPayloadCache.get(cacheKey)
-  if (!entry) return undefined
-  if (Date.now() - entry.fetchedAt > ttlMs) {
-    sharedSkyPayloadCache.delete(cacheKey)
-    return undefined
-  }
-  return entry.payload
-}
-
-async function fetchWithSharedSkyCache(cacheKey, ttlMs, fetcher) {
-  const cachedPayload = getFreshSharedSkyPayload(cacheKey, ttlMs)
-  if (cachedPayload !== undefined) {
-    return cachedPayload
-  }
-
-  const pending = sharedSkyPendingRequests.get(cacheKey)
-  if (pending) {
-    return pending
-  }
-
-  const requestPromise = Promise.resolve()
-    .then(fetcher)
-    .then((payload) => {
-      sharedSkyPayloadCache.set(cacheKey, {
-        payload,
-        fetchedAt: Date.now(),
-      })
-      return payload
-    })
-
-  sharedSkyPendingRequests.set(cacheKey, requestPromise)
-
-  try {
-    return await requestPromise
-  } finally {
-    if (sharedSkyPendingRequests.get(cacheKey) === requestPromise) {
-      sharedSkyPendingRequests.delete(cacheKey)
-    }
-  }
-}
 
 export function useSkyWidget(options = {}) {
   const lat = options.lat
@@ -264,7 +228,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (skyPhase.value === SKY_PHASE.ASTRONOMICAL_TWILIGHT) {
-      return { label: 'Astronomicky sumrak', tone: 'twilight' }
+      return { label: 'Astronomicky súmrak', tone: 'twilight' }
     }
 
     return getScorePresentation(observingScore.value)
@@ -310,7 +274,7 @@ export function useSkyWidget(options = {}) {
       window: `${formatTime(start, effectiveTz.value)} - ${formatTime(end, effectiveTz.value)}`,
       note: (observingScore.value ?? 0) >= 65
         ? 'Najtmavšie okno po súmraku.'
-        : 'Najlepsie okno v ramci dneska.',
+        : 'Najlepšie okno v rámci dneska.',
     }
   })
 
@@ -320,7 +284,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
-      return 'Najlepsie okno sa nepodarilo urcit.'
+      return 'Najlepšie okno sa nepodarilo určiť.'
     }
 
     if (isDark.value === true) {
@@ -329,10 +293,10 @@ export function useSkyWidget(options = {}) {
 
     if (isDaylight.value) {
       const nightStart = nightStartsAt.value ? formatTime(nightStartsAt.value, effectiveTz.value) : ''
-      return nightStart ? `Noc zacne: ${nightStart}` : 'Najlepsie dnes: po zotmeni'
+      return nightStart ? `Noc začne: ${nightStart}` : 'Najlepšie dnes: po zotmeni'
     }
 
-    if (!bestTimeToday.value?.window) return 'Najlepsie dnes nie je dostupne.'
+    if (!bestTimeToday.value?.window) return 'Najlepšie dnes nie je dostupne.'
     return bestTimeToday.value.window
   })
 
@@ -352,25 +316,25 @@ export function useSkyWidget(options = {}) {
     }
   })
 
-  const heroTitle = computed(() => (isDaylight.value ? 'Denné podmienky' : 'Astronomické podmienky'))
+  const heroTitle = computed(() => (isDaylight.value ? 'Denné podmienky' : 'Pozorovanie dnes'))
   const heroSubtitle = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
       return 'Poloha nie je nastavena. Nastav ju pre presny vypocet oblohy.'
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
-      return 'Stav oblohy je docasne neznamy.'
+      return 'Stav oblohy je dočasne neznámy.'
     }
 
     if (isDaylight.value) {
-      return 'Momentalne je den. Astronomicke pozorovanie nie je mozne.'
+      return 'Momentalne je den. Astronomicke pozorovanie nie je možné.'
     }
 
     if (!isAstronomicalNight.value) {
       return 'Obloha este nie je v plnej astronomickej tme.'
     }
 
-    if (!bestTimeToday.value?.window) return 'Najlepsie pozorovanie dnes nie je dostupne.'
+    if (!bestTimeToday.value?.window) return 'Najlepšie pozorovanie dnes nie je dostupne.'
     const note = sanitizeLabel(bestTimeToday.value?.note)
     return note ? `${bestTimeToday.value.window} | ${note}` : bestTimeToday.value.window
   })
@@ -446,14 +410,14 @@ export function useSkyWidget(options = {}) {
         key: 'humidity',
         label: 'Vlhkost',
         value: humidity === null ? '-' : `${Math.round(humidity)}%`,
-        hint: humidity === null ? 'Údaje nie sú dostupné.' : humidity <= 70 ? 'Dobry stav pre ostrejsi obraz.' : 'Vyssia vlhkost moze zhorsit kontrast.',
+        hint: humidity === null ? 'Údaje nie sú dostupné.' : humidity <= 70 ? 'Dobry stav pre ostrejsi obraz.' : 'Vyssia vlhkost môže zhoršiť kontrast.',
         tone: humidity === null ? 'neutral' : humidity <= 70 ? 'positive' : 'negative',
       },
       {
         key: 'wind',
         label: 'Vietor',
         value: wind === null ? '-' : `${wind.toFixed(1)} km/h`,
-        hint: wind === null ? 'Údaje nie sú dostupné.' : wind <= 15 ? 'Pokojny vzduch je vhodny na pozorovanie.' : wind <= 30 ? 'Mierny vietor moze zhorsit stabilitu obrazu.' : 'Silny vietor zhorsuje seeing aj komfort.',
+        hint: wind === null ? 'Údaje nie sú dostupné.' : wind <= 15 ? 'Pokojný vzduch je vhodný na pozorovanie.' : wind <= 30 ? 'Mierny vietor môže zhoršiť stabilitu obrazu.' : 'Silný vietor zhorsuje seeing aj komfort.',
         tone: wind === null ? 'neutral' : wind <= 15 ? 'positive' : wind <= 30 ? 'neutral' : 'negative',
       },
       {
@@ -467,7 +431,7 @@ export function useSkyWidget(options = {}) {
         key: 'bortle',
         label: 'Svetelne znecistenie',
         value: bortleClass === null ? '-' : `Bortle ${Math.round(Math.max(1, Math.min(9, bortleClass)))}`,
-        hint: bortleClass === null ? 'Trieda oblohy nie je dostupna.' : bortleClass <= 4 ? 'Tmavsia obloha pomaha deep-sky.' : bortleClass <= 6 ? 'Stredna miera znecistenia svetlom.' : 'Silne svetelne znecistenie obmedzuje slabe objekty.',
+        hint: bortleClass === null ? 'Trieda oblohy nie je dostupná.' : bortleClass <= 4 ? 'Tmavšia obloha pomáha deep-sky.' : bortleClass <= 6 ? 'Stredná miera znečistenia svetlom.' : 'Silne svetelne znecistenie obmedzuje slabé objekty.',
         tone: bortleClass === null ? 'neutral' : bortleClass <= 4 ? 'positive' : bortleClass <= 6 ? 'neutral' : 'negative',
       },
     ]
@@ -507,7 +471,7 @@ export function useSkyWidget(options = {}) {
       return `Dnes bez vyrazneho preletu. Najblizsi znamy prelet: ${passAt}`
     }
 
-    return 'Dnes pravdepodobne bez viditelneho preletu ISS.'
+    return 'Dnes pravdepodobne bez viditeľného preletu ISS.'
   })
 
   const issSecondaryLine = computed(() => {
@@ -554,7 +518,7 @@ export function useSkyWidget(options = {}) {
   })
 
   const lightPollutionEstimateLine = computed(() => (
-    isLightPollutionEstimate.value ? 'Pouzivame odhad svetelneho znecistenia podla lokality' : ''
+    isLightPollutionEstimate.value ? 'Pouzivame odhad svetelneho znečistenia podla lokality' : ''
   ))
   const lightPollutionImpactLine = computed(() => (
     sanitizeLabel(bortlePresentation.value?.impactText)
@@ -580,8 +544,8 @@ export function useSkyWidget(options = {}) {
   const shouldShowPlanetsListV15 = computed(() => planetsDisplayListV15.value.length > 0)
   const planetsContextLineV15 = computed(() => {
     if (!hasLocationCoords.value) return ''
-    if (isDaylight.value) return 'Aktualne je den. Planety budu citatelnejsie po zotmeni.'
-    if (isTwilightLimited.value) return 'Aktualne je sumrak. Najlepsie po uplnom zotmeni.'
+    if (isDaylight.value) return 'Aktuálne je den. Planety budu citatelnejsie po zotmeni.'
+    if (isTwilightLimited.value) return 'Aktuálne je súmrak. Najlepšie po úplnom zotmeni.'
     if (!shouldShowPlanetsListV15.value) return ''
 
     const count = planetsDisplayListV15.value.length
@@ -601,7 +565,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (reason === 'degraded_contract') {
-      return 'Planety su docasne nedostupne.'
+      return 'Planety su dočasne nedostupne.'
     }
 
     if (!planetsNightV15.value) {
@@ -1000,7 +964,7 @@ export function useSkyWidget(options = {}) {
       issFetchedAt.value = new Date()
     } catch {
       if (token !== requestTokens.iss) return
-      issError.value = 'Udaje o ISS su docasne nedostupne.'
+      issError.value = 'Udaje o ISS su dočasne nedostupne.'
     } finally {
       if (token === requestTokens.iss && !options.silent) {
         issLoading.value = false
@@ -1048,7 +1012,7 @@ export function useSkyWidget(options = {}) {
       if (token !== requestTokens.light) return
       lightPollution.value = null
       lightPollutionFetchedAt.value = null
-      lightPollutionError.value = toFriendlyError(error, 'Svetelne znecistenie je docasne nedostupne.')
+      lightPollutionError.value = toFriendlyError(error, 'Svetelne znecistenie je dočasne nedostupne.')
     } finally {
       if (token === requestTokens.light && !options.silent) {
         lightPollutionLoading.value = false
@@ -1094,7 +1058,7 @@ export function useSkyWidget(options = {}) {
     } catch {
       if (token !== requestTokens.ephemeris) return
       resetEphemerisPayload()
-      ephemerisError.value = 'Efemeridy su docasne nedostupne.'
+      ephemerisError.value = 'Efemeridy su dočasne nedostupne.'
     } finally {
       if (token === requestTokens.ephemeris && !options.silent) {
         ephemerisLoading.value = false
@@ -1343,121 +1307,3 @@ export function useSkyWidget(options = {}) {
   }
 }
 
-function formatTime(date, timeZone) {
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(date)
-  } catch {
-    return new Intl.DateTimeFormat('sk-SK', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(date)
-  }
-}
-
-function formatIsoShort(value, timeZone) {
-  if (!value) return '-'
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-
-  try {
-    return new Intl.DateTimeFormat('sk-SK', {
-      timeZone,
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(date)
-  } catch {
-    return new Intl.DateTimeFormat('sk-SK', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    }).format(date)
-  }
-}
-
-function formatTimeOrDash(value, timeZone) {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return '-'
-  return formatTime(value, timeZone)
-}
-
-function resolvePayloadTimestamp(payload, keys) {
-  if (!payload || typeof payload !== 'object') return null
-  const fields = Array.isArray(keys) ? keys : []
-
-  for (const key of fields) {
-    const raw = typeof payload[key] === 'string' ? payload[key].trim() : ''
-    if (!raw) continue
-    const parsed = new Date(raw)
-    if (!Number.isNaN(parsed.getTime())) return parsed
-  }
-
-  return null
-}
-
-function normalizeSourceLabel(value) {
-  const normalized = sanitizeLabel(value)
-  if (!normalized) return 'neznamy'
-  return normalized.replace(/_/g, '-')
-}
-
-function formatPercent(value) {
-  const numeric = toFiniteNumber(value)
-  return numeric === null ? '-' : `${Math.round(numeric)}%`
-}
-
-function formatTemperature(value) {
-  const numeric = toFiniteNumber(value)
-  return numeric === null ? '-' : `${numeric.toFixed(1)} \u00B0C`
-}
-
-function formatWind(speed, unit) {
-  const numeric = toFiniteNumber(speed)
-  const normalizedUnit = String(unit || 'km/h')
-  return numeric === null ? '-' : `${numeric.toFixed(1)} ${normalizedUnit}`
-}
-
-function formatDurationMinutes(value) {
-  const numeric = toFiniteNumber(value)
-  if (numeric === null) return '-'
-  const minutes = Math.max(1, Math.round(numeric / 60))
-  return `${minutes} min`
-}
-
-function sanitizeLabel(value) {
-  if (typeof value !== 'string') return ''
-  return value.trim()
-}
-
-function formatFreshness(value, tick) {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return ''
-  const minutes = Math.max(0, Math.round((tick - value.getTime()) / 60000))
-  if (minutes <= 0) return 'Aktualizované práve teraz'
-  return `Aktualizované pred ${minutes} min`
-}
-
-function toFriendlyError(_error, fallback) {
-  const fromUserMessage = sanitizeLabel(_error?.userMessage)
-  if (fromUserMessage) return fromUserMessage
-
-  const fromBackendMessage = sanitizeLabel(_error?.response?.data?.message)
-  if (fromBackendMessage) return fromBackendMessage
-
-  const status = Number(_error?.response?.status || 0)
-
-  if (status === 422) return 'Poloha je neplatna. Skontroluj ju v profile.'
-  if (status === 429) return 'Prilis vela poziadaviek. Skus to znova o chvilu.'
-  if (status === 401) return 'Prihlas sa a skus to znova.'
-  if (status >= 500) return 'Server je docasne nedostupny. Skus to neskor.'
-
-  const message = sanitizeLabel(_error?.message)
-  if (message) return message
-
-  return fallback
-}

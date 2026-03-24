@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AdminSectionHeader from '@/components/admin/AdminSectionHeader.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -9,12 +9,10 @@ import AdminToolbar from '@/components/admin/shared/AdminToolbar.vue'
 import AdminDataTable from '@/components/admin/shared/AdminDataTable.vue'
 import AdminPagination from '@/components/admin/shared/AdminPagination.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
-import DefaultAvatar from '@/components/DefaultAvatar.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import { clearStatsCache } from '@/services/api/admin/stats'
-import { AVATAR_COLORS } from '@/constants/avatar'
 import {
   formatDate,
   reportType,
@@ -26,7 +24,20 @@ import {
 } from './adminUserDetailView.utils'
 import { useAdminUserBotMediaEditor } from './userDetail/useAdminUserBotMediaEditor'
 
+const props = defineProps({
+  userId: {
+    type: [String, Number],
+    default: null,
+  },
+  embedded: {
+    type: Boolean,
+    default: false,
+  },
+})
+const emit = defineEmits(['user-updated'])
+
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const { confirm, prompt } = useConfirm()
 const toast = useToast()
@@ -49,8 +60,24 @@ const profileForm = ref({
 })
 
 let searchDebounce = null
+let previousBodyOverflow = ''
 
-const userId = computed(() => route.params.id)
+function normalizeUserId(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return normalizeUserId(rawValue[0])
+  }
+  const normalized = String(rawValue ?? '').trim()
+  if (normalized === '') return ''
+  const parsed = Number.parseInt(normalized, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : ''
+}
+
+const userId = computed(() => {
+  const fromProps = normalizeUserId(props.userId)
+  if (fromProps !== '') return fromProps
+  return normalizeUserId(route.params.id)
+})
+const isFullPopupRoute = computed(() => String(route.name || '') === 'admin.users.detail.page')
 const usersListRoute = computed(() => ({
   name: 'admin.users',
   query: { ...route.query },
@@ -58,6 +85,7 @@ const usersListRoute = computed(() => ({
 const reportRows = computed(() => reportsData.value?.data || [])
 const isCurrentActorAdmin = computed(() => Boolean(auth.isAdmin))
 const isBotTarget = computed(() => String(user.value?.role || '').toLowerCase() === 'bot' || Boolean(user.value?.is_bot))
+const canShowReports = computed(() => Boolean(user.value) && !isBotTarget.value)
 const canEditProfile = computed(() => Boolean(user.value && isBotTarget.value && isCurrentActorAdmin.value))
 const canModerateAccount = computed(() =>
   Boolean(
@@ -96,7 +124,7 @@ const accountInfoRows = computed(() => {
     { key: 'status', label: 'Stav', value: statusText.value },
     { key: 'created_at', label: 'Vytvorený', value: formatDate(user.value.created_at) },
     { key: 'banned_at', label: 'Zablokovaný od', value: formatDate(user.value.banned_at) },
-    { key: 'ban_reason', label: 'Dôvod blokacie', value: user.value.ban_reason || '-' },
+    { key: 'ban_reason', label: 'Dôvod blokácie', value: user.value.ban_reason || '-' },
   ]
 })
 
@@ -114,10 +142,10 @@ const {
   avatarInput,
   avatarModalOpen,
   avatarRemoving,
-  avatarResolved,
   avatarSaving,
   avatarSrc,
   avatarUploading,
+  botAvatarOptions,
   botCoverMedia,
   clearPendingMedia,
   cleanupBotMediaEditor,
@@ -131,7 +159,6 @@ const {
   coverUploading,
   handleAvatarModalToggle,
   handleCoverModalToggle,
-  iconOptions,
   markAvatarImageForRemoval,
   markCoverForRemoval,
   mediaActionBusy,
@@ -141,14 +168,11 @@ const {
   openBotMediaPicker,
   openCoverEditor,
   persistedAvatarMode,
-  randomizeAvatar,
   resetBotMediaEditorState,
-  resetGeneratedAvatar,
   saveAvatarPreferences,
   saveCoverEditor,
-  selectAvatarColor,
-  selectAvatarIcon,
-  setAvatarMode,
+  selectedBotAvatarFile,
+  selectBotAvatar,
   syncAvatarDraftFromUser,
 } = useAdminUserBotMediaEditor({
   user,
@@ -163,6 +187,8 @@ function isSelf(userRow) {
 }
 
 async function loadUser() {
+  if (!userId.value) return
+
   userLoading.value = true
   userError.value = ''
 
@@ -177,6 +203,15 @@ async function loadUser() {
     syncAvatarDraftFromUser()
     clearPendingMedia('avatar')
     clearPendingMedia('cover')
+
+    if (isBotTarget.value) {
+      reportsData.value = null
+      reportsError.value = ''
+      reportsLoading.value = false
+      return
+    }
+
+    loadReports()
   } catch (e) {
     userError.value = e?.response?.data?.message || 'Nepodarilo sa načítať používateľa.'
   } finally {
@@ -185,6 +220,13 @@ async function loadUser() {
 }
 
 async function loadReports() {
+  if (!userId.value || !canShowReports.value) {
+    reportsLoading.value = false
+    reportsError.value = ''
+    reportsData.value = null
+    return
+  }
+
   reportsLoading.value = true
   reportsError.value = ''
 
@@ -218,16 +260,17 @@ function updateUser(updated) {
     bio: String(user.value?.bio || ''),
   }
   syncAvatarDraftFromUser()
+  emit('user-updated', { ...user.value })
 }
 
 async function banUser() {
   if (!user.value || !canModerateAccount.value) return
   const reason = await prompt({
     title: 'Zablokovať používateľa',
-    message: `Zadajte dôvod blokacie pre ${subjectLabel(user.value)}.`,
+    message: `Zadajte dôvod blokácie pre ${subjectLabel(user.value)}.`,
     confirmText: 'Zablokovať',
     cancelText: 'Zrušiť',
-    placeholder: 'Dôvod blokacie...',
+    placeholder: 'Dôvod blokácie...',
     required: true,
     multiline: true,
     variant: 'danger',
@@ -386,7 +429,7 @@ async function reportAction(report, action) {
   try {
     await api.post(`/admin/reports/${report.id}/${action}`)
     loadReports()
-    toast.success('Akcia bola dokoncena.')
+    toast.success('Akcia bola dokončená.')
   } catch (e) {
     reportsError.value = e?.response?.data?.message || 'Akcia zlyhala.'
     toast.error(reportsError.value)
@@ -400,6 +443,36 @@ function clearReportFilters() {
   reportsPage.value = 1
 }
 
+function closeDetailPopup() {
+  if (!isFullPopupRoute.value) return
+  router.push(usersListRoute.value)
+}
+
+function handleViewportBackdropClick() {
+  if (props.embedded) return
+  closeDetailPopup()
+}
+
+function handlePopupKeydown(event) {
+  if (!isFullPopupRoute.value) return
+  if (event?.key === 'Escape') {
+    event.preventDefault()
+    closeDetailPopup()
+  }
+}
+
+function applyBodyScrollLock(active) {
+  if (typeof document === 'undefined') return
+
+  if (active) {
+    previousBodyOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return
+  }
+
+  document.body.style.overflow = previousBodyOverflow
+}
+
 watch(reportsSearchInput, (value) => {
   if (searchDebounce) clearTimeout(searchDebounce)
   searchDebounce = setTimeout(() => {
@@ -411,16 +484,17 @@ watch(reportsSearchInput, (value) => {
 })
 
 watch([reportsSearch, reportsStatus, reportsPage, reportsPerPage], () => {
+  if (!canShowReports.value) return
   loadReports()
 })
 
 watch(
-  () => route.params.id,
-  () => {
+  () => userId.value,
+  (nextUserId) => {
+    if (!nextUserId) return
     clearReportFilters()
     resetBotMediaEditorState()
     loadUser()
-    loadReports()
   },
 )
 
@@ -435,10 +509,23 @@ watch(
 )
 
 loadUser()
-loadReports()
+
+watch(isFullPopupRoute, (active) => {
+  if (props.embedded) return
+  applyBodyScrollLock(active)
+}, { immediate: true })
+
+onMounted(() => {
+  if (props.embedded) return
+  window.addEventListener('keydown', handlePopupKeydown)
+})
 
 onBeforeUnmount(() => {
   if (searchDebounce) clearTimeout(searchDebounce)
+  if (!props.embedded) {
+    window.removeEventListener('keydown', handlePopupKeydown)
+    applyBodyScrollLock(false)
+  }
   cleanupBotMediaEditor()
 })
 </script>

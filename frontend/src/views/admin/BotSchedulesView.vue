@@ -1,7 +1,8 @@
-<script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+﻿<script setup>
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
+import BaseModal from '@/components/ui/BaseModal.vue'
 import { useConfirm } from '@/composables/useConfirm'
 import {
   createBotSchedule,
@@ -17,6 +18,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  refreshToken: {
+    type: Number,
+    default: 0,
+  },
 })
 
 const loading = ref(false)
@@ -25,6 +30,15 @@ const error = ref('')
 const rows = ref([])
 const botOptions = ref([])
 const sourceOptions = ref([])
+const editModalOpen = ref(false)
+
+const editDraft = reactive({
+  id: null,
+  interval_minutes: 60,
+  jitter_seconds: 0,
+  enabled: true,
+})
+
 const { confirm } = useConfirm()
 
 const pagination = reactive({
@@ -45,8 +59,8 @@ const form = reactive({
 const canPrev = computed(() => Number(pagination.current_page || 1) > 1)
 const canNext = computed(() => Number(pagination.current_page || 1) < Number(pagination.last_page || 1))
 const summaryLine = computed(() => {
-  if (loading.value) return 'Načítavam schedule záznamy...'
-  return `${pagination.total} planov | strana ${pagination.current_page}/${pagination.last_page}`
+  if (loading.value) return 'Načítavam plánované behy…'
+  return `${pagination.total} plánov · strana ${pagination.current_page}/${pagination.last_page}`
 })
 
 function formatDateTime(value) {
@@ -77,7 +91,7 @@ async function load(page = 1) {
     pagination.per_page = Number(payload?.per_page || pagination.per_page)
     pagination.total = Number(payload?.total || rows.value.length)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nacitanie schedule zaznamov zlyhalo.'
+    error.value = e?.response?.data?.message || 'Načítanie plánov zlyhalo.'
   } finally {
     loading.value = false
   }
@@ -86,7 +100,7 @@ async function load(page = 1) {
 async function createSchedule() {
   const botUserId = Number(form.bot_user_id || 0)
   if (!Number.isInteger(botUserId) || botUserId <= 0) {
-    error.value = 'Vyber bota pre schedule.'
+    error.value = 'Vyber bota pre plán.'
     return
   }
 
@@ -107,23 +121,42 @@ async function createSchedule() {
     form.enabled = true
     await load(1)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Vytvorenie schedule zlyhalo.'
+    error.value = e?.response?.data?.message || 'Vytvorenie plánu zlyhalo.'
   } finally {
     savingId.value = null
   }
 }
 
-async function saveRow(row) {
-  savingId.value = row.id
+function openEdit(row) {
+  editDraft.id = Number(row?.id || 0)
+  editDraft.interval_minutes = Number(row?.interval_minutes || 60)
+  editDraft.jitter_seconds = Number(row?.jitter_seconds || 0)
+  editDraft.enabled = Boolean(row?.enabled)
+  editModalOpen.value = true
+}
+
+function handleEditModalToggle(isOpen) {
+  editModalOpen.value = Boolean(isOpen)
+  if (!isOpen) {
+    editDraft.id = null
+  }
+}
+
+async function saveEdit() {
+  if (!editDraft.id) return
+
+  savingId.value = editDraft.id
   try {
-    await updateBotSchedule(row.id, {
-      enabled: Boolean(row.enabled),
-      interval_minutes: Number(row.interval_minutes || 1),
-      jitter_seconds: Number(row.jitter_seconds || 0),
+    await updateBotSchedule(editDraft.id, {
+      enabled: Boolean(editDraft.enabled),
+      interval_minutes: Number(editDraft.interval_minutes || 1),
+      jitter_seconds: Number(editDraft.jitter_seconds || 0),
     })
+    editModalOpen.value = false
+    editDraft.id = null
     await load(pagination.current_page || 1)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Uprava schedule zlyhala.'
+    error.value = e?.response?.data?.message || 'Úprava plánu zlyhala.'
   } finally {
     savingId.value = null
   }
@@ -131,8 +164,8 @@ async function saveRow(row) {
 
 async function removeRow(row) {
   const approved = await confirm({
-    title: 'Vymazať schedule',
-    message: `Naozaj vymazať schedule #${row.id}?`,
+    title: 'Vymazať plán',
+    message: `Naozaj vymazať plán #${row.id}?`,
     confirmText: 'Vymazať',
     cancelText: 'Zrušiť',
     variant: 'danger',
@@ -144,7 +177,7 @@ async function removeRow(row) {
     await deleteBotSchedule(row.id)
     await load(pagination.current_page || 1)
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Mazanie schedule zlyhalo.'
+    error.value = e?.response?.data?.message || 'Mazanie plánu zlyhalo.'
   } finally {
     savingId.value = null
   }
@@ -159,6 +192,13 @@ function nextPage() {
   if (!canNext.value || loading.value) return
   void load(Number(pagination.current_page || 1) + 1)
 }
+
+watch(
+  () => props.refreshToken,
+  () => {
+    void load(pagination.current_page || 1)
+  },
+)
 
 onMounted(async () => {
   loading.value = true
@@ -175,7 +215,7 @@ onMounted(async () => {
 <template>
   <component
     :is="props.embedded ? 'section' : AdminPageShell"
-    v-bind="props.embedded ? {} : { title: 'Plány botov', subtitle: 'Správa plánov bez potreby nasadenia.' }"
+    v-bind="props.embedded ? {} : { title: 'Plány botov', subtitle: 'Bezpečná správa plánovaných behov.' }"
     class="botSection"
   >
     <div v-if="props.embedded" class="embeddedHeader">
@@ -183,19 +223,16 @@ onMounted(async () => {
         <h2 class="embeddedTitle">Plány</h2>
         <p class="embeddedSubtitle">{{ summaryLine }}</p>
       </div>
-      <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
-      </button>
     </div>
 
     <template v-if="!props.embedded" #right-actions>
       <button class="actionBtn" type="button" :disabled="loading" @click="load(pagination.current_page || 1)">
-        {{ loading ? 'Načítavam...' : 'Obnoviť' }}
+        {{ loading ? 'Načítavam…' : 'Obnoviť' }}
       </button>
     </template>
 
-    <details class="card createCard" :open="rows.length === 0">
-      <summary>Novy schedule</summary>
+    <details class="card createCard">
+      <summary>Nový plán</summary>
       <div class="createBody">
         <div class="formGrid">
           <label class="field">
@@ -209,7 +246,7 @@ onMounted(async () => {
           </label>
 
           <label class="field">
-            <span>Zdroj (volitelne)</span>
+            <span>Zdroj (voliteľne)</span>
             <select v-model="form.source_id">
               <option value="">Všetky povolené zdroje</option>
               <option v-for="source in sourceOptions" :key="source.id" :value="String(source.id)">
@@ -230,7 +267,7 @@ onMounted(async () => {
 
           <label class="field field--toggle">
             <input v-model="form.enabled" type="checkbox" />
-            <span>Povolene</span>
+            <span>Povolené</span>
           </label>
         </div>
 
@@ -242,46 +279,40 @@ onMounted(async () => {
 
     <section class="card tableCard">
       <p v-if="error" class="error">{{ error }}</p>
-      <p v-else-if="!loading && rows.length === 0" class="muted">Zatiaľ nie sú vytvorené schedules.</p>
+      <p v-else-if="!loading && rows.length === 0" class="muted">Zatiaľ nie sú vytvorené plány.</p>
 
       <div v-else class="tableWrap">
         <table class="table">
           <thead>
             <tr>
-              <th>ID</th>
               <th>Bot</th>
               <th>Zdroj</th>
               <th>Interval</th>
               <th>Jitter</th>
-              <th>Povolene</th>
-              <th>Posledny beh</th>
-              <th>Dalsi beh</th>
-              <th>Vysledok</th>
+              <th>Povolené</th>
+              <th>Posledný beh</th>
+              <th>Ďalší beh</th>
               <th>Akcia</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in rows" :key="row.id">
-              <td>{{ row.id }}</td>
               <td>{{ row?.bot_user?.username || row.bot_user_id }}</td>
               <td>{{ row?.source?.key || 'all' }}</td>
+              <td>{{ Number(row.interval_minutes || 0) }} min</td>
+              <td>{{ Number(row.jitter_seconds || 0) }} s</td>
               <td>
-                <input v-model.number="row.interval_minutes" class="inlineInput" type="number" min="1" max="10080" />
-              </td>
-              <td>
-                <input v-model.number="row.jitter_seconds" class="inlineInput" type="number" min="0" max="86400" />
-              </td>
-              <td>
-                <input v-model="row.enabled" type="checkbox" />
+                <span class="result" :class="{ 'result--on': row.enabled }">
+                  {{ row.enabled ? 'Áno' : 'Nie' }}
+                </span>
               </td>
               <td>{{ formatDateTime(row.last_run_at) }}</td>
               <td>{{ formatDateTime(row.next_run_at) }}</td>
               <td>
-                <span class="result">{{ row.last_result || '-' }}</span>
-              </td>
-              <td>
                 <div class="rowActions">
-                  <button class="actionBtn" type="button" :disabled="savingId === row.id" @click="saveRow(row)">Uložiť</button>
+                  <button class="actionBtn" type="button" :disabled="savingId === row.id" @click="openEdit(row)">
+                    Upraviť
+                  </button>
                   <details class="rowMenu">
                     <summary>Viac</summary>
                     <div class="rowMenuBody">
@@ -289,9 +320,9 @@ onMounted(async () => {
                         class="activityLink"
                         :to="{ name: 'admin.bots.activity', query: { bot_identity: row?.source?.bot_identity || undefined } }"
                       >
-                        Aktivita
+                        Logy
                       </RouterLink>
-                      <button class="dangerBtn" type="button" :disabled="savingId === row.id" @click="removeRow(row)">Zmazať</button>
+                      <button class="dangerBtn" type="button" :disabled="savingId === row.id" @click="removeRow(row)">Vymazať</button>
                     </div>
                   </details>
                 </div>
@@ -302,11 +333,45 @@ onMounted(async () => {
       </div>
 
       <div class="pager">
-        <button class="ghostBtn" type="button" :disabled="loading || !canPrev" @click="prevPage">Predosla</button>
-        <span class="muted">Strana {{ pagination.current_page }} / {{ pagination.last_page }} - {{ pagination.total }}</span>
+        <button class="ghostBtn" type="button" :disabled="loading || !canPrev" @click="prevPage">Predošlá</button>
+        <span class="muted">Strana {{ pagination.current_page }} / {{ pagination.last_page }} · {{ pagination.total }}</span>
         <button class="ghostBtn" type="button" :disabled="loading || !canNext" @click="nextPage">Ďalšia</button>
       </div>
     </section>
+
+    <BaseModal
+      :open="editModalOpen"
+      title="Upraviť plán"
+      test-id="bot-schedule-edit-modal"
+      close-test-id="bot-schedule-edit-modal-close"
+      @update:open="handleEditModalToggle"
+    >
+      <div class="editBody">
+        <label class="field field--compact">
+          <span>Interval (min)</span>
+          <input v-model.number="editDraft.interval_minutes" type="number" min="1" max="10080" />
+        </label>
+
+        <label class="field field--compact">
+          <span>Jitter (sek)</span>
+          <input v-model.number="editDraft.jitter_seconds" type="number" min="0" max="86400" />
+        </label>
+
+        <label class="field field--toggle">
+          <input v-model="editDraft.enabled" type="checkbox" />
+          <span>Povolené</span>
+        </label>
+
+        <div class="editActions">
+          <button class="actionBtn" type="button" :disabled="savingId === editDraft.id" @click="saveEdit">
+            {{ savingId === editDraft.id ? 'Ukladám…' : 'Uložiť' }}
+          </button>
+          <button class="ghostBtn" type="button" :disabled="savingId === editDraft.id" @click="handleEditModalToggle(false)">
+            Zrušiť
+          </button>
+        </div>
+      </div>
+    </BaseModal>
   </component>
 </template>
 
@@ -351,9 +416,9 @@ onMounted(async () => {
 
 .createCard > summary {
   cursor: pointer;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: rgb(var(--color-surface-rgb) / 0.95);
+  color: rgb(var(--color-text-secondary-rgb) / 0.95);
 }
 
 .createBody {
@@ -401,9 +466,11 @@ onMounted(async () => {
   height: 15px;
 }
 
-.createActions {
+.createActions,
+.editActions {
   display: inline-flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .actionBtn,
@@ -442,7 +509,7 @@ onMounted(async () => {
 
 .table {
   width: 100%;
-  min-width: 920px;
+  min-width: 860px;
   border-collapse: collapse;
 }
 
@@ -458,15 +525,6 @@ onMounted(async () => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.inlineInput {
-  width: 74px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 8px;
-  background: rgb(var(--color-bg-rgb) / 0.38);
-  color: var(--color-surface);
-  padding: 5px 7px;
 }
 
 .rowActions {
@@ -515,6 +573,11 @@ onMounted(async () => {
   font-weight: 700;
 }
 
+.result--on {
+  border-color: rgb(var(--color-success-rgb) / 0.55);
+  color: var(--color-success);
+}
+
 .activityLink {
   color: var(--color-primary);
   font-size: 0.74rem;
@@ -531,6 +594,11 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 
+.editBody {
+  display: grid;
+  gap: 10px;
+}
+
 .muted {
   color: rgb(var(--color-text-secondary-rgb) / 0.9);
   font-size: 0.8rem;
@@ -545,11 +613,6 @@ onMounted(async () => {
   .embeddedHeader {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .embeddedHeader .actionBtn {
-    width: 100%;
-    text-align: center;
   }
 
   .formGrid {
@@ -572,7 +635,7 @@ onMounted(async () => {
 
 @container (max-width: 760px) {
   .table {
-    min-width: 760px;
+    min-width: 720px;
   }
 
   .rowActions {
@@ -586,6 +649,16 @@ onMounted(async () => {
 
   .pager .ghostBtn {
     flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .editActions {
+    display: grid;
+  }
+
+  .editActions .actionBtn,
+  .editActions .ghostBtn {
+    width: 100%;
     text-align: center;
   }
 }

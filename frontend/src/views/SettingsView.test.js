@@ -59,6 +59,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function makeDataTransfer() {
+  return {
+    effectAllowed: 'move',
+    setData: () => {},
+  }
+}
+
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
@@ -145,10 +152,10 @@ describe('SettingsView', () => {
             },
             meta: {
               supported_sidebar_widgets: [
-                { section_key: 'search', title: 'Hladat' },
-                { section_key: 'nasa_apod', title: 'NASA Novinky' },
-                { section_key: 'next_event', title: 'Najblizsia udalost' },
-                { section_key: 'latest_articles', title: 'Najnovsie clanky' },
+                { section_key: 'search', title: 'Hľadaj' },
+                { section_key: 'nasa_apod', title: 'Astrofoto dňa' },
+                { section_key: 'next_event', title: 'Najbližšia udalosť' },
+                { section_key: 'latest_articles', title: 'Astro čítanie' },
               ],
               supported_sidebar_scopes: ['home', 'events', 'search'],
             },
@@ -160,10 +167,10 @@ describe('SettingsView', () => {
         return Promise.resolve({
           data: {
             data: [
-              { kind: 'builtin', section_key: 'search', title: 'Hladat', order: 0, is_enabled: true },
-              { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA Novinky', order: 1, is_enabled: true },
-              { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 2, is_enabled: true },
-              { kind: 'builtin', section_key: 'latest_articles', title: 'Najnovsie clanky', order: 3, is_enabled: true },
+              { kind: 'builtin', section_key: 'search', title: 'Hľadaj', order: 0, is_enabled: true },
+              { kind: 'builtin', section_key: 'nasa_apod', title: 'Astrofoto dňa', order: 1, is_enabled: true },
+              { kind: 'builtin', section_key: 'next_event', title: 'Najbližšia udalosť', order: 2, is_enabled: true },
+              { kind: 'builtin', section_key: 'latest_articles', title: 'Astro čítanie', order: 3, is_enabled: true },
             ],
           },
         })
@@ -519,10 +526,10 @@ describe('SettingsView', () => {
             },
             meta: {
               supported_sidebar_widgets: [
-                { section_key: 'search', title: 'Hladat' },
-                { section_key: 'nasa_apod', title: 'NASA Novinky' },
-                { section_key: 'next_event', title: 'Najblizsia udalost' },
-                { section_key: 'latest_articles', title: 'Najnovsie clanky' },
+                { section_key: 'search', title: 'Hľadaj' },
+                { section_key: 'nasa_apod', title: 'Astrofoto dňa' },
+                { section_key: 'next_event', title: 'Najbližšia udalosť' },
+                { section_key: 'latest_articles', title: 'Astro čítanie' },
               ],
               supported_sidebar_scopes: ['home', 'events', 'search'],
             },
@@ -540,7 +547,12 @@ describe('SettingsView', () => {
 
     const { wrapper } = await mountAt('/settings/sidebar-widgets')
 
-    await wrapper.get('#settings-widget-next_event').setValue(true)
+    const zones = wrapper.findAll('.widgetZone')
+    const activeDropZone = zones[0].get('.widgetZone__list--active')
+    let availableCards = zones[1].findAll('.widgetCard')
+
+    await availableCards[0].trigger('dragstart', { dataTransfer: makeDataTransfer() })
+    await activeDropZone.trigger('drop')
     await flush()
     await flush()
 
@@ -557,8 +569,13 @@ describe('SettingsView', () => {
       },
     )
 
-    const fourthOption = wrapper.get('#settings-widget-latest_articles')
-    expect(fourthOption.attributes('disabled')).toBeDefined()
+    availableCards = wrapper.findAll('.widgetZone')[1].findAll('.widgetCard')
+    await availableCards[0].trigger('dragstart', { dataTransfer: makeDataTransfer() })
+    await activeDropZone.trigger('drop')
+    await flush()
+
+    expect(wrapper.text()).toContain('najviac 3 widgety')
+    expect(wrapper.get('.widgetZone__count').text()).toContain('3/3')
   })
 
   it('allows reordering enabled sidebar widgets', async () => {
@@ -573,10 +590,10 @@ describe('SettingsView', () => {
             },
             meta: {
               supported_sidebar_widgets: [
-                { section_key: 'search', title: 'Hladat' },
-                { section_key: 'nasa_apod', title: 'NASA Novinky' },
-                { section_key: 'next_event', title: 'Najblizsia udalost' },
-                { section_key: 'latest_articles', title: 'Najnovsie clanky' },
+                { section_key: 'search', title: 'Hľadaj' },
+                { section_key: 'nasa_apod', title: 'Astrofoto dňa' },
+                { section_key: 'next_event', title: 'Najbližšia udalosť' },
+                { section_key: 'latest_articles', title: 'Astro čítanie' },
               ],
               supported_sidebar_scopes: ['home', 'events', 'search'],
             },
@@ -594,7 +611,12 @@ describe('SettingsView', () => {
 
     const { wrapper } = await mountAt('/settings/sidebar-widgets')
 
-    await wrapper.get('#settings-widget-move-down-search').trigger('click')
+    const activeDropZone = wrapper.get('.widgetZone__list--active')
+    const activeCards = wrapper.findAll('.widgetZone__list--active .widgetCard')
+
+    await activeCards[0].trigger('dragstart', { dataTransfer: makeDataTransfer() })
+    await activeCards[1].trigger('dragenter')
+    await activeDropZone.trigger('drop')
     await flush()
     await flush()
 
@@ -611,8 +633,8 @@ describe('SettingsView', () => {
       },
     )
 
-    const rowMeta = wrapper.findAll('.settings-sidebar-builder__row-meta').map((node) => node.text())
-    expect(rowMeta.slice(0, 2)).toEqual(['nasa_apod', 'search'])
+    const activeNames = wrapper.findAll('.widgetZone__list--active .widgetCard__name').map((node) => node.text())
+    expect(activeNames.slice(0, 2)).toEqual(['Astrofoto dňa', 'Hľadaj'])
   })
 
   it('keeps sidebar widget settings usable when preferences request times out', async () => {
@@ -629,9 +651,9 @@ describe('SettingsView', () => {
         return Promise.resolve({
           data: {
             data: [
-              { kind: 'builtin', section_key: 'search', title: 'Hladat', order: 0, is_enabled: true },
-              { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA Novinky', order: 1, is_enabled: true },
-              { kind: 'builtin', section_key: 'next_event', title: 'Najblizsia udalost', order: 2, is_enabled: true },
+              { kind: 'builtin', section_key: 'search', title: 'Hľadaj', order: 0, is_enabled: true },
+              { kind: 'builtin', section_key: 'nasa_apod', title: 'Astrofoto dňa', order: 1, is_enabled: true },
+              { kind: 'builtin', section_key: 'next_event', title: 'Najbližšia udalosť', order: 2, is_enabled: true },
             ],
           },
         })
@@ -645,8 +667,8 @@ describe('SettingsView', () => {
 
     const { wrapper } = await mountAt('/settings/sidebar-widgets')
 
-    expect(wrapper.text()).toContain('Server neodpoveda. Skus to znova neskor.')
-    expect(wrapper.find('#settings-widget-search').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Nepodarilo sa nacitat preferencie.')
+    expect(wrapper.findAll('.widgetZone__list--active .widgetCard').length).toBeGreaterThan(0)
   })
 
   it('logs out from settings navigation session section', async () => {
@@ -662,4 +684,62 @@ describe('SettingsView', () => {
     expect(authMock.logout).toHaveBeenCalledTimes(1)
     expect(router.currentRoute.value.name).toBe('login')
   })
+
+  it('deactivates account after password confirm flow', async () => {
+    httpMock.delete.mockResolvedValue({
+      data: {
+        message: 'Ucet bol deaktivovany.',
+      },
+    })
+
+    const { wrapper, router } = await mountAt('/settings/deactivate')
+
+    await wrapper.get('#deactivate-password').setValue('password')
+    await wrapper.get('[aria-label="Deaktivovať účet"]').trigger('click')
+    await flush()
+
+    const confirmButton = document.querySelector('.confirmModalCard .btn-danger')
+    expect(confirmButton).not.toBeNull()
+    confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flush()
+    await flush()
+
+    expect(authMock.csrf).toHaveBeenCalled()
+    expect(httpMock.delete).toHaveBeenCalledWith('/profile', {
+      data: {
+        current_password: 'password',
+      },
+    })
+    expect(authMock.logout).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('login')
+  })
+
+  it('shows deactivate password field error when password is invalid', async () => {
+    httpMock.delete.mockRejectedValue({
+      response: {
+        status: 422,
+        data: {
+          errors: {
+            current_password: ['Aktuálne heslo nie je spravne.'],
+          },
+        },
+      },
+    })
+
+    const { wrapper } = await mountAt('/settings/deactivate')
+
+    await wrapper.get('#deactivate-password').setValue('wrong-password')
+    await wrapper.get('[aria-label="Deaktivovať účet"]').trigger('click')
+    await flush()
+
+    const confirmButton = document.querySelector('.confirmModalCard .btn-danger')
+    expect(confirmButton).not.toBeNull()
+    confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flush()
+    await flush()
+
+    expect(wrapper.text()).toContain('Aktuálne heslo nie je spravne.')
+    expect(authMock.logout).not.toHaveBeenCalled()
+  })
 })
+

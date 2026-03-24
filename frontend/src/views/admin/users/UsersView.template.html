@@ -63,7 +63,6 @@
               <option value="admin">Admin</option>
               <option value="editor">Editor</option>
               <option value="user">Používateľ</option>
-              <option value="bot">Bot</option>
             </select>
 
             <select
@@ -138,25 +137,25 @@
                 >
                   <td data-label="Používateľ" class="col-user">
                     <div class="userCell">
-                      <RouterLink
-                        :to="{ name: 'admin.users.detail', params: { id: row.id } }"
-                        class="avatarLink"
+                      <button
+                        type="button"
+                        class="avatarLink userInlineLink"
                         :aria-label="`Avatar ${userName(row)}`"
-                        @click.stop
+                        @click.stop="openUserDetail(row)"
                       >
                         <div class="avatar">
                           <UserAvatar class="avatarFallback" :user="row" :alt="`${userName(row)} avatar`" />
                         </div>
-                      </RouterLink>
+                      </button>
                       <div class="userMeta">
-                        <RouterLink
-                          :to="{ name: 'admin.users.detail', params: { id: row.id } }"
+                        <button
+                          type="button"
                           class="userLink"
                           :title="userName(row)"
-                          @click.stop
+                          @click.stop="openUserDetail(row)"
                         >
                           {{ userName(row) }}
-                        </RouterLink>
+                        </button>
                         <RouterLink
                           v-if="row.username"
                           :to="{ name: 'user-profile', params: { username: row.username } }"
@@ -247,7 +246,8 @@
           <p v-else-if="manageModalLoading" class="manageModalLoading">Načítavam detail používateľa...</p>
 
           <template v-else-if="manageUser">
-            <section class="manageIdentityCard">
+            <template v-if="manageModalView === 'summary'">
+              <section class="manageIdentityCard">
               <div class="manageIdentityMain">
                 <div class="avatar manageIdentityAvatar">
                   <UserAvatar class="avatarFallback" :user="manageUser" :alt="`${userName(manageUser)} avatar`" />
@@ -266,7 +266,7 @@
                 <button
                   type="button"
                   class="manageActionBtn manageActionBtn--primary"
-                  @click="openUserDetail(manageUser); closeManageUserModal(false)"
+                  @click="openUserDetailPage(manageUser)"
                 >
                   Otvoriť detail
                 </button>
@@ -274,7 +274,7 @@
                   v-if="manageUser.username"
                   type="button"
                   class="manageActionBtn manageActionBtn--ghost"
-                  @click="openPublicProfile(manageUser); closeManageUserModal(false)"
+                  @click="openPublicProfile(manageUser)"
                 >
                   Zobraziť profil
                 </button>
@@ -379,6 +379,16 @@
                   </button>
                 </div>
               </section>
+            </div>
+            </template>
+
+            <div v-else class="manageEmbeddedDetail">
+              <div class="manageEmbeddedDetail__top">
+                <button type="button" class="manageActionBtn manageActionBtn--ghost" @click="manageModalView = 'summary'">
+                  Späť na prehľad
+                </button>
+              </div>
+              <AdminUserDetailView embedded :user-id="manageUser.id" />
             </div>
           </template>
         </div>

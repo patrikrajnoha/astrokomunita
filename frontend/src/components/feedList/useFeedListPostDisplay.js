@@ -147,30 +147,39 @@ export function useFeedListPostDisplay({
     if (showBotTranslationToggle(post)) {
       items.push({
         key: 'variant_translated',
-        label: isBotVariantActive(post, 'translated') ? 'Jazyk: SK (aktivne)' : 'Jazyk: SK',
+        label: isBotVariantActive(post, 'translated') ? 'Jazyk: SK (aktívne)' : 'Jazyk: SK',
         danger: false,
+        icon: 'lang_sk',
+        active: isBotVariantActive(post, 'translated'),
       })
       items.push({
         key: 'variant_original',
-        label: isBotVariantActive(post, 'original') ? 'Jazyk: EN (aktivne)' : 'Jazyk: EN',
+        label: isBotVariantActive(post, 'original') ? 'Jazyk: EN (aktívne)' : 'Jazyk: EN',
         danger: false,
+        icon: 'lang_en',
+        active: isBotVariantActive(post, 'original'),
       })
     }
 
     if (hasOriginalDownload(post)) {
-      items.push({ key: 'download_original', label: 'Stiahnut v plnej kvalite', danger: false })
+      items.push({
+        key: 'download_original',
+        label: 'Stiahnu\u0165 v plnej kvalite',
+        danger: false,
+        icon: 'download',
+      })
     }
 
     if (canReport(post)) {
-      items.push({ key: 'report', label: 'Nahlasit', danger: false })
+      items.push({ key: 'report', label: 'Nahlásiť', danger: false, icon: 'report' })
     }
 
     if (canDelete(post)) {
-      items.push({ key: 'delete', label: 'Zmazať', danger: true })
+      items.push({ key: 'delete', label: 'Zmazať', danger: true, icon: 'trash' })
     }
 
     if (canEditTranslatedVariant(post)) {
-      items.push({ key: 'edit', label: 'Upraviť', danger: false })
+      items.push({ key: 'edit', label: 'Upraviť', danger: false, icon: 'edit' })
     }
 
     if (auth.user?.is_admin && !isBotPost(post)) {
@@ -178,6 +187,7 @@ export function useFeedListPostDisplay({
         key: 'pin',
         label: post?.pinned_at ? 'Odopnúť' : 'Pripnúť',
         danger: false,
+        icon: post?.pinned_at ? 'unpin' : 'pin',
       })
     }
 

@@ -1,7 +1,7 @@
-<template>
+﻿<template>
   <SettingsDetailShell
     title="Konfigurácia sidebaru"
-    subtitle="Vyber max 3 widgety, ktoré sa ti zobrazia v sidebari."
+    :subtitle="settingsSubtitle"
   >
     <div class="widgetEditor">
       <header class="widgetEditor__header">
@@ -12,7 +12,6 @@
       <div v-if="state.loadingScope" class="stateHint">Načítavam konfiguráciu...</div>
 
       <template v-else>
-        <!-- ACTIVE ZONE -->
         <section class="widgetZone">
           <p class="widgetZone__label">
             Aktívne
@@ -44,14 +43,14 @@
               @dragend="onDragEnd"
               @dragenter.prevent="dragOverKey = widget.section_key"
             >
-              <span class="widgetCard__handle" aria-hidden="true">⠿</span>
+              <span class="widgetCard__handle" aria-hidden="true">::</span>
               <span class="widgetCard__name">{{ widget.title }}</span>
               <button
                 type="button"
                 class="widgetCard__remove"
                 title="Odstrániť"
                 @click="disableWidget(widget)"
-              >✕</button>
+              >×</button>
             </article>
 
             <div v-if="activeWidgets.length === 0" class="widgetZone__empty">
@@ -60,7 +59,6 @@
           </div>
         </section>
 
-        <!-- AVAILABLE ZONE -->
         <section class="widgetZone">
           <p class="widgetZone__label">Dostupné</p>
 
@@ -87,7 +85,7 @@
               @dragstart="onDragStart($event, widget, 'available')"
               @dragend="onDragEnd"
             >
-              <span class="widgetCard__handle" aria-hidden="true">⠿</span>
+              <span class="widgetCard__handle" aria-hidden="true">::</span>
               <span class="widgetCard__name">{{ widget.title }}</span>
             </article>
 
@@ -104,6 +102,8 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
+import api from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { DEFAULT_SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
@@ -111,13 +111,13 @@ import { MAX_ENABLED_SIDEBAR_WIDGETS, normalizeSidebarSections } from '@/sidebar
 
 const MAX_ENABLED = MAX_ENABLED_SIDEBAR_WIDGETS
 
+const auth = useAuthStore()
 const preferences = useEventPreferencesStore()
 const sidebarConfigStore = useSidebarConfigStore()
 
 const sections = ref([])
 const search = ref('')
 
-// Drag state
 const dragKey = ref(null)
 const dragFrom = ref(null)
 const dragOverKey = ref(null)
@@ -133,6 +133,12 @@ const state = reactive({
 })
 
 let saveQueued = false
+const isAdmin = computed(() => Boolean(auth.isAdmin))
+const settingsSubtitle = computed(() => (
+  isAdmin.value
+    ? 'Vyber max 3 widgety, ktoré sa zobrazia všetkým používateľom v home scope.'
+    : 'Vyber max 3 widgety, ktoré sa ti zobrazia v sidebari.'
+))
 
 const saveStateLabel = computed(() => {
   if (state.saving) return 'Ukladám...'
@@ -167,7 +173,23 @@ const filteredAvailable = computed(() => {
   return availableWidgets.value.filter((s) => s.title.toLowerCase().includes(q))
 })
 
-// ── Drag & Drop ───────────────────────────────────────────────────────────────
+function enforceMaxEnabled(items) {
+  const sorted = [...items].sort((a, b) => a.order - b.order)
+  let enabledCount = 0
+
+  return sorted.map((item, index) => {
+    const keepEnabled = Boolean(item.is_enabled) && enabledCount < MAX_ENABLED
+    if (keepEnabled) {
+      enabledCount += 1
+    }
+
+    return {
+      ...item,
+      is_enabled: keepEnabled,
+      order: index,
+    }
+  })
+}
 
 function onDragStart(e, widget, zone) {
   dragKey.value = widget.section_key
@@ -222,7 +244,7 @@ function onDrop(zone) {
     }
   }
 
-  void persistOverrides()
+  void persistScopeConfig()
   onDragEnd()
 }
 
@@ -250,17 +272,17 @@ function disableWidget(widget) {
   state.scopeError = ''
   widget.is_enabled = false
   rebuildOrder()
-  void persistOverrides()
+  void persistScopeConfig()
 }
-
-// ── API ───────────────────────────────────────────────────────────────────────
 
 const loadScope = async (scope) => {
   state.loadingScope = true
   state.scopeError = ''
 
   try {
-    const items = await sidebarConfigStore.fetchScope(scope, { force: true })
+    const items = isAdmin.value
+      ? (await api.get('/admin/sidebar-config', { meta: { requiresAuth: true } }))?.data?.data || []
+      : await sidebarConfigStore.fetchScope(scope, { force: true })
     const normalizedItems = normalizeSidebarSections(items)
       .filter((item) => item.kind === 'builtin')
       .map((item) => ({
@@ -271,16 +293,15 @@ const loadScope = async (scope) => {
       }))
       .sort((a, b) => a.order - b.order)
 
-    // Apply user overrides if they exist
     const overrideKeys = getUserOverrideKeys(scope)
     if (overrideKeys !== null) {
       const keySet = new Set(overrideKeys)
       const keyedItems = new Map(normalizedItems.map((item) => [item.section_key, item]))
       const enabledByOrder = overrideKeys.map((k) => keyedItems.get(k)).filter(Boolean).map((item) => ({ ...item, is_enabled: true }))
       const disabled = normalizedItems.filter((item) => !keySet.has(item.section_key)).map((item) => ({ ...item, is_enabled: false }))
-      sections.value = [...enabledByOrder, ...disabled].map((s, i) => ({ ...s, order: i }))
+      sections.value = enforceMaxEnabled([...enabledByOrder, ...disabled].map((s, i) => ({ ...s, order: i })))
     } else {
-      sections.value = normalizedItems
+      sections.value = enforceMaxEnabled(normalizedItems)
     }
   } catch (err) {
     state.scopeError = err?.response?.data?.message || 'Nepodarilo sa načítať konfiguráciu sidebaru.'
@@ -312,7 +333,7 @@ const persistOverrides = async () => {
   state.saveError = ''
 
   try {
-    const selectedKeys = activeWidgets.value.map((s) => s.section_key)
+    const selectedKeys = activeWidgets.value.map((s) => s.section_key).slice(0, MAX_ENABLED)
 
     const payloadOverrides = {
       ...(preferences.sidebarWidgetOverrides || {}),
@@ -337,8 +358,50 @@ const persistOverrides = async () => {
   }
 }
 
+const persistAdminConfig = async () => {
+  if (state.saving) {
+    saveQueued = true
+    return
+  }
+
+  state.saving = true
+  state.saveError = ''
+
+  try {
+    const sanitizedSections = enforceMaxEnabled(sections.value)
+    sections.value = sanitizedSections
+
+    const payload = sanitizedSections.map((section, index) => ({
+      section_key: section.section_key,
+      is_enabled: Boolean(section.is_enabled),
+      order: index,
+    }))
+
+    await api.put('/admin/sidebar-config', { sections: payload }, { meta: { requiresAuth: true } })
+    delete sidebarConfigStore.byScope[DEFAULT_SIDEBAR_SCOPE]
+    state.lastSavedAt = new Date().toISOString()
+  } catch (err) {
+    state.saveError = err?.response?.data?.message || 'Uloženie konfigurácie zlyhalo.'
+  } finally {
+    state.saving = false
+    if (saveQueued) {
+      saveQueued = false
+      await persistAdminConfig()
+    }
+  }
+}
+
+const persistScopeConfig = async () => {
+  if (isAdmin.value) {
+    await persistAdminConfig()
+    return
+  }
+
+  await persistOverrides()
+}
+
 onMounted(async () => {
-  if (!preferences.loaded) {
+  if (!isAdmin.value && !preferences.loaded) {
     try {
       await preferences.fetchPreferences(true)
       state.preferencesError = ''
@@ -385,7 +448,7 @@ onMounted(async () => {
   color: var(--text-secondary);
 }
 
-/* ── Zones ── */
+/* Zones */
 .widgetZone {
   display: grid;
   gap: 0.6rem;
@@ -445,7 +508,7 @@ onMounted(async () => {
   opacity: 0.7;
 }
 
-/* ── Cards ── */
+/* Cards */
 .widgetCard {
   display: flex;
   align-items: center;
@@ -510,7 +573,7 @@ onMounted(async () => {
   color: var(--color-danger, #e53e3e);
 }
 
-/* ── Search ── */
+/* Search */
 .widgetSearch {
   width: 100%;
   padding: 0.5rem 0.7rem;

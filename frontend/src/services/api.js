@@ -87,13 +87,34 @@ function isLongRunningPath(url) {
     return false
   }
 
+  const isSingleCandidateRetranslate =
+    normalized.includes('/admin/event-candidates/')
+    && normalized.includes('/retranslate')
+    && !normalized.includes('/retranslate-batch')
+  const isSingleCandidateApprove =
+    normalized.includes('/admin/event-candidates/')
+    && normalized.includes('/approve')
+    && !normalized.includes('/approve-batch')
+
+  const isAdminEventAiGenerate =
+    normalized.includes('/admin/events/') &&
+    normalized.includes('/ai/generate-description')
+  const isAdminBlogAiTagSuggest =
+    normalized.includes('/admin/blog-posts/') &&
+    normalized.includes('/ai/suggest-tags')
+
   return (
+    isAdminEventAiGenerate ||
+    isAdminBlogAiTagSuggest ||
     normalized.includes('/admin/bots/run/') ||
     normalized.includes('/admin/bots/quick-run') ||
     normalized.includes('/admin/event-sources/run') ||
     normalized.includes('/admin/event-sources/purge') ||
     normalized.includes('/admin/event-sources/translation-artifacts/repair') ||
+    isSingleCandidateRetranslate ||
+    isSingleCandidateApprove ||
     normalized.includes('/admin/event-candidates/approve-batch') ||
+    normalized.includes('/admin/event-candidates/retranslate-batch') ||
     normalized.includes('/admin/manual-events/publish-batch') ||
     normalized.includes('/admin/performance-metrics/run')
   )
@@ -238,7 +259,16 @@ function logDevAuthDiagnostic(error, status) {
 api.interceptors.request.use((config) => {
   if (isLongRunningPath(config?.url)) {
     const url = String(config?.url || '').toLowerCase()
+    const isAdminEventAiGenerate =
+      url.includes('/admin/events/') &&
+      url.includes('/ai/generate-description')
+    const isSingleCandidateRetranslate =
+      url.includes('/admin/event-candidates/') &&
+      url.includes('/retranslate') &&
+      !url.includes('/retranslate-batch')
     const veryLongRunning =
+      isAdminEventAiGenerate ||
+      isSingleCandidateRetranslate ||
       url.includes('/admin/event-sources/run') ||
       url.includes('/admin/event-sources/purge') ||
       url.includes('/admin/event-sources/translation-artifacts/repair')
@@ -310,7 +340,7 @@ api.interceptors.response.use(
         toast.warn(verificationMessage, {
           action: shouldOfferSettingsLink
             ? {
-                label: 'Otvorit Nastavenia',
+                label: 'Otvoriť Nastavenia',
                 onClick: () => redirectToEmailSettingsIfNeeded(),
               }
             : undefined,

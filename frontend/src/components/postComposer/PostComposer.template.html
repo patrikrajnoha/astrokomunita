@@ -96,7 +96,7 @@
               :disabled="posting || eventFollowLoading"
               @click="markCalendar"
             >
-              {{ eventFollowed ? 'Sledujes' : (eventFollowLoading ? 'Ukladam...' : 'Mark your calendar') }}
+              {{ eventFollowed ? 'Sleduješ' : (eventFollowLoading ? 'Ukladám...' : 'Mark your calendar') }}
             </button>
             <button class="eventRemoveBtn" type="button" :disabled="posting" @click="removeEvent">Odstranit</button>
           </div>

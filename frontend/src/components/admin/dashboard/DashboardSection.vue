@@ -40,12 +40,10 @@ const emit = defineEmits(['action'])
 <style scoped>
 .sectionCard {
   display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--dashboard-border, var(--color-border));
-  border-radius: var(--dashboard-radius, 11px);
-  background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.34));
-  transition: border-color 160ms ease, background-color 160ms ease;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--dashboard-radius, 12px);
+  background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.42));
   min-width: 0;
 }
 
@@ -53,7 +51,7 @@ const emit = defineEmits(['action'])
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -63,8 +61,8 @@ const emit = defineEmits(['action'])
 
 .sectionTitle {
   margin: 0;
-  font-size: 0.98rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 650;
   letter-spacing: -0.01em;
   color: var(--color-surface);
 }
@@ -104,6 +102,7 @@ const emit = defineEmits(['action'])
 
   .sectionControls {
     justify-content: flex-start;
+    width: 100%;
   }
 }
 </style>

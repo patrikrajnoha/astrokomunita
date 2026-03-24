@@ -1,6 +1,6 @@
 <template>
   <NextEventWidget
-    title="Najbližší meteorický roj"
+    title="Padajúce hviezdy"
     endpoint="/events/widget/next-meteor-shower"
     empty-title="Žiadny blízky meteorický roj"
     empty-text="V event databáze zatiaľ nie je žiadny publikovaný meteorický roj."

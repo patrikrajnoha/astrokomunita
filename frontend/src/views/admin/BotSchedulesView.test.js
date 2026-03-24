@@ -24,6 +24,13 @@ function flush() {
   return Promise.resolve().then(() => nextTick())
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
 describe('BotSchedulesView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -65,6 +72,7 @@ describe('BotSchedulesView', () => {
         stubs: {
           AdminPageShell: { template: '<div><slot name="right-actions" /><slot /></div>' },
           RouterLink: { template: '<a><slot /></a>' },
+          BaseModal: true,
         },
       },
     })
@@ -79,7 +87,7 @@ describe('BotSchedulesView', () => {
 
     const createButton = wrapper
       .findAll('button')
-      .find((node) => node.text().toLowerCase().includes('vytvoriť'))
+      .find((node) => normalizeText(node.text()).includes('vytvorit'))
     await createButton.trigger('click')
     await flush()
 

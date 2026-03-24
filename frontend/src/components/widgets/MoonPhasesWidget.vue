@@ -23,7 +23,7 @@
     <AsyncState
       v-else-if="!currentPhaseKey || currentPhaseKey === 'unknown'"
       mode="empty"
-      title="Fáza mesiaca je nedostupná"
+      title="Fázy Mesiaca sú nedostupné"
       message="Skús to neskôr."
       compact
     />
@@ -34,6 +34,7 @@
         <div class="heroBody">
           <div class="heroPhase">{{ phaseLabel(currentPhaseKey) }}</div>
           <div v-if="illuminationLabel" class="heroIllumination">{{ illuminationLabel }}</div>
+          <div v-if="visibilityLabel" class="heroMoonrise">{{ visibilityLabel }}</div>
           <div v-if="moonriseLine" class="heroMoonrise">{{ moonriseLine }}</div>
         </div>
       </div>
@@ -88,7 +89,7 @@ export default {
   name: 'MoonPhasesWidget',
   components: { AsyncState },
   props: {
-    title: { type: String, default: 'Fázy mesiaca' },
+    title: { type: String, default: 'Fázy Mesiaca' },
     lat: { type: [Number, String], default: null },
     lon: { type: [Number, String], default: null },
     tz: { type: String, default: '' },
@@ -102,6 +103,7 @@ export default {
     const overviewPhaseKey = ref('')
     const illumination = ref(null)
     const nextMoonriseAt = ref('')
+    const altitudeDeg = ref(null)
 
     const currentPhaseKey = computed(() => overviewPhaseKey.value || phasesPhaseKey.value || 'unknown')
 
@@ -115,6 +117,13 @@ export default {
     const illuminationLabel = computed(() => {
       if (illumination.value === null) return ''
       return `${Math.round(illumination.value)} %`
+    })
+
+    const visibilityLabel = computed(() => {
+      if (altitudeDeg.value === null) return ''
+      if (altitudeDeg.value > 5) return 'Nad obzorom'
+      if (altitudeDeg.value >= 0) return 'Nízko nad obzorom'
+      return 'Pod horizontom'
     })
 
     const moonriseLine = computed(() => {
@@ -137,13 +146,13 @@ export default {
 
     const buildQuery = () => {
       const q = {}
-      const lat = Number(props.lat)
-      const lon = Number(props.lon)
+      const lat = toFiniteCoordinate(props.lat)
+      const lon = toFiniteCoordinate(props.lon)
       const tz = String(props.tz || '').trim()
       const date = String(props.date || '').trim()
 
-      if (Number.isFinite(lat)) q.lat = lat
-      if (Number.isFinite(lon)) q.lon = lon
+      if (lat !== null) q.lat = lat
+      if (lon !== null) q.lon = lon
       if (tz) q.tz = tz
       if (/^\d{4}-\d{2}-\d{2}$/.test(date)) q.date = date
 
@@ -156,6 +165,7 @@ export default {
       overviewPhaseKey.value = ''
       illumination.value = null
       nextMoonriseAt.value = ''
+      altitudeDeg.value = null
 
       try {
         const query = buildQuery()
@@ -176,6 +186,8 @@ export default {
           const ill = Number(ov?.moon_illumination_percent)
           illumination.value = Number.isFinite(ill) ? ill : null
           nextMoonriseAt.value = String(ov?.next_moonrise_at || '').trim()
+          const alt = Number(ov?.moon_altitude_deg)
+          altitudeDeg.value = Number.isFinite(alt) ? alt : null
         }
       } catch (err) {
         error.value = err?.response?.data?.message || err?.message || 'Skús obnoviť widget neskôr.'
@@ -191,6 +203,7 @@ export default {
       error,
       currentPhaseKey,
       illuminationLabel,
+      visibilityLabel,
       moonriseLine,
       upcomingEvents,
       fetchData,
@@ -242,6 +255,18 @@ function shortDate(value) {
   } catch {
     return ''
   }
+}
+
+function toFiniteCoordinate(value) {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+
+  const normalized = value.trim()
+  if (!normalized) return null
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
 }
 </script>
 

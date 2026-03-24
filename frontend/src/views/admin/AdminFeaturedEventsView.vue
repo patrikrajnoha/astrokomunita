@@ -42,6 +42,7 @@ const previewOpen = ref(false)
 
 const activeCount = computed(() => featured.value.filter((item) => item.is_active).length)
 const canAdd = computed(() => Number(selectedEventId.value) > 0 && !saving.value)
+const isAutomaticSelection = computed(() => selectionMode.value !== 'admin')
 const counterClass = computed(() => {
   const ratio = activeCount.value / maxItems.value
   if (ratio >= 1) return 'counter--full'
@@ -49,7 +50,19 @@ const counterClass = computed(() => {
   return 'counter--ok'
 })
 const modeBadgeText = computed(() => {
-  return selectionMode.value === 'admin' ? 'Používa sa: Admin výber' : 'Používa sa: Auto fallback'
+  return isAutomaticSelection.value
+    ? 'Automatický výber (bez AI)'
+    : 'Manuálny výber správcom'
+})
+const modeDescription = computed(() => {
+  if (!isAutomaticSelection.value) {
+    return 'Používa sa ručne zoradený zoznam udalostí pre vybraný mesiac.'
+  }
+
+  return 'Používajú sa deterministické pravidlá podľa dátumu, typu a priority udalostí. Ollama sa tu nepoužíva.'
+})
+const resolvedSourceText = computed(() => {
+  return isAutomaticSelection.value ? 'Zdroj: Automatický výber podľa pravidiel' : 'Zdroj: Manuálny admin výber'
 })
 
 const monthOptions = computed(() => {

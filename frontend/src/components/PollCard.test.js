@@ -64,7 +64,7 @@ describe('PollCard responsive layout', () => {
 
     expect(wrapper.find('[data-testid="poll-desktop"]').exists()).toBe(true)
     expect(wrapper.findAll('[data-testid="poll-desktop"] .pollOption')).toHaveLength(2)
-    expect(wrapper.text()).toContain('Pocet hlasov: 10')
+    expect(wrapper.text()).toContain('Počet hlasov: 10')
   })
 
   it('shows result fill and percents after vote in both layouts', () => {

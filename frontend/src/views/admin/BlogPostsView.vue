@@ -5,6 +5,7 @@ import ArticleRichEditor from "@/components/admin/forms/ArticleRichEditor.vue";
 
 const {
   aiTagFallbackUsed,
+  aiLoadingPercent,
   aiSuggestActionLabel,
   aiTagSuggestionMode,
   aiTagSuggestions,
@@ -12,9 +13,13 @@ const {
   aiTagSuggestionsLoading,
   applySelectedAiTags,
   canPublishNow,
+  closeEditor,
   clearQuery,
   computeStatus,
   contentWordCount,
+  coverFile,
+  coverInputEl,
+  coverInputLabel,
   coverPreview,
   data,
   deleting,
@@ -25,6 +30,7 @@ const {
   formatDate,
   hasQuery,
   hasSelectedAiTagSuggestions,
+  hidePublished,
   isEditing,
   loading,
   load,
@@ -33,6 +39,7 @@ const {
   page,
   pageRangeLabel,
   posts,
+  openCoverPicker,
   previewHtml,
   previewToc,
   prevPage,
@@ -63,6 +70,8 @@ const {
   tagsInput,
   titleLength,
   titleSlugPreview,
+  uploadInlineImage,
+  unhidePublished,
   unpublish,
 } = useAdminBlogPostsEditor();
 
@@ -76,7 +85,7 @@ async function handleNewPost() {
 }
 
 async function handleBack() {
-  await startNewPost(false);
+  await closeEditor(false);
 }
 
 function toggleSettings() {

@@ -37,7 +37,7 @@
       </div>
 
       <div class="pollFooter">
-        <span>Pocet hlasov: {{ totalVotes }}</span>
+        <span>Počet hlasov: {{ totalVotes }}</span>
         <span>&middot;</span>
         <span>{{ footerTimeLabel }}</span>
       </div>
@@ -72,7 +72,7 @@
       </div>
 
       <div class="mPollFooter">
-        <span>Pocet hlasov: {{ totalVotes }}</span>
+        <span>Počet hlasov: {{ totalVotes }}</span>
         <span>&middot;</span>
         <span>{{ footerTimeLabel }}</span>
       </div>
@@ -110,8 +110,8 @@ const optionDisabled = computed(() => loading.value || hasVoted.value || isClose
 const totalVotes = computed(() => Number(localPoll.value?.total_votes ?? 0))
 
 const footerTimeLabel = computed(() => {
-  if (isClosed.value) return 'Ukoncene'
-  return `Zostava: ${formatPollRemainingSk(tickSeconds.value)}`
+  if (isClosed.value) return 'Ukončené'
+  return `Zostáva: ${formatPollRemainingSk(tickSeconds.value)}`
 })
 
 watch(
@@ -461,6 +461,8 @@ function clonePoll(value) {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .mPollMeta {

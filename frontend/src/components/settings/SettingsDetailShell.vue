@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <section class="settings-card" :class="{ 'settings-card-danger': danger }">
     <RouterLink class="settings-back-link" :to="{ name: 'settings' }">
       <span aria-hidden="true">&lt;-</span>
-      <span>Spat do Nastaveni</span>
+      <span>Späť do nastavení</span>
     </RouterLink>
 
     <h2 class="card-title">{{ title }}</h2>

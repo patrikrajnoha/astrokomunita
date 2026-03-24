@@ -152,7 +152,7 @@ export function useFeedListInteractions({
     const url = attachmentDownloadSrc(post)
     if (!url) return
 
-    toastInfo('Stahujem...')
+    toastInfo('S\u0165ahujem...')
     try {
       window.open(url, '_blank', 'noopener')
     } catch {
@@ -163,7 +163,7 @@ export function useFeedListInteractions({
   async function togglePin(post) {
     if (!post?.id || pinLoadingId.value) return
     if (!auth.user?.is_admin) {
-      currentFeed.value.err = 'Akcia je dostupna len pre admina.'
+      currentFeed.value.err = 'Akcia je dostupná len pre admina.'
       return
     }
 

@@ -12,8 +12,11 @@ export function createQuickRunHandlers({
   runSource,
   reloadData,
   toast,
+  onProgressStart,
+  onProgressUpdate,
+  onProgressDone,
 }) {
-  async function executeQuickRun(identity) {
+  async function executeQuickRun(identity, hooks = {}) {
     const normalizedIdentity = normalizeBotIdentity(identity)
     if (normalizedIdentity === '') {
       return null
@@ -45,6 +48,13 @@ export function createQuickRunHandlers({
     let lastHintMessage = ''
 
     for (const source of enabledSources) {
+      if (typeof hooks.onSourceStart === 'function') {
+        hooks.onSourceStart({
+          identity: normalizedIdentity,
+          sourceKey: source.key,
+        })
+      }
+
       try {
         const result = await runSource(source.key, {
           mode: 'auto',
@@ -73,6 +83,13 @@ export function createQuickRunHandlers({
       } catch (error) {
         failedCount++
         lastErrorMessage = toErrorMessage(error, `Nepodarilo sa spustiť zdroj "${source.key}".`)
+      } finally {
+        if (typeof hooks.onSourceDone === 'function') {
+          hooks.onSourceDone({
+            identity: normalizedIdentity,
+            sourceKey: source.key,
+          })
+        }
       }
     }
 
@@ -103,9 +120,62 @@ export function createQuickRunHandlers({
       return
     }
 
+    const enabledSources = Array.isArray(enabledSourcesByIdentity.value[normalizedIdentity])
+      ? enabledSourcesByIdentity.value[normalizedIdentity]
+      : []
+    const total = enabledSources.length
+    let completed = 0
+
+    if (typeof onProgressStart === 'function') {
+      onProgressStart({
+        scope: 'identity',
+        identity: normalizedIdentity,
+        total,
+      })
+    }
+
     quickRunBusyIdentity.value = normalizedIdentity
-    const result = await executeQuickRun(normalizedIdentity)
-    quickRunBusyIdentity.value = ''
+    let result = null
+    try {
+      result = await executeQuickRun(normalizedIdentity, {
+        onSourceStart: ({ sourceKey }) => {
+          if (typeof onProgressUpdate === 'function') {
+            onProgressUpdate({
+              scope: 'identity',
+              identity: normalizedIdentity,
+              total,
+              completed,
+              sourceKey,
+              phase: 'running',
+            })
+          }
+        },
+        onSourceDone: ({ sourceKey }) => {
+          completed += 1
+          if (typeof onProgressUpdate === 'function') {
+            onProgressUpdate({
+              scope: 'identity',
+              identity: normalizedIdentity,
+              total,
+              completed,
+              sourceKey,
+              phase: 'completed',
+            })
+          }
+        },
+      })
+    } catch (error) {
+      toast.error(toErrorMessage(error, 'Spustenie bota zlyhalo.'))
+      return
+    } finally {
+      quickRunBusyIdentity.value = ''
+      if (typeof onProgressDone === 'function') {
+        onProgressDone({
+          scope: 'identity',
+          identity: normalizedIdentity,
+        })
+      }
+    }
 
     await reloadData()
 
@@ -137,17 +207,73 @@ export function createQuickRunHandlers({
       return
     }
 
+    const total = validBotIdentities.reduce((sum, identity) => {
+      const normalizedIdentity = normalizeBotIdentity(identity)
+      const enabledSources = Array.isArray(enabledSourcesByIdentity.value[normalizedIdentity])
+        ? enabledSourcesByIdentity.value[normalizedIdentity]
+        : []
+
+      return sum + enabledSources.length
+    }, 0)
+
+    let completed = 0
+    if (typeof onProgressStart === 'function') {
+      onProgressStart({
+        scope: 'all',
+        identity: 'all',
+        total,
+      })
+    }
+
     quickRunBusyIdentity.value = 'all'
 
     const results = []
-    for (const identity of validBotIdentities) {
-      const result = await executeQuickRun(identity)
-      if (result && result.processedCount > 0) {
-        results.push(result)
+    try {
+      for (const identity of validBotIdentities) {
+        const normalizedIdentity = normalizeBotIdentity(identity)
+        const result = await executeQuickRun(identity, {
+          onSourceStart: ({ sourceKey }) => {
+            if (typeof onProgressUpdate === 'function') {
+              onProgressUpdate({
+                scope: 'all',
+                identity: normalizedIdentity,
+                total,
+                completed,
+                sourceKey,
+                phase: 'running',
+              })
+            }
+          },
+          onSourceDone: ({ sourceKey }) => {
+            completed += 1
+            if (typeof onProgressUpdate === 'function') {
+              onProgressUpdate({
+                scope: 'all',
+                identity: normalizedIdentity,
+                total,
+                completed,
+                sourceKey,
+                phase: 'completed',
+              })
+            }
+          },
+        })
+        if (result && result.processedCount > 0) {
+          results.push(result)
+        }
+      }
+    } catch (error) {
+      toast.error(toErrorMessage(error, 'Spustenie všetkých botov zlyhalo.'))
+      return
+    } finally {
+      quickRunBusyIdentity.value = ''
+      if (typeof onProgressDone === 'function') {
+        onProgressDone({
+          scope: 'all',
+          identity: 'all',
+        })
       }
     }
-
-    quickRunBusyIdentity.value = ''
     await reloadData()
 
     if (results.length === 0) {

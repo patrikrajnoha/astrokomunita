@@ -1,43 +1,23 @@
-﻿<script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+<script setup>
+import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { RouterLink } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
-import AdminAiActionPanel from '@/components/admin/shared/AdminAiActionPanel.vue'
 import { useBotEngineStore } from '@/stores/botEngine'
-import { deleteAllBotPosts } from '@/services/api/admin/bots'
 import { useToast } from '@/composables/useToast'
-import { useConfirm } from '@/composables/useConfirm'
-import BotRunDetailModal from './botEngine/BotRunDetailModal.vue'
 import {
-  DEFAULT_PUBLISH_ALL_LIMIT,
   VALID_BOT_IDENTITIES,
   normalizeBotIdentity,
   toErrorMessage,
-  formatDateTime,
   translationProviderLabel,
-  translationProviderClass,
   translationModeLabel,
-  runModeLabel,
-  runModeClass,
-  runPublishLimit,
-  resolvePublishAllLimitDefault,
-  requiresPublishConfirm,
-  botIdentityLabel,
-  sourceTypeLabel,
-  sourceStateLabel,
   sourceCountLabel,
   quickRunResultChips,
-  runStatCount,
-  normalizeOutageProvider,
-  statusClass,
-  runStatusLabel,
   runStatusHint,
-  canPublishItem,
-  canDeleteItemPost,
+  botIdentityLabel,
 } from './botEngineView.utils'
 import { useBotEngineRuns } from './botEngine/useBotEngineRuns'
 import { createQuickRunHandlers } from './botEngine/quickRunHandlers'
-import { createRunItemHandlers } from './botEngine/runItemHandlers'
 import { useBotEngineTranslationTools } from './botEngine/useBotEngineTranslationTools'
 
 const props = defineProps({
@@ -49,55 +29,23 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  presetLabel: {
-    type: String,
-    default: '',
-  },
 })
 
 const store = useBotEngineStore()
 const toast = useToast()
-const { confirm } = useConfirm()
 
 const {
   sources,
   runsPage,
   runItemsPage,
   filters,
-  loadingSources,
-  loadingRuns,
-  loadingRunItems,
   translationHealth,
-  savingTranslationOutage,
 } = storeToRefs(store)
-const selectedRun = ref(null)
-const selectedPreviewItem = ref(null)
-const publishAllLimit = ref(DEFAULT_PUBLISH_ALL_LIMIT)
 
 const {
-  canNextItemsPage,
-  canNextPage,
-  canPrevItemsPage,
-  canPrevPage,
-  effectiveBotIdentity,
   enabledSourcesByIdentity,
-  filterForm,
-  filteredSources,
-  goToPage,
   hasEnabledSources,
-  hasPresetBotIdentity,
-  loadRuns,
   loadSources,
-  normalizedPresetBotIdentity,
-  resetRunsFilters,
-  runItems,
-  runItemsMeta,
-  runNow,
-  runs,
-  runsMeta,
-  sourceOptions,
-  syncFilterFormFromStore,
-  applyRunsFilters,
 } = useBotEngineRuns({
   props,
   store,
@@ -110,28 +58,115 @@ const {
   toErrorMessage,
 })
 
-const pageTitle = computed(() => 'Modul')
-const pageSubtitle = computed(() => 'Run control, preklady a publikovanie.')
+const pageTitle = computed(() => 'Legacy n?stroje')
+const pageSubtitle = computed(() => 'Sekund?rny servisn? panel pre zriedkav? manu?lne akcie.')
 
 const quickRunBusyIdentity = ref('')
+const quickRunProgress = ref({
+  active: false,
+  scope: 'all',
+  identity: '',
+  total: 0,
+  completed: 0,
+  sourceKey: '',
+  phase: 'idle',
+})
+
+const quickRunProgressPercent = computed(() => {
+  const total = Number(quickRunProgress.value.total || 0)
+  if (total <= 0) {
+    return quickRunProgress.value.active ? 100 : 0
+  }
+
+  const completed = Number(quickRunProgress.value.completed || 0)
+  const ratio = Math.min(1, Math.max(0, completed / total))
+  return Math.round(ratio * 100)
+})
+
+const quickRunProgressLabel = computed(() => {
+  if (quickRunProgress.value.scope === 'identity') {
+    const identityLabel = botIdentityLabel(quickRunProgress.value.identity)
+    return identityLabel ? `Run control: ${identityLabel}` : 'Run control'
+  }
+
+  return 'Run control: v?etky zdroje'
+})
+
+const quickRunProgressHint = computed(() => {
+  if (!quickRunProgress.value.active) {
+    return ''
+  }
+
+  const total = Number(quickRunProgress.value.total || 0)
+  const completed = Number(quickRunProgress.value.completed || 0)
+  const sourceKey = String(quickRunProgress.value.sourceKey || '').trim()
+  const runningText = sourceKey !== '' ? `Sprac?va sa zdroj ${sourceKey}.` : 'Sprac?vaj? sa zdroje.'
+
+  if (quickRunProgress.value.phase === 'running') {
+    return `${runningText} Hotov?: ${completed}/${total}.`
+  }
+
+  return `Hotov?: ${completed}/${total}.`
+})
+
+function resetQuickRunProgress() {
+  quickRunProgress.value = {
+    active: false,
+    scope: 'all',
+    identity: '',
+    total: 0,
+    completed: 0,
+    sourceKey: '',
+    phase: 'idle',
+  }
+}
+
+function handleQuickRunProgressStart(payload = {}) {
+  quickRunProgress.value = {
+    active: true,
+    scope: String(payload.scope || 'all'),
+    identity: String(payload.identity || ''),
+    total: Math.max(0, Number(payload.total || 0)),
+    completed: 0,
+    sourceKey: '',
+    phase: 'running',
+  }
+}
+
+function handleQuickRunProgressUpdate(payload = {}) {
+  if (!quickRunProgress.value.active) {
+    return
+  }
+
+  const total = Math.max(0, Number(payload.total ?? quickRunProgress.value.total))
+  const completed = Math.min(total, Math.max(0, Number(payload.completed ?? quickRunProgress.value.completed)))
+
+  quickRunProgress.value = {
+    ...quickRunProgress.value,
+    scope: String(payload.scope || quickRunProgress.value.scope || 'all'),
+    identity: String(payload.identity || quickRunProgress.value.identity || ''),
+    total,
+    completed,
+    sourceKey: String(payload.sourceKey || ''),
+    phase: String(payload.phase || quickRunProgress.value.phase || 'running'),
+  }
+}
+
+function handleQuickRunProgressDone() {
+  resetQuickRunProgress()
+}
+
 const {
   aiPanelError,
   aiPanelLastRun,
   aiPanelNotice,
   aiPanelRunHint,
   aiPanelStatus,
-  isTranslationQueueActive,
   loadTranslationHealth,
-  retryTranslationLimit,
-  saveTranslationOutageSimulation,
-  startTranslationHealthPolling,
-  stopTranslationHealthPolling,
   testTranslation,
-  translationHealthState,
-  translationOutageProvider,
-  translationQueue,
   translationTestModel,
   translationTestProvider,
+  translationTestProviderOptions,
   translationTestResult,
   translationTestTemperature,
   translationTestText,
@@ -140,32 +175,46 @@ const {
   translationHealth,
   toast,
   toErrorMessage,
-  normalizeOutageProvider,
+  normalizeOutageProvider: (value) => value,
   translationProviderLabel,
 })
 
-async function confirmPublishToAstroFeed() {
-  return Boolean(
-    await confirm({
-      title: 'Publikovať do AstroFeedu',
-      message: 'Naozaj publikovať túto položku do AstroFeedu?',
-      confirmText: 'Publikovať',
-      cancelText: 'Zrušiť',
-    }),
-  )
-}
+const aiStatus = computed(() => {
+  const status = String(aiPanelStatus.value || 'idle').trim().toLowerCase()
 
-async function initialize() {
-  await Promise.all([loadSources(), loadRuns(), loadTranslationHealth()])
-}
+  if (status === 'success') {
+    return {
+      label: 'V poriadku',
+      className: 'statusBadge statusBadge--success',
+    }
+  }
 
-const { quickRunAll, quickRunIdentity } = createQuickRunHandlers({
+  if (status === 'fallback') {
+    return {
+      label: 'Degradovan?',
+      className: 'statusBadge statusBadge--partial',
+    }
+  }
+
+  if (status === 'error') {
+    return {
+      label: 'Chyba',
+      className: 'statusBadge statusBadge--failed',
+    }
+  }
+
+  return {
+    label: 'Pripraven?',
+    className: 'statusBadge statusBadge--muted',
+  }
+})
+
+const { quickRunAll } = createQuickRunHandlers({
   normalizeBotIdentity,
   botIdentityLabel,
   sourceCountLabel,
   quickRunResultChips,
   runStatusHint,
-  runStatusLabel,
   toErrorMessage,
   validBotIdentities: VALID_BOT_IDENTITIES,
   enabledSourcesByIdentity,
@@ -173,125 +222,19 @@ const { quickRunAll, quickRunIdentity } = createQuickRunHandlers({
   quickRunBusyIdentity,
   runSource: store.runSource.bind(store),
   reloadData: async () => {
-    await Promise.all([loadSources(), loadRuns()])
+    await loadSources()
   },
   toast,
-})
-
-async function openRunDetail(run) {
-  selectedRun.value = run
-  publishAllLimit.value = resolvePublishAllLimitDefault(run)
-
-  try {
-    await store.fetchItemsForRun(run?.id, { page: 1, per_page: 20 })
-  } catch (error) {
-    toast.error(toErrorMessage(error, 'Nepodarilo sa načítať položky behu.'))
-  }
-}
-
-function closeRunDetail() {
-  selectedRun.value = null
-  selectedPreviewItem.value = null
-  publishAllLimit.value = DEFAULT_PUBLISH_ALL_LIMIT
-  retryTranslationLimit.value = 10
-  store.clearRunItems()
-}
-
-function openItemPreview(item) {
-  selectedPreviewItem.value = item || null
-}
-
-function closeItemPreview() {
-  selectedPreviewItem.value = null
-}
-
-async function confirmDeletePublishedPost() {
-  return Boolean(
-    await confirm({
-      title: 'Vymazať publikovaný príspevok',
-      message: 'Naozaj vymazať publikovaný bot príspevok z feedu?',
-      confirmText: 'Vymazať',
-      cancelText: 'Zrušiť',
-      variant: 'danger',
-    }),
-  )
-}
-
-async function confirmBackfillTranslation() {
-  return Boolean(
-    await confirm({
-      title: 'Doplniť preklad',
-      message: 'Doplniť preklad aj do už publikovaných príspevkov?',
-      confirmText: 'Doplniť',
-      cancelText: 'Zrušiť',
-    }),
-  )
-}
-
-async function confirmDeleteAllBotPosts() {
-  return Boolean(
-    await confirm({
-      title: 'Hromadné mazanie',
-      message: 'Naozaj vymazať všetky publikované bot príspevky podľa aktuálneho filtra?',
-      confirmText: 'Vymazať',
-      cancelText: 'Zrušiť',
-      variant: 'danger',
-    }),
-  )
-}
-
-const {
-  goToItemsPage,
-  publishItem,
-  deleteItemPost,
-  deleteAllBotPostsForFilter,
-  publishAllForRun,
-  retryTranslateForRun,
-  backfillTranslateForRun,
-} = createRunItemHandlers({
-  store,
-  toast,
-  toErrorMessage,
-  selectedRun,
-  runItemsMeta,
-  publishAllLimit,
-  retryTranslationLimit,
-  defaultPublishAllLimit: DEFAULT_PUBLISH_ALL_LIMIT,
-  canPublishItem,
-  canDeleteItemPost,
-  requiresPublishConfirm,
-  confirmPublishToAstroFeed,
-  confirmDeletePublishedPost,
-  confirmBackfillTranslation,
-  confirmDeleteAllBotPosts,
-  loadRuns,
-  loadTranslationHealth,
-  effectiveBotIdentity,
-  filterForm,
-  deleteAllBotPostsApi: deleteAllBotPosts,
+  onProgressStart: handleQuickRunProgressStart,
+  onProgressUpdate: handleQuickRunProgressUpdate,
+  onProgressDone: handleQuickRunProgressDone,
 })
 
 onMounted(async () => {
-  syncFilterFormFromStore()
-  if (hasPresetBotIdentity.value) {
-    filterForm.value = {
-      ...filterForm.value,
-      bot_identity: normalizedPresetBotIdentity.value,
-      sourceKey: '',
-    }
-  }
-  await initialize()
-  startTranslationHealthPolling()
-})
-
-onBeforeUnmount(() => {
-  stopTranslationHealthPolling()
+  await Promise.all([loadSources(), loadTranslationHealth()])
 })
 </script>
 
 <template src="./botEngine/BotEngineView.template.html"></template>
 
 <style scoped src="./botEngine/BotEngineView.css"></style>
-
-
-

@@ -1,266 +1,566 @@
-
-.card {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 12px;
-  padding: 14px;
-  background: rgb(var(--color-bg-rgb) / 0.65);
+/* ── Alerts ── */
+.alert {
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13px;
 }
 
-.card + .card {
-  margin-top: 12px;
+.alert--error {
+  border: 1px solid rgb(var(--color-danger-rgb) / 0.3);
+  background: rgb(var(--color-danger-rgb) / 0.08);
+  color: var(--color-danger);
 }
 
-.cardHead {
+.alert--ok {
+  border: 1px solid rgb(var(--color-success-rgb) / 0.3);
+  background: rgb(var(--color-success-rgb) / 0.08);
+  color: var(--color-success);
+}
+
+/* ── Panels ── */
+.panel {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 13px;
+  padding: 14px 16px;
+  background: rgb(var(--color-bg-rgb) / 0.55);
+  margin-bottom: 10px;
+}
+
+.panel--preview {
+  background: rgb(var(--color-bg-rgb) / 0.45);
+}
+
+.panel--sticky {
+  position: sticky;
+  bottom: 10px;
+  z-index: 4;
+  backdrop-filter: blur(12px);
+  background: rgb(var(--color-bg-rgb) / 0.82);
+}
+
+.panel__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  margin-bottom: 10px;
 }
 
-.counter {
+.panel__label {
   margin: 0;
+  font-size: 10.5px;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.6);
 }
 
-.muted {
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+.panel__meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
 }
 
-.eventsGrid {
-  margin-top: 10px;
-  display: grid;
+.panel__actions {
+  display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.panel__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+}
+
+/* ── Count pill ── */
+.countPill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  color: rgb(var(--color-text-secondary-rgb) / 0.8);
+  flex-shrink: 0;
+}
+
+/* ── Empty hint ── */
+.emptyHint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed rgb(var(--color-surface-rgb) / 0.2);
+  border-radius: 10px;
+  font-size: 13px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+}
+
+/* ── Tag row ── */
+.tagRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  background: rgb(var(--color-surface-rgb) / 0.06);
+}
+
+/* ── Sub-sections ── */
+.subSection {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.07);
+}
+
+.subLabel {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.5);
+}
+
+/* ── Compact list ── */
+.compactList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.compactList__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+/* ── Muted text ── */
+.muted {
+  color: rgb(var(--color-text-secondary-rgb) / 0.6);
+  font-size: 12px;
+}
+
+/* ── Events checkbox list ── */
+.eventsList {
+  display: grid;
+  gap: 6px;
   max-height: 260px;
   overflow: auto;
+  padding-right: 2px;
 }
 
 .eventOption {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px 10px;
   align-items: center;
-  gap: 8px 10px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border-radius: 10px;
   padding: 8px 10px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 10px;
-}
-
-.eventOption.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.12);
-}
-
-.eventTitle {
-  font-weight: 600;
-}
-
-.eventDate {
-  grid-column: 2 / 3;
-  font-size: 12px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.85);
-}
-
-.actions,
-.toggles {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.toggleLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-button {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.35);
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: rgb(var(--color-primary-rgb) / 0.12);
-  color: inherit;
   cursor: pointer;
+  transition: background 0.12s;
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.eventOption--active {
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.1);
 }
 
-.table {
+.eventOption__title {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eventOption__date {
+  font-size: 11.5px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+  white-space: nowrap;
+  justify-self: end;
+}
+
+/* ── Text fields grid ── */
+.textGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+}
+
+.field__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.55);
+}
+
+.field input,
+.field textarea {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 9px;
+  background: rgb(var(--color-bg-rgb) / 0.6);
+  color: inherit;
   width: 100%;
-  border-collapse: collapse;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.14s;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
+}
+
+/* ── Email preview ── */
+.emailPreview {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgb(var(--color-bg-rgb) / 0.94);
   margin-top: 8px;
 }
 
-.table th,
-.table td {
-  border-bottom: 1px solid var(--divider-color);
-  padding: 8px 6px;
-  text-align: left;
-  font-size: 13px;
-}
-
-.alert {
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-}
-
-.alert-error {
-  border: 1px solid rgb(239 68 68 / 0.35);
-  background: rgb(239 68 68 / 0.1);
-  color: rgb(185 28 28);
-}
-
-.alert-success {
-  border: 1px solid rgb(34 197 94 / 0.35);
-  background: rgb(34 197 94 / 0.12);
-  color: rgb(22 101 52);
-}
-
-.copyEditor {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.copyField {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.copyInput,
-.copyTextarea {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  color: inherit;
-  padding: 8px 10px;
-}
-
-.copyTextarea {
-  resize: vertical;
-}
-
-.previewInput {
-  min-width: 260px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  color: inherit;
-  padding: 8px 10px;
-}
-
-.emailPreview {
-  margin-top: 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-bg-surface);
-  color: var(--color-text-primary);
-  overflow: hidden;
-}
-
 .emailHero {
-  padding: 24px;
+  padding: 20px 22px;
   background: linear-gradient(
     135deg,
-    rgb(var(--color-accent-rgb) / 0.32),
-    rgb(var(--color-info-rgb) / 0.32)
+    rgb(var(--color-primary-rgb) / 0.2),
+    rgb(var(--color-bg-rgb) / 0.6)
   );
 }
 
 .emailEyebrow {
-  margin: 0 0 8px;
-  font-size: 12px;
-  letter-spacing: 0.12em;
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
-}
-
-.emailTitle {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.2;
-  color: var(--color-text-primary);
+  letter-spacing: 0.12em;
+  color: var(--color-primary);
+  opacity: 0.8;
 }
 
 .emailSubjectLine {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
+  margin: 0 0 2px;
+  font-size: 11.5px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+}
+
+.emailTitle {
+  margin: 6px 0 0;
+  font-size: clamp(18px, 3vw, 24px);
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .emailIntro {
-  margin: 10px 0 0;
-  font-size: 14px;
+  margin: 8px 0 0;
+  font-size: 13px;
   line-height: 1.5;
-  color: var(--color-text-secondary);
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
 .emailSection {
-  padding: 16px 24px 4px;
+  padding: 14px 22px 4px;
 }
 
 .emailSection h5 {
-  margin: 0 0 10px;
-  font-size: 18px;
-  color: var(--color-text-primary);
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .emailSection ul {
   margin: 0;
-  padding: 0 0 0 18px;
-  color: var(--color-text-secondary);
+  padding: 0 0 0 16px;
 }
 
 .emailSection li {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
 .emailSection a {
-  color: var(--color-accent);
+  color: var(--color-primary);
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .emailSection span {
   display: block;
   margin-top: 2px;
-  font-size: 13px;
-  color: var(--color-text-muted);
+  font-size: 11.5px;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
 }
 
 .emailSection p {
   margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
 }
 
 .emailFooter {
-  padding: 18px 24px 24px;
+  padding: 16px 22px 20px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
 }
 
 .emailBtn {
-  display: inline-block;
-  padding: 10px 14px;
-  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
-  font-weight: 700;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background 0.14s;
+}
+
+.emailBtn--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.15);
+  color: var(--color-primary);
+}
+
+.emailBtn--primary:hover {
+  background: rgb(var(--color-primary-rgb) / 0.25);
+}
+
+.emailBtn--secondary {
+  border-color: rgb(var(--color-surface-rgb) / 0.18);
+  background: rgb(var(--color-surface-rgb) / 0.06);
+  color: rgb(var(--color-surface-rgb) / 0.8);
+}
+
+.emailBtn--secondary:hover {
+  background: rgb(var(--color-surface-rgb) / 0.1);
+}
+
+/* ── Send row ── */
+.sendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sendInput {
+  flex: 1;
+  min-width: 180px;
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border-radius: 9px;
+  background: rgb(var(--color-bg-rgb) / 0.6);
+  color: inherit;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color 0.14s;
+}
+
+.sendInput:focus {
+  outline: none;
+  border-color: rgb(var(--color-primary-rgb) / 0.45);
+}
+
+/* ── Advanced row ── */
+.advancedRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  flex-wrap: wrap;
+}
+
+.checkLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  cursor: pointer;
+  user-select: none;
+  color: rgb(var(--color-text-secondary-rgb) / 0.85);
+}
+
+.checkLabel input[type='checkbox'] {
+  cursor: pointer;
+}
+
+/* ── Collapsible (runs history) ── */
+.collapsible {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border-radius: 11px;
+  background: rgb(var(--color-bg-rgb) / 0.4);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.collapsible__trigger {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(var(--color-text-secondary-rgb) / 0.7);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.collapsible__trigger::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible__trigger::before {
+  content: '›';
   font-size: 14px;
-  color: var(--color-white);
+  transition: transform 0.15s;
+  display: inline-block;
 }
 
-.emailBtnPrimary {
-  background: var(--color-accent);
+details[open] .collapsible__trigger::before {
+  transform: rotate(90deg);
 }
 
-.emailBtnSecondary {
-  background: var(--color-success);
+.collapsible__body {
+  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+
+/* ── Runs table ── */
+.runsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.runsTable th {
+  text-align: left;
+  padding: 5px 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.5);
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  white-space: nowrap;
+}
+
+.runsTable td {
+  padding: 7px 8px;
+  border-bottom: 1px solid rgb(var(--color-surface-rgb) / 0.06);
+  white-space: nowrap;
+}
+
+.runsTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.runFlag {
+  display: inline-flex;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--color-warning-rgb) / 0.12);
+  color: var(--color-warning);
+  margin-right: 3px;
+}
+
+/* ── Buttons ── */
+.btn {
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background 0.14s;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  border-color: rgb(var(--color-primary-rgb) / 0.4);
+  background: rgb(var(--color-primary-rgb) / 0.13);
+  color: var(--color-primary);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: rgb(var(--color-primary-rgb) / 0.22);
+}
+
+.btn--ghost {
+  border-color: rgb(var(--color-surface-rgb) / 0.18);
+  background: transparent;
+  color: inherit;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: rgb(var(--color-surface-rgb) / 0.06);
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .sendRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sendInput {
+    min-width: unset;
+  }
+
+  .emailHero {
+    padding: 16px;
+  }
+
+  .emailSection {
+    padding: 12px 16px 4px;
+  }
+
+  .emailFooter {
+    padding: 12px 16px 16px;
+  }
 }

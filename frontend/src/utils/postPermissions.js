@@ -11,9 +11,24 @@ export function canDeletePost(post, currentUser) {
   return Boolean(currentUser.is_admin || currentUser.role === 'admin')
 }
 
+function isBotAuthoredPost(post) {
+  const sourceName = String(post?.source_name || '').trim().toLowerCase()
+  const authorKind = String(post?.author_kind || '').trim().toLowerCase()
+  const userRole = String(post?.user?.role || '').trim().toLowerCase()
+  const postRole = String(post?.role || '').trim().toLowerCase()
+  const botIdentity = String(post?.bot_identity || post?.meta?.bot_identity || '').trim().toLowerCase()
+
+  if (Boolean(post?.user?.is_bot) || Boolean(post?.is_bot)) return true
+  if (userRole === 'bot' || postRole === 'bot') return true
+  if (authorKind === 'bot') return true
+  if (botIdentity !== '') return true
+  if (sourceName === 'astrobot' || sourceName === 'nasa_rss') return true
+
+  return false
+}
+
 export function canReportPost(post, currentUser) {
-  const sourceName = String(post?.source_name || '').toLowerCase()
-  if (sourceName === 'astrobot' || sourceName === 'nasa_rss') return false
+  if (isBotAuthoredPost(post)) return false
 
   if (!currentUser) return true
   return !isOwner(post, currentUser)

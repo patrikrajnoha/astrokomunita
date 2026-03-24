@@ -139,7 +139,7 @@ const showcaseContent = computed(() => {
   if (step.value === 2) {
     return {
       title: 'Lokalita spravi widgety skutocne uzitocne.',
-      body: 'Po ulozeni budes mat v pravom paneli alebo v mobile presnejsie podmienky pre tvoje miesto.',
+      body: 'Po uložení budeš mat v pravom paneli alebo v mobile presnejšie podmienky pre tvoje miesto.',
       points: [
         'pocasie a seeing podla lokality',
         'mesiac, ISS a ukazy rychlo po ruke',

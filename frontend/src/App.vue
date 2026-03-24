@@ -16,6 +16,10 @@
 
   <template v-else>
     <RouterView />
+    <EmailVerificationGateModal
+      :open="showEmailVerificationGate"
+      @verified="handleEmailVerified"
+    />
     <Toaster />
     <ConfirmModal />
   </template>
@@ -23,16 +27,76 @@
 
 <script setup>
 import { computed } from 'vue'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute, useRouter } from 'vue-router'
+import EmailVerificationGateModal from '@/components/auth/EmailVerificationGateModal.vue'
 import Toaster from '@/components/ui/Toaster.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { appInitState } from '@/bootstrap/appInitState'
+import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 
 const showInitError = computed(() => Boolean(appInitState.initError))
 const showLoading = computed(() => appInitState.initializing && !showInitError.value)
 const showStack = computed(() => import.meta.env.DEV)
 const initMessage = computed(() => appInitState.initError?.message || 'Neznáma chyba pri štarte')
 const initStack = computed(() => appInitState.initError?.stack || '')
+
+const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
+const preferences = useEventPreferencesStore()
+
+const showEmailVerificationGate = computed(() => {
+  if (!auth.isAuthed || auth.isAdmin) return false
+  if (!auth.user?.email) return false
+  return !auth.user?.email_verified_at
+})
+
+function resolveOnboardingRedirectTarget() {
+  const currentPath = typeof route.fullPath === 'string' ? route.fullPath : '/'
+  if (!currentPath.startsWith('/') || currentPath.startsWith('/onboarding')) {
+    return '/'
+  }
+
+  return currentPath
+}
+
+async function handleEmailVerified() {
+  try {
+    await auth.fetchUser({
+      source: 'email-gate-verified',
+      retry: false,
+      markBootstrap: false,
+      preserveStateOnError: true,
+    })
+  } catch {
+    // Non-fatal; onboarding redirect can still proceed.
+  }
+
+  if (!auth.isAuthed || auth.isAdmin || !auth.user?.email_verified_at) {
+    return
+  }
+
+  let onboardingCompleted = preferences.isOnboardingCompleted
+  if (!preferences.loaded && !preferences.loading) {
+    try {
+      await preferences.fetchPreferences()
+      onboardingCompleted = preferences.isOnboardingCompleted
+    } catch {
+      onboardingCompleted = false
+    }
+  }
+
+  if (!onboardingCompleted && route.name !== 'onboarding') {
+    await router.push({
+      name: 'onboarding',
+      query: {
+        redirect: resolveOnboardingRedirectTarget(),
+        start_tour: '1',
+      },
+    })
+  }
+}
 </script>
 
 <style scoped>

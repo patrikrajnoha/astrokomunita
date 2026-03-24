@@ -10,8 +10,10 @@ const sidebarWidgetBundlePendingRequests = new Map<string, Promise<SidebarWidget
 function normalizeMoonQuery(query: MoonPhasesWidgetQuery = {}): Record<string, string | number> {
   const normalized: Record<string, string | number> = {}
 
-  if (Number.isFinite(Number(query.lat))) normalized.lat = Number(query.lat)
-  if (Number.isFinite(Number(query.lon))) normalized.lon = Number(query.lon)
+  const lat = toFiniteCoordinate(query.lat)
+  const lon = toFiniteCoordinate(query.lon)
+  if (lat !== null) normalized.lat = lat
+  if (lon !== null) normalized.lon = lon
 
   const tz = String(query.tz || '').trim()
   if (tz) normalized.tz = tz
@@ -22,6 +24,18 @@ function normalizeMoonQuery(query: MoonPhasesWidgetQuery = {}): Record<string, s
   if (Number.isFinite(Number(query.year))) normalized.year = Number(query.year)
 
   return normalized
+}
+
+function toFiniteCoordinate(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string') return null
+
+  const normalized = value.trim()
+  if (!normalized) return null
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function buildMoonWidgetCacheKey(endpoint: string, query: MoonPhasesWidgetQuery = {}): string {

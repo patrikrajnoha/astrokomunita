@@ -149,5 +149,11 @@ export function runTranslationQualityTone(run) {
 export function runStatusLabel(run, t) {
   if (!run) return t('common.never')
   const status = String(run.status || '').trim()
-  return status !== '' ? status : t('common.unknown')
+  const normalized = status.toLowerCase()
+  if (normalized === '') return t('common.unknown')
+  if (normalized === 'success') return 'Úspešné'
+  if (normalized === 'running' || normalized === 'processing') return 'Prebieha'
+  if (normalized === 'failed' || normalized === 'error') return 'Zlyhalo'
+  if (normalized === 'queued' || normalized === 'pending') return 'Čaká'
+  return status
 }

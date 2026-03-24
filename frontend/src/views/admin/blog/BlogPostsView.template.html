@@ -14,6 +14,7 @@
         <option value="draft">Koncepty</option>
         <option value="scheduled">Naplánované</option>
         <option value="published">Publikované</option>
+        <option value="hidden">Skryté</option>
       </select>
 
       <button class="btn-primary" type="button" :disabled="saving || deleting" @click="handleNewPost">
@@ -102,7 +103,6 @@
       <!-- Empty state -->
       <div v-if="!isEditing" class="editor-empty">
         <p class="muted">Vyber článok alebo vytvor nový</p>
-        <button class="btn-primary" type="button" @click="handleNewPost">+ Nový článok</button>
       </div>
 
       <template v-else>
@@ -204,6 +204,7 @@
                 class="content-rich-editor content-rich-editor--minimal"
                 :min-height="520"
                 placeholder="Napíš obsah článku…"
+                :image-upload-handler="uploadInlineImage"
               />
               <div class="content-foot">
                 <span class="muted small">{{ readTimeFor(form.content) }}</span>
@@ -218,58 +219,59 @@
             <section class="drawer-section">
               <h3>Tagy</h3>
               <input v-model="tagsInput" type="text" placeholder="planéty, kométy, pozorovanie" />
-            </section>
 
-            <section class="drawer-section ai-section">
-              <div class="ai-head">
-                <h3>AI tagy</h3>
-                <span v-if="aiTagFallbackUsed" class="fallback-badge">Fallback</span>
-              </div>
-              <p class="muted small">Číta nadpis a obsah článku.</p>
+              <div class="ai-suggest">
+                <div class="ai-suggest__row">
+                  <button
+                    type="button"
+                    class="ghost ai-suggest__btn"
+                    :disabled="aiTagSuggestionsLoading || saving || deleting"
+                    @click="suggestAiTags"
+                  >
+                    <svg viewBox="0 0 20 20" fill="none" width="12" height="12" aria-hidden="true">
+                      <path d="M10 2l1.8 5.4H17l-4.4 3.2 1.7 5.4L10 13l-3.7 2.4 1.7-5.4L4 7.6h5.2L10 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                    </svg>
+                    {{ aiSuggestActionLabel }}
+                  </button>
+                  <button
+                    v-if="aiTagSuggestions.length"
+                    type="button"
+                    class="btn-primary ai-suggest__apply"
+                    :disabled="!hasSelectedAiTagSuggestions || saving || deleting"
+                    @click="applySelectedAiTags"
+                  >Pridať ({{ aiTagSuggestions.filter(t => t.checked).length }})</button>
+                </div>
 
-              <div class="mode-toggle" role="group">
-                <button
-                  type="button"
-                  class="ghost mode-btn"
-                  :class="{ 'is-active': aiTagSuggestionMode === 'existing_only' }"
-                  :disabled="aiTagSuggestionsLoading || saving || deleting"
-                  @click="setAiTagSuggestionMode('existing_only')"
-                >Len existujúce</button>
-                <button
-                  type="button"
-                  class="ghost mode-btn"
-                  :class="{ 'is-active': aiTagSuggestionMode === 'allow_new' }"
-                  :disabled="aiTagSuggestionsLoading || saving || deleting"
-                  @click="setAiTagSuggestionMode('allow_new')"
-                >Aj nové</button>
-              </div>
-
-              <div class="row-actions">
-                <button type="button" class="ghost" :disabled="aiTagSuggestionsLoading || saving || deleting" @click="suggestAiTags">
-                  {{ aiSuggestActionLabel }}
-                </button>
-                <button type="button" class="btn-primary" :disabled="!hasSelectedAiTagSuggestions || saving || deleting" @click="applySelectedAiTags">
-                  Pridať vybrané
-                </button>
-              </div>
-
-              <p v-if="aiTagSuggestionsError" class="error-text">{{ aiTagSuggestionsError }}</p>
-
-              <div v-if="aiTagSuggestions.length" class="ai-tag-list">
-                <label
-                  v-for="(item, index) in aiTagSuggestions"
-                  :key="`ai-tag-${item.id}-${index}`"
-                  class="ai-tag-item"
-                >
-                  <input v-model="item.checked" type="checkbox" />
-                  <div class="ai-tag-body">
-                    <div class="ai-tag-name">
-                      <strong>{{ item.name }}</strong>
-                      <span v-if="item.id === 0" class="new-badge">Nový</span>
-                    </div>
-                    <p class="muted small">{{ item.reason }}</p>
-                  </div>
+                <label class="ai-allow-new-label">
+                  <input
+                    type="checkbox"
+                    :checked="aiTagSuggestionMode === 'allow_new'"
+                    :disabled="aiTagSuggestionsLoading"
+                    @change="setAiTagSuggestionMode($event.target.checked ? 'allow_new' : 'existing_only')"
+                  />
+                  <span class="muted small">Navrhovať aj nové tagy</span>
                 </label>
+
+                <div v-if="aiTagSuggestionsLoading" class="ai-loading" role="status" aria-live="polite">
+                  <span class="ai-loading__percent muted small">{{ Math.round(aiLoadingPercent) }}%</span>
+                  <div class="ai-loading__bar" aria-hidden="true">
+                    <span class="ai-loading__fill" :style="{ width: aiLoadingPercent + '%' }"></span>
+                  </div>
+                </div>
+
+                <p v-if="aiTagSuggestionsError" class="error-text">{{ aiTagSuggestionsError }}</p>
+
+                <div v-if="aiTagSuggestions.length" class="ai-pills">
+                  <button
+                    v-for="(item, index) in aiTagSuggestions"
+                    :key="`ai-tag-${item.id}-${index}`"
+                    type="button"
+                    class="ai-pill"
+                    :class="{ 'is-selected': item.checked }"
+                    :title="item.reason"
+                    @click="item.checked = !item.checked"
+                  >{{ item.name }}<span v-if="item.id === 0" class="ai-pill__new">nový</span></button>
+                </div>
               </div>
             </section>
 
@@ -283,11 +285,46 @@
                 <button class="ghost" type="button" :disabled="saving || deleting" @click="setPublishNow">Teraz</button>
                 <button class="ghost" type="button" :disabled="saving || deleting || !form.published_at" @click="form.published_at = ''">Ponechať ako koncept</button>
               </div>
+              <button
+                v-if="selectedStatus === 'published' && !selectedPost?.is_hidden"
+                class="ghost"
+                type="button"
+                :disabled="saving || deleting"
+                @click="hidePublished"
+              >Skryť článok</button>
+              <button
+                v-if="selectedStatus === 'hidden'"
+                class="ghost"
+                type="button"
+                :disabled="saving || deleting"
+                @click="unhidePublished"
+              >Zobraziť článok</button>
             </section>
 
             <section class="drawer-section">
               <h3>Titulný obrázok</h3>
-              <input type="file" accept="image/*" @change="onCoverChange" />
+              <input
+                ref="coverInputEl"
+                type="file"
+                accept="image/*"
+                class="cover-file-input"
+                @change="onCoverChange"
+              />
+              <div class="cover-file-control">
+                <button type="button" class="cover-file-control__button" @click="openCoverPicker">
+                  Vybrať súbor
+                </button>
+                <span class="cover-file-control__label">{{ coverInputLabel }}</span>
+              </div>
+              <p v-if="coverFile" class="muted small cover-file-state">
+                Vybraný súbor: {{ coverFile.name }}
+              </p>
+              <p v-else-if="coverPreview" class="muted small cover-file-state">
+                Používa sa aktuálny uložený obrázok.
+              </p>
+              <p v-else class="muted small cover-file-state">
+                Žiadny obrázok nie je vybraný.
+              </p>
               <div v-if="coverPreview" class="cover-thumb">
                 <img :src="coverPreview" alt="Cover" />
               </div>

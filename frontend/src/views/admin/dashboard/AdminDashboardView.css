@@ -1,15 +1,13 @@
-
 .dashboardView {
   --dashboard-gap-xs: 4px;
   --dashboard-gap-sm: 8px;
-  --dashboard-gap-md: 10px;
-  --dashboard-gap-lg: 12px;
-  --dashboard-radius: 11px;
+  --dashboard-gap-md: 12px;
+  --dashboard-gap-lg: 16px;
+  --dashboard-radius: 12px;
   --dashboard-border: rgb(var(--color-surface-rgb) / 0.14);
-  --dashboard-border-strong: rgb(var(--color-surface-rgb) / 0.22);
-  --dashboard-panel: rgb(var(--color-bg-rgb) / 0.84);
+  --dashboard-panel: rgb(var(--color-bg-rgb) / 0.76);
   --dashboard-panel-strong: rgb(var(--color-bg-rgb) / 0.9);
-  --dashboard-muted: rgb(var(--color-text-secondary-rgb) / 0.9);
+  --dashboard-muted: rgb(var(--color-text-secondary-rgb) / 0.86);
   display: grid;
   gap: var(--dashboard-gap-md);
   min-width: 0;
@@ -21,7 +19,7 @@
 
 .kpiGrid {
   display: grid;
-  gap: 8px;
+  gap: var(--dashboard-gap-sm);
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
 }
@@ -34,33 +32,33 @@
 }
 
 .metricTabs {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  align-items: stretch;
+  align-items: center;
+  justify-content: flex-start;
   gap: 4px;
   padding: 2px;
-  border: 1px solid var(--dashboard-border);
-  border-radius: 9px;
-  background: rgb(var(--color-bg-rgb) / 0.54);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.62);
   max-width: 100%;
+  min-width: 0;
 }
 
 .metricBtn {
   border: none;
-  border-radius: 7px;
-  min-height: 28px;
-  padding: 4px 9px;
+  border-radius: 8px;
+  min-height: 30px;
+  padding: 4px 10px;
   background: transparent;
   color: var(--dashboard-muted);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   transition:
     background-color 160ms ease,
-    color 160ms ease,
-    transform 120ms ease;
+    color 160ms ease;
 }
 
 .metricBtn:hover:not(.active) {
@@ -69,7 +67,7 @@
 }
 
 .metricBtn.active {
-  background: rgb(var(--color-primary-rgb) / 0.14);
+  background: rgb(var(--color-primary-rgb) / 0.16);
   color: var(--color-surface);
 }
 
@@ -78,72 +76,140 @@
   box-shadow: var(--focus-ring);
 }
 
-.actionList {
+.moderationPulse {
   display: grid;
   gap: 6px;
-  min-width: 0;
-}
-
-.summaryStrip {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-}
-
-.summaryGroup {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  border: 1px solid var(--dashboard-border);
-  border-radius: var(--dashboard-radius);
-  background: var(--dashboard-panel);
   padding: 10px;
+  border-radius: var(--dashboard-radius);
+  background: rgb(var(--color-primary-rgb) / 0.11);
 }
 
-.summaryLabel {
-  margin: 0;
+.pulseMetric {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pulseMetric span {
   color: var(--dashboard-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.summaryItems {
+.pulseMetric strong {
+  color: var(--color-surface);
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pulseMeta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-}
-
-.summaryItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--dashboard-border);
-  background: rgb(var(--color-bg-rgb) / 0.56);
+  gap: 6px 12px;
   color: var(--dashboard-muted);
   font-size: 11px;
-  max-width: 100%;
 }
 
-.summaryItem strong {
+.actionList {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.analyticsCard {
+  display: grid;
+  gap: 10px;
+  border-radius: var(--dashboard-radius);
+  padding: 12px;
+  background: var(--dashboard-panel);
+  min-width: 0;
+}
+
+.analyticsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.analyticsHeader h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: var(--color-surface);
+}
+
+.analyticsTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.62);
+}
+
+.analyticsTab {
+  border: none;
+  border-radius: 8px;
+  min-height: 28px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--dashboard-muted);
   font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.analyticsTab:hover:not(.active) {
+  background: rgb(var(--color-surface-rgb) / 0.08);
+  color: var(--color-surface);
+}
+
+.analyticsTab.active {
+  background: rgb(var(--color-primary-rgb) / 0.16);
+  color: var(--color-surface);
+}
+
+.analyticsTab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.analyticsList {
+  display: grid;
+  gap: 2px;
+}
+
+.analyticsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 2px;
+}
+
+.analyticsLabel {
+  color: var(--dashboard-muted);
+  font-size: 12px;
+}
+
+.analyticsValue {
+  color: var(--color-surface);
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.summaryFlag {
-  font-size: 12px;
-  line-height: 1;
-}
-
 .skeletonCard {
-  min-height: 82px;
+  min-height: 92px;
   border-radius: var(--dashboard-radius);
   background: linear-gradient(
     90deg,
@@ -171,28 +237,42 @@
   }
 }
 
-@media (min-width: 1120px) {
+@media (min-width: 1280px) {
   .mainGrid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(240px, 0.9fr);
-  }
-
-  .summaryStrip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
   }
 }
 
 @media (max-width: 768px) {
-  .settingsRow {
+  .metricTabs,
+  .analyticsTabs {
+    width: 100%;
+  }
+
+  .analyticsTab,
+  .metricBtn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 1180px) {
+  .mainGrid :deep(.sectionHead) {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .switchField {
-    align-self: flex-start;
+  .mainGrid :deep(.sectionControls) {
+    justify-content: flex-start;
+    width: 100%;
   }
 
-  .metricTabs {
+  .mainGrid .metricTabs {
     width: 100%;
+  }
+
+  .mainGrid .metricBtn {
+    flex: 1 1 calc(33.333% - 4px);
+    min-width: 108px;
   }
 }
 

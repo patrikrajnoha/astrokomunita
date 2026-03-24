@@ -119,7 +119,7 @@ describe('DynamicSidebar', () => {
   it('requests bundled sidebar data for preloadable builtin widgets', async () => {
     fetchScopeMock.mockResolvedValue([
       { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'neo_watchlist', title: 'NEO watchlist', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'neo_watchlist', title: 'Asteroidy nablízku', order: 1, is_enabled: true },
       { kind: 'builtin', section_key: 'search', title: 'Search', order: 2, is_enabled: true },
     ])
 
@@ -147,8 +147,8 @@ describe('DynamicSidebar', () => {
 
   it('passes observing context when bundling space weather widgets', async () => {
     fetchScopeMock.mockResolvedValue([
-      { kind: 'builtin', section_key: 'space_weather', title: 'Vesmírne počasie', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'aurora_watch', title: 'Aurora watch', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'space_weather', title: 'Slnečná aktivita', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'aurora_watch', title: 'Polárna žiara', order: 1, is_enabled: true },
     ])
 
     const router = createRouter({
@@ -187,10 +187,10 @@ describe('DynamicSidebar', () => {
 
   it('bundles observing sidebar widgets through the shared sidebar-data endpoint', async () => {
     fetchScopeMock.mockResolvedValue([
-      { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'observing_weather', title: 'Pocasie pre pozorovanie', order: 1, is_enabled: true },
-      { kind: 'builtin', section_key: 'night_sky', title: 'Nocna obloha', order: 2, is_enabled: true },
-      { kind: 'builtin', section_key: 'iss_pass', title: 'ISS prelet', order: 3, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_conditions', title: 'Pozorovanie dnes', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_weather', title: 'Počasie na pozorovanie', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'night_sky', title: 'Nočná obloha', order: 2, is_enabled: true },
+      { kind: 'builtin', section_key: 'iss_pass', title: 'ISS nad tebou', order: 3, is_enabled: true },
     ])
 
     const router = createRouter({
@@ -227,21 +227,15 @@ describe('DynamicSidebar', () => {
     )
   })
 
-  it('preserves an explicit empty widget override instead of falling back to defaults', async () => {
+  it('ignores home-scope user overrides and keeps admin-driven widget selection', async () => {
     authStore.isAuthed = true
     preferencesStore.loaded = true
     preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
     preferencesStore.hasSidebarWidgetOverrideForScope.mockImplementation((scope) => scope === 'home')
-    getEnabledSidebarSectionsMock.mockImplementation((items, options = {}) => {
-      if (Array.isArray(options?.preferredSectionKeys) && options.preferredSectionKeys.length === 0) {
-        return []
-      }
-
-      return items
-    })
+    getEnabledSidebarSectionsMock.mockImplementation((items) => items)
     fetchScopeMock.mockResolvedValue([
-      { kind: 'builtin', section_key: 'observing_conditions', title: 'Astronomicke podmienky', order: 0, is_enabled: true },
-      { kind: 'builtin', section_key: 'observing_weather', title: 'Pocasie pre pozorovanie', order: 1, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_conditions', title: 'Pozorovanie dnes', order: 0, is_enabled: true },
+      { kind: 'builtin', section_key: 'observing_weather', title: 'Počasie na pozorovanie', order: 1, is_enabled: true },
     ])
 
     const router = createRouter({
@@ -266,9 +260,12 @@ describe('DynamicSidebar', () => {
     expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        preferredSectionKeys: [],
+        preferredSectionKeys: null,
       }),
     )
-    expect(getSidebarWidgetBundleMock).not.toHaveBeenCalled()
+    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(
+      ['observing_conditions', 'observing_weather'],
+      {},
+    )
   })
 })

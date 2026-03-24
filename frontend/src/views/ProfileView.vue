@@ -55,11 +55,13 @@ const {
   avatarSaving,
   avatarSrc,
   avatarUploading,
+  botAvatarOptions,
   coverInput,
   coverLoadFailed,
   coverSrc,
   coverUploading,
   iconOptions,
+  isBotAvatarUser,
   logAvatarProfileState,
   mediaErr,
   onCoverImageError,
@@ -67,6 +69,8 @@ const {
   openAvatarEditor,
   openPicker,
   randomizeAvatar,
+  selectedBotAvatarFile,
+  selectBotAvatar,
   removeAvatarImage,
   resetGeneratedAvatar,
   saveAvatarPreferences,
@@ -235,7 +239,7 @@ function formatEventRange(startAt, endAt) {
   const startLabel = formatShortEventDate(startAt, true)
   const endLabel = formatShortEventDate(endAt, true)
 
-  if (!startLabel && !endLabel) return 'Dátum upresnime'
+  if (!startLabel && !endLabel) return 'Dátum upresníme'
   if (startLabel && !endLabel) return startLabel
   if (!startLabel && endLabel) return endLabel
 
@@ -277,5 +281,4 @@ onMounted(async () => {
 </script>
 
 <style scoped src="./profile/ProfileView.css"></style>
-
 

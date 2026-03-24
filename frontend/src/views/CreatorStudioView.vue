@@ -20,7 +20,7 @@
           type="button"
           class="mt-4 inline-flex items-center justify-center rounded-xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.3)] bg-[color:rgb(var(--color-bg-rgb)/0.7)] px-4 py-2 text-sm font-semibold text-[var(--color-surface)] transition hover:border-[color:rgb(var(--color-primary-rgb)/0.4)] hover:bg-[var(--color-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-primary)]"
         >
-          Otvorit koncepty
+          Otvoriť koncepty
         </button>
       </div>
 
@@ -36,7 +36,7 @@
     <section class="rounded-2xl border border-[color:rgb(var(--color-text-secondary-rgb)/0.5)] bg-[color:rgb(var(--color-bg-rgb)/0.6)] p-6">
       <h2 class="text-lg font-semibold text-[var(--color-surface)]">Potrebujete pomoc?</h2>
       <p class="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Toto tlacidlo je docasne. Neodosiela skutocnu spravu.
+        Toto tlacidlo je dočasne. Neodosiela skutocnu spravu.
       </p>
       <button
         type="button"

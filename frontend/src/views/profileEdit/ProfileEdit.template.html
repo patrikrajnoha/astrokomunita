@@ -36,38 +36,46 @@
       >
         <div class="sectionHead">
           <h2 class="sectionTitle">Poloha</h2>
-          <span class="modeBadge">{{ locationModeLabel }}</span>
-        </div>
-
-        <div class="quickActions">
-          <button class="btn ghost" type="button" @click="useMyLocation" :disabled="saving || geolocating || resolvingLocation">
-            {{ geolocating ? 'Získavam GPS...' : 'Použiť GPS' }}
-          </button>
         </div>
 
         <div class="field">
           <label>Názov mesta</label>
-          <div class="locationNameRow">
-            <input
-              class="input"
-              v-model.trim="form.locationLabel"
-              type="text"
-              maxlength="80"
-              placeholder="Napr. Nitra"
-              @input="onLocationLabelInput"
-              @keyup.enter="fillLocationFromLabel"
-            />
-            <button class="btn ghost fillLocationBtn" type="button" @click="fillLocationFromLabel" :disabled="saving || geolocating || resolvingLocation">
-              {{ resolvingLocation ? 'Dopĺňam...' : 'Doplniť' }}
-            </button>
+          <div ref="locationAutocompleteRef" class="locationAutocomplete">
+            <div class="locationNameRow">
+              <input
+                class="input"
+                v-model.trim="form.locationLabel"
+                type="text"
+                maxlength="80"
+                placeholder="Napr. Nitra"
+                autocomplete="off"
+                @focus="onLocationLabelFocus"
+                @input="onLocationLabelInput"
+                @keyup.enter="fillLocationFromLabel"
+              />
+              <button class="btn ghost fillLocationBtn" type="button" @click="fillLocationFromLabel" :disabled="saving || resolvingLocation">
+                {{ resolvingLocation ? 'Dopĺňam...' : 'Doplniť' }}
+              </button>
+            </div>
+
+            <ul v-if="openLocationSuggestions && locationSuggestions.length > 0" class="locationSuggestions" role="listbox">
+              <li v-for="option in locationSuggestions" :key="option.place_id">
+                <button type="button" class="locationSuggestionItem" @click="onLocationSuggestionSelect(option)">
+                  <span class="locationSuggestionTitle">{{ option.label }}</span>
+                  <span v-if="option.country || option.timezone" class="locationSuggestionMeta">
+                    {{ [option.country, option.timezone].filter(Boolean).join(' / ') }}
+                  </span>
+                </button>
+              </li>
+            </ul>
           </div>
-          <p class="hint">Súradnice doplníme automaticky z názvu mesta alebo GPS.</p>
+          <p class="hint">Súradnice doplníme automaticky z názvu mesta.</p>
           <p v-if="fieldErr.locationLabel" class="fieldErr">{{ fieldErr.locationLabel }}</p>
           <p v-if="fieldErr.locationSource" class="fieldErr">{{ fieldErr.locationSource }}</p>
         </div>
 
         <p v-if="fieldErr.latitude || fieldErr.longitude || fieldErr.timezone" class="fieldErr">
-          Skontroluj zadanú polohu alebo použi GPS.
+          Skontroluj zadanú polohu.
         </p>
       </section>
 

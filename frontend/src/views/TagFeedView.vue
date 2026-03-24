@@ -9,6 +9,7 @@ import PollCard from '@/components/PollCard.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import { canReportPost } from '@/utils/postPermissions'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,6 +80,7 @@ function closeReport(force = false) {
 
 function openReport(post) {
   if (!post?.id) return
+  if (!canReport(post)) return
   if (!auth.isAuthed) {
     const message = 'Prihlás sa pre nahlásenie príspevku.'
     error.value = message
@@ -92,9 +94,17 @@ function openReport(post) {
   reportMessage.value = ''
 }
 
+function canReport(post) {
+  return canReportPost(post, auth.user)
+}
+
 async function submitReport() {
   const post = reportTarget.value
   if (!post?.id || reportLoading.value) return
+  if (!canReport(post)) {
+    closeReport(true)
+    return
+  }
 
   reportLoading.value = true
   error.value = ''

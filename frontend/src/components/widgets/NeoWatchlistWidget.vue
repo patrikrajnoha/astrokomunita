@@ -78,7 +78,7 @@ export default {
   props: {
     title: {
       type: String,
-      default: 'NEO watchlist',
+      default: 'Asteroidy nablízku',
     },
     initialPayload: {
       type: Object,
@@ -134,7 +134,7 @@ export default {
         error.value = (
           requestError?.response?.data?.message
           || requestError?.message
-          || 'Nepodarilo sa načítať NEO watchlist.'
+          || 'Nepodarilo sa načítať prehľad asteroidov.'
         )
       } finally {
         loading.value = false

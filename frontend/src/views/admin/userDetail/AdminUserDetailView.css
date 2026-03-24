@@ -1,3 +1,42 @@
+.userDetailViewport {
+  min-width: 0;
+}
+
+.userDetailViewport--embedded {
+  width: 100%;
+}
+
+.userDetailViewport--popup {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  padding: clamp(10px, 2vh, 18px);
+  background: rgb(var(--color-bg-rgb) / 0.68);
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.userDetailShell--popup {
+  margin: 0 auto;
+  max-width: min(1600px, 100%);
+}
+
+.userDetailShell--popup :deep(.adminPageShell__header) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  backdrop-filter: blur(10px);
+}
+
+.userDetailShell--embedded :deep(.adminPageShell__header) {
+  display: none;
+}
+
+.userDetailCloseBtn {
+  min-width: 92px;
+}
+
 .adminAlert {
   color: var(--color-danger);
   padding: 10px 12px;
@@ -547,6 +586,11 @@
   box-shadow: 0 8px 18px rgb(var(--color-bg-rgb) / 0.16);
 }
 
+.choiceAvatarImage {
+  border-radius: 999px;
+  object-fit: cover;
+}
+
 .choiceLabel {
   font-size: 11px;
   opacity: 0.8;
@@ -721,6 +765,10 @@
 }
 
 @media (max-width: 640px) {
+  .userDetailViewport--popup {
+    padding: 8px;
+  }
+
   .sectionCard {
     padding: 10px;
   }
