@@ -5,7 +5,9 @@ Thumbs.db
 # Environment
 .env
 .env.*
+!.env.prod.example
 !backend/.env.example
+!backend/.env.production.example
 !frontend/.env.example
 
 # Node

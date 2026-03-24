@@ -94,6 +94,8 @@ jobs:
             -not -path './node_modules/*' \
             -not -path './storage/*' \
             -not -path './docs/*' \
+            -not -path './.pytest_cache/*' \
+            -not -name 'README.md' \
             -not -name 'security.md' \
             -not -name 'requirements.txt')"
           if [ -n "$forbidden_files" ]; then
