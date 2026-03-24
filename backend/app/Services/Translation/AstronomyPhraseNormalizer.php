@@ -8,6 +8,11 @@ class AstronomyPhraseNormalizer
      * @var array<string,string>
      */
     private const SK_PATTERNS = [
+        // Czech/Latin form "studium" → correct Slovak "štúdium"
+        '/\bStudium\b/u' => "\u{0160}t\u{00FA}dium",
+        '/\bstudium\b/u' => "\u{0161}t\u{00FA}dium",
+        // "White Paper(s)" often mistranslated literally — keep in English
+        '/\bwhite\s+papers?\b/iu' => 'White Paper',
         '/\bprv(?:[iIyY]|\x{00FD}|\x{0130}|\x{0131})\s+(?:\x{0161}tvr(?:\x{0165}|t)|stvrt)\s+mesiac(?:a|om)?\b/iu' => "Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
         '/\bposledn(?:[iIyY]|\x{00FD}|\x{0130}|\x{0131})\s+(?:\x{0161}tvr(?:\x{0165}|t)|stvrt)\s+mesiac(?:a|om)?\b/iu' => "Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
         '/\bprv(?:a|\x{00E1})\s+tla(?:c|\x{010D})\s+mesiaca\b/iu' => "Prv\u{00E1} \u{0161}tvr\u{0165} Mesiaca",
@@ -26,6 +31,8 @@ class AstronomyPhraseNormalizer
         '/\bgeminid(?:s)?\b/iu' => 'Geminidy',
         '/\bperseid(?:s)?\b/iu' => 'Perzeidy',
         '/\bleonid(?:s)?\b/iu' => 'Leonidy',
+        '/\bpleiades\b/iu' => "Plej\u{00E1}dy",
+        '/\bplejady\b/iu' => "Plej\u{00E1}dy",
         '/\blyrid(?:s)?\b/iu' => 'Lyridy',
         '/\borionid(?:s)?\b/iu' => 'Orionidy',
         '/\bquadrantid(?:s)?\b/iu' => 'Kvadrantidy',
@@ -55,10 +62,17 @@ class AstronomyPhraseNormalizer
         '/\bv\s+inferior\s+conjunction\b/iu' => 'v dolnej konjunkcii',
         '/\bat\s+superior\s+conjunction\b/iu' => 'v hornej konjunkcii',
         '/\bat\s+inferior\s+conjunction\b/iu' => 'v dolnej konjunkcii',
+        '/\bat\s+perihelion\b/iu' => "v perih\u{00E9}liu",
+        '/\bat\s+aphelion\b/iu' => "v af\u{00E9}liu",
+        '/\bat\s+opposition\b/iu' => "v opoz\u{00ED}cii",
+        '/\bEarth\s+v\s+perih(?:\x{00E9}|e)liu\b/iu' => "Zem v perih\u{00E9}liu",
+        '/\bEarth\s+v\s+af(?:\x{00E9}|e)liu\b/iu' => "Zem v af\u{00E9}liu",
+        '/\bEarth\s+v\s+opoz(?:\x{00ED}|i)cii\b/iu' => "Zem v opoz\u{00ED}cii",
         '/\bsuperior\s+conjunction\b/iu' => 'horna konjunkcia',
         '/\binferior\s+conjunction\b/iu' => 'dolna konjunkcia',
         '/\b((?:Mercury|Merk(?:u|\x{00FA})r|Ortu\S*|Venus|Venu(?:s|\x{0161})a?|Venu\S*|Mars|Jupiter|Saturn|Uran\S*|Nept\S*))\s+na\s+vrchole\b/iu' => '$1 v hornej konjunkcii',
         '/\b((?:Mercury|Merk(?:u|\x{00FA})r|Ortu\S*|Venus|Venu(?:s|\x{0161})a?|Venu\S*))\s+pri\s+odraze\s*ferora\b/iu' => '$1 v dolnej konjunkcii',
+        '/\bOrtu(?:\x{0165}|t)\b/iu' => "Merk\u{00FA}r",
         '/\bmoon\b/iu' => 'Mesiac',
         '/\bsun\b/iu' => 'Slnko',
     ];
@@ -71,6 +85,12 @@ class AstronomyPhraseNormalizer
         '/\bat\s+conjunction\b/iu',
         '/\b(?:superior|inferior)\s+conjunction\b/iu',
         '/\bconjunction\b/iu',
+        '/\bat\s+perihelion\b/iu',
+        '/\bat\s+aphelion\b/iu',
+        '/\bat\s+opposition\b/iu',
+        '/\bperihelion\b/iu',
+        '/\baphelion\b/iu',
+        '/\bopposition\b/iu',
         '/\bquarter\s+moon\b/iu',
         '/\bmeteor\s+sprcha\b/iu',
         '/\bmeteorick(?:\x{00E1}|a)\s+sprcha\b/iu',
@@ -91,6 +111,7 @@ class AstronomyPhraseNormalizer
      * @var array<string,string>
      */
     private const PLANET_LOCALIZED_MAP = [
+        'earth' => 'Zem',
         'mercury' => "Merk\u{00FA}r",
         'venus' => "Venu\u{0161}a",
         'mars' => 'Mars',
@@ -105,6 +126,7 @@ class AstronomyPhraseNormalizer
      * @var array<string,string>
      */
     private const OBJECT_GENITIVE_MAP = [
+        'earth' => 'Zeme',
         'mercury' => "Merk\u{00FA}ra",
         'venus' => "Venu\u{0161}e",
         'mars' => 'Marsu',
@@ -115,6 +137,7 @@ class AstronomyPhraseNormalizer
         'pluto' => 'Pluta',
         'moon' => 'Mesiaca',
         'sun' => 'Slnka',
+        'pleiades' => "Plej\u{00E1}d",
     ];
 
     /**
@@ -123,6 +146,7 @@ class AstronomyPhraseNormalizer
     private const OBJECT_NOMINATIVE_MAP = [
         'moon' => 'Mesiac',
         'sun' => 'Slnko',
+        'pleiades' => "Plej\u{00E1}dy",
     ];
 
     /**
@@ -397,6 +421,42 @@ class AstronomyPhraseNormalizer
             }
         }
 
+        if (preg_match('/^(?<planet>Earth|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+at\s+(?<event>Perihelion|Aphelion)(?<suffix>\s*:\s*(?<distance>[0-9]+(?:[.,][0-9]+)?)\s*AU)?$/iu', $normalized, $matches) === 1) {
+            $planet = $this->localizePlanet((string) ($matches['planet'] ?? ''));
+            $planetKey = $this->planetKey((string) ($matches['planet'] ?? ''));
+            $eventType = strtolower((string) ($matches['event'] ?? ''));
+            $distance = trim((string) ($matches['distance'] ?? ''));
+            $localizedEvent = match ($eventType) {
+                'perihelion' => "v perih\u{00E9}liu",
+                'aphelion' => "v af\u{00E9}liu",
+                default => null,
+            };
+            if ($planet !== null && $planetKey !== null && $localizedEvent !== null) {
+                $title = "{$planet} {$localizedEvent}";
+                if ($distance !== '') {
+                    $title .= ": {$distance} AU";
+                }
+
+                return [
+                    'title' => $title,
+                    'planet' => $planetKey,
+                    'type' => $eventType,
+                ];
+            }
+        }
+
+        if (preg_match('/^(?<planet>Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto)\s+at\s+Opposition$/iu', $normalized, $matches) === 1) {
+            $planet = $this->localizePlanet((string) ($matches['planet'] ?? ''));
+            $planetKey = $this->planetKey((string) ($matches['planet'] ?? ''));
+            if ($planet !== null && $planetKey !== null) {
+                return [
+                    'title' => "{$planet} v opoz\u{00ED}cii",
+                    'planet' => $planetKey,
+                    'type' => 'opposition',
+                ];
+            }
+        }
+
         return null;
     }
 
@@ -453,6 +513,36 @@ class AstronomyPhraseNormalizer
             }
         }
 
+        if (preg_match('/^(?<planet>.+?)\s+v\s+perih(?:\x{00E9}|e)liu(?:\s*:\s*[0-9]+(?:[.,][0-9]+)?\s*AU)?$/iu', $normalized, $matches) === 1) {
+            $planet = $this->planetKey((string) ($matches['planet'] ?? ''));
+            if ($planet !== null) {
+                return [
+                    'planet' => $planet,
+                    'type' => 'perihelion',
+                ];
+            }
+        }
+
+        if (preg_match('/^(?<planet>.+?)\s+v\s+af(?:\x{00E9}|e)liu(?:\s*:\s*[0-9]+(?:[.,][0-9]+)?\s*AU)?$/iu', $normalized, $matches) === 1) {
+            $planet = $this->planetKey((string) ($matches['planet'] ?? ''));
+            if ($planet !== null) {
+                return [
+                    'planet' => $planet,
+                    'type' => 'aphelion',
+                ];
+            }
+        }
+
+        if (preg_match('/^(?<planet>.+?)\s+v\s+opoz(?:\x{00ED}|i)cii$/iu', $normalized, $matches) === 1) {
+            $planet = $this->planetKey((string) ($matches['planet'] ?? ''));
+            if ($planet !== null) {
+                return [
+                    'planet' => $planet,
+                    'type' => 'opposition',
+                ];
+            }
+        }
+
         return null;
     }
 
@@ -471,6 +561,7 @@ class AstronomyPhraseNormalizer
         }
 
         return match ($normalized) {
+            'earth', 'zem', 'zeme' => 'earth',
             'mercury', 'merkur', 'merkura', 'ortut', 'ortu' => 'mercury',
             'venus', 'venusa', 'venuse' => 'venus',
             'mars', 'marsu' => 'mars',
@@ -505,6 +596,7 @@ class AstronomyPhraseNormalizer
         return match ($normalized) {
             'moon', 'mesiac', 'mesiaca' => 'moon',
             'sun', 'slnko', 'slnka' => 'sun',
+            'pleiades', 'plejady', 'plejad' => 'pleiades',
             default => null,
         };
     }

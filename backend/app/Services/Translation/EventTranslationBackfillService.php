@@ -7,6 +7,7 @@ use App\Services\Bots\Exceptions\BotTranslationException;
 use App\Models\Event;
 use App\Models\EventCandidate;
 use App\Services\Events\EventTitlePostEditService;
+use App\Services\Events\EventDescriptionOriginRecorder;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 
@@ -16,6 +17,7 @@ class EventTranslationBackfillService
         private readonly BotTranslationServiceInterface $translationService,
         private readonly AstronomyPhraseNormalizer $phraseNormalizer,
         private readonly EventTitlePostEditService $titlePostEditService,
+        private readonly EventDescriptionOriginRecorder $originRecorder,
     ) {
     }
 
@@ -187,6 +189,9 @@ class EventTranslationBackfillService
                     'translated_title' => $translatedTitle !== '' ? $translatedTitle : null,
                     'translated_description' => $translatedDescription,
                     'translation_status' => $status,
+                    'translation_mode' => $errorCode === null
+                        ? EventCandidate::TRANSLATION_MODE_TRANSLATED
+                        : null,
                     'translation_error' => $errorCode,
                     'translated_at' => $errorCode === null ? now() : null,
                 ]);
@@ -196,10 +201,38 @@ class EventTranslationBackfillService
                 if ($dryRun) {
                     $summary['events_updated']++;
                 } else {
-                    $affected = Event::query()
-                        ->whereKey($candidate->published_event_id)
-                        ->update($eventUpdates);
-                    $summary['events_updated'] += $affected;
+                    $event = Event::query()->find((int) $candidate->published_event_id);
+                    if ($event !== null) {
+                        $beforeDescription = trim((string) ($event->description ?? ''));
+                        $beforeShort = trim((string) ($event->short ?? ''));
+
+                        $event->fill($eventUpdates);
+                        if ($event->isDirty()) {
+                            $event->save();
+                            $summary['events_updated']++;
+
+                            $afterDescription = trim((string) ($event->description ?? ''));
+                            $afterShort = trim((string) ($event->short ?? ''));
+                            if ($beforeDescription !== $afterDescription || $beforeShort !== $afterShort) {
+                                $freshEvent = $event->fresh();
+                                if ($freshEvent instanceof Event) {
+                                    $this->originRecorder->record(
+                                        event: $freshEvent,
+                                        source: 'event_translation_backfill',
+                                        sourceDetail: filled($translatedDescription)
+                                            ? 'translated_description'
+                                            : 'title_or_short_only',
+                                        candidateId: (int) $candidate->id,
+                                        meta: [
+                                            'force' => $force,
+                                            'translation_status' => $status,
+                                            'translation_error' => $errorCode,
+                                        ]
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

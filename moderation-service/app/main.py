@@ -19,7 +19,7 @@ HATE_MODEL_NAME = os.getenv('MODERATION_HATE_MODEL', 'cardiffnlp/twitter-roberta
 ENABLE_HATE_MODEL = os.getenv('MODERATION_ENABLE_HATE_MODEL', 'true').lower() == 'true'
 IMAGE_MODEL_NAME = os.getenv('MODERATION_IMAGE_MODEL', 'Falconsai/nsfw_image_detection')
 INTERNAL_TOKEN = os.getenv('MODERATION_INTERNAL_TOKEN', '')
-MAX_IMAGE_BYTES = int(os.getenv('MODERATION_IMAGE_MAX_BYTES', str(5 * 1024 * 1024)))
+MAX_IMAGE_BYTES = int(os.getenv('MODERATION_IMAGE_MAX_BYTES', str(20 * 1024 * 1024)))
 
 TEXT_FLAG_THRESHOLD = float(os.getenv('MODERATION_TEXT_FLAG_THRESHOLD', '0.70'))
 TEXT_BLOCK_THRESHOLD = float(os.getenv('MODERATION_TEXT_BLOCK_THRESHOLD', '0.90'))

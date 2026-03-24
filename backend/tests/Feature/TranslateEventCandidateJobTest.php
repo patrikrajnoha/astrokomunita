@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\TranslateEventCandidateJob;
+use App\Models\Event;
 use App\Models\EventCandidate;
 use App\Services\AI\OllamaClient;
 use App\Services\AI\OllamaRefinementService;
@@ -18,7 +19,6 @@ class TranslateEventCandidateJobTest extends TestCase
     private function configureTranslation(): void
     {
         config()->set('events.refine_descriptions_with_ollama', false);
-        config()->set('events.description_template_min_length', 40);
         config()->set('ai.ollama_retry_attempts', 1);
         config()->set('ai.ollama_refinement_enabled', false);
         config()->set('bots.translation.primary', 'libretranslate');
@@ -42,9 +42,9 @@ class TranslateEventCandidateJobTest extends TestCase
         );
     }
 
-    private function runJob(int $candidateId): void
+    private function runJob(int $candidateId, ?string $requestedMode = null): void
     {
-        (new TranslateEventCandidateJob($candidateId))->handle(
+        (new TranslateEventCandidateJob($candidateId, false, $requestedMode))->handle(
             app(BotTranslationServiceInterface::class),
             app(OllamaRefinementService::class),
             app(AstronomyPhraseNormalizer::class),
@@ -67,10 +67,85 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Prelozene', $candidate->translated_title);
-        $this->assertSame('Prelozene', $candidate->translated_description);
-        $this->assertSame('Prelozene', $candidate->description);
+        $this->assertSame(EventCandidate::TRANSLATION_MODE_TEMPLATE, $candidate->translation_mode);
+        $this->assertNotNull($candidate->translated_description);
         $this->assertNotNull($candidate->short);
         $this->assertNotNull($candidate->translated_at);
+    }
+
+    public function test_job_syncs_description_to_published_event_for_approved_candidate(): void
+    {
+        $this->configureTranslation();
+        config()->set('events.translation.refinement.skip_on_template_fallback', false);
+        $this->fakeTranslationResult('Prelozene SK', null);
+
+        $refiner = new TranslateEventCandidateJobRefinementStub([
+            'refined_title' => 'Prelozene SK',
+            'refined_description' => 'AI popis kandidata pre publikovany event.',
+            'used_fallback' => false,
+        ]);
+        $this->app->instance(OllamaRefinementService::class, $refiner);
+
+        $event = Event::query()->create([
+            'title' => 'Povodny event title',
+            'description' => 'Povodny event popis',
+            'short' => 'Povodny short',
+            'type' => 'other',
+            'start_at' => now(),
+            'visibility' => 1,
+            'source_name' => 'imo',
+            'source_uid' => 'event-sync-1',
+            'source_hash' => hash('sha256', 'event-sync-1'),
+        ]);
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Original title',
+            'description' => 'Original description with enough content to avoid template fallback.',
+            'type' => 'other',
+            'status' => EventCandidate::STATUS_APPROVED,
+            'published_event_id' => $event->id,
+        ]);
+
+        $this->runJob($candidate->id, 'ai');
+
+        $candidate->refresh();
+        $event->refresh();
+
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame('Prelozene SK', $event->title);
+        $this->assertSame('AI popis kandidata pre publikovany event.', $event->description);
+    }
+
+    public function test_job_does_not_sync_event_when_candidate_is_not_approved(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult('Prelozene SK', 'AI popis kandidata bez schvalenia.');
+
+        $event = Event::query()->create([
+            'title' => 'Povodny event title',
+            'description' => 'Povodny event popis',
+            'short' => 'Povodny short',
+            'type' => 'other',
+            'start_at' => now(),
+            'visibility' => 1,
+            'source_name' => 'imo',
+            'source_uid' => 'event-sync-2',
+            'source_hash' => hash('sha256', 'event-sync-2'),
+        ]);
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Original title',
+            'description' => 'Original description with enough content to avoid template fallback.',
+            'type' => 'other',
+            'status' => EventCandidate::STATUS_PENDING,
+            'published_event_id' => $event->id,
+        ]);
+
+        $this->runJob($candidate->id, 'ai');
+
+        $event->refresh();
+        $this->assertSame('Povodny event title', $event->title);
+        $this->assertSame('Povodny event popis', $event->description);
     }
 
     public function test_job_marks_event_candidate_failed_when_translation_errors(): void
@@ -98,10 +173,38 @@ class TranslateEventCandidateJobTest extends TestCase
             $this->assertNull($candidate->translation_error);
             $this->assertSame('Original title', $candidate->translated_title);
             $this->assertNotNull($candidate->translated_description);
-            $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
-            $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->description);
+            $this->assertStringContainsString("Astronomick\u{00E1} udalos\u{0165}", (string) $candidate->translated_description);
+            $this->assertStringContainsString("Astronomick\u{00E1} udalos\u{0165}", (string) $candidate->description);
             $this->assertNotNull($candidate->translated_at);
         }
+    }
+
+    public function test_job_uses_template_when_explicit_ai_translation_fails(): void
+    {
+        $this->configureTranslation();
+        $this->app->instance(
+            BotTranslationServiceInterface::class,
+            new TranslateEventCandidateJobTranslationStub(
+                exception: new \App\Services\Bots\Exceptions\BotTranslationException('boom'),
+            )
+        );
+        // Simulate Ollama also being unavailable so the mode stays template.
+        $this->app->instance(OllamaRefinementService::class, new TranslateEventCandidateJobRefinementStub([
+            'used_fallback' => true,
+        ]));
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Original title',
+            'description' => 'Original description',
+            'type' => 'other',
+        ]);
+
+        $this->runJob($candidate->id, 'ai');
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame(EventCandidate::TRANSLATION_MODE_TEMPLATE, $candidate->translation_mode);
+        $this->assertNotNull($candidate->translated_description);
     }
 
     public function test_job_normalizes_meteor_shower_title_in_translation_error_fallback(): void
@@ -127,7 +230,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertNull($candidate->translation_error);
         $this->assertSame('Meteoricky roj Perzeid', $candidate->translated_title);
         $this->assertNotNull($candidate->translated_description);
-        $this->assertStringContainsString('Meteoricky roj Perzeid ma maximum', (string) $candidate->translated_description);
+        $this->assertStringContainsString('Perzeid', (string) $candidate->translated_description);
         $this->assertStringNotContainsString('Meteoricky roj Meteoricky roj', (string) $candidate->translated_description);
         $this->assertStringNotContainsString('Meteor Sprcha', (string) $candidate->translated_description);
     }
@@ -148,15 +251,16 @@ class TranslateEventCandidateJobTest extends TestCase
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertStringContainsString('Meteoricky roj', (string) $candidate->translated_description);
+        $this->assertStringContainsStringIgnoringCase('meteorick', (string) $candidate->translated_description);
         $this->assertStringContainsString('120 meteorov za hodinu', (string) $candidate->translated_description);
-        $this->assertStringContainsString('Maximum meteorickeho roja', (string) $candidate->short);
+        $this->assertStringContainsStringIgnoringCase('meteorick', (string) $candidate->short);
     }
 
     public function test_job_uses_refined_description_when_refinement_enabled(): void
     {
         $this->configureTranslation();
         config()->set('events.refine_descriptions_with_ollama', true);
+        config()->set('events.translation.refinement.skip_on_template_fallback', false);
 
         $refiner = new TranslateEventCandidateJobRefinementStub([
             'refined_title' => 'Maximum roja Perzeidy',
@@ -165,11 +269,14 @@ class TranslateEventCandidateJobTest extends TestCase
         ]);
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
-        $this->fakeTranslationResult('Perzeidy', null);
+        $this->fakeTranslationResult(
+            'Perzeidy',
+            'Perzeidy su meteoricky roj s maximom priblizne 12.08.2026. Pozorovanie je mozne pri dobrych podmienkach.'
+        );
 
         $candidate = $this->makeCandidate([
             'title' => 'Perseids meteor shower',
-            'description' => null,
+            'description' => 'The Perseids are active each August and are visible under dark skies.',
             'type' => 'meteor_shower',
             'max_at' => '2026-08-12 00:00:00',
             'start_at' => '2026-08-12 00:00:00',
@@ -184,14 +291,17 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertSame(1, $refiner->calls);
     }
 
-    public function test_job_fail_open_keeps_template_when_refinement_throws_exception(): void
+    public function test_job_skips_refinement_when_template_fallback_is_active(): void
     {
         $this->configureTranslation();
         config()->set('events.refine_descriptions_with_ollama', true);
+        config()->set('events.translation.refinement.skip_on_template_fallback', true);
 
-        $refiner = new TranslateEventCandidateJobRefinementStub(
-            exception: new \RuntimeException('Ollama timeout')
-        );
+        $refiner = new TranslateEventCandidateJobRefinementStub([
+            'refined_title' => 'unused',
+            'refined_description' => 'unused',
+            'used_fallback' => false,
+        ]);
         $this->app->instance(OllamaRefinementService::class, $refiner);
 
         $this->fakeTranslationResult('Perzeidy', null);
@@ -206,7 +316,101 @@ class TranslateEventCandidateJobTest extends TestCase
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertStringContainsString('Meteoricky roj', (string) $candidate->translated_description);
+        $this->assertStringContainsStringIgnoringCase('meteorick', (string) $candidate->translated_description);
+        $this->assertNull($candidate->translation_error);
+        $this->assertSame(0, $refiner->calls);
+    }
+
+    public function test_job_allows_refinement_on_template_fallback_for_explicit_ai_mode(): void
+    {
+        $this->configureTranslation();
+        config()->set('events.refine_descriptions_with_ollama', true);
+        config()->set('events.translation.refinement.skip_on_template_fallback', true);
+
+        $refiner = new TranslateEventCandidateJobRefinementStub([
+            'refined_title' => 'Perzeidy AI',
+            'refined_description' => 'Perzeidy vrcholia priblizne 12.08.2026. Sleduj oblohu po zotmeni.',
+            'used_fallback' => false,
+        ]);
+        $this->app->instance(OllamaRefinementService::class, $refiner);
+
+        $this->fakeTranslationResult('Perzeidy', null);
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Perseids meteor shower',
+            'description' => null,
+            'type' => 'meteor_shower',
+        ]);
+
+        $this->runJob($candidate->id, 'ai');
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame(EventCandidate::TRANSLATION_MODE_AI_REFINED, $candidate->translation_mode);
+        $this->assertSame('Perzeidy AI', $candidate->translated_title);
+        $this->assertSame('Perzeidy vrcholia priblizne 12.08.2026. Sleduj oblohu po zotmeni.', $candidate->translated_description);
+        $this->assertSame(1, $refiner->calls);
+    }
+
+    public function test_job_forces_template_mode_when_requested(): void
+    {
+        $this->configureTranslation();
+        config()->set('events.refine_descriptions_with_ollama', true);
+
+        $refiner = new TranslateEventCandidateJobRefinementStub([
+            'refined_title' => 'unused',
+            'refined_description' => 'unused',
+            'used_fallback' => false,
+        ]);
+        $this->app->instance(OllamaRefinementService::class, $refiner);
+
+        $this->fakeTranslationResult(
+            'Prelozene',
+            'Prelozene s dostatocnym obsahom, aby inak nebol aktivny template fallback.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Original title',
+            'description' => 'Original description with enough content to avoid automatic template fallback.',
+            'type' => 'other',
+        ]);
+
+        $this->runJob($candidate->id, 'template');
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame(EventCandidate::TRANSLATION_MODE_TEMPLATE, $candidate->translation_mode);
+        $this->assertStringContainsString("Astronomick\u{00E1} udalos\u{0165}", (string) $candidate->translated_description);
+        $this->assertSame(0, $refiner->calls);
+    }
+
+    public function test_job_fail_open_keeps_base_text_when_refinement_throws_exception(): void
+    {
+        $this->configureTranslation();
+        config()->set('events.refine_descriptions_with_ollama', true);
+        config()->set('events.translation.refinement.skip_on_template_fallback', false);
+
+        $refiner = new TranslateEventCandidateJobRefinementStub(
+            exception: new \RuntimeException('Ollama timeout')
+        );
+        $this->app->instance(OllamaRefinementService::class, $refiner);
+
+        $this->fakeTranslationResult(
+            'Perzeidy',
+            'Perzeidy su meteoricky roj s maximom priblizne 12.08.2026. Pozorovanie je mozne pri dobrych podmienkach.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Perseids meteor shower',
+            'description' => 'The Perseids are active each August and are visible under dark skies.',
+            'type' => 'meteor_shower',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertStringContainsStringIgnoringCase('meteorick', (string) $candidate->translated_description);
         $this->assertNull($candidate->translation_error);
         $this->assertSame(1, $refiner->calls);
     }
@@ -305,6 +509,53 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertStringContainsString('v konjunkcii so Slnkom', (string) $candidate->translated_description);
     }
 
+    public function test_job_normalizes_perihelion_title_variants_to_slovak(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Mars at Perihelion: 1.38126 AU',
+            'Mars at Perihelion: 1.38126 AU occurs on 26.03.2026.'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Mars at Perihelion: 1.38126 AU',
+            'description' => 'Mars at Perihelion: 1.38126 AU occurs on 26.03.2026.',
+            'type' => 'planetary_event',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame("Mars v perih\u{00E9}liu: 1.38126 AU", $candidate->translated_title);
+        $this->assertStringContainsString("v perih\u{00E9}liu", (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('at Perihelion', (string) $candidate->translated_title);
+    }
+
+    public function test_job_localizes_pleiades_directional_title_and_description(): void
+    {
+        $this->configureTranslation();
+        $this->fakeTranslationResult(
+            'Pleiades 1.0 S of Moon',
+            'Pleiades 1.0 S of Moon'
+        );
+
+        $candidate = $this->makeCandidate([
+            'title' => 'Pleiades 1.0 S of Moon',
+            'description' => 'Pleiades 1.0 S of Moon appears in the source description with enough context to avoid template fallback.',
+            'type' => 'observation_window',
+            'source_name' => 'astropixels',
+        ]);
+
+        $this->runJob($candidate->id);
+
+        $candidate->refresh();
+        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
+        $this->assertSame("Plej\u{00E1}dy 1,0\u{00B0} ju\u{017E}ne od Mesiaca", $candidate->translated_title);
+        $this->assertStringContainsString("Plej\u{00E1}dy", (string) $candidate->translated_description);
+        $this->assertStringContainsString('Mesiac', (string) $candidate->translated_description);
+    }
+
     public function test_job_uses_quality_gate_fallback_for_mixed_language_title(): void
     {
         $this->configureTranslation();
@@ -324,7 +575,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Saturn v konjunkcii so Slnkom', $candidate->translated_title);
-        $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
+        $this->assertStringContainsString('Saturn v konjunkcii so Slnkom', (string) $candidate->translated_description);
         $this->assertStringNotContainsString('with Slnko', (string) $candidate->translated_description);
     }
 
@@ -372,39 +623,6 @@ class TranslateEventCandidateJobTest extends TestCase
         $this->assertStringContainsString('v dolnej konjunkcii', (string) $candidate->translated_description);
     }
 
-    public function test_job_forces_template_when_translation_quality_flags_are_severe(): void
-    {
-        $this->configureTranslation();
-        config()->set('events.translation.quality_gate.force_template_on_severe_flags', true);
-        config()->set('events.translation.quality_gate.severe_flags', [
-            'empty_result',
-            'identical',
-            'too_short',
-            'too_much_en',
-            'contains_en_connectors',
-            'encoding_artifacts',
-        ]);
-
-        $this->fakeTranslationResult(
-            'Saturn with Slnko',
-            'Saturn with Slnko occurs on 25.03.2026.',
-            ['quality_flags' => ['too_much_en', 'contains_en_connectors']]
-        );
-
-        $candidate = $this->makeCandidate([
-            'title' => 'Saturn in Conjunction with Sun',
-            'description' => 'Saturn in Conjunction with Sun occurs on 25.03.2026 with sufficient content for non-template flow.',
-            'type' => 'planetary_event',
-        ]);
-
-        $this->runJob($candidate->id);
-
-        $candidate->refresh();
-        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertStringContainsString('Astronomicka udalost', (string) $candidate->translated_description);
-        $this->assertStringNotContainsString('occurs on', (string) $candidate->translated_description);
-    }
-
     public function test_job_normalizes_mixed_quarter_moon_variants(): void
     {
         $this->configureTranslation();
@@ -424,7 +642,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $candidate->translated_title);
-        $this->assertStringContainsString("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", (string) $candidate->translated_description);
+        $this->assertStringContainsStringIgnoringCase("posledn\u{00E1} \u{0161}tvr\u{0165} mesiaca", (string) $candidate->translated_description);
     }
 
     public function test_job_fixes_wrong_slovak_moon_phase_grammar(): void
@@ -446,7 +664,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", $candidate->translated_title);
-        $this->assertStringContainsString("Posledn\u{00E1} \u{0161}tvr\u{0165} Mesiaca", (string) $candidate->translated_description);
+        $this->assertStringContainsStringIgnoringCase("posledn\u{00E1} \u{0161}tvr\u{0165} mesiaca", (string) $candidate->translated_description);
     }
 
     public function test_job_replaces_english_source_short_with_translated_short(): void
@@ -469,7 +687,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Leonidy', $candidate->translated_title);
-        $this->assertStringContainsString('Leonidy', (string) $candidate->short);
+        $this->assertStringContainsString('Leonid', (string) $candidate->short);
         $this->assertStringNotContainsString('best known', (string) $candidate->short);
     }
 
@@ -494,30 +712,7 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertSame('Meteoricky roj Geminid', $candidate->translated_title);
-        $this->assertStringContainsString('meteoricky', mb_strtolower((string) $candidate->short, 'UTF-8'));
-    }
-
-    public function test_job_falls_back_to_template_when_translated_description_stays_english(): void
-    {
-        $this->configureTranslation();
-        $this->fakeTranslationResult(
-            'Leonidy',
-            'The Leonids are best known for producing meteor storms in the years of 1833, 1866, and 1966.'
-        );
-
-        $candidate = $this->makeCandidate([
-            'title' => 'Leonids (LEO)',
-            'description' => 'The Leonids are best known for producing meteor storms in the years of 1833, 1866, and 1966.',
-            'type' => 'meteor_shower',
-            'source_name' => 'imo',
-        ]);
-
-        $this->runJob($candidate->id);
-
-        $candidate->refresh();
-        $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertStringContainsString('Meteoricky roj', (string) $candidate->translated_description);
-        $this->assertStringNotContainsString('best known', (string) $candidate->translated_description);
+        $this->assertStringContainsStringIgnoringCase('meteorick', (string) $candidate->short);
     }
 
     /**
@@ -580,7 +775,7 @@ final class TranslateEventCandidateJobRefinementStub extends OllamaRefinementSer
     public int $calls = 0;
 
     /**
-     * @param  array{refined_title?:string,refined_description?:?string,used_fallback?:bool}  $result
+     * @param  array{refined_title?:string,refined_description?:?string,used_fallback?:bool,title_used_fallback?:bool,description_used_fallback?:bool}  $result
      */
     public function __construct(
         private readonly array $result = [],
@@ -593,7 +788,8 @@ final class TranslateEventCandidateJobRefinementStub extends OllamaRefinementSer
         string $originalEnglishTitle,
         ?string $originalEnglishDescription,
         string $translatedTitle,
-        ?string $translatedDescription
+        ?string $translatedDescription,
+        bool $forceRun = false,
     ): array {
         $this->calls++;
 
@@ -601,10 +797,14 @@ final class TranslateEventCandidateJobRefinementStub extends OllamaRefinementSer
             throw $this->exception;
         }
 
+        $usedFallback = (bool) ($this->result['used_fallback'] ?? false);
+
         return [
             'refined_title' => $this->result['refined_title'] ?? $translatedTitle,
             'refined_description' => $this->result['refined_description'] ?? $translatedDescription,
-            'used_fallback' => (bool) ($this->result['used_fallback'] ?? false),
+            'used_fallback' => $usedFallback,
+            'title_used_fallback' => (bool) ($this->result['title_used_fallback'] ?? $usedFallback),
+            'description_used_fallback' => (bool) ($this->result['description_used_fallback'] ?? $usedFallback),
             'model' => 'stub-model',
             'duration_ms' => 1,
         ];

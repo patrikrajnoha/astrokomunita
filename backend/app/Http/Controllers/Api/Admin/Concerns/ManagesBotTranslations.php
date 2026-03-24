@@ -112,10 +112,7 @@ trait ManagesBotTranslations
             'bots.translation.primary',
             'bots.translation.fallback',
             'bots.translation.ollama.model',
-            'bots.translation_ollama_model',
-            'ai.ollama.model',
             'bots.translation.ollama.temperature',
-            'bots.translation_ollama_temperature',
         ];
 
         $original = [];
@@ -130,13 +127,10 @@ trait ManagesBotTranslations
 
         if ($requestedModel !== '') {
             config()->set('bots.translation.ollama.model', $requestedModel);
-            config()->set('bots.translation_ollama_model', $requestedModel);
-            config()->set('ai.ollama.model', $requestedModel);
         }
 
         if ($requestedTemperature !== null) {
             config()->set('bots.translation.ollama.temperature', $requestedTemperature);
-            config()->set('bots.translation_ollama_temperature', $requestedTemperature);
         }
 
         return static function () use ($original): void {
@@ -153,44 +147,65 @@ trait ManagesBotTranslations
         $timeoutSec = max(1, (int) config('bots.translation.timeout_sec', 12));
         $degraded = false;
         $simulateOutageProvider = $this->outageSimulationService->getProvider();
+        $providersToProbe = $this->translationHealthProvidersToProbe($provider, $fallbackProvider);
+        $providerProbes = [];
 
         $baseUrl = match ($provider) {
-            'ollama' => trim((string) config('ai.ollama.base_url', config('ai.ollama_base_url', ''))),
+            'ollama' => trim((string) config('ai.ollama.base_url', '')),
             default => trim((string) config('bots.translation.libretranslate.url', '')),
         };
 
-        try {
-            $probeResult = $this->runTranslationHealthProbe();
+        foreach ($providersToProbe as $providerToProbe) {
+            try {
+                $this->runTranslationHealthProbe($providerToProbe);
+                $providerProbes[$providerToProbe] = [
+                    'ok' => true,
+                    'error_type' => null,
+                ];
+            } catch (Throwable $exception) {
+                $providerProbes[$providerToProbe] = [
+                    'ok' => false,
+                    'error_type' => $this->translationHealthErrorType($exception),
+                ];
+            }
+        }
+
+        $hasFallback = $fallbackProvider !== '' && $fallbackProvider !== 'none' && $fallbackProvider !== $provider;
+        $primaryProbe = $providerProbes[$provider] ?? null;
+        $fallbackProbe = $hasFallback ? ($providerProbes[$fallbackProvider] ?? null) : null;
+        $primaryOk = is_array($primaryProbe) ? data_get($primaryProbe, 'ok') : null;
+        $fallbackOk = is_array($fallbackProbe) ? data_get($fallbackProbe, 'ok') : null;
+        $primaryErrorType = is_array($primaryProbe)
+            ? $this->nullableString(data_get($primaryProbe, 'error_type'))
+            : null;
+        $fallbackErrorType = is_array($fallbackProbe)
+            ? $this->nullableString(data_get($fallbackProbe, 'error_type'))
+            : null;
+
+        if ($primaryOk === true) {
             $result = [
                 'ok' => true,
                 'error_type' => null,
             ];
-            $degraded = (bool) data_get($probeResult, 'meta.fallback_used', false);
-        } catch (Throwable $exception) {
-            $primaryErrorType = $this->translationHealthErrorType($exception);
-            $hasFallback = $fallbackProvider !== '' && $fallbackProvider !== 'none' && $fallbackProvider !== $provider;
-
-            if ($hasFallback) {
-                try {
-                    $this->runTranslationHealthProbe($fallbackProvider);
-                    $degraded = true;
-                    $result = [
-                        'ok' => true,
-                        'error_type' => null,
-                        'primary_error_type' => $primaryErrorType,
-                    ];
-                } catch (Throwable $fallbackException) {
-                    $result = [
-                        'ok' => false,
-                        'error_type' => $this->translationHealthErrorType($fallbackException),
-                    ];
-                }
-            } else {
-                $result = [
-                    'ok' => false,
-                    'error_type' => $primaryErrorType,
-                ];
-            }
+        } elseif ($primaryOk === false && $hasFallback && $fallbackOk === true) {
+            $degraded = true;
+            $result = [
+                'ok' => true,
+                'error_type' => null,
+                'primary_error_type' => $primaryErrorType ?? BotRunFailureReason::UNKNOWN->value,
+            ];
+        } elseif ($primaryOk === false) {
+            $result = [
+                'ok' => false,
+                'error_type' => $hasFallback
+                    ? ($fallbackErrorType ?? $primaryErrorType ?? BotRunFailureReason::UNKNOWN->value)
+                    : ($primaryErrorType ?? BotRunFailureReason::UNKNOWN->value),
+            ];
+        } else {
+            $result = [
+                'ok' => false,
+                'error_type' => BotRunFailureReason::UNKNOWN->value,
+            ];
         }
 
         $translationCounts = BotItem::query()
@@ -215,6 +230,7 @@ trait ManagesBotTranslations
             'simulate_outage_provider' => $simulateOutageProvider,
             'degraded' => $degraded,
             'result' => $result,
+            'provider_probes' => $providerProbes,
             'translation_queue' => [
                 'done' => $doneCount,
                 'skipped' => $skippedCount,
@@ -285,6 +301,19 @@ trait ManagesBotTranslations
         }
 
         return BotRunFailureReason::UNKNOWN->value;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function translationHealthProvidersToProbe(string $provider, string $fallbackProvider): array
+    {
+        $providers = [$provider, $fallbackProvider];
+
+        return array_values(array_unique(array_filter(
+            array_map(static fn (string $value): string => strtolower(trim($value)), $providers),
+            static fn (string $value): bool => $value !== '' && $value !== 'none' && $value !== 'dummy'
+        )));
     }
 
     public function retryTranslation(Request $request, string $sourceKey): JsonResponse

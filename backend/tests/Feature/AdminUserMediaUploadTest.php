@@ -13,7 +13,7 @@ class AdminUserMediaUploadTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_upload_bot_avatar_and_cover(): void
+    public function test_admin_can_upload_bot_avatar_set_asset_avatar_and_upload_cover(): void
     {
         config([
             'media.disk' => 'public',
@@ -34,18 +34,27 @@ class AdminUserMediaUploadTest extends TestCase
 
         Sanctum::actingAs($admin);
 
-        $avatarResponse = $this->post("/api/admin/users/{$bot->id}/avatar", [
+        $avatarUploadResponse = $this->patch("/api/admin/users/{$bot->id}/avatar", [
             'file' => $this->fakeImage('avatar.png'),
         ], ['Accept' => 'application/json']);
 
-        $avatarResponse->assertOk()
+        $avatarUploadResponse->assertOk()
             ->assertJsonPath('id', $bot->id)
             ->assertJsonPath('avatar_mode', 'image');
-
-        $avatarPath = (string) $avatarResponse->json('avatar_path');
-        $this->assertStringStartsWith("avatars/{$bot->id}/", $avatarPath);
-        Storage::disk('public')->assertExists($avatarPath);
+        $uploadedAvatarPath = (string) $avatarUploadResponse->json('avatar_path');
+        $this->assertStringStartsWith("avatars/{$bot->id}/", $uploadedAvatarPath);
+        Storage::disk('public')->assertExists($uploadedAvatarPath);
         Storage::disk('public')->assertMissing('avatars/10/old-avatar.png');
+
+        $avatarResponse = $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
+            'avatar_mode' => 'image',
+            'avatar_path' => 'bots/kozmobot/kb_red.png',
+        ]);
+
+        $avatarResponse->assertOk()
+            ->assertJsonPath('id', $bot->id)
+            ->assertJsonPath('avatar_mode', 'image')
+            ->assertJsonPath('avatar_path', 'bots/kozmobot/kb_red.png');
 
         $coverResponse = $this->patch("/api/admin/users/{$bot->id}/cover", [
             'file' => $this->fakeImage('cover.png'),
@@ -76,9 +85,10 @@ class AdminUserMediaUploadTest extends TestCase
 
         Sanctum::actingAs($editor);
 
-        $this->post("/api/admin/users/{$bot->id}/avatar", [
-            'file' => $this->fakeImage('avatar.png'),
-        ], ['Accept' => 'application/json'])->assertForbidden();
+        $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
+            'avatar_mode' => 'image',
+            'avatar_path' => 'bots/kozmobot/kb_blue.png',
+        ])->assertForbidden();
     }
 
     public function test_admin_upload_endpoint_rejects_non_bot_target(): void
@@ -95,7 +105,7 @@ class AdminUserMediaUploadTest extends TestCase
 
         Sanctum::actingAs($admin);
 
-        $this->post("/api/admin/users/{$regularUser->id}/avatar", [
+        $this->post("/api/admin/users/{$regularUser->id}/cover", [
             'file' => $this->fakeImage('avatar.png'),
         ], ['Accept' => 'application/json'])
             ->assertForbidden();

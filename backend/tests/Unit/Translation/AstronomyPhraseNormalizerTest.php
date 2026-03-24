@@ -46,6 +46,28 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $this->assertSame("Merk\u{00FA}r 3,4\u{00B0} severne od Marsu", $badSk);
     }
 
+    public function test_it_replaces_wrong_planet_name_ortut_with_merkur_in_aphelion_titles(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $genitive = $normalizer->normalize("Ortu\u{0165} pri af\u{00E9}liu", 'sk');
+        $this->assertSame("Merk\u{00FA}r pri af\u{00E9}liu", $genitive);
+
+        $locative = $normalizer->normalize("Ortu\u{0165} pri af\u{00E9}li\u{00F3}ne", 'sk');
+        $this->assertSame("Merk\u{00FA}r pri af\u{00E9}li\u{00F3}ne", $locative);
+    }
+
+    public function test_it_localizes_pleiades_in_directional_titles(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $subject = $normalizer->normalize('Pleiades 1.0 S of Moon', 'sk');
+        $this->assertSame("Plej\u{00E1}dy 1,0\u{00B0} ju\u{017E}ne od Mesiaca", $subject);
+
+        $target = $normalizer->normalize('Venus 3.4 S of Pleiades', 'sk');
+        $this->assertSame("Venu\u{0161}a 3,4\u{00B0} ju\u{017E}ne od Plej\u{00E1}d", $target);
+    }
+
     public function test_it_uses_original_title_fallback_when_mixed_language_remains(): void
     {
         $normalizer = app(AstronomyPhraseNormalizer::class);
@@ -89,6 +111,35 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $this->assertTrue((bool) $resolution['used_fallback']);
         $this->assertSame('deterministic_original_mismatch', $resolution['reason']);
         $this->assertSame('Mars v konjunkcii so Slnkom', $resolution['title']);
+    }
+
+    public function test_it_normalizes_perihelion_aphelion_and_opposition_titles(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $perihelion = $normalizer->normalize('Mars at Perihelion: 1.38126 AU', 'sk');
+        $this->assertSame("Mars v perih\u{00E9}liu: 1.38126 AU", $perihelion);
+
+        $aphelion = $normalizer->normalize('Earth at Aphelion: 1.01664 AU', 'sk');
+        $this->assertSame("Zem v af\u{00E9}liu: 1.01664 AU", $aphelion);
+
+        $opposition = $normalizer->normalize('Jupiter at Opposition', 'sk');
+        $this->assertSame("Jupiter v opoz\u{00ED}cii", $opposition);
+    }
+
+    public function test_it_uses_deterministic_fallback_for_perihelion_planet_mismatch(): void
+    {
+        $normalizer = app(AstronomyPhraseNormalizer::class);
+
+        $resolution = $normalizer->normalizeTitleWithFallback(
+            translatedTitle: "Jupiter v perih\u{00E9}liu: 1.38126 AU",
+            originalTitle: 'Mars at Perihelion: 1.38126 AU',
+            language: 'sk'
+        );
+
+        $this->assertTrue((bool) $resolution['used_fallback']);
+        $this->assertSame('deterministic_original_mismatch', $resolution['reason']);
+        $this->assertSame("Mars v perih\u{00E9}liu: 1.38126 AU", $resolution['title']);
     }
 
     public function test_it_normalizes_common_english_description_fragments(): void

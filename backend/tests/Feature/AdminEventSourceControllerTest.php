@@ -445,4 +445,122 @@ class AdminEventSourceControllerTest extends TestCase
         $this->assertSame('Jupiter v konjunkcii so Slnkom', (string) $candidate->translated_title);
         $this->assertSame('Jupiter v konjunkcii so Slnkom', (string) $event->title);
     }
+
+    public function test_purge_default_preserves_published_events(): void
+    {
+        $source = EventSource::query()->create([
+            'key' => EventSourceEnum::ASTROPIXELS->value,
+            'name' => EventSourceEnum::ASTROPIXELS->label(),
+            'base_url' => 'https://astropixels.test',
+            'is_enabled' => true,
+        ]);
+
+        $event = Event::query()->create([
+            'title' => 'Perzeidy',
+            'type' => 'meteor_shower',
+            'start_at' => now(),
+            'max_at' => now(),
+            'short' => 'Perzeidy',
+            'description' => 'Test event',
+            'source_name' => EventSourceEnum::ASTROPIXELS->value,
+            'source_uid' => 'preserve-event-1',
+            'source_hash' => hash('sha256', 'preserve-event-1'),
+        ]);
+
+        EventCandidate::query()->create([
+            'event_source_id' => $source->id,
+            'source_name' => EventSourceEnum::ASTROPIXELS->value,
+            'source_url' => 'https://astropixels.test/e1',
+            'source_uid' => 'preserve-candidate-1',
+            'external_id' => 'preserve-candidate-1',
+            'stable_key' => 'preserve-candidate-1',
+            'source_hash' => hash('sha256', 'preserve-candidate-1'),
+            'title' => 'Perzeidy candidate',
+            'type' => 'meteor_shower',
+            'start_at' => now(),
+            'max_at' => now(),
+            'short' => 'Perzeidy candidate',
+            'description' => 'Candidate',
+            'raw_payload' => '{}',
+            'status' => EventCandidate::STATUS_PENDING,
+            'translation_status' => EventCandidate::TRANSLATION_DONE,
+        ]);
+
+        \App\Models\CrawlRun::query()->create([
+            'event_source_id' => $source->id,
+            'source_name' => EventSourceEnum::ASTROPIXELS->value,
+            'source_url' => 'https://astropixels.test',
+            'status' => 'success',
+            'started_at' => now()->subMinute(),
+            'finished_at' => now(),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $response = $this->postJson('/api/admin/event-sources/purge', [
+            'source_keys' => [EventSourceEnum::ASTROPIXELS->value],
+            'dry_run' => false,
+            'confirm' => 'delete_crawled_events',
+        ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('status', 'ok');
+        $response->assertJsonPath('published_events_mode', 'preserved');
+        $response->assertJsonPath('deleted.events', 0);
+        $response->assertJsonPath('deleted.events_preserved', 1);
+        $response->assertJsonPath('deleted.event_candidates', 1);
+        $response->assertJsonPath('deleted.crawl_runs', 1);
+
+        $this->assertDatabaseHas('events', ['id' => $event->id]);
+        $this->assertDatabaseCount('event_candidates', 0);
+        $this->assertDatabaseCount('crawl_runs', 0);
+    }
+
+    public function test_purge_can_delete_published_events_only_with_hard_confirm_token(): void
+    {
+        EventSource::query()->create([
+            'key' => EventSourceEnum::ASTROPIXELS->value,
+            'name' => EventSourceEnum::ASTROPIXELS->label(),
+            'base_url' => 'https://astropixels.test',
+            'is_enabled' => true,
+        ]);
+
+        $event = Event::query()->create([
+            'title' => 'Hard purge event',
+            'type' => 'meteor_shower',
+            'start_at' => now(),
+            'max_at' => now(),
+            'short' => 'Hard purge',
+            'description' => 'Test event',
+            'source_name' => EventSourceEnum::ASTROPIXELS->value,
+            'source_uid' => 'hard-purge-event-1',
+            'source_hash' => hash('sha256', 'hard-purge-event-1'),
+        ]);
+
+        $this->actingAsAdmin();
+
+        $this->postJson('/api/admin/event-sources/purge', [
+            'source_keys' => [EventSourceEnum::ASTROPIXELS->value],
+            'dry_run' => false,
+            'delete_published_events' => true,
+            'confirm' => 'delete_crawled_events',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('expected_confirm_token', 'delete_crawled_events_and_published');
+
+        $this->assertDatabaseHas('events', ['id' => $event->id]);
+
+        $this->postJson('/api/admin/event-sources/purge', [
+            'source_keys' => [EventSourceEnum::ASTROPIXELS->value],
+            'dry_run' => false,
+            'delete_published_events' => true,
+            'confirm' => 'delete_crawled_events_and_published',
+        ])
+            ->assertOk()
+            ->assertJsonPath('published_events_mode', 'deleted')
+            ->assertJsonPath('deleted.events', 1)
+            ->assertJsonPath('deleted.events_preserved', 0);
+
+        $this->assertDatabaseMissing('events', ['id' => $event->id]);
+    }
 }

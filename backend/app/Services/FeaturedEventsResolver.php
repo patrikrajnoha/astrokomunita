@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 
 class FeaturedEventsResolver
 {
-    public const DEFAULT_FALLBACK_LIMIT = 4;
+    public const DEFAULT_FALLBACK_LIMIT = 6;
     public const FALLBACK_CACHE_TTL_SECONDS = 3600;
 
     public function __construct(

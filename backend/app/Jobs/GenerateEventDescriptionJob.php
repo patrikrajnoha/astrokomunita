@@ -8,6 +8,7 @@ use App\Services\AI\OllamaClientException;
 use App\Services\Admin\AiLastRunStore;
 use App\Services\Events\DescriptionGenerationRunMetricsService;
 use App\Services\Events\EventDescriptionGeneratorService;
+use App\Services\Events\EventDescriptionOriginRecorder;
 use App\Services\Events\EventInsightsCacheService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -47,6 +48,7 @@ class GenerateEventDescriptionJob implements ShouldQueue
         EventDescriptionGeneratorService $generatorService,
         DescriptionGenerationRunMetricsService $metricsService,
         EventInsightsCacheService $insightsCache,
+        EventDescriptionOriginRecorder $originRecorder,
         AiLastRunStore $lastRunStore
     ): void {
         $jobStartedAt = microtime(true);
@@ -157,7 +159,14 @@ class GenerateEventDescriptionJob implements ShouldQueue
                     $this->persistDescription(
                         $event,
                         (string) ($generationResult['description'] ?? ''),
-                        (string) ($generationResult['short'] ?? '')
+                        (string) ($generationResult['short'] ?? ''),
+                        sourceDetail: (string) ($generationResult['provider'] ?? 'generated'),
+                        usedFallbackBase: $switchRemainingToTemplate,
+                        runId: $this->runId,
+                        generationDiagnostics: is_array($generationResult['diagnostics'] ?? null)
+                            ? (array) $generationResult['diagnostics']
+                            : null,
+                        originRecorder: $originRecorder
                     );
                 }
 
@@ -418,7 +427,16 @@ class GenerateEventDescriptionJob implements ShouldQueue
         return array_filter($meta, static fn ($value): bool => $value !== null);
     }
 
-    private function persistDescription(Event $event, string $description, string $short): void
+    private function persistDescription(
+        Event $event,
+        string $description,
+        string $short,
+        string $sourceDetail,
+        bool $usedFallbackBase,
+        int $runId,
+        ?array $generationDiagnostics,
+        EventDescriptionOriginRecorder $originRecorder
+    ): void
     {
         $normalizedDescription = trim($description);
         $normalizedShort = trim($short);
@@ -434,6 +452,29 @@ class GenerateEventDescriptionJob implements ShouldQueue
             'description' => $normalizedDescription,
             'short' => $normalizedShort,
         ]);
+
+        $freshEvent = $event->fresh();
+        if (! $freshEvent instanceof Event) {
+            return;
+        }
+
+        $originMeta = [
+            'requested_mode' => $this->requestedMode,
+            'fallback_mode' => $this->fallbackMode,
+            'dry_run' => $this->dryRun,
+            'used_fallback_base' => $usedFallbackBase,
+        ];
+        if (is_array($generationDiagnostics) && $generationDiagnostics !== []) {
+            $originMeta['generation_diagnostics'] = $generationDiagnostics;
+        }
+
+        $originRecorder->record(
+            event: $freshEvent,
+            source: 'ai_generation',
+            sourceDetail: trim($sourceDetail) !== '' ? trim($sourceDetail) : 'generated',
+            runId: $runId,
+            meta: $originMeta
+        );
     }
 
     /**

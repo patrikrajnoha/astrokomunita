@@ -55,9 +55,9 @@ class EventLiveHighlightsEndpointTest extends TestCase
             ->assertJsonPath('meta.context_source', 'query')
             ->assertJsonPath('data.0.key', 'aurora_watch')
             ->assertJsonPath('data.0.type', 'aurora')
-            ->assertJsonPath('data.0.title', 'Aurora watch')
-            ->assertJsonPath('data.0.badge', 'Zive teraz')
-            ->assertJsonPath('data.0.status_label', 'Vysoka sanca')
+            ->assertJsonPath('data.0.title', 'Polárna žiara')
+            ->assertJsonPath('data.0.badge', 'Živé teraz')
+            ->assertJsonPath('data.0.status_label', 'Vysoká šanca')
             ->assertJsonPath('data.0.status_score', 72)
             ->assertJsonPath('data.0.tone', 'high')
             ->assertJsonPath('data.0.source.label', 'NOAA SWPC OVATION');

@@ -43,7 +43,7 @@ return [
         ],
         'stela' => [
             'username' => env('BOT_IDENTITY_STELA_USERNAME', 'stellarbot'),
-            'display_name' => env('BOT_IDENTITY_STELA_DISPLAY_NAME', 'Stela'),
+            'display_name' => env('BOT_IDENTITY_STELA_DISPLAY_NAME', 'Stella'),
         ],
     ],
     'default_schedules' => [
@@ -143,12 +143,33 @@ return [
         'post_edit' => [
             'enabled' => filter_var(env('BOT_TRANSLATION_POST_EDIT_ENABLED', $translationFastMode ? false : true), FILTER_VALIDATE_BOOL),
             'require_ollama_fallback' => filter_var(env('BOT_TRANSLATION_POST_EDIT_REQUIRE_OLLAMA_FALLBACK', true), FILTER_VALIDATE_BOOL),
+            // smart: run Ollama post-edit only when draft quality flags indicate risk
+            // always: run for every LibreTranslate chunk
+            'mode' => strtolower(trim((string) env('BOT_TRANSLATION_POST_EDIT_MODE', 'smart'))),
+            'trigger_flags' => array_values(array_filter(array_map(
+                static fn (string $flag): string => strtolower(trim($flag)),
+                explode(
+                    ',',
+                    (string) env(
+                        'BOT_TRANSLATION_POST_EDIT_TRIGGER_FLAGS',
+                        'identical,too_short,too_much_en,contains_en_connectors,encoding_artifacts,czech_drift,prompt_leakage'
+                    )
+                )
+            ), static fn (string $flag): bool => $flag !== '')),
         ],
         'quality' => [
             'enabled' => filter_var(env('BOT_TRANSLATION_QUALITY_ENABLED', $translationFastMode ? false : true), FILTER_VALIDATE_BOOL),
             'max_retries' => (int) env('BOT_TRANSLATION_QUALITY_MAX_RETRIES', $translationFastMode ? 0 : 1),
             'min_length_ratio' => (float) env('BOT_TRANSLATION_QUALITY_MIN_LENGTH_RATIO', 0.70),
             'max_english_ratio' => (float) env('BOT_TRANSLATION_QUALITY_MAX_ENGLISH_RATIO', 0.20),
+            'max_length_ratio' => (float) env('BOT_TRANSLATION_QUALITY_MAX_LENGTH_RATIO', 4.0),
+            'hard_fail_flags' => array_values(array_filter(array_map(
+                static fn (string $flag): string => trim($flag),
+                explode(',', (string) env(
+                    'BOT_TRANSLATION_QUALITY_HARD_FAIL_FLAGS',
+                    'empty_result,identical,too_much_en,encoding_artifacts,too_long,prompt_leakage,czech_drift'
+                ))
+            ), static fn (string $flag): bool => $flag !== '')),
         ],
         'protected_terms' => array_values(array_filter(array_map(
             static fn (string $term): string => trim($term),
@@ -158,6 +179,8 @@ return [
             ))
         ))),
         'terminology_map' => [
+            'white papers' => 'White Papers',
+            'white paper' => 'White Paper',
             'nebula' => 'hmlovina',
             'emission nebula' => 'emisná hmlovina',
             'reflection nebula' => 'reflexná hmlovina',
@@ -188,6 +211,11 @@ return [
             'interstellar medium' => 'medzihviezdne prostredie',
             'cosmic microwave background' => 'kozmické mikrovlnné pozadie',
             'gravitational lens' => 'gravitačná šošovka',
+            'featured image shows a' => 'na zobrazenom obrázku je',
+            'featured image shows' => 'na zobrazenom obrázku je',
+            'launch plume' => 'štartový chochol',
+            'plume' => 'chochol',
+            'jellyfish' => 'medúza',
         ],
         'libretranslate' => [
             'url' => env('LIBRETRANSLATE_BASE_URL', env('BOT_TRANSLATION_LIBRETRANSLATE_URL', env('TRANSLATION_BASE_URL', 'http://127.0.0.1:5000'))),
@@ -198,7 +226,13 @@ return [
         ],
         'ollama' => [
             'model' => env('OLLAMA_MODEL', env('BOT_TRANSLATION_OLLAMA_MODEL', env('TRANSLATION_OLLAMA_MODEL', 'mistral'))),
+            'post_edit_model' => env(
+                'BOT_TRANSLATION_OLLAMA_POST_EDIT_MODEL',
+                env('TRANSLATION_OLLAMA_POST_EDIT_MODEL', env('OLLAMA_POST_EDIT_MODEL'))
+            ),
             'timeout_seconds' => (int) env('TRANSLATION_TIMEOUT_SEC', env('BOT_TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('TRANSLATION_OLLAMA_TIMEOUT_SECONDS', env('OLLAMA_TIMEOUT', $translationFastMode ? 8 : 12)))),
+            'post_edit_timeout_seconds' => (int) env('BOT_TRANSLATION_OLLAMA_POST_EDIT_TIMEOUT_SECONDS', 20),
+            'post_edit_retries' => (int) env('BOT_TRANSLATION_OLLAMA_POST_EDIT_RETRIES', 0),
             'temperature' => (float) env('BOT_TRANSLATION_OLLAMA_TEMPERATURE', env('TRANSLATION_OLLAMA_TEMPERATURE', 0.15)),
             'top_p' => (float) env('BOT_TRANSLATION_OLLAMA_TOP_P', 0.4),
             'num_predict' => (int) env('OLLAMA_NUM_PREDICT', env('BOT_TRANSLATION_OLLAMA_NUM_PREDICT', env('TRANSLATION_OLLAMA_NUM_PREDICT', 280))),

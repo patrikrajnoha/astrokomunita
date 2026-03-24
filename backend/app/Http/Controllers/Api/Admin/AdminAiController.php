@@ -7,9 +7,12 @@ use App\Jobs\GenerateEventDescriptionJob;
 use App\Models\DescriptionGenerationRun;
 use App\Models\Event;
 use App\Services\Admin\AiLastRunStore;
+use App\Services\Events\EventAiPolicyService;
 use App\Services\Events\EventDescriptionGeneratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class AdminAiController extends Controller
 {
@@ -18,6 +21,7 @@ class AdminAiController extends Controller
     public function __construct(
         private readonly AiLastRunStore $lastRunStore,
         private readonly EventDescriptionGeneratorService $generatorService,
+        private readonly EventAiPolicyService $eventAiPolicyService,
     ) {
     }
 
@@ -42,6 +46,57 @@ class AdminAiController extends Controller
         ]);
     }
 
+    public function policy(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->eventAiPolicyService->payload(),
+        ]);
+    }
+
+    public function updatePolicy(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'reset' => ['nullable', 'boolean'],
+            'policy' => ['nullable', 'array'],
+
+            'policy.prompts' => ['nullable', 'array'],
+            'policy.prompts.legacy' => ['nullable', 'array'],
+            'policy.prompts.legacy.rules' => ['nullable', 'array'],
+            'policy.prompts.legacy.rules.*' => ['string', 'max:600'],
+            'policy.prompts.humanized' => ['nullable', 'array'],
+            'policy.prompts.humanized.rules' => ['nullable', 'array'],
+            'policy.prompts.humanized.rules.*' => ['string', 'max:600'],
+
+            'policy.safety' => ['nullable', 'array'],
+            'policy.safety.numeric_token_guard_enabled' => ['nullable', 'boolean'],
+            'policy.safety.celestial_term_guard_enabled' => ['nullable', 'boolean'],
+            'policy.safety.artifact_guard_enabled' => ['nullable', 'boolean'],
+            'policy.safety.celestial_terms' => ['nullable', 'array'],
+            'policy.safety.celestial_terms.*' => ['string', 'max:80'],
+            'policy.safety.forbidden_substrings' => ['nullable', 'array'],
+            'policy.safety.forbidden_substrings.*' => ['string', 'max:160'],
+            'policy.safety.forbidden_regex' => ['nullable', 'array'],
+            'policy.safety.forbidden_regex.*' => ['string', 'max:260'],
+        ]);
+
+        $reset = (bool) ($validated['reset'] ?? false);
+        $policyPatch = is_array($validated['policy'] ?? null)
+            ? (array) $validated['policy']
+            : [];
+
+        if (! $reset && $policyPatch === []) {
+            throw ValidationException::withMessages([
+                'policy' => ['Policy patch is required unless reset=true.'],
+            ]);
+        }
+
+        $this->validateRegexPatterns((array) data_get($policyPatch, 'safety.forbidden_regex', []));
+
+        return response()->json([
+            'data' => $this->eventAiPolicyService->update($policyPatch, $reset),
+        ]);
+    }
+
     public function generateEventDescription(Request $request, Event $event): JsonResponse
     {
         $validated = $request->validate([
@@ -49,12 +104,29 @@ class AdminAiController extends Controller
             'mode' => ['nullable', 'string', 'in:ollama,template'],
             'fallback' => ['nullable', 'string', 'in:base,skip'],
             'force' => ['nullable', 'boolean'],
+            'dry_run' => ['nullable', 'boolean'],
         ]);
 
         $sync = (bool) ($validated['sync'] ?? true);
         $requestedMode = strtolower(trim((string) ($validated['mode'] ?? 'ollama')));
         $fallbackMode = strtolower(trim((string) ($validated['fallback'] ?? 'base')));
         $force = (bool) ($validated['force'] ?? true);
+        $dryRun = (bool) ($validated['dry_run'] ?? false);
+
+        if ($dryRun && ! $sync) {
+            throw ValidationException::withMessages([
+                'dry_run' => ['Dry-run is supported only for sync=true.'],
+            ]);
+        }
+
+        if ($sync && $dryRun) {
+            return $this->runSingleEventDryRun(
+                event: $event,
+                requestedMode: $requestedMode,
+                fallbackMode: $fallbackMode
+            );
+        }
+
         $retryAttempts = $this->resolveRetryAttempts();
         $retryBackoffSeconds = $this->resolveRetryBackoffSeconds($retryAttempts);
         $concurrency = $this->resolveConcurrency();
@@ -63,7 +135,8 @@ class AdminAiController extends Controller
             eventId: (int) $event->id,
             requestedMode: $requestedMode,
             fallbackMode: $fallbackMode,
-            force: $force
+            force: $force,
+            dryRun: $dryRun
         );
 
         if ($sync) {
@@ -71,7 +144,7 @@ class AdminAiController extends Controller
                 runId: (int) $run->id,
                 eventId: (int) $event->id,
                 force: $force,
-                dryRun: false,
+                dryRun: $dryRun,
                 requestedMode: $requestedMode,
                 fallbackMode: $fallbackMode,
                 retryAttempts: $retryAttempts,
@@ -112,7 +185,7 @@ class AdminAiController extends Controller
             runId: (int) $run->id,
             eventId: (int) $event->id,
             force: $force,
-            dryRun: false,
+            dryRun: $dryRun,
             requestedMode: $requestedMode,
             fallbackMode: $fallbackMode,
             retryAttempts: $retryAttempts,
@@ -139,7 +212,8 @@ class AdminAiController extends Controller
         int $eventId,
         string $requestedMode,
         string $fallbackMode,
-        bool $force
+        bool $force,
+        bool $dryRun
     ): DescriptionGenerationRun {
         return DescriptionGenerationRun::query()->create([
             'started_at' => now(),
@@ -150,7 +224,7 @@ class AdminAiController extends Controller
             'fallback_mode' => $fallbackMode,
             'resume_enabled' => false,
             'force_enabled' => $force,
-            'dry_run' => false,
+            'dry_run' => $dryRun,
             'from_id' => $eventId,
             'limit' => 1,
             'last_event_id' => 0,
@@ -163,9 +237,62 @@ class AdminAiController extends Controller
                 'queued_total' => 1,
                 'target_processed' => 1,
                 'event_id' => $eventId,
-                'trigger' => 'admin_events_generate_description',
+                'trigger' => $dryRun ? 'admin_events_generate_description_dry_run' : 'admin_events_generate_description',
             ],
             'error_message' => null,
+        ]);
+    }
+
+    private function runSingleEventDryRun(Event $event, string $requestedMode, string $fallbackMode): JsonResponse
+    {
+        $startedAt = microtime(true);
+        $eventId = (int) $event->id;
+
+        try {
+            $preview = $this->generatorService->generateForEvent($event, $requestedMode);
+        } catch (Throwable $exception) {
+            if ($requestedMode === 'ollama' && $fallbackMode === 'base') {
+                $preview = $this->generatorService->generateForEvent($event, 'template');
+            } else {
+                $lastRun = $this->lastRunStore->put(
+                    featureName: 'event_description_generate',
+                    status: 'error',
+                    latencyMs: (int) round((microtime(true) - $startedAt) * 1000),
+                    entityId: $eventId,
+                    retryCount: 0
+                );
+
+                return response()->json([
+                    'message' => 'AI test opisu zlyhal.',
+                    'error_code' => 'AI_DRY_RUN_FAILED',
+                    'last_run' => $lastRun,
+                ], 422);
+            }
+        }
+
+        $provider = strtolower(trim((string) ($preview['provider'] ?? '')));
+        $fallbackUsed = $this->isFallbackProvider($provider);
+        $lastRun = $this->lastRunStore->put(
+            featureName: 'event_description_generate',
+            status: $fallbackUsed ? 'fallback' : 'success',
+            latencyMs: (int) round((microtime(true) - $startedAt) * 1000),
+            entityId: $eventId,
+            retryCount: 0
+        );
+
+        return response()->json([
+            'status' => 'done',
+            'dry_run' => true,
+            'job_id' => null,
+            'data' => [
+                'event_id' => $eventId,
+                'description' => trim((string) ($preview['description'] ?? '')),
+                'short' => trim((string) ($preview['short'] ?? '')),
+                'fallback_used' => $fallbackUsed,
+                'dry_run' => true,
+                'provider' => $provider !== '' ? $provider : null,
+            ],
+            'last_run' => $lastRun,
         ]);
     }
 
@@ -204,6 +331,42 @@ class AdminAiController extends Controller
 
         return $normalized !== ''
             && (str_contains($normalized, 'fallback') || str_starts_with($normalized, 'template'));
+    }
+
+    private function isFallbackProvider(string $provider): bool
+    {
+        $normalized = strtolower(trim($provider));
+
+        return $normalized !== ''
+            && (str_contains($normalized, 'fallback') || str_starts_with($normalized, 'template'));
+    }
+
+    /**
+     * @param array<int,mixed> $patterns
+     */
+    private function validateRegexPatterns(array $patterns): void
+    {
+        $errors = [];
+        foreach ($patterns as $index => $raw) {
+            if (! is_string($raw)) {
+                continue;
+            }
+
+            $pattern = trim($raw);
+            if ($pattern === '') {
+                continue;
+            }
+
+            if (! EventAiPolicyService::isRegexPatternValid($pattern)) {
+                $errors['policy.safety.forbidden_regex.' . $index] = [
+                    'Invalid regex pattern.',
+                ];
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 }
 

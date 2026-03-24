@@ -17,6 +17,7 @@ use App\Services\Translation\EventTranslationBackfillService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Log;
 
 class EventSourceController extends Controller
@@ -225,10 +226,26 @@ class EventSourceController extends Controller
             'source_keys' => ['nullable', 'array'],
             'source_keys.*' => ['string', 'distinct'],
             'dry_run' => ['sometimes', 'boolean'],
-            'confirm' => ['required', 'string', 'in:delete_crawled_events'],
+            'delete_published_events' => ['sometimes', 'boolean'],
+            'confirm' => ['required', 'string', Rule::in([
+                'delete_crawled_events',
+                'delete_crawled_events_and_published',
+            ])],
         ]);
 
         $dryRun = (bool) ($payload['dry_run'] ?? false);
+        $deletePublishedEvents = (bool) ($payload['delete_published_events'] ?? false);
+        $confirm = (string) ($payload['confirm'] ?? '');
+        $expectedConfirmToken = $deletePublishedEvents
+            ? 'delete_crawled_events_and_published'
+            : 'delete_crawled_events';
+        if ($confirm !== $expectedConfirmToken) {
+            return response()->json([
+                'message' => 'Invalid confirm token.',
+                'expected_confirm_token' => $expectedConfirmToken,
+            ], 422);
+        }
+
         $requestedKeys = array_values(array_unique(array_map(
             static fn (mixed $v): string => strtolower(trim((string) $v)),
             (array) ($payload['source_keys'] ?? [])
@@ -270,17 +287,29 @@ class EventSourceController extends Controller
             ->orWhereIn('event_source_id', $sourceIds);
 
         $counts = [
-            'events' => (clone $eventQuery)->count(),
+            'events' => $deletePublishedEvents ? (clone $eventQuery)->count() : 0,
+            'events_preserved' => $deletePublishedEvents ? 0 : (clone $eventQuery)->count(),
             'event_candidates' => (clone $candidateQuery)->count(),
             'crawl_runs' => (clone $crawlRunQuery)->count(),
         ];
 
         if (! $dryRun) {
-            DB::transaction(function () use ($eventQuery, $candidateQuery, $crawlRunQuery): void {
+            $candidateIds = (clone $candidateQuery)->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+            DB::transaction(function () use ($eventQuery, $candidateQuery, $crawlRunQuery, $deletePublishedEvents): void {
                 $crawlRunQuery->delete();
                 $candidateQuery->delete();
-                $eventQuery->delete();
+                if ($deletePublishedEvents) {
+                    $eventQuery->delete();
+                }
             });
+
+            if ($candidateIds !== []) {
+                foreach (array_chunk($candidateIds, 200) as $chunk) {
+                    $pattern = '"candidateId";i:(' . implode('|', $chunk) . ');';
+                    DB::table('jobs')->whereRaw('payload REGEXP ?', [$pattern])->delete();
+                }
+            }
         }
 
         return response()->json([
@@ -288,7 +317,8 @@ class EventSourceController extends Controller
             'dry_run' => $dryRun,
             'source_keys' => $targetKeys,
             'deleted' => $counts,
-            'confirm_token' => 'delete_crawled_events',
+            'published_events_mode' => $deletePublishedEvents ? 'deleted' : 'preserved',
+            'confirm_token' => $expectedConfirmToken,
         ]);
     }
 

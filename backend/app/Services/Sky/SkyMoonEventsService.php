@@ -4,6 +4,7 @@ namespace App\Services\Sky;
 
 use App\Services\Observing\Support\ObservingHttp;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 
 class SkyMoonEventsService
 {
@@ -161,13 +162,8 @@ class SkyMoonEventsService
         $events = [];
 
         foreach ([$year - 1, $year, $year + 1] as $candidateYear) {
-            try {
-                $payload = $this->http->getJson(
-                    'usno_moon_phases',
-                    $this->resolveMoonPhasesYearEndpointUrl(),
-                    ['year' => $candidateYear]
-                );
-            } catch (\Throwable) {
+            $payload = $this->loadMoonPhasesYearPayload($candidateYear);
+            if (!is_array($payload)) {
                 continue;
             }
 
@@ -204,6 +200,36 @@ class SkyMoonEventsService
         usort($events, static fn (array $a, array $b): int => $a['at_local']->getTimestamp() <=> $b['at_local']->getTimestamp());
 
         return array_values($events);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function loadMoonPhasesYearPayload(int $year): ?array
+    {
+        $cacheKey = sprintf('sky_moon_phases_year:v1:%d', $year);
+        $ttlMinutes = max(1, (int) config('observing.sky.moon_phases_year_cache_ttl_minutes', 720));
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        try {
+            $payload = $this->http->getJson(
+                'usno_moon_phases',
+                $this->resolveMoonPhasesYearEndpointUrl(),
+                ['year' => $year]
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (is_array($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+        }
+
+        return is_array($payload) ? $payload : null;
     }
 
     /**
@@ -500,4 +526,3 @@ class SkyMoonEventsService
         return in_array($candidate, timezone_identifiers_list(), true) ? $candidate : $default;
     }
 }
-

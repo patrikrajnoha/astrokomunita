@@ -22,6 +22,7 @@ class BotPostTranslationBackfillService
      * @return array{
      *   source_key:string,
      *   run_id:?int,
+     *   force:bool,
      *   limit:int,
      *   scanned:int,
      *   updated_posts:int,
@@ -30,7 +31,7 @@ class BotPostTranslationBackfillService
      *   failures:array<int,array{post_id:?int,reason:string}>
      * }
      */
-    public function backfill(BotSource $source, int $limit = 10, ?int $runId = null): array
+    public function backfill(BotSource $source, int $limit = 10, ?int $runId = null, bool $force = false): array
     {
         $normalizedLimit = max(1, min(100, $limit));
         $sourceKey = strtolower(trim((string) $source->key));
@@ -89,8 +90,16 @@ class BotPostTranslationBackfillService
             }
 
             try {
-                if ($this->itemNeedsTranslation($item, $post->translation_status)) {
+                $previousTranslationSnapshot = $this->captureTranslationSnapshot($item);
+                $hadPreviousTranslatedPayload = $this->hasTranslatedPayload($item);
+
+                if ($force || $this->itemNeedsTranslation($item, $post->translation_status)) {
                     $this->translateItem($item);
+                    $item = $item->fresh() ?? $item;
+                }
+
+                if ($force && !$this->hasTranslatedPayload($item) && $hadPreviousTranslatedPayload) {
+                    $this->restoreTranslationSnapshot($item, $previousTranslationSnapshot);
                     $item = $item->fresh() ?? $item;
                 }
 
@@ -128,6 +137,7 @@ class BotPostTranslationBackfillService
         return [
             'source_key' => $sourceKey,
             'run_id' => $runId,
+            'force' => $force,
             'limit' => $normalizedLimit,
             'scanned' => $items->count(),
             'updated_posts' => $updatedPosts,
@@ -223,6 +233,64 @@ class BotPostTranslationBackfillService
         $normalized = trim((string) $value);
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    /**
+     * @return array{
+     *   title_translated:?string,
+     *   content_translated:?string,
+     *   translation_status:string,
+     *   translation_error:?string,
+     *   translation_provider:?string,
+     *   translated_at:mixed,
+     *   meta:mixed
+     * }
+     */
+    private function captureTranslationSnapshot(BotItem $item): array
+    {
+        $status = strtolower(trim((string) ($item->translation_status?->value ?? $item->translation_status)));
+        if (!in_array($status, [
+            BotTranslationStatus::DONE->value,
+            BotTranslationStatus::SKIPPED->value,
+            BotTranslationStatus::FAILED->value,
+            BotTranslationStatus::PENDING->value,
+        ], true)) {
+            $status = BotTranslationStatus::PENDING->value;
+        }
+
+        return [
+            'title_translated' => $this->nullableString($item->title_translated),
+            'content_translated' => $this->nullableString($item->content_translated),
+            'translation_status' => $status,
+            'translation_error' => $this->nullableString($item->translation_error),
+            'translation_provider' => $this->nullableString($item->translation_provider),
+            'translated_at' => $item->translated_at,
+            'meta' => is_array($item->meta) ? $item->meta : $item->meta,
+        ];
+    }
+
+    /**
+     * @param array{
+     *   title_translated:?string,
+     *   content_translated:?string,
+     *   translation_status:string,
+     *   translation_error:?string,
+     *   translation_provider:?string,
+     *   translated_at:mixed,
+     *   meta:mixed
+     * } $snapshot
+     */
+    private function restoreTranslationSnapshot(BotItem $item, array $snapshot): void
+    {
+        $item->forceFill([
+            'title_translated' => $snapshot['title_translated'],
+            'content_translated' => $snapshot['content_translated'],
+            'translation_status' => $snapshot['translation_status'],
+            'translation_error' => $snapshot['translation_error'],
+            'translation_provider' => $snapshot['translation_provider'],
+            'translated_at' => $snapshot['translated_at'],
+            'meta' => $snapshot['meta'],
+        ])->save();
     }
 
     private function truncateErrorText(?string $value, int $maxLength = 180): ?string

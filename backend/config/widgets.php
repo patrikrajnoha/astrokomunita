@@ -23,4 +23,8 @@ return [
         'cache_ttl_minutes' => (int) env('UPCOMING_LAUNCHES_WIDGET_CACHE_TTL_MINUTES', 15),
         'last_known_ttl_minutes' => (int) env('UPCOMING_LAUNCHES_LAST_KNOWN_TTL_MINUTES', 360),
     ],
+    'constellations_now' => [
+        'cache_ttl_minutes' => (int) env('CONSTELLATIONS_NOW_WIDGET_CACHE_TTL_MINUTES', 180),
+        'items_limit' => (int) env('CONSTELLATIONS_NOW_WIDGET_ITEMS_LIMIT', 4),
+    ],
 ];

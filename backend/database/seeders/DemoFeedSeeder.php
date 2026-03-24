@@ -55,7 +55,7 @@ class DemoFeedSeeder extends Seeder
             [
                 'uid' => 'demo-astro-stela-1',
                 'username' => 'stellarbot',
-                'content' => 'Stela: Dnes vecer je vhodny cas na Mesiac v prvej stvrti. #mesiac #astrofeed',
+                'content' => 'Stella: Dnes vecer je vhodny cas na Mesiac v prvej stvrti. #mesiac #astrofeed',
                 'feed_key' => PostFeedKey::ASTRO->value,
                 'author_kind' => PostAuthorKind::BOT->value,
                 'bot_identity' => PostBotIdentity::STELA->value,

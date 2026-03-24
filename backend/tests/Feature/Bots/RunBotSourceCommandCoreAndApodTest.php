@@ -261,7 +261,7 @@ class RunBotSourceCommandCoreAndApodTest extends RunBotSourceCommandTestCase
 
         $stelaBot = User::query()->where('is_bot', true)->where('username', 'stellarbot')->first();
         $this->assertNotNull($stelaBot);
-        $this->assertSame('Stela', (string) $stelaBot->name);
+        $this->assertSame('Stella', (string) $stelaBot->name);
 
         $run = BotRun::query()->latest('id')->firstOrFail();
         $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));

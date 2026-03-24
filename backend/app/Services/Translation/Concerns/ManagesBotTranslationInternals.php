@@ -29,8 +29,12 @@ trait ManagesBotTranslationInternals
         $originalLength = max(1, $this->stringLength($original));
         $translatedLength = $this->stringLength($translated);
         $minLengthRatio = max(0.1, (float) config('bots.translation.quality.min_length_ratio', 0.70));
+        $maxLengthRatio = max($minLengthRatio, (float) config('bots.translation.quality.max_length_ratio', 4.0));
         if (($translatedLength / $originalLength) < $minLengthRatio) {
             $flags[] = 'too_short';
+        }
+        if (($translatedLength / $originalLength) > $maxLengthRatio) {
+            $flags[] = 'too_long';
         }
 
         if ($this->normalizedForComparison($translated) === $this->normalizedForComparison($original)) {
@@ -50,8 +54,106 @@ trait ManagesBotTranslationInternals
         if ($targetLanguage === 'sk' && $this->hasEncodingArtifacts($translated)) {
             $flags[] = 'encoding_artifacts';
         }
+        if ($targetLanguage === 'sk' && $this->hasCzechDriftForSlovak($translated)) {
+            $flags[] = 'czech_drift';
+        }
+        if ($this->containsPromptLeakage($translated)) {
+            $flags[] = 'prompt_leakage';
+        }
 
         return array_values(array_unique($flags));
+    }
+
+    /**
+     * Lightweight title screening: bot headlines are short and model noise is common.
+     * For suspicious literal/half-English outputs we prefer keeping original title.
+     *
+     * @return list<string>
+     */
+    private function evaluateTitleQualityFlags(string $sourceTitle, string $translatedTitle, string $targetLang): array
+    {
+        if (strtolower(trim($targetLang)) !== 'sk') {
+            return [];
+        }
+
+        $normalizedSource = trim($sourceTitle);
+        $normalizedTitle = trim($translatedTitle);
+        if ($normalizedSource === '' || $normalizedTitle === '') {
+            return [];
+        }
+
+        $flags = [];
+
+        if ($this->hasSuspiciousSlovakTitleLiteralism($normalizedTitle)) {
+            $flags[] = 'title_literalism';
+        }
+        if ($this->englishTokenRatio($normalizedTitle) > 0.34) {
+            $flags[] = 'title_too_much_en';
+        }
+        if ($this->hasEncodingArtifacts($normalizedTitle)) {
+            $flags[] = 'title_encoding_artifacts';
+        }
+        if ($this->hasCzechDriftForSlovak($normalizedTitle)) {
+            $flags[] = 'title_czech_drift';
+        }
+        if ($this->containsPromptLeakage($normalizedTitle)) {
+            $flags[] = 'title_prompt_leakage';
+        }
+
+        return array_values(array_unique($flags));
+    }
+
+    /**
+     * @param  list<string>  $draftFlags
+     * @param  list<string>  $postEditFlags
+     */
+    private function shouldAcceptPostEditResult(array $draftFlags, array $postEditFlags): bool
+    {
+        if ($postEditFlags === []) {
+            return true;
+        }
+
+        if ($draftFlags === []) {
+            return false;
+        }
+
+        $draftHard = $this->hardQualityFlags($draftFlags);
+        $postHard = $this->hardQualityFlags($postEditFlags);
+
+        if (count($postHard) > count($draftHard)) {
+            return false;
+        }
+
+        if (
+            in_array('too_short', $postEditFlags, true)
+            && ! in_array('too_short', $draftFlags, true)
+            && count($postHard) >= count($draftHard)
+        ) {
+            return false;
+        }
+        if (
+            in_array('too_long', $postEditFlags, true)
+            && ! in_array('too_long', $draftFlags, true)
+            && count($postHard) >= count($draftHard)
+        ) {
+            return false;
+        }
+
+        return count($postEditFlags) <= count($draftFlags);
+    }
+
+    private function hasSuspiciousSlovakTitleLiteralism(string $title): bool
+    {
+        $normalized = strtolower(trim(preg_replace('/\s+/u', ' ', $title) ?? $title));
+        if ($normalized === '') {
+            return false;
+        }
+
+        if (preg_match('/^(spustiť|spustite|launch|launched)\b/iu', $normalized) === 1) {
+            return true;
+        }
+
+        return preg_match('/\b(plume|featured|image shows)\b/iu', $normalized) === 1;
     }
 
     private function hasEnglishFragmentsForSlovak(string $text): bool
@@ -105,6 +207,10 @@ trait ManagesBotTranslationInternals
             'visible',
             'maximum',
             'minimum',
+            'featured',
+            'image',
+            'shows',
+            'plume',
         ];
 
         $count = 0;
@@ -126,6 +232,63 @@ trait ManagesBotTranslationInternals
     {
         return preg_match('/(?:[\x{00C3}\x{00C2}\x{00C4}\x{0139}\x{0102}][^\s]|\x{00E2}[^\s]{1,2}|\x{FFFD})/u', $text) === 1;
     }
+
+    private function hasCzechDriftForSlovak(string $text): bool
+    {
+        if (preg_match('/[ěřů]/iu', $text) === 1) {
+            return true;
+        }
+
+        return preg_match('/\b(svět|vesmírný|měs[ií]c|říj(?:en|na)|kter[ýáé]|během|př(?:i|ed))\b/iu', $text) === 1;
+    }
+
+    private function containsPromptLeakage(string $text): bool
+    {
+        $normalized = strtolower(trim($text));
+        if ($normalized === '') {
+            return false;
+        }
+
+        return str_contains($normalized, '[text]')
+            || str_contains($normalized, 'source_text:')
+            || str_contains($normalized, 'original_text:')
+            || str_contains($normalized, 'draft_translation:')
+            || str_contains($normalized, 'task:');
+    }
+
+    /**
+     * @param  list<string>  $flags
+     * @return list<string>
+     */
+    private function hardQualityFlags(array $flags): array
+    {
+        $configured = config('bots.translation.quality.hard_fail_flags', []);
+        if (! is_array($configured) || $configured === []) {
+            return [];
+        }
+
+        $hardSet = [];
+        foreach ($configured as $flag) {
+            $normalized = strtolower(trim((string) $flag));
+            if ($normalized === '') {
+                continue;
+            }
+
+            $hardSet[$normalized] = true;
+        }
+
+        $result = [];
+        foreach ($flags as $flag) {
+            $normalized = strtolower(trim((string) $flag));
+            if ($normalized === '' || ! isset($hardSet[$normalized])) {
+                continue;
+            }
+
+            $result[] = $normalized;
+        }
+
+        return array_values(array_unique($result));
+    }
     private function normalizedForComparison(string $value): string
     {
         return strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? ''));
@@ -134,26 +297,38 @@ trait ManagesBotTranslationInternals
     private function englishTokenRatio(string $text): float
     {
         $matches = [];
-        preg_match_all('/\b[\pL]{2,}\b/u', $text, $matches);
-        $tokens = $matches[0] ?? [];
+        preg_match_all('/\b[\pL]{2,}\b/u', strtolower($text), $matches);
+        $tokens = array_values(array_filter(array_map(
+            static fn (string $token): string => trim($token),
+            $matches[0] ?? []
+        ), static fn (string $token): bool => $token !== ''));
         $total = count($tokens);
         if ($total === 0) {
             return 0.0;
         }
 
+        $englishDictionary = array_flip([
+            'a', 'an', 'and', 'are', 'as', 'at', 'be', 'been', 'before', 'between', 'by', 'can', 'could',
+            'did', 'do', 'does', 'during', 'for', 'from', 'had', 'has', 'have', 'if', 'in', 'into', 'is',
+            'it', 'its', 'launch', 'launched', 'minutes', 'mission', 'new', 'of', 'on', 'or', 'rocket',
+            'show', 'shows', 'space', 'sun', 'moon', 'the', 'their', 'there', 'these', 'this', 'those',
+            'to', 'was', 'were', 'what', 'when', 'where', 'which', 'while', 'who', 'with', 'would',
+            'visible', 'happened', 'image', 'earth', 'mars', 'jupiter', 'saturn', 'venus', 'mercury',
+            'uranus', 'neptune', 'eclipse', 'meteor', 'shower', 'conjunction', 'telescope', 'satellite',
+            'featured', 'plume',
+        ]);
+
         $englishCount = 0;
         foreach ($tokens as $token) {
-            $tokenText = trim((string) $token);
-            if ($tokenText === '') {
+            if ($token === '') {
                 continue;
             }
-            if (! preg_match('/^[a-z]{3,}$/i', $tokenText)) {
+            if (preg_match('/^[a-z]+$/', $token) !== 1) {
                 continue;
             }
-            if (strtoupper($tokenText) === $tokenText && strlen($tokenText) <= 6) {
-                continue;
+            if (isset($englishDictionary[$token])) {
+                $englishCount++;
             }
-            $englishCount++;
         }
 
         return $englishCount / $total;
@@ -179,7 +354,7 @@ trait ManagesBotTranslationInternals
             return true;
         }
 
-        $configuredFallback = $this->normalizeProviderName((string) config('bots.translation.fallback', 'ollama'));
+        $configuredFallback = $this->normalizeProviderName((string) config('bots.translation.fallback', 'none'));
 
         return $configuredFallback === 'ollama';
     }
@@ -189,9 +364,26 @@ trait ManagesBotTranslationInternals
      */
     private function protectTermsInText(string $text): array
     {
+        $map = [];
+        $counter = 0;
+
+        // Protect entire URLs first — before individual term replacement, which would otherwise
+        // break URLs containing protected terms (e.g. "NASA" inside a Wikipedia URL path).
+        $protectedText = (string) preg_replace_callback(
+            '/https?:\/\/[^\s]+/u',
+            function (array $matches) use (&$map, &$counter): string {
+                $counter++;
+                $placeholder = sprintf('__AKPH_%d__', $counter);
+                $map[$placeholder] = (string) ($matches[0] ?? '');
+
+                return $placeholder;
+            },
+            $text
+        );
+
         $protectedTerms = config('bots.translation.protected_terms', []);
         if (! is_array($protectedTerms) || $protectedTerms === []) {
-            return ['text' => $text, 'map' => []];
+            return ['text' => $protectedText, 'map' => $map];
         }
 
         $terms = array_values(array_filter(array_map(
@@ -199,14 +391,10 @@ trait ManagesBotTranslationInternals
             $protectedTerms
         ), static fn (string $term): bool => $term !== ''));
         if ($terms === []) {
-            return ['text' => $text, 'map' => []];
+            return ['text' => $protectedText, 'map' => $map];
         }
 
         usort($terms, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
-
-        $protectedText = $text;
-        $map = [];
-        $counter = 0;
 
         foreach ($terms as $term) {
             $pattern = '/'.preg_quote($term, '/').'/iu';
@@ -281,40 +469,73 @@ trait ManagesBotTranslationInternals
         return $result;
     }
 
+    private function polishSlovakArtifacts(string $text, string $targetLang): string
+    {
+        if (strtolower(trim($targetLang)) !== 'sk') {
+            return $text;
+        }
+
+        $value = trim($text);
+        if ($value === '') {
+            return $text;
+        }
+
+        $replacements = [
+            '/\bbyste\b/iu' => 'by ste',
+            '/\btakov[ýy]\b/iu' => 'taký',
+            '/\btakov[áa]\b/iu' => 'taká',
+            '/\bodehr[áa]l\b/iu' => 'odohral',
+            '/\bodehr[áa]la\b/iu' => 'odohrala',
+            '/\bplinov/iu' => 'plynov',
+            '/\bv[ýy]dech\b/iu' => 'výfuk',
+            '/\bstart\b/iu' => 'štart',
+            '/\bMarch\b/u' => 'marca',
+            '/\bAko\s+by\s+ste\b/iu' => 'Ak by ste',
+            '/\bFeatured image(?:\s+shows)?\b/iu' => 'Na obrazku',
+            '/\bFeatured image(?:\s+ukazuje)?\b/iu' => 'Na obrazku',
+            '/\bEarth planning date\b/iu' => 'Datum planovania na Zemi',
+            '/0;(?=[\pL\pN])/u' => '',
+            '/(?<=[\pL\pN])0;/u' => '',
+            // Czech drift: "studium" → correct Slovak "štúdium"
+            '/\bstudium\b/u' => 'štúdium',
+            '/\bStudium\b/u' => 'Štúdium',
+            // Preserve "White Paper" terminology (often mistranslated as "Bledné práce")
+            '/\bwhite\s+papers?\b/iu' => 'White Paper',
+            // Word-split artifact from LibreTranslate tokenization ("m iss ion" → "misia")
+            '/\bm\s+iss\s+ion\b/iu' => 'misia',
+        ];
+
+        $normalized = $value;
+        foreach ($replacements as $pattern => $replacement) {
+            $normalized = (string) preg_replace($pattern, $replacement, $normalized);
+        }
+
+        $normalized = preg_replace('/[ \t]{2,}/u', ' ', $normalized) ?? $normalized;
+
+        return trim($normalized);
+    }
+
     /**
      * @return list<string>
      */
     private function resolveProviderOrder(): array
     {
-        $configuredPrimary = $this->normalizeProviderName((string) config('bots.translation.primary', config('bots.translation_provider', 'libretranslate')));
-        $legacyProvider = $this->normalizeProviderName((string) config('bots.translation_provider', ''));
-        $usingLegacyPrimaryOverride = false;
-        $primary = $configuredPrimary;
-        if ($configuredPrimary === 'dummy' && $legacyProvider !== '' && $legacyProvider !== 'dummy') {
-            $primary = $legacyProvider;
-            $usingLegacyPrimaryOverride = true;
-        }
-        $fallbackSource = $usingLegacyPrimaryOverride
-            ? (string) config('bots.translation_fallback_provider', '')
-            : (string) config('bots.translation.fallback', 'ollama');
-        $fallback = $this->normalizeProviderName($fallbackSource);
+        $primary = $this->normalizeProviderName((string) config('bots.translation.primary', 'libretranslate'));
+        $fallback = $this->normalizeProviderName((string) config('bots.translation.fallback', 'none'));
 
         if ($primary === 'dummy') {
             return [];
         }
 
         $providers = [];
-        if ($primary !== '') {
+        if ($primary !== '' && $primary !== 'dummy') {
             $providers[] = $primary;
         }
-        if ($fallback !== '' && $fallback !== $primary) {
+        if ($fallback !== '' && $fallback !== 'dummy' && $fallback !== $primary) {
             $providers[] = $fallback;
         }
 
-        $providers = array_values(array_unique($providers));
-        $providers = array_values(array_filter($providers, static fn (string $provider): bool => $provider !== 'dummy'));
-
-        return $providers;
+        return array_values(array_unique($providers));
     }
 
     private function normalizeProviderName(string $value): string

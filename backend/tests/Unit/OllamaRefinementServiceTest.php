@@ -120,4 +120,33 @@ class OllamaRefinementServiceTest extends TestCase
         $this->assertSame('Maximalny meteoricky roj', $result['refined_title']);
         $this->assertSame('Rocny meteoricky roj viditelny na tmavej oblohe.', $result['refined_description']);
     }
+
+    public function test_obvious_anglicism_in_refined_description_falls_back_to_base_translation(): void
+    {
+        $client = $this->createMock(OllamaClient::class);
+        $client->expects($this->once())
+            ->method('generate')
+            ->willReturn([
+                'text' => json_encode([
+                    'refined_title' => 'Maximum meteorickeho roja Perzeidy',
+                    'refined_description' => 'Pozorovanie sa da conductovat aj volnym okom.',
+                ], JSON_UNESCAPED_UNICODE),
+                'model' => 'mistral',
+                'duration_ms' => 10,
+                'raw' => [],
+            ]);
+
+        $service = new OllamaRefinementService($client);
+
+        $result = $service->refine(
+            originalEnglishTitle: 'Peak of the Perseids meteor shower',
+            originalEnglishDescription: 'Annual shower visible in dark skies.',
+            translatedTitle: 'Maximum meteorickeho roja Perzeidy',
+            translatedDescription: 'Rocny meteoricky roj pozorovatelny na tmavej oblohe.'
+        );
+
+        $this->assertTrue($result['used_fallback']);
+        $this->assertSame('Maximum meteorickeho roja Perzeidy', $result['refined_title']);
+        $this->assertSame('Rocny meteoricky roj pozorovatelny na tmavej oblohe.', $result['refined_description']);
+    }
 }

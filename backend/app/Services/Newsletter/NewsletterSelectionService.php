@@ -181,10 +181,13 @@ class NewsletterSelectionService
     public function buildNewsletterPayload(bool $adminPreview = false): array
     {
         $range = $this->getNextWeekRange();
-        $events = $this->getAdminSelectedEvents();
+        $adminSelectedEvents = $this->getAdminSelectedEvents();
+        $events = $adminSelectedEvents;
+        $selectionMode = 'manual';
 
         if ($events === []) {
             $events = $this->fallbackUpcomingEvents(3);
+            $selectionMode = 'automatic_fallback';
         }
 
         $topArticlesLimit = max(1, (int) config('newsletter.top_articles_limit', 4));
@@ -204,6 +207,13 @@ class NewsletterSelectionService
                 'end_iso' => $range['end']->toIso8601String(),
             ],
             'top_events' => $events,
+            'selection' => [
+                'mode' => $selectionMode,
+                'admin_selected_event_ids' => array_values(array_map(
+                    static fn (array $event): int => (int) ($event['id'] ?? 0),
+                    $adminSelectedEvents
+                )),
+            ],
             'top_articles' => $articles,
             'astronomical_tip' => $tip,
             'cta' => [

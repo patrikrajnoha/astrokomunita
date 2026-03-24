@@ -20,6 +20,7 @@ class BlogPost extends Model
         'slug',
         'content',
         'published_at',
+        'is_hidden',
         'cover_image_path',
         'cover_image_mime',
         'cover_image_original_name',
@@ -33,6 +34,7 @@ class BlogPost extends Model
     protected $casts = [
         'user_id' => 'integer',
         'published_at' => 'datetime',
+        'is_hidden' => 'boolean',
         'cover_image_size' => 'integer',
         'views' => 'integer',
     ];
@@ -56,7 +58,8 @@ class BlogPost extends Model
     {
         return $query
             ->whereNotNull('published_at')
-            ->where('published_at', '<=', now());
+            ->where('published_at', '<=', now())
+            ->where('is_hidden', false);
     }
 
     public function getCoverImageUrlAttribute(): ?string

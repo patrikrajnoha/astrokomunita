@@ -159,12 +159,15 @@ class AdminBotControllerTranslationAndPublishingTest extends AdminBotControllerT
             ->assertJsonPath('simulate_outage_provider', 'none')
             ->assertJsonPath('degraded', false)
             ->assertJsonPath('result.ok', true)
+            ->assertJsonPath('provider_probes.libretranslate.ok', true)
             ->assertJsonMissingPath('api_key');
     }
 
     public function test_admin_translation_health_endpoint_reports_provider_unavailable_error_type(): void
     {
         $this->actingAsAdmin();
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'none');
 
         $this->app->bind(BotTranslationServiceInterface::class, function () {
             return new class implements BotTranslationServiceInterface {
@@ -180,7 +183,9 @@ class AdminBotControllerTranslationAndPublishingTest extends AdminBotControllerT
             ->assertOk()
             ->assertJsonPath('degraded', false)
             ->assertJsonPath('result.ok', false)
-            ->assertJsonPath('result.error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
+            ->assertJsonPath('result.error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value)
+            ->assertJsonPath('provider_probes.libretranslate.ok', false)
+            ->assertJsonPath('provider_probes.libretranslate.error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
     }
 
     public function test_admin_translation_health_endpoint_reports_degraded_when_primary_fails_but_fallback_succeeds(): void
@@ -220,7 +225,10 @@ class AdminBotControllerTranslationAndPublishingTest extends AdminBotControllerT
             ->assertJsonPath('degraded', true)
             ->assertJsonPath('result.ok', true)
             ->assertJsonPath('result.error_type', null)
-            ->assertJsonPath('result.primary_error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value);
+            ->assertJsonPath('result.primary_error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value)
+            ->assertJsonPath('provider_probes.ollama.ok', false)
+            ->assertJsonPath('provider_probes.ollama.error_type', BotRunFailureReason::PROVIDER_UNAVAILABLE->value)
+            ->assertJsonPath('provider_probes.libretranslate.ok', true);
     }
 
     public function test_admin_can_update_translation_simulate_outage_setting(): void

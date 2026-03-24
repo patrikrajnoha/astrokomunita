@@ -166,10 +166,10 @@ class BotTranslationServiceTest extends TestCase
             ]);
 
         $service = $this->makeService($libre, $ollama);
-        $result = $service->translate($source, null, 'sk');
+        $result = $service->translate(null, $source, 'sk');
 
         $this->assertSame('done', $result['status']);
-        $this->assertSame('Tato veta je po slovensky a nie je identicka s originalom.', $result['translated_title']);
+        $this->assertSame('Tato veta je po slovensky a nie je identicka s originalom.', $result['translated_content']);
         $this->assertSame(1, (int) $result['meta']['quality_retry_count']);
     }
 
@@ -206,10 +206,10 @@ class BotTranslationServiceTest extends TestCase
             ]);
 
         $service = $this->makeService($libre, $ollama);
-        $result = $service->translate('Saturn in Conjunction with Sun', null, 'sk');
+        $result = $service->translate(null, 'Saturn in Conjunction with Sun', 'sk');
 
         $this->assertSame('done', $result['status']);
-        $this->assertSame('Saturn v konjunkcii so Slnkom', $result['translated_title']);
+        $this->assertSame('Saturn v konjunkcii so Slnkom', $result['translated_content']);
         $this->assertSame('ollama', $result['meta']['provider']);
         $this->assertSame(1, (int) $result['meta']['quality_retry_count']);
     }
@@ -247,18 +247,125 @@ class BotTranslationServiceTest extends TestCase
             ]);
 
         $service = $this->makeService($libre, $ollama);
-        $result = $service->translate('Venus at Inferior Conjunction', null, 'sk');
+        $result = $service->translate(null, 'Venus at Inferior Conjunction', 'sk');
 
         $this->assertSame('done', $result['status']);
-        $this->assertSame("Venu\u{0161}a v dolnej konjunkcii", $result['translated_title']);
+        $this->assertSame("Venu\u{0161}a v dolnej konjunkcii", $result['translated_content']);
         $this->assertSame('ollama', $result['meta']['provider']);
         $this->assertSame(1, (int) $result['meta']['quality_retry_count']);
     }
-    public function test_uses_ollama_post_edit_after_libretranslate_when_enabled(): void
+
+    public function test_hard_quality_flags_mark_translation_as_failed_when_retry_cannot_fix_output(): void
+    {
+        config()->set('bots.translation.primary', 'ollama');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', true);
+        config()->set('bots.translation.quality.max_retries', 1);
+        config()->set('bots.translation.quality.min_length_ratio', 0.1);
+        config()->set('bots.translation.quality.max_english_ratio', 0.2);
+        config()->set('bots.translation.quality.max_length_ratio', 4.0);
+        config()->set('bots.translation.quality.hard_fail_flags', [
+            'identical',
+            'too_much_en',
+            'contains_en_connectors',
+            'too_long',
+            'prompt_leakage',
+            'czech_drift',
+        ]);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->never())->method('translate');
+
+        $source = 'This text remains untranslated and should be rejected.';
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->exactly(2))
+            ->method('translateDirect')
+            ->willReturn([
+                'text' => $source,
+                'provider' => 'ollama',
+                'model' => 'mistral',
+                'duration_ms' => 20,
+                'chars' => 60,
+            ]);
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate(null, $source, 'sk');
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertNull($result['translated_content']);
+        $this->assertContains('identical', $result['meta']['quality_hard_fail_flags_content']);
+        $this->assertStringContainsString('quality_guard_failed', (string) $result['meta']['error']);
+    }
+
+    public function test_hard_quality_flags_can_reject_only_title_while_preserving_good_content_translation(): void
+    {
+        config()->set('bots.translation.primary', 'ollama');
+        config()->set('bots.translation.fallback', 'none');
+        config()->set('bots.translation.post_edit.enabled', false);
+        config()->set('bots.translation.quality.enabled', true);
+        config()->set('bots.translation.quality.max_retries', 1);
+        config()->set('bots.translation.quality.min_length_ratio', 0.1);
+        config()->set('bots.translation.quality.max_english_ratio', 0.2);
+        config()->set('bots.translation.quality.max_length_ratio', 4.0);
+        config()->set('bots.translation.quality.hard_fail_flags', [
+            'identical',
+            'too_much_en',
+            'contains_en_connectors',
+            'too_long',
+            'prompt_leakage',
+            'czech_drift',
+        ]);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->never())->method('translate');
+
+        $title = 'Launch Plume';
+        $content = 'The launch happened 52 minutes before sunrise.';
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->exactly(3))
+            ->method('translateDirect')
+            ->willReturnOnConsecutiveCalls(
+                [
+                    'text' => $title,
+                    'provider' => 'ollama',
+                    'model' => 'mistral',
+                    'duration_ms' => 20,
+                    'chars' => 20,
+                ],
+                [
+                    'text' => $title,
+                    'provider' => 'ollama',
+                    'model' => 'mistral',
+                    'duration_ms' => 20,
+                    'chars' => 20,
+                ],
+                [
+                    'text' => 'Štart sa uskutočnil 52 minút pred východom slnka.',
+                    'provider' => 'ollama',
+                    'model' => 'mistral',
+                    'duration_ms' => 35,
+                    'chars' => 80,
+                ]
+            );
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate($title, $content, 'sk');
+
+        $this->assertSame('done', $result['status']);
+        $this->assertNull($result['translated_title']);
+        $this->assertSame('Štart sa uskutočnil 52 minút pred východom slnka.', $result['translated_content']);
+        $this->assertContains('identical', $result['meta']['quality_hard_fail_flags_title']);
+        $this->assertSame([], $result['meta']['quality_hard_fail_flags_content']);
+    }
+
+    public function test_uses_ollama_post_edit_for_content_when_mode_is_always(): void
     {
         config()->set('bots.translation.primary', 'libretranslate');
         config()->set('bots.translation.fallback', 'ollama');
         config()->set('bots.translation.post_edit.enabled', true);
+        config()->set('bots.translation.post_edit.mode', 'always');
         config()->set('bots.translation.quality.enabled', false);
 
         $libre = $this->createMock(LibreTranslateClient::class);
@@ -285,12 +392,73 @@ class BotTranslationServiceTest extends TestCase
         $ollama->expects($this->never())->method('translateDirect');
 
         $service = $this->makeService($libre, $ollama);
-        $result = $service->translate('Raw title', null, 'sk');
+        $result = $service->translate(null, 'Raw content', 'sk');
 
-        $this->assertSame('Prirodzeny a spisovny preklad.', $result['translated_title']);
+        $this->assertSame('Prirodzeny a spisovny preklad.', $result['translated_content']);
         $this->assertSame('ollama_postedit', $result['meta']['provider']);
         $this->assertContains('ollama_postedit', $result['meta']['provider_chain']);
         $this->assertSame('lt_ollama_postedit', $result['meta']['mode']);
+    }
+
+    public function test_skips_ollama_post_edit_in_smart_mode_when_draft_is_clean(): void
+    {
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', true);
+        config()->set('bots.translation.post_edit.mode', 'smart');
+        config()->set('bots.translation.quality.enabled', false);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->once())
+            ->method('translate')
+            ->willReturn([
+                'text' => 'Prirodzeny slovensky text bez anglicizmov a bez artefaktov.',
+                'provider' => 'libretranslate',
+                'model' => null,
+                'duration_ms' => 10,
+                'chars' => 60,
+            ]);
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->never())->method('postEdit');
+        $ollama->expects($this->never())->method('translateDirect');
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate(null, 'This is a clean source sentence for translation.', 'sk');
+
+        $this->assertSame('done', $result['status']);
+        $this->assertSame('Prirodzeny slovensky text bez anglicizmov a bez artefaktov.', $result['translated_content']);
+        $this->assertSame('libretranslate', $result['meta']['provider']);
+    }
+
+    public function test_rejects_literal_title_translation_and_returns_null_translated_title(): void
+    {
+        config()->set('bots.translation.primary', 'libretranslate');
+        config()->set('bots.translation.fallback', 'ollama');
+        config()->set('bots.translation.post_edit.enabled', true);
+        config()->set('bots.translation.quality.enabled', false);
+
+        $libre = $this->createMock(LibreTranslateClient::class);
+        $libre->expects($this->once())
+            ->method('translate')
+            ->willReturn([
+                'text' => 'Spustiť Plume: SpaceX Medúza',
+                'provider' => 'libretranslate',
+                'model' => null,
+                'duration_ms' => 10,
+                'chars' => 30,
+            ]);
+
+        $ollama = $this->createMock(OllamaTranslateClient::class);
+        $ollama->expects($this->never())->method('postEdit');
+        $ollama->expects($this->never())->method('translateDirect');
+
+        $service = $this->makeService($libre, $ollama);
+        $result = $service->translate('Launch Plume: SpaceX Jellyfish', null, 'sk');
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertNull($result['translated_title']);
+        $this->assertContains('title_literalism', $result['meta']['title_rejected_flags']);
     }
 
     public function test_protected_terms_are_restored_after_translation(): void
@@ -305,8 +473,10 @@ class BotTranslationServiceTest extends TestCase
         $libre->expects($this->once())
             ->method('translate')
             ->willReturnCallback(function (string $text): array {
+                // BotTranslationService protects known terms with placeholders.
+                // Simulate provider returning a Slovak sentence with preserved placeholder.
                 return [
-                    'text' => str_replace('James Webb Space Telescope', 'Vesmirny teleskop Jamesa Webba', $text),
+                    'text' => 'NASA pozoruje pomocou __AKPH_1__.',
                     'provider' => 'libretranslate',
                     'model' => null,
                     'duration_ms' => 12,

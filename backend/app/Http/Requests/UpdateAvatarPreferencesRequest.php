@@ -22,6 +22,7 @@ class UpdateAvatarPreferencesRequest extends FormRequest
             'avatar_color' => ['nullable', $this->avatarAllowlistRule($colors, 'color')],
             'avatar_icon' => ['nullable', $this->avatarAllowlistRule($icons, 'icon')],
             'avatar_seed' => ['nullable', 'string', 'max:80'],
+            'avatar_path' => ['nullable', 'string', 'max:255'],
         ];
     }
 

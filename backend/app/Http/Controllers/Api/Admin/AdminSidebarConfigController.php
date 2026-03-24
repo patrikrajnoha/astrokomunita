@@ -7,10 +7,12 @@ use App\Models\SidebarSectionConfig;
 use App\Support\SidebarSectionRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AdminSidebarConfigController extends Controller
 {
     private const SCOPE = SidebarSectionRegistry::SCOPE_HOME;
+    private const MAX_ENABLED_WIDGETS = 3;
 
     public function index(): JsonResponse
     {
@@ -27,6 +29,16 @@ class AdminSidebarConfigController extends Controller
             'sections.*.is_enabled' => ['required', 'boolean'],
             'sections.*.order' => ['required', 'integer', 'min:0'],
         ]);
+
+        $enabledCount = collect($validated['sections'])
+            ->filter(static fn (array $section): bool => (bool) ($section['is_enabled'] ?? false))
+            ->count();
+
+        if ($enabledCount > self::MAX_ENABLED_WIDGETS) {
+            throw ValidationException::withMessages([
+                'sections' => sprintf('Mozu byt aktivne najviac %d widgety.', self::MAX_ENABLED_WIDGETS),
+            ]);
+        }
 
         $validSectionKeys = collect(SidebarSectionRegistry::sections())
             ->pluck('section_key')
@@ -78,7 +90,7 @@ class AdminSidebarConfigController extends Controller
                 'section_key' => $section['section_key'],
                 'title' => $section['title'],
                 'order' => $dbRow ? (int) $dbRow->order : (int) $section['default_order'],
-                'is_enabled' => $dbRow ? (bool) $dbRow->is_enabled : (bool) $section['default_enabled'],
+                'is_enabled' => $dbRow ? (bool) $dbRow->is_enabled : false,
             ];
         }
 

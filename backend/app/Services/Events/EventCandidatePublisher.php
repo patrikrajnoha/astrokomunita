@@ -13,6 +13,7 @@ class EventCandidatePublisher
 {
     public function __construct(
         private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
+        private readonly EventDescriptionOriginRecorder $originRecorder,
     ) {}
 
     public function approve(EventCandidate $candidate, int $reviewerUserId): Event
@@ -92,6 +93,21 @@ class EventCandidatePublisher
             }
 
             $this->updateCandidateAsApproved($candidate, $event->id, $reviewerUserId);
+            $this->originRecorder->record(
+                event: $event,
+                source: filled($candidate->translated_description)
+                    ? 'candidate_publish_translation'
+                    : 'candidate_publish_import',
+                sourceDetail: filled($candidate->translated_description)
+                    ? 'translated_description'
+                    : 'original_description',
+                candidateId: (int) $candidate->id,
+                meta: [
+                    'candidate_status' => (string) ($candidate->status ?? ''),
+                    'translation_status' => (string) ($candidate->translation_status ?? ''),
+                    'translation_error' => $candidate->translation_error,
+                ]
+            );
             $this->eventFeedRealtimePublisher->publish($event);
 
             return $event;

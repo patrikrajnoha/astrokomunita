@@ -5,6 +5,7 @@ namespace App\Services\Sky;
 use App\Services\Observing\Contracts\SunMoonProvider;
 use App\Services\Observing\Support\ObservingHttp;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 
 class SkyMoonPhasesService
 {
@@ -117,13 +118,8 @@ class SkyMoonPhasesService
         $years = [$referenceYear - 1, $referenceYear, $referenceYear + 1];
 
         foreach ($years as $year) {
-            try {
-                $payload = $this->http->getJson(
-                    'usno_moon_phases',
-                    $this->resolveYearEndpointUrl(),
-                    ['year' => $year]
-                );
-            } catch (\Throwable) {
+            $payload = $this->loadMoonPhasesYearPayload($year);
+            if (!is_array($payload)) {
                 continue;
             }
 
@@ -147,6 +143,36 @@ class SkyMoonPhasesService
         usort($events, static fn (array $a, array $b): int => $a['at_utc']->getTimestamp() <=> $b['at_utc']->getTimestamp());
 
         return $events;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function loadMoonPhasesYearPayload(int $year): ?array
+    {
+        $cacheKey = sprintf('sky_moon_phases_year:v1:%d', $year);
+        $ttlMinutes = max(1, (int) config('observing.sky.moon_phases_year_cache_ttl_minutes', 720));
+        $cached = Cache::get($cacheKey);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        try {
+            $payload = $this->http->getJson(
+                'usno_moon_phases',
+                $this->resolveYearEndpointUrl(),
+                ['year' => $year]
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (is_array($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+        }
+
+        return is_array($payload) ? $payload : null;
     }
 
     /**

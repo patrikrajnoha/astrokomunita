@@ -21,7 +21,7 @@ class AdminBlogPostController extends Controller
     public function index(Request $request)
     {
         $validated = $request->validate([
-            'status' => ['nullable', 'string', Rule::in(['published', 'draft', 'scheduled'])],
+            'status' => ['nullable', 'string', Rule::in(['published', 'draft', 'scheduled', 'hidden'])],
             'q' => ['nullable', 'string', 'max:255'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:50'],
         ]);
@@ -46,6 +46,7 @@ class AdminBlogPostController extends Controller
             'title' => ['required', 'string', 'min:3', 'max:180'],
             'content' => ['required', 'string', 'min:10'],
             'published_at' => ['nullable', 'date'],
+            'is_hidden' => ['nullable', 'boolean'],
             'cover_image' => ['nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp'],
             'tags' => ['nullable', 'array', 'max:15'],
             'tags.*' => ['string', 'min:2', 'max:40'],
@@ -75,6 +76,7 @@ class AdminBlogPostController extends Controller
             'title' => ['sometimes', 'required', 'string', 'min:3', 'max:180'],
             'content' => ['sometimes', 'required', 'string', 'min:10'],
             'published_at' => ['sometimes', 'nullable', 'date'],
+            'is_hidden' => ['sometimes', 'boolean'],
             'cover_image' => ['sometimes', 'nullable', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp'],
             'tags' => ['sometimes', 'nullable', 'array', 'max:15'],
             'tags.*' => ['string', 'min:2', 'max:40'],
@@ -96,6 +98,26 @@ class AdminBlogPostController extends Controller
         }
 
         return response()->json($payload);
+    }
+
+    public function uploadInlineImage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'file', 'max:5120', 'mimes:jpg,jpeg,png,webp,gif'],
+        ]);
+
+        $path = $this->blogPosts->storeInlineImage(
+            $request->file('image'),
+            (int) $request->user()->id
+        );
+
+        return response()->json([
+            'path' => $path,
+            'url' => $this->blogPosts->publicMediaUrl($path),
+            'mime' => $validated['image']->getClientMimeType(),
+            'name' => $validated['image']->getClientOriginalName(),
+            'size' => $validated['image']->getSize(),
+        ], 201);
     }
 
     public function destroy(BlogPost $blogPost)

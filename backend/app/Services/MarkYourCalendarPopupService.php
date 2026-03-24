@@ -19,9 +19,9 @@ class MarkYourCalendarPopupService
     public const SETTINGS_ENABLED_KEY = 'calendar_popup_enabled';
     public const SETTINGS_FORCE_VERSION_KEY = 'calendar_popup_force_version';
     public const SETTINGS_FORCE_AT_KEY = 'calendar_popup_force_at';
-    public const MAX_ACTIVE_ITEMS = 10;
+    public const MAX_ACTIVE_ITEMS = 6;
     public const MAX_ROWS = 2;
-    public const FALLBACK_ITEMS = 3;
+    public const FALLBACK_ITEMS = 6;
 
     public function __construct(
         private readonly FeaturedEventsResolver $featuredResolver,
@@ -36,16 +36,19 @@ class MarkYourCalendarPopupService
     public function payloadForUser(User $user): array
     {
         $now = now();
+        $nowLocal = $now->copy()->setTimezone($this->timezone());
         $enabled = $this->isEnabled();
-        $monthKey = $this->monthKey($now);
+        $currentMonthKey = $this->monthKey($now);
+        $targetMonthKey = $this->monthKey($now->copy()->addMonth());
         $forceVersion = $this->forceVersion();
+        $isLastDayOfMonth = $nowLocal->isLastOfMonth();
 
         try {
-            $resolved = $this->resolvePopupEvents($monthKey, $now);
+            $resolved = $this->resolvePopupEvents($targetMonthKey, $now->copy()->addMonth());
         } catch (\Throwable $exception) {
             Log::error('Failed to resolve mark-your-calendar popup payload.', [
                 'user_id' => $user->id,
-                'month_key' => $monthKey,
+                'month_key' => $targetMonthKey,
                 'message' => $exception->getMessage(),
             ]);
 
@@ -68,12 +71,16 @@ class MarkYourCalendarPopupService
             $shouldShow = true;
             $reason = 'forced';
         } else {
-            $lastSeen = $user->last_calendar_popup_at;
-            $lastSeenMonthKey = $lastSeen ? $this->monthKey($lastSeen) : null;
+            if (! $isLastDayOfMonth) {
+                $reason = 'not_last_day';
+            } else {
+                $lastSeen = $user->last_calendar_popup_at;
+                $lastSeenMonthKey = $lastSeen ? $this->monthKey($lastSeen) : null;
 
-            if ($lastSeenMonthKey !== $monthKey) {
-                $shouldShow = true;
-                $reason = 'monthly';
+                if ($lastSeenMonthKey !== $currentMonthKey) {
+                    $shouldShow = true;
+                    $reason = 'monthly';
+                }
             }
         }
 
@@ -83,12 +90,12 @@ class MarkYourCalendarPopupService
             'should_show' => $shouldShow,
             'reason' => $reason,
             'force_version' => $forceVersion,
-            'month_key' => $monthKey,
+            'month_key' => $currentMonthKey,
             'selection_mode' => $resolved['mode'],
             'fallback_reason' => $resolved['fallback_reason'],
             'items' => $items,
             'calendar' => [
-                'bundle_ics_url' => $this->calendarLinks->featuredBundleIcsUrl($monthKey),
+                'bundle_ics_url' => $this->calendarLinks->featuredBundleIcsUrl($targetMonthKey),
             ],
             'meta' => [
                 'max_items' => self::MAX_ACTIVE_ITEMS,
@@ -186,7 +193,7 @@ class MarkYourCalendarPopupService
 
         if ($this->activeCount($resolvedMonth) >= self::MAX_ACTIVE_ITEMS) {
             throw ValidationException::withMessages([
-                'event_id' => ['Maximum 10 active featured events are allowed.'],
+                'event_id' => ['Maximum 6 active featured events are allowed.'],
             ]);
         }
 
@@ -233,7 +240,7 @@ class MarkYourCalendarPopupService
 
         if ($targetIsActive && ! $item->is_active && $this->activeCount($resolvedMonth) >= self::MAX_ACTIVE_ITEMS) {
             throw ValidationException::withMessages([
-                'is_active' => ['Maximum 10 active featured events are allowed.'],
+                'is_active' => ['Maximum 6 active featured events are allowed.'],
             ]);
         }
 
