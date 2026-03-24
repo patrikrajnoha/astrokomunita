@@ -13,7 +13,7 @@ frontend zobrazuje feed, eventy, profil a ďalšie časti aplikácie. backend po
 3. volitelne: ak chces pouzivat ai funkcie cez ollama, po prvom starte stiahni model prikazom `docker compose exec ollama ollama pull mistral:latest`.
 4. otvor aplikáciu na `http://127.0.0.1:5174` a api na `http://127.0.0.1:8001`.
 5. testovacie emaily nájdeš v mailpit ui na `http://127.0.0.1:8025` (smtp `mailpit:1025` v docker sieti).
-6. databázu si môžeš pozrieť cez adminer na `http://127.0.0.1:8086` (server `your_db_host`, user `your_db_user`, heslo `your_db_password`, databáza `your_db_name`).
+6. databázu si môžeš pozrieť cez adminer na `http://127.0.0.1:8086` (prihlasovacie údaje sú v lokálnom `.env` / `backend/.env`).
 7. zastavenie prostredia: `docker compose down`.
 
 poznámka k bezpečnosti:
