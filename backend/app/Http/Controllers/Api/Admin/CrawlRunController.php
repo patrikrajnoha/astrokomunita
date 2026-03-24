@@ -81,19 +81,90 @@ class CrawlRunController extends Controller
             ->selectRaw("SUM(CASE WHEN translation_status = 'done' AND TRIM(COALESCE(translated_title, '')) <> '' AND TRIM(COALESCE(translated_description, '')) = '' THEN 1 ELSE 0 END) as done_title_only")
             ->selectRaw("SUM(CASE WHEN translation_status = 'done' AND TRIM(COALESCE(translated_title, '')) = '' AND TRIM(COALESCE(translated_description, '')) <> '' THEN 1 ELSE 0 END) as done_description_only")
             ->selectRaw("SUM(CASE WHEN translation_status = 'done' AND TRIM(COALESCE(translated_title, '')) = '' AND TRIM(COALESCE(translated_description, '')) = '' THEN 1 ELSE 0 END) as done_without_text")
+            ->selectRaw("MIN(CASE WHEN translation_status IN ('done', 'failed') THEN COALESCE(translated_at, updated_at) ELSE NULL END) as translated_first_at")
+            ->selectRaw("MAX(CASE WHEN translation_status IN ('done', 'failed') THEN COALESCE(translated_at, updated_at) ELSE NULL END) as translated_last_at")
             ->first();
 
+        $total = (int) ($row?->total ?? 0);
+        $pending = (int) ($row?->pending ?? 0);
+        $translatedFirstAt = $this->toCarbonImmutable($row?->translated_first_at ?? null);
+        $translatedLastAt = $this->toCarbonImmutable($row?->translated_last_at ?? null);
+        $runStartAt = $run->started_at ? CarbonImmutable::instance($run->started_at) : null;
+        $runFinishedAt = $run->finished_at ? CarbonImmutable::instance($run->finished_at) : null;
+
+        $elapsedMs = null;
+        if ($total > 0 && $runStartAt !== null) {
+            $effectiveStart = $translatedFirstAt && $translatedFirstAt->greaterThan($runStartAt)
+                ? $translatedFirstAt
+                : $runStartAt;
+            $effectiveEnd = $translatedLastAt
+                ?? ($pending > 0 ? CarbonImmutable::now('UTC') : ($runFinishedAt ?? CarbonImmutable::now('UTC')));
+
+            if ($effectiveEnd->lessThan($effectiveStart)) {
+                $effectiveEnd = $effectiveStart;
+            }
+
+            $elapsedMs = $effectiveStart->diffInRealMilliseconds($effectiveEnd);
+        }
+
         return [
-            'total' => (int) ($row?->total ?? 0),
+            'total' => $total,
             'done' => (int) ($row?->done ?? 0),
             'failed' => (int) ($row?->failed ?? 0),
-            'pending' => (int) ($row?->pending ?? 0),
+            'pending' => $pending,
             'done_breakdown' => [
                 'both' => (int) ($row?->done_both ?? 0),
                 'title_only' => (int) ($row?->done_title_only ?? 0),
                 'description_only' => (int) ($row?->done_description_only ?? 0),
                 'without_text' => (int) ($row?->done_without_text ?? 0),
             ],
+            'elapsed_ms' => $elapsedMs,
+            'elapsed_human' => $this->formatDurationHuman($elapsedMs),
+            'translated_first_at' => $translatedFirstAt?->toIso8601String(),
+            'translated_last_at' => $translatedLastAt?->toIso8601String(),
         ];
+    }
+
+    private function toCarbonImmutable(mixed $value): ?CarbonImmutable
+    {
+        if ($value instanceof CarbonImmutable) {
+            return $value;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return CarbonImmutable::instance($value);
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($value, 'UTC');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function formatDurationHuman(?int $milliseconds): ?string
+    {
+        if (! is_int($milliseconds) || $milliseconds < 0) {
+            return null;
+        }
+
+        $totalSeconds = (int) floor($milliseconds / 1000);
+        if ($totalSeconds < 60) {
+            return sprintf('%ds', $totalSeconds);
+        }
+
+        $hours = intdiv($totalSeconds, 3600);
+        $minutes = intdiv($totalSeconds % 3600, 60);
+        $seconds = $totalSeconds % 60;
+
+        if ($hours > 0) {
+            return sprintf('%dh %02dm %02ds', $hours, $minutes, $seconds);
+        }
+
+        return sprintf('%dm %02ds', $minutes, $seconds);
     }
 }

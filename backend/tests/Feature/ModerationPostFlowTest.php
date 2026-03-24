@@ -216,6 +216,105 @@ class ModerationPostFlowTest extends TestCase
             && $request->hasHeader('X-Internal-Token', 'internal-token'));
     }
 
+    public function test_payload_too_large_image_is_resized_and_retried(): void
+    {
+        if (!function_exists('imagecreatetruecolor') && !extension_loaded('imagick')) {
+            $this->markTestSkipped('Image resize fallback requires GD or Imagick.');
+        }
+
+        config()->set('app.url', 'http://localhost');
+        config()->set('media.disk', 'public');
+        config()->set('media.private_disk', 'local');
+        config()->set('moderation.enabled', true);
+        config()->set('moderation.internal_token', 'internal-token');
+        config()->set('moderation.image_max_bytes', 5 * 1024 * 1024);
+        config()->set('moderation.retries', 0);
+
+        Storage::fake('public');
+        Storage::fake('local');
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        Queue::fake();
+
+        $baseUrl = rtrim((string) config('moderation.base_url'), '/');
+        $imageRequestBodySizes = [];
+
+        Http::fake(function ($request) use ($baseUrl, &$imageRequestBodySizes) {
+            if ($request->url() === $baseUrl . '/moderate/text') {
+                return Http::response([
+                    'decision' => 'ok',
+                    'toxicity_score' => 0.01,
+                    'hate_score' => 0.01,
+                    'scores' => [
+                        'toxicity_labels' => ['toxic' => 0.01],
+                        'hate_labels' => ['hate' => 0.01],
+                    ],
+                    'labels' => [
+                        'toxicity' => 'not-toxic',
+                        'hate' => 'not-hate',
+                        'rule_match' => 'none',
+                    ],
+                    'model_versions' => [
+                        'text' => 'unitary/toxic-bert',
+                    ],
+                ], 200);
+            }
+
+            if ($request->url() === $baseUrl . '/moderate/image') {
+                $imageRequestBodySizes[] = strlen((string) $request->body());
+
+                if (count($imageRequestBodySizes) === 1) {
+                    return Http::response([
+                        'error' => [
+                            'code' => 'payload_too_large',
+                            'message' => 'Image payload too large.',
+                        ],
+                    ], 413);
+                }
+
+                return Http::response([
+                    'decision' => 'ok',
+                    'nsfw_score' => 0.02,
+                    'scores' => [
+                        'normal' => 0.98,
+                        'nsfw' => 0.02,
+                    ],
+                    'labels' => [
+                        'top_label' => 'normal',
+                    ],
+                    'model_versions' => [
+                        'image' => 'Falconsai/nsfw_image_detection',
+                    ],
+                ], 200);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $response = $this->postJson('/api/posts', [
+            'content' => 'Payload too large moderation fallback',
+            'attachment' => $this->jpegFixtureUpload('too-large.jpg'),
+        ]);
+
+        $response->assertCreated();
+        $postId = (int) $response->json('id');
+
+        $job = new ModeratePostJob($postId);
+        $job->handle(app(\App\Services\Moderation\ModerationService::class));
+
+        $post = Post::query()->findOrFail($postId);
+        $this->assertSame('ok', $post->moderation_status);
+        $this->assertSame('ok', $post->attachment_moderation_status);
+        $this->assertFalse((bool) $post->attachment_is_blurred);
+        $this->assertTrue((bool) data_get($post->attachment_moderation_summary, 'input_resized_for_moderation'));
+
+        $this->assertCount(2, $imageRequestBodySizes);
+        $this->assertLessThan($imageRequestBodySizes[0], $imageRequestBodySizes[1]);
+
+        Http::assertSentCount(3);
+    }
+
     private function jpegFixtureUpload(string $filename): UploadedFile
     {
         $fixturePath = base_path('tests/Fixtures/images/large-sample.jpg');

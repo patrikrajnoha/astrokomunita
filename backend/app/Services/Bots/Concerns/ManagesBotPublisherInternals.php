@@ -34,7 +34,7 @@ trait ManagesBotPublisherInternals
 
         $provider = $this->nullableString($item->translation_provider)
             ?? $this->nullableString(data_get($translationMeta, 'provider'))
-            ?? strtolower(trim((string) config('bots.translation.primary', config('bots.translation_provider', 'libretranslate'))));
+            ?? strtolower(trim((string) config('bots.translation.primary', 'libretranslate')));
 
         $translatedAt = $item->translated_at?->toIso8601String()
             ?? $this->nullableString(data_get($translationMeta, 'translated_at'));
@@ -81,7 +81,7 @@ trait ManagesBotPublisherInternals
         $defaults = match ($normalizedIdentity) {
             PostBotIdentity::STELA->value => [
                 'username' => 'stellarbot',
-                'display_name' => 'Stela',
+                'display_name' => 'Stella',
             ],
             default => [
                 'username' => 'kozmobot',

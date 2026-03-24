@@ -83,4 +83,76 @@ class SkyMoonPhasesEndpointTest extends TestCase
         $this->assertSame($first->json('phases.7.start_date'), $second->json('phases.7.start_date'));
         Http::assertSentCount(4);
     }
+
+    public function test_it_serves_last_known_moon_phases_when_provider_data_degrades(): void
+    {
+        Cache::flush();
+        $offline = false;
+
+        Http::fake(function ($request) use (&$offline) {
+            if ($offline) {
+                return Http::response(['message' => 'offline'], 503);
+            }
+
+            if (str_contains($request->url(), '/api/rstt/oneday')) {
+                return Http::response([
+                    'properties' => [
+                        'data' => [
+                            'curphase' => 'Waning Crescent',
+                            'fracillum' => '40%',
+                            'sundata' => [],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (!str_contains($request->url(), '/api/moon/phases/year')) {
+                return Http::response(['message' => 'not found'], 404);
+            }
+
+            $query = [];
+            parse_str(parse_url($request->url(), PHP_URL_QUERY) ?: '', $query);
+            $year = (int) ($query['year'] ?? 0);
+
+            if ($year !== 2026) {
+                return Http::response(['phasedata' => []], 200);
+            }
+
+            return Http::response([
+                'phasedata' => [
+                    ['year' => 2026, 'month' => 2, 'day' => 17, 'phase' => 'New Moon', 'time' => '10:00'],
+                    ['year' => 2026, 'month' => 2, 'day' => 24, 'phase' => 'First Quarter', 'time' => '12:00'],
+                    ['year' => 2026, 'month' => 3, 'day' => 3, 'phase' => 'Full Moon', 'time' => '14:00'],
+                    ['year' => 2026, 'month' => 3, 'day' => 10, 'phase' => 'Last Quarter', 'time' => '16:00'],
+                    ['year' => 2026, 'month' => 3, 'day' => 17, 'phase' => 'New Moon', 'time' => '18:00'],
+                    ['year' => 2026, 'month' => 3, 'day' => 25, 'phase' => 'First Quarter', 'time' => '20:00'],
+                    ['year' => 2026, 'month' => 4, 'day' => 2, 'phase' => 'Full Moon', 'time' => '04:00'],
+                ],
+            ], 200);
+        });
+
+        $seed = $this->getJson('/api/sky/moon-phases?lat=48.1486&lon=17.1077&date=2026-03-12&tz=Europe/Bratislava')
+            ->assertOk();
+        $seedPayload = $seed->json();
+
+        Cache::flush();
+        Cache::put(
+            'sky_moon_phases_last_known:48.148600:17.107700:Europe/Bratislava',
+            $seedPayload,
+            now()->addHours(48)
+        );
+        $this->assertTrue(Cache::has('sky_moon_phases_last_known:48.148600:17.107700:Europe/Bratislava'));
+        $this->assertFalse(Cache::has('sky_moon_phases:48.148600:17.107700:Europe/Bratislava:2026-03-12'));
+        $offline = true;
+
+        $fallback = $this->getJson('/api/sky/moon-phases?lat=48.1486&lon=17.1077&date=2026-03-12&tz=Europe/Bratislava');
+
+        $fallback
+            ->assertOk()
+            ->assertJsonPath('stale', true)
+            ->assertJsonPath('stale_reason', 'using_cached_data')
+            ->assertJsonPath('provenance.cache_mode', 'last_known');
+
+        $this->assertSame($seedPayload['current_phase'] ?? null, $fallback->json('current_phase'));
+    }
 }

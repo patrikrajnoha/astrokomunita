@@ -244,6 +244,32 @@ class TranslationServiceTest extends TestCase
         $this->assertSame('Venusa v dolnej konjunkcii', $second->translatedText);
     }
 
+    public function test_it_applies_hardcoded_perihelion_aphelion_and_opposition_phrase_fixes(): void
+    {
+        config()->set('translation.default_provider', 'libretranslate');
+        config()->set('translation.fallback_provider', '');
+        config()->set('translation.cache_enabled', false);
+        config()->set('translation.libretranslate.base_url', 'http://libre.test');
+        config()->set('translation.grammar.enabled', false);
+
+        Http::fake([
+            'http://libre.test/*' => function ($request) {
+                return Http::response([
+                    'translatedText' => (string) data_get($request->data(), 'q'),
+                ], 200);
+            },
+        ]);
+
+        $perihelion = app(TranslationService::class)->translate('Mars at Perihelion: 1.38126 AU', 'en', 'sk');
+        $this->assertSame("Mars v perih\u{00E9}liu: 1.38126 AU", $perihelion->translatedText);
+
+        $aphelion = app(TranslationService::class)->translate('Earth at Aphelion: 1.01664 AU', 'en', 'sk');
+        $this->assertSame("Zem v af\u{00E9}liu: 1.01664 AU", $aphelion->translatedText);
+
+        $opposition = app(TranslationService::class)->translate('Jupiter at Opposition', 'en', 'sk');
+        $this->assertSame("Jupiter v opoz\u{00ED}cii", $opposition->translatedText);
+    }
+
     public function test_it_normalizes_known_bad_provider_phrase_variants(): void
     {
         config()->set('translation.default_provider', 'libretranslate');

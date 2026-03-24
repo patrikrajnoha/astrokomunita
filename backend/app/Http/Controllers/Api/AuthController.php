@@ -59,7 +59,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            ...$user->toArray(),
+            ...$user->makeVisible(['email'])->toArray(),
             'activity' => $activity,
         ]);
     }
@@ -96,7 +96,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return response()->json($user, 201);
+        return response()->json($user->makeVisible(['email']), 201);
     }
 
     public function usernameAvailable(Request $request)
@@ -155,7 +155,7 @@ class AuthController extends Controller
 
                 $loggedInUser = $request->user();
                 if ($loggedInUser && ($loggedInUser->isBanned() || ! $loggedInUser->is_active)) {
-                    Auth::guard('web')->logoutCurrentDevice();
+                    Auth::guard('web')->logout();
                     return response()->json(['message' => 'Váš účet je zablokovaný.'], 403);
                 }
 
@@ -171,7 +171,7 @@ class AuthController extends Controller
 
         $loggedInUser = $request->user();
         if ($loggedInUser && ($loggedInUser->isBanned() || ! $loggedInUser->is_active)) {
-            Auth::guard('web')->logoutCurrentDevice();
+            Auth::guard('web')->logout();
             return response()->json(['message' => 'Váš účet je zablokovaný.'], 403);
         }
 

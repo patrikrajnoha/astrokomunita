@@ -73,6 +73,7 @@ use App\Http\Controllers\Api\ObservingSkySummaryController;
 use App\Http\Controllers\Api\SkyController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\MetaController;
+use App\Http\Controllers\Api\BotAvatarController;
 use App\Http\Controllers\Api\MarkYourCalendarPopupController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\MeLocationController;
@@ -126,6 +127,14 @@ Route::get('/_health', function () {
 
     return response()->json($payload);
 });
+
+Route::get('/bot-avatars/{username}', [BotAvatarController::class, 'index'])
+    ->where('username', '[A-Za-z0-9._-]+');
+Route::get('/bot-avatars/{username}/{file}', [BotAvatarController::class, 'show'])
+    ->where([
+        'username' => '[A-Za-z0-9._-]+',
+        'file' => '[A-Za-z0-9._ -]+\.png',
+    ]);
 
 
 /*
@@ -399,10 +408,13 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         // Review process
         Route::post('/event-candidates/{candidate}/approve', [EventCandidateReviewController::class, 'approve']);
         Route::post('/event-candidates/approve-batch', [EventCandidateReviewController::class, 'approveBatch']);
+        Route::post('/event-candidates/approve-batch/start', [EventCandidateReviewController::class, 'approveBatchStart']);
+        Route::get('/event-candidates/approve-batch/runs/{run}', [EventCandidateReviewController::class, 'approveBatchRunStatus']);
         Route::post('/event-candidates/{candidate}/reject',  [EventCandidateReviewController::class, 'reject']);
         Route::post('/event-candidates/{candidate}/retranslate', [EventCandidateReviewController::class, 'retranslate']);
         Route::post('/event-candidates/retranslate-batch', [EventCandidateReviewController::class, 'retranslateBatch']);
         Route::patch('/event-candidates/{candidate}/translation', [EventCandidateReviewController::class, 'updateTranslation']);
+        Route::post('/event-candidates/translation-queue/cancel', [EventCandidateReviewController::class, 'cancelTranslationQueue']);
 
         // Crawl runs
         Route::get('/crawl-runs',            [CrawlRunController::class, 'index']);
@@ -457,9 +469,15 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         */
         Route::post('/events/{event}/ai/generate-description', [AdminAiController::class, 'generateEventDescription'])
             ->middleware('throttle:admin-ai');
+        Route::get('/ai/policy', [AdminAiController::class, 'policy'])
+            ->middleware('throttle:admin-ai');
+        Route::patch('/ai/policy', [AdminAiController::class, 'updatePolicy'])
+            ->middleware('throttle:admin-ai');
         Route::get('/events/{event}', [AdminEventController::class, 'show']);
         Route::post('/events', [AdminEventController::class, 'store']);
+        Route::post('/events/bulk-delete', [AdminEventController::class, 'bulkDestroy']);
         Route::put('/events/{event}', [AdminEventController::class, 'update']);
+        Route::delete('/events/{event}', [AdminEventController::class, 'destroy']);
         Route::post('/events/retranslate', [EventTranslationController::class, 'backfill']);
 
         /*
@@ -564,6 +582,7 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin.content'])
         Route::get('/blog-posts', [AdminBlogPostController::class, 'index']);
         Route::get('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'show']);
         Route::post('/blog-posts', [AdminBlogPostController::class, 'store']);
+        Route::post('/blog-posts/images', [AdminBlogPostController::class, 'uploadInlineImage']);
         Route::put('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
         Route::patch('/blog-posts/{blogPost}', [AdminBlogPostController::class, 'update']);
         Route::post('/blog-posts/{blogPost}/ai/suggest-tags', [AdminBlogPostController::class, 'suggestTags'])

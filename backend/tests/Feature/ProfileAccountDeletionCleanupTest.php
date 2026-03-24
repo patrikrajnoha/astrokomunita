@@ -61,7 +61,9 @@ class ProfileAccountDeletionCleanupTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->deleteJson('/api/profile')
+        $this->deleteJson('/api/profile', [
+            'current_password' => 'password',
+        ])
             ->assertOk()
             ->assertJsonPath('message', 'Ucet bol deaktivovany.');
 
@@ -89,10 +91,26 @@ class ProfileAccountDeletionCleanupTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->deleteJson('/api/profile')
+        $this->deleteJson('/api/profile', [
+            'current_password' => 'password',
+        ])
             ->assertOk()
             ->assertJsonPath('message', 'Ucet bol deaktivovany.');
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    }
+
+    public function test_self_delete_requires_valid_current_password(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->deleteJson('/api/profile', [
+            'current_password' => 'wrong-password',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.current_password.0', 'Aktualne heslo nie je spravne.');
+
+        $this->assertDatabaseHas('users', ['id' => $user->id]);
     }
 }

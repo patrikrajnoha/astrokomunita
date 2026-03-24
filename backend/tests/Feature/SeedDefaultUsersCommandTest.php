@@ -30,11 +30,13 @@ class SeedDefaultUsersCommandTest extends TestCase
         $this->assertTrue((bool) $kozmobot->is_bot);
         $this->assertSame(User::ROLE_BOT, $kozmobot->role);
         $this->assertNull($kozmobot->email);
+        $this->assertSame('Kozmo', (string) $kozmobot->name);
 
         $stellarbot = User::query()->where('username', 'stellarbot')->firstOrFail();
         $this->assertTrue((bool) $stellarbot->is_bot);
         $this->assertSame(User::ROLE_BOT, $stellarbot->role);
         $this->assertNull($stellarbot->email);
+        $this->assertSame('Stella', (string) $stellarbot->name);
 
         $patrik = User::query()->where('username', 'patrik')->firstOrFail();
         $this->assertFalse((bool) $patrik->is_bot);

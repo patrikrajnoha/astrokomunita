@@ -26,6 +26,8 @@ class AdminBlogPostService
 
         if ($status === 'published') {
             $query->published();
+        } elseif ($status === 'hidden') {
+            $query->where('is_hidden', true);
         } elseif ($status === 'scheduled') {
             $query->whereNotNull('published_at')
                 ->where('published_at', '>', now());
@@ -69,6 +71,7 @@ class AdminBlogPostService
             'slug' => $this->uniqueSlug($validated['title']),
             'content' => $validated['content'],
             'published_at' => $validated['published_at'] ?? null,
+            'is_hidden' => (bool) ($validated['is_hidden'] ?? false),
         ];
 
         if ($coverImage) {
@@ -111,6 +114,9 @@ class AdminBlogPostService
         if (array_key_exists('published_at', $validated)) {
             $data['published_at'] = $validated['published_at'];
         }
+        if (array_key_exists('is_hidden', $validated)) {
+            $data['is_hidden'] = (bool) $validated['is_hidden'];
+        }
 
         if ($data !== []) {
             $blogPost->update($data);
@@ -142,6 +148,16 @@ class AdminBlogPostService
         $this->mediaStorage->delete($blogPost->cover_image_path);
 
         $blogPost->delete();
+    }
+
+    public function storeInlineImage(UploadedFile $image, int $userId): string
+    {
+        return $this->mediaStorage->storeBlogInlineImage($image, $userId);
+    }
+
+    public function publicMediaUrl(?string $path): ?string
+    {
+        return $this->mediaStorage->absoluteUrl($path);
     }
 
     private function uniqueSlug(string $title): string

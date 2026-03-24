@@ -112,7 +112,7 @@ class BotIdentityUserSyncService
         $defaults = match ($normalizedIdentity) {
             PostBotIdentity::STELA->value => [
                 'username' => 'stellarbot',
-                'display_name' => 'Stela',
+                'display_name' => 'Stella',
             ],
             default => [
                 'username' => 'kozmobot',

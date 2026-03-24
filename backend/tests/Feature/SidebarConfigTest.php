@@ -41,7 +41,17 @@ class SidebarConfigTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('scope', 'home')
-            ->assertJsonCount(count(SidebarSectionRegistry::sections()), 'data');
+            ->assertJsonCount(0, 'data');
+    }
+
+    public function test_public_home_scope_returns_empty_sidebar_when_admin_has_not_configured_it(): void
+    {
+        $response = $this->getJson('/api/sidebar-config?scope=home');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('scope', 'home')
+            ->assertJsonCount(0, 'data');
     }
 
     public function test_legacy_sidebar_sections_endpoint_is_removed(): void

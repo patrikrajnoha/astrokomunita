@@ -25,7 +25,7 @@ class AstroFeedFoundationSeeder extends Seeder
         $stela = $this->ensureBotUser(
             email: null,
             username: 'stellarbot',
-            name: 'Stela',
+            name: 'Stella',
             bio: 'Systemovy astro bot pre kratke aktuality.'
         );
 
@@ -43,7 +43,7 @@ class AstroFeedFoundationSeeder extends Seeder
             posts: $posts,
             bot: $stela,
             sourceUid: 'foundation-seed-stela',
-            content: 'Stela test post for AstroFeed separation and comments.',
+            content: 'Stella test post for AstroFeed separation and comments.',
             botIdentity: PostBotIdentity::STELA->value
         );
     }

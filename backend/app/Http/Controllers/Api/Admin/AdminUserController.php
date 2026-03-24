@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Moderation\UploadImageModerationGuard;
 use App\Services\NotificationService;
 use App\Services\Storage\MediaStorageService;
+use App\Support\BotAvatarResolver;
 use App\Support\ProfanityFilter;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
@@ -41,6 +42,23 @@ class AdminUserController extends Controller
             $perPage = 50;
         }
 
+        $search = trim((string) $request->query('search', ''));
+        $role = strtolower(trim((string) $request->query('role', '')));
+        $status = strtolower(trim((string) $request->query('status', '')));
+        $includeBots = filter_var(
+            $request->query('include_bots', true),
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        );
+        $includeBots = $includeBots ?? true;
+
+        if (!in_array($role, [User::ROLE_ADMIN, User::ROLE_EDITOR, User::ROLE_USER, User::ROLE_BOT], true)) {
+            $role = '';
+        }
+        if (!in_array($status, ['active', 'banned', 'inactive'], true)) {
+            $status = '';
+        }
+
         $users = User::query()
             ->select([
                 'id',
@@ -61,13 +79,42 @@ class AdminUserController extends Controller
                 'avatar_icon',
                 'avatar_seed',
             ])
-            ->when(trim((string) $request->query('search', '')) !== '', function ($query) use ($request) {
-                $term = '%'.trim((string) $request->query('search', '')).'%';
+            ->when(!$includeBots, function ($query): void {
+                $query
+                    ->where(function ($botFlagQuery): void {
+                        $botFlagQuery
+                            ->where('is_bot', false)
+                            ->orWhereNull('is_bot');
+                    })
+                    ->where(function ($roleQuery): void {
+                        $roleQuery
+                            ->whereNull('role')
+                            ->orWhere('role', '!=', User::ROLE_BOT);
+                    });
+            })
+            ->when($search !== '', function ($query) use ($search): void {
+                $term = '%'.$search.'%';
                 $query->where(function ($nested) use ($term): void {
                     $nested->where('name', 'like', $term)
                         ->orWhere('username', 'like', $term)
                         ->orWhere('email', 'like', $term);
                 });
+            })
+            ->when($role !== '', function ($query) use ($role): void {
+                $query->where('role', $role);
+            })
+            ->when($status !== '', function ($query) use ($status): void {
+                if ($status === 'active') {
+                    $query->where('is_active', true)->where('is_banned', false);
+                    return;
+                }
+
+                if ($status === 'banned') {
+                    $query->where('is_active', true)->where('is_banned', true);
+                    return;
+                }
+
+                $query->where('is_active', false);
             })
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -303,11 +350,12 @@ class AdminUserController extends Controller
         $this->ensureAllowed($request, 'updateProfile', $user);
         $this->ensureBotTarget($user);
 
+        $username = (string) ($user->username ?? '');
         $oldPath = (string) ($user->avatar_path ?? '');
         $user->avatar_path = null;
         $user->save();
 
-        if ($oldPath !== '') {
+        if ($oldPath !== '' && !BotAvatarResolver::isValidBotAvatarPath($oldPath, $username)) {
             $this->mediaStorage->delete($oldPath);
         }
 
@@ -338,22 +386,25 @@ class AdminUserController extends Controller
         $validated = $request->validated();
         $oldAvatarPath = null;
 
-        $user->avatar_mode = $validated['avatar_mode'];
-        if ($user->avatar_mode === 'generated' && $user->avatar_path) {
-            $oldAvatarPath = (string) $user->avatar_path;
-            $user->avatar_path = null;
+        $requestedPath = array_key_exists('avatar_path', $validated)
+            ? (string) ($validated['avatar_path'] ?? '')
+            : null;
+        $resolvedBotPath = BotAvatarResolver::resolveBotAvatarPath($user, $requestedPath);
+        if ($resolvedBotPath === null || !BotAvatarResolver::isValidBotAvatarPath($resolvedBotPath, (string) $user->username)) {
+            throw ValidationException::withMessages([
+                'avatar_path' => 'The selected bot avatar is invalid.',
+            ]);
         }
 
-        if (array_key_exists('avatar_color', $validated)) {
-            $user->avatar_color = $this->normalizeAvatarColor($validated['avatar_color']);
-        }
+        $previousPath = (string) ($user->avatar_path ?? '');
+        $user->avatar_mode = 'image';
+        $user->avatar_path = $resolvedBotPath;
+        $user->avatar_color = null;
+        $user->avatar_icon = null;
+        $user->avatar_seed = null;
 
-        if (array_key_exists('avatar_icon', $validated)) {
-            $user->avatar_icon = $this->normalizeAvatarIcon($validated['avatar_icon']);
-        }
-
-        if (array_key_exists('avatar_seed', $validated)) {
-            $user->avatar_seed = $this->normalizeAvatarSeed($validated['avatar_seed']);
+        if ($previousPath !== '' && !BotAvatarResolver::isValidBotAvatarPath($previousPath, (string) $user->username)) {
+            $oldAvatarPath = $previousPath;
         }
 
         $user->save();
@@ -397,6 +448,17 @@ class AdminUserController extends Controller
 
         $mapped['avatar_url'] = $user->avatar_url;
         $mapped['cover_url'] = $user->cover_url;
+
+        if ($user->isBot()) {
+            $mapped['avatar_path'] = BotAvatarResolver::resolveBotAvatarPath(
+                $user,
+                (string) ($mapped['avatar_path'] ?? '')
+            );
+            $mapped['avatar_mode'] = 'image';
+            $mapped['avatar_color'] = null;
+            $mapped['avatar_icon'] = null;
+            $mapped['avatar_seed'] = null;
+        }
 
         return $mapped;
     }
@@ -452,75 +514,6 @@ class AdminUserController extends Controller
                 'message' => 'Endpoint na upload media je dostupny iba pre bot ucty.',
             ], 422));
         }
-    }
-
-    private function normalizeAvatarSeed(mixed $seed): ?string
-    {
-        $value = trim((string) ($seed ?? ''));
-
-        return $value === '' ? null : $value;
-    }
-
-    private function normalizeAvatarColor(mixed $value): ?int
-    {
-        $colors = array_values((array) config('avatar.colors', []));
-        $maxIndex = max(count($colors) - 1, -1);
-        if ($maxIndex < 0) {
-            return null;
-        }
-
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (is_numeric($value)) {
-            $index = (int) $value;
-            if ($index >= 0 && $index <= $maxIndex) {
-                return $index;
-            }
-        }
-
-        $normalized = strtolower(trim((string) $value));
-        foreach ($colors as $index => $hex) {
-            if (strtolower(trim((string) $hex)) === $normalized) {
-                return $index;
-            }
-        }
-
-        throw ValidationException::withMessages([
-            'avatar_color' => 'The selected avatar color is invalid.',
-        ]);
-    }
-
-    private function normalizeAvatarIcon(mixed $value): ?int
-    {
-        $icons = array_values((array) config('avatar.icons', []));
-        $maxIndex = max(count($icons) - 1, -1);
-        if ($maxIndex < 0) {
-            return null;
-        }
-
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (is_numeric($value)) {
-            $index = (int) $value;
-            if ($index >= 0 && $index <= $maxIndex) {
-                return $index;
-            }
-        }
-
-        $normalized = strtolower(trim((string) $value));
-        foreach ($icons as $index => $icon) {
-            if (strtolower(trim((string) $icon)) === $normalized) {
-                return $index;
-            }
-        }
-
-        throw ValidationException::withMessages([
-            'avatar_icon' => 'The selected avatar icon is invalid.',
-        ]);
     }
 
     private function forgetAdminStatsCache(): void

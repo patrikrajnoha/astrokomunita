@@ -1,11 +1,18 @@
 <?php
 
+use App\Http\Controllers\BotAvatarAssetController;
 use App\Http\Controllers\NewsletterUnsubscribeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/assets/bots/{username}/{file}', BotAvatarAssetController::class)
+    ->where([
+        'username' => '[A-Za-z0-9._-]+',
+        'file' => '[A-Za-z0-9._ -]+\.png',
+    ]);
 
 /**
  * Optional fallback (poistka) – aby nikdy nepadlo "Route [login] not defined"

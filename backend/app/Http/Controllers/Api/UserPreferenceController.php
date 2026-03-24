@@ -172,8 +172,9 @@ class UserPreferenceController extends Controller
             'location_lon' => $resolvedPreferences->location_lon,
             'onboarding_completed_at' => $resolvedPreferences->onboardingCompletedAtIso(),
             'bortle_class' => $resolvedPreferences->resolvedBortleClass(),
-            'sidebar_widget_keys' => $resolvedPreferences->resolvedSidebarWidgetKeys(),
-            'sidebar_widget_overrides' => $resolvedPreferences->resolvedSidebarWidgetOverrides(),
+            // Return only explicit user overrides. Sidebar defaults are served by /sidebar-config.
+            'sidebar_widget_keys' => $resolvedPreferences->normalizedSidebarWidgetKeys(),
+            'sidebar_widget_overrides' => $resolvedPreferences->normalizedSidebarWidgetOverrides(),
             'has_preferences' => (bool) $preferences,
             'updated_at' => optional($preferences?->updated_at)?->toIso8601String(),
         ];

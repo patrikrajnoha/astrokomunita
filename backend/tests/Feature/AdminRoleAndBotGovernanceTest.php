@@ -86,6 +86,63 @@ class AdminRoleAndBotGovernanceTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_admin_users_index_can_exclude_bot_accounts_via_include_bots_flag(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $communityUser = User::factory()->create([
+            'role' => User::ROLE_USER,
+            'is_bot' => false,
+        ]);
+        $botUser = User::factory()->bot()->create([
+            'username' => 'kozmobot',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/users?include_bots=0');
+        $response->assertOk();
+
+        $returnedIds = collect($response->json('data'))->pluck('id')->all();
+        $this->assertContains($communityUser->id, $returnedIds);
+        $this->assertNotContains($botUser->id, $returnedIds);
+    }
+
+    public function test_admin_users_index_applies_role_and_status_filters(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $editor = User::factory()->editor()->create([
+            'is_bot' => false,
+            'is_active' => true,
+            'is_banned' => false,
+        ]);
+        $bannedEditor = User::factory()->editor()->create([
+            'is_bot' => false,
+            'is_active' => true,
+            'is_banned' => true,
+        ]);
+        $inactiveEditor = User::factory()->editor()->create([
+            'is_bot' => false,
+            'is_active' => false,
+            'is_banned' => false,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $activeEditors = $this->getJson('/api/admin/users?include_bots=0&role=editor&status=active');
+        $activeEditors->assertOk();
+        $activeIds = collect($activeEditors->json('data'))->pluck('id')->all();
+        $this->assertContains($editor->id, $activeIds);
+        $this->assertNotContains($bannedEditor->id, $activeIds);
+        $this->assertNotContains($inactiveEditor->id, $activeIds);
+
+        $bannedEditors = $this->getJson('/api/admin/users?include_bots=0&role=editor&status=banned');
+        $bannedEditors->assertOk();
+        $bannedIds = collect($bannedEditors->json('data'))->pluck('id')->all();
+        $this->assertContains($bannedEditor->id, $bannedIds);
+        $this->assertNotContains($editor->id, $bannedIds);
+        $this->assertNotContains($inactiveEditor->id, $bannedIds);
+    }
+
     public function test_only_admin_can_update_bot_profile_fields(): void
     {
         $admin = User::factory()->admin()->create();
@@ -190,18 +247,18 @@ class AdminRoleAndBotGovernanceTest extends TestCase
 
         $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
             'avatar_mode' => 'image',
-            'avatar_color' => 4,
-            'avatar_icon' => 2,
-            'avatar_seed' => 'bot-seed',
+            'avatar_path' => 'bots/stellarbot/sb_red.png',
         ])->assertOk()
             ->assertJsonPath('avatar_mode', 'image')
-            ->assertJsonPath('avatar_color', 4)
-            ->assertJsonPath('avatar_icon', 2)
-            ->assertJsonPath('avatar_seed', 'bot-seed');
+            ->assertJsonPath('avatar_path', 'bots/stellarbot/sb_red.png')
+            ->assertJsonPath('avatar_color', null)
+            ->assertJsonPath('avatar_icon', null)
+            ->assertJsonPath('avatar_seed', null);
 
         $this->deleteJson("/api/admin/users/{$bot->id}/avatar")
             ->assertOk()
-            ->assertJsonPath('avatar_path', null);
+            ->assertJsonPath('avatar_path', 'bots/stellarbot/sb_blue.png')
+            ->assertJsonPath('avatar_mode', 'image');
 
         $this->deleteJson("/api/admin/users/{$bot->id}/cover")
             ->assertOk()
@@ -209,11 +266,10 @@ class AdminRoleAndBotGovernanceTest extends TestCase
 
         $this->patchJson("/api/admin/users/{$bot->id}/avatar/preferences", [
             'avatar_mode' => 'generated',
-            'avatar_color' => 1,
-            'avatar_icon' => 3,
-            'avatar_seed' => 'bot-seed-2',
+            'avatar_path' => 'bots/stellarbot/sb_green.png',
         ])->assertOk()
-            ->assertJsonPath('avatar_mode', 'generated');
+            ->assertJsonPath('avatar_mode', 'image')
+            ->assertJsonPath('avatar_path', 'bots/stellarbot/sb_green.png');
     }
 
     public function test_admin_write_endpoints_for_deactivate_and_reset_are_allowed_for_non_admin_targets(): void

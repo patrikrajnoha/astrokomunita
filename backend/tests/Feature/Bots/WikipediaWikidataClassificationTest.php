@@ -21,7 +21,8 @@ class WikipediaWikidataClassificationTest extends TestCase
 
         Cache::flush();
         config()->set('moderation.enabled', false);
-        config()->set('bots.translation_provider', 'dummy');
+        config()->set('bots.translation.primary', 'none');
+        config()->set('bots.translation.fallback', 'none');
         config()->set('bots.wikipedia_mediawiki_api_url', 'https://mediawiki.test/w/api.php');
         config()->set('bots.wikidata_api_url', 'https://wikidata.test/w/api.php');
         config()->set('bots.wiki_max_candidate_pages', 15);

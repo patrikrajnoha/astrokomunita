@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Location\UserLocationService;
 use App\Services\Moderation\UploadImageModerationGuard;
 use App\Services\Storage\MediaStorageService;
+use App\Support\BotAvatarResolver;
 use App\Support\ProfanityFilter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
@@ -133,6 +134,18 @@ class ProfileController extends Controller
     public function destroy(Request $request)
     {
         $user = $request->user();
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+        ]);
+
+        if (!Hash::check((string) $validated['current_password'], (string) $user->password)) {
+            return response()->json([
+                'message' => 'Aktualne heslo nie je spravne.',
+                'errors' => [
+                    'current_password' => ['Aktualne heslo nie je spravne.'],
+                ],
+            ], 422);
+        }
 
         try {
             DB::transaction(function () use ($user): void {
@@ -213,11 +226,12 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $this->ensureBotProfileEditAllowed($user);
+        $username = (string) ($user->username ?? '');
         $oldPath = $user->avatar_path;
         $user->avatar_path = null;
         $user->save();
 
-        if ($oldPath) {
+        if ($oldPath && !BotAvatarResolver::isValidBotAvatarPath((string) $oldPath, $username)) {
             $this->mediaStorage->delete($oldPath);
         }
 
@@ -231,22 +245,45 @@ class ProfileController extends Controller
         $validated = $request->validated();
         $oldAvatarPath = null;
 
-        $user->avatar_mode = $validated['avatar_mode'];
-        if ($user->avatar_mode === 'generated' && $user->avatar_path) {
-            $oldAvatarPath = (string) $user->avatar_path;
-            $user->avatar_path = null;
-        }
+        if ($user->isBot()) {
+            $requestedPath = array_key_exists('avatar_path', $validated)
+                ? (string) ($validated['avatar_path'] ?? '')
+                : null;
+            $resolvedBotPath = BotAvatarResolver::resolveBotAvatarPath($user, $requestedPath);
+            if ($resolvedBotPath === null || !BotAvatarResolver::isValidBotAvatarPath($resolvedBotPath, (string) $user->username)) {
+                throw ValidationException::withMessages([
+                    'avatar_path' => 'The selected bot avatar is invalid.',
+                ]);
+            }
 
-        if (array_key_exists('avatar_color', $validated)) {
-            $user->avatar_color = $this->normalizeAvatarColor($validated['avatar_color']);
-        }
+            $previousPath = (string) ($user->avatar_path ?? '');
+            $user->avatar_mode = 'image';
+            $user->avatar_path = $resolvedBotPath;
+            $user->avatar_color = null;
+            $user->avatar_icon = null;
+            $user->avatar_seed = null;
 
-        if (array_key_exists('avatar_icon', $validated)) {
-            $user->avatar_icon = $this->normalizeAvatarIcon($validated['avatar_icon']);
-        }
+            if ($previousPath !== '' && !BotAvatarResolver::isValidBotAvatarPath($previousPath, (string) $user->username)) {
+                $oldAvatarPath = $previousPath;
+            }
+        } else {
+            $user->avatar_mode = $validated['avatar_mode'];
+            if ($user->avatar_mode === 'generated' && $user->avatar_path) {
+                $oldAvatarPath = (string) $user->avatar_path;
+                $user->avatar_path = null;
+            }
 
-        if (array_key_exists('avatar_seed', $validated)) {
-            $user->avatar_seed = $this->normalizeAvatarSeed($validated['avatar_seed']);
+            if (array_key_exists('avatar_color', $validated)) {
+                $user->avatar_color = $this->normalizeAvatarColor($validated['avatar_color']);
+            }
+
+            if (array_key_exists('avatar_icon', $validated)) {
+                $user->avatar_icon = $this->normalizeAvatarIcon($validated['avatar_icon']);
+            }
+
+            if (array_key_exists('avatar_seed', $validated)) {
+                $user->avatar_seed = $this->normalizeAvatarSeed($validated['avatar_seed']);
+            }
         }
 
         $user->save();
@@ -380,4 +417,3 @@ class ProfileController extends Controller
         }
     }
 }
-

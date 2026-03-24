@@ -101,5 +101,15 @@ class FeedVisibilityTest extends TestCase
         $response->assertJsonCount(2, 'data');
         $response->assertJsonFragment(['id' => $botPost->id]);
         $response->assertJsonMissing(['content' => 'Human post']);
+
+        $botRow = collect($response->json('data'))
+            ->first(fn (array $row): bool => (int) ($row['id'] ?? 0) === (int) $botPost->id);
+
+        $this->assertIsArray($botRow);
+        $this->assertSame('bots/stellarbot/sb_blue.png', (string) data_get($botRow, 'user.avatar_path'));
+        $this->assertStringContainsString(
+            '/api/bot-avatars/stellarbot/sb_blue.png',
+            (string) data_get($botRow, 'user.avatar_url')
+        );
     }
 }

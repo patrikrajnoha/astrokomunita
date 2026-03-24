@@ -93,7 +93,7 @@ class EventViewingForecastTest extends TestCase
             ->assertJsonPath('summary.humidity_pct', 60)
             ->assertJsonPath('summary.precip_pct', 15)
             ->assertJsonPath('summary.rating', 'good')
-            ->assertJsonPath('summary.label_sk', 'Dobre');
+            ->assertJsonPath('summary.label_sk', 'Dobré');
     }
 
     public function test_peak_only_event_after_midnight_centers_window_on_same_night(): void
@@ -158,6 +158,66 @@ class EventViewingForecastTest extends TestCase
             ->assertJsonPath('viewing_window.end_at', '2026-03-15T05:30:00+01:00');
     }
 
+    public function test_it_falls_back_to_sunrise_and_sunset_when_civil_twilight_is_missing_after_dst_change(): void
+    {
+        Cache::flush();
+
+        $user = User::factory()->create([
+            'latitude' => 48.1486,
+            'longitude' => 17.1077,
+            'timezone' => 'Europe/Bratislava',
+            'location_label' => 'Bratislava',
+            'location_source' => 'manual',
+        ]);
+        $event = $this->createPublishedEvent([
+            'start_at' => CarbonImmutable::parse('2026-04-02 02:12:00', 'UTC'),
+            'end_at' => null,
+            'max_at' => CarbonImmutable::parse('2026-04-02 02:12:00', 'UTC'),
+        ]);
+
+        Http::fake(function ($request) {
+            $url = $request->url();
+
+            if (str_starts_with($url, 'https://aa.usno.navy.mil/')) {
+                parse_str(parse_url($url, PHP_URL_QUERY) ?: '', $query);
+                $date = $query['date'] ?? null;
+
+                return match ($date) {
+                    '2026-04-01' => Http::response($this->usnoPayload('06:31', '19:20', null, null), 200),
+                    '2026-04-02' => Http::response($this->usnoPayload('06:29', '19:22', null, null), 200),
+                    '2026-04-03' => Http::response($this->usnoPayload('06:27', '19:23', null, null), 200),
+                    default => Http::response([], 404),
+                };
+            }
+
+            if (str_starts_with($url, 'https://api.open-meteo.com/')) {
+                return Http::response([
+                    'hourly' => [
+                        'time' => [
+                            '2026-04-02T04:00',
+                            '2026-04-02T05:00',
+                            '2026-04-02T06:00',
+                        ],
+                        'relative_humidity_2m' => [70, 72, 74],
+                        'cloud_cover' => [85, 90, 95],
+                        'wind_speed_10m' => [18.0, 21.6, 25.2],
+                        'temperature_2m' => [7.0, 7.0, 8.0],
+                        'precipitation_probability' => [20, 25, 30],
+                    ],
+                ], 200);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $response = $this->actingAs($user)->getJson("/api/events/{$event->id}/viewing-forecast");
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('viewing_window.start_at', '2026-04-02T04:12:00+02:00')
+            ->assertJsonPath('viewing_window.end_at', '2026-04-02T06:29:00+02:00');
+    }
+
     /**
      * @param array<string,mixed> $overrides
      */
@@ -178,19 +238,27 @@ class EventViewingForecastTest extends TestCase
         ], $overrides));
     }
 
-    private function usnoPayload(string $sunrise, string $sunset, string $civilBegin, string $civilEnd): array
+    private function usnoPayload(string $sunrise, string $sunset, ?string $civilBegin, ?string $civilEnd): array
     {
+        $sunData = [
+            ['phen' => 'Rise', 'time' => $sunrise],
+            ['phen' => 'Set', 'time' => $sunset],
+        ];
+
+        if ($civilBegin !== null) {
+            $sunData[] = ['phen' => 'Begin Civil Twilight', 'time' => $civilBegin];
+        }
+
+        if ($civilEnd !== null) {
+            $sunData[] = ['phen' => 'End Civil Twilight', 'time' => $civilEnd];
+        }
+
         return [
             'properties' => [
                 'data' => [
                     'curphase' => 'Waxing Gibbous',
                     'fracillum' => '76%',
-                    'sundata' => [
-                        ['phen' => 'Rise', 'time' => $sunrise],
-                        ['phen' => 'Set', 'time' => $sunset],
-                        ['phen' => 'Begin Civil Twilight', 'time' => $civilBegin],
-                        ['phen' => 'End Civil Twilight', 'time' => $civilEnd],
-                    ],
+                    'sundata' => $sunData,
                 ],
             ],
         ];

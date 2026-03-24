@@ -30,6 +30,7 @@ use App\Support\Sky\SkyContextResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class SkyController extends Controller
 {
@@ -168,6 +169,12 @@ class SkyController extends Controller
             $context['tz'],
             $cacheSuffix
         );
+        $lastKnownCacheKey = $this->buildCacheKey(
+            'sky_moon_phases_last_known',
+            $context['lat'],
+            $context['lon'],
+            $context['tz']
+        );
         $ttlMinutes = max(
             1,
             (int) config(
@@ -175,20 +182,62 @@ class SkyController extends Controller
                 max(1, ((int) config('observing.sky.moon_phases_cache_ttl_hours', 12)) * 60)
             )
         );
+        $lastKnownTtlHours = max(1, (int) config('observing.sky.moon_phases_last_known_ttl_hours', 48));
+
+        $cachedPayload = Cache::get($cacheKey);
+        if ($this->isCacheableMoonPhasesPayload($cachedPayload)) {
+            return response()->json($cachedPayload);
+        }
 
         try {
-            $payload = Cache::remember(
-                $cacheKey,
-                now()->addMinutes($ttlMinutes),
-                fn (): array => $this->skyMoonPhasesService->fetch(
-                    $context['lat'],
-                    $context['lon'],
-                    $context['tz'],
-                    $referenceDate !== '' ? $referenceDate : null
-                )
+            $payload = $this->skyMoonPhasesService->fetch(
+                $context['lat'],
+                $context['lon'],
+                $context['tz'],
+                $referenceDate !== '' ? $referenceDate : null
             );
         } catch (\Throwable) {
+            $lastKnownPayload = $this->resolveMoonLastKnownPayload(
+                $lastKnownCacheKey,
+                'moon_phases',
+                [
+                    'stage' => 'exception',
+                    'reference_date' => $resolvedReferenceDate,
+                    'lat' => $context['lat'],
+                    'lon' => $context['lon'],
+                    'tz' => $context['tz'],
+                    'primary_cache_key' => $cacheKey,
+                ]
+            );
+            if ($lastKnownPayload !== null) {
+                return response()->json($lastKnownPayload);
+            }
+
             return ApiResponse::error('Moon phase data is temporarily unavailable.', null, 503);
+        }
+
+        if ($this->isCacheableMoonPhasesPayload($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+            Cache::put($lastKnownCacheKey, $payload, now()->addHours($lastKnownTtlHours));
+
+            return response()->json($payload);
+        }
+
+        Cache::forget($cacheKey);
+        $lastKnownPayload = $this->resolveMoonLastKnownPayload(
+            $lastKnownCacheKey,
+            'moon_phases',
+            [
+                'stage' => 'degraded_payload',
+                'reference_date' => $resolvedReferenceDate,
+                'lat' => $context['lat'],
+                'lon' => $context['lon'],
+                'tz' => $context['tz'],
+                'primary_cache_key' => $cacheKey,
+            ]
+        );
+        if ($lastKnownPayload !== null) {
+            return response()->json($lastKnownPayload);
         }
 
         return response()->json($payload);
@@ -208,6 +257,12 @@ class SkyController extends Controller
             $context['tz'],
             (string) $year
         );
+        $lastKnownCacheKey = $this->buildCacheKey(
+            'sky_moon_events_last_known',
+            $context['lat'],
+            $context['lon'],
+            $context['tz']
+        );
         $ttlMinutes = max(
             1,
             (int) config(
@@ -215,15 +270,57 @@ class SkyController extends Controller
                 max(1, ((int) config('observing.sky.moon_events_cache_ttl_hours', 24)) * 60)
             )
         );
+        $lastKnownTtlHours = max(1, (int) config('observing.sky.moon_events_last_known_ttl_hours', 168));
+
+        $cachedPayload = Cache::get($cacheKey);
+        if ($this->isCacheableMoonEventsPayload($cachedPayload)) {
+            return response()->json($cachedPayload);
+        }
 
         try {
-            $payload = Cache::remember(
-                $cacheKey,
-                now()->addMinutes($ttlMinutes),
-                fn (): array => $this->skyMoonEventsService->fetch($year, $context['tz'])
-            );
+            $payload = $this->skyMoonEventsService->fetch($year, $context['tz']);
         } catch (\Throwable) {
+            $lastKnownPayload = $this->resolveMoonLastKnownPayload(
+                $lastKnownCacheKey,
+                'moon_events',
+                [
+                    'stage' => 'exception',
+                    'year' => $year,
+                    'lat' => $context['lat'],
+                    'lon' => $context['lon'],
+                    'tz' => $context['tz'],
+                    'primary_cache_key' => $cacheKey,
+                ]
+            );
+            if ($lastKnownPayload !== null) {
+                return response()->json($lastKnownPayload);
+            }
+
             return ApiResponse::error('Moon events data is temporarily unavailable.', null, 503);
+        }
+
+        if ($this->isCacheableMoonEventsPayload($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+            Cache::put($lastKnownCacheKey, $payload, now()->addHours($lastKnownTtlHours));
+
+            return response()->json($payload);
+        }
+
+        Cache::forget($cacheKey);
+        $lastKnownPayload = $this->resolveMoonLastKnownPayload(
+            $lastKnownCacheKey,
+            'moon_events',
+            [
+                'stage' => 'degraded_payload',
+                'year' => $year,
+                'lat' => $context['lat'],
+                'lon' => $context['lon'],
+                'tz' => $context['tz'],
+                'primary_cache_key' => $cacheKey,
+            ]
+        );
+        if ($lastKnownPayload !== null) {
+            return response()->json($lastKnownPayload);
         }
 
         return response()->json($payload);
@@ -253,6 +350,12 @@ class SkyController extends Controller
             $context['tz'],
             $cacheSuffix
         );
+        $lastKnownCacheKey = $this->buildCacheKey(
+            'sky_moon_overview_last_known',
+            $context['lat'],
+            $context['lon'],
+            $context['tz']
+        );
         $ttlMinutes = max(
             1,
             (int) config(
@@ -260,20 +363,62 @@ class SkyController extends Controller
                 max(1, ((int) config('observing.sky.moon_overview_cache_ttl_hours', 1)) * 60)
             )
         );
+        $lastKnownTtlHours = max(1, (int) config('observing.sky.moon_overview_last_known_ttl_hours', 24));
+
+        $cachedPayload = Cache::get($cacheKey);
+        if ($this->isCacheableMoonOverviewPayload($cachedPayload)) {
+            return response()->json($cachedPayload);
+        }
 
         try {
-            $payload = Cache::remember(
-                $cacheKey,
-                now()->addMinutes($ttlMinutes),
-                fn (): array => $this->skyMoonOverviewService->fetch(
-                    $context['lat'],
-                    $context['lon'],
-                    $context['tz'],
-                    $referenceDate !== '' ? $referenceDate : null
-                )
+            $payload = $this->skyMoonOverviewService->fetch(
+                $context['lat'],
+                $context['lon'],
+                $context['tz'],
+                $referenceDate !== '' ? $referenceDate : null
             );
         } catch (\Throwable) {
+            $lastKnownPayload = $this->resolveMoonLastKnownPayload(
+                $lastKnownCacheKey,
+                'moon_overview',
+                [
+                    'stage' => 'exception',
+                    'reference_date' => $resolvedReferenceDate,
+                    'lat' => $context['lat'],
+                    'lon' => $context['lon'],
+                    'tz' => $context['tz'],
+                    'primary_cache_key' => $cacheKey,
+                ]
+            );
+            if ($lastKnownPayload !== null) {
+                return response()->json($lastKnownPayload);
+            }
+
             return ApiResponse::error('Moon overview data is temporarily unavailable.', null, 503);
+        }
+
+        if ($this->isCacheableMoonOverviewPayload($payload)) {
+            Cache::put($cacheKey, $payload, now()->addMinutes($ttlMinutes));
+            Cache::put($lastKnownCacheKey, $payload, now()->addHours($lastKnownTtlHours));
+
+            return response()->json($payload);
+        }
+
+        Cache::forget($cacheKey);
+        $lastKnownPayload = $this->resolveMoonLastKnownPayload(
+            $lastKnownCacheKey,
+            'moon_overview',
+            [
+                'stage' => 'degraded_payload',
+                'reference_date' => $resolvedReferenceDate,
+                'lat' => $context['lat'],
+                'lon' => $context['lon'],
+                'tz' => $context['tz'],
+                'primary_cache_key' => $cacheKey,
+            ]
+        );
+        if ($lastKnownPayload !== null) {
+            return response()->json($lastKnownPayload);
         }
 
         return response()->json($payload);
@@ -483,6 +628,137 @@ class SkyController extends Controller
         }
 
         return true;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function resolveMoonLastKnownPayload(string $cacheKey, string $endpoint, array $context = []): ?array
+    {
+        $payload = Cache::get($cacheKey);
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        $this->recordMoonFallbackUsage($endpoint, $cacheKey, $context);
+
+        return [
+            ...$payload,
+            'stale' => true,
+            'stale_reason' => 'using_cached_data',
+            'provenance' => [
+                ...(is_array($payload['provenance'] ?? null) ? $payload['provenance'] : []),
+                'cache_mode' => 'last_known',
+                'served_at' => CarbonImmutable::now('UTC')->toIso8601String(),
+            ],
+        ];
+    }
+
+    private function recordMoonFallbackUsage(string $endpoint, string $cacheKey, array $context = []): void
+    {
+        $safeEndpoint = trim($endpoint) !== '' ? trim($endpoint) : 'unknown';
+        $safeContext = is_array($context) ? $context : [];
+
+        if ((bool) config('observing.sky.moon_fallback_counter_enabled', true)) {
+            $counterTtlHours = max(1, (int) config('observing.sky.moon_fallback_counter_ttl_hours', 240));
+            $counterKey = sprintf(
+                'sky_moon_fallback_hits:%s:%s',
+                $safeEndpoint,
+                CarbonImmutable::now('UTC')->format('Ymd')
+            );
+
+            try {
+                Cache::add($counterKey, 0, now()->addHours($counterTtlHours));
+                Cache::increment($counterKey);
+            } catch (\Throwable) {
+                // Best-effort telemetry only.
+            }
+        }
+
+        if (!(bool) config('observing.sky.moon_fallback_logging_enabled', true)) {
+            return;
+        }
+
+        $sampleRate = (float) config('observing.sky.moon_fallback_log_sample_rate', 1.0);
+        if ($sampleRate <= 0.0) {
+            return;
+        }
+
+        if ($sampleRate < 1.0) {
+            try {
+                $shouldLog = (random_int(1, 1000000) / 1000000) <= $sampleRate;
+            } catch (\Throwable) {
+                $shouldLog = (mt_rand(1, 1000000) / 1000000) <= $sampleRate;
+            }
+
+            if (!$shouldLog) {
+                return;
+            }
+        }
+
+        Log::warning('Moon endpoint served stale payload from last-known cache.', [
+            'endpoint' => $safeEndpoint,
+            'cache_key' => $cacheKey,
+            'source' => 'last_known',
+            ...$safeContext,
+        ]);
+    }
+
+    private function isCacheableMoonPhasesPayload(mixed $payload): bool
+    {
+        if (!is_array($payload)) {
+            return false;
+        }
+
+        if (!is_array($payload['phases'] ?? null) || !is_array($payload['major_events'] ?? null)) {
+            return false;
+        }
+
+        $referenceDate = trim((string) ($payload['reference_date'] ?? ''));
+
+        return $referenceDate !== '' && count($payload['major_events']) > 0;
+    }
+
+    private function isCacheableMoonEventsPayload(mixed $payload): bool
+    {
+        if (!is_array($payload) || !is_array($payload['events'] ?? null)) {
+            return false;
+        }
+
+        foreach ($payload['events'] as $event) {
+            if (!is_array($event)) {
+                continue;
+            }
+
+            $key = trim((string) ($event['key'] ?? ''));
+            if ($key !== '' && $key !== 'no_black_moon') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isCacheableMoonOverviewPayload(mixed $payload): bool
+    {
+        if (!is_array($payload)) {
+            return false;
+        }
+
+        $phase = trim((string) ($payload['moon_phase'] ?? ''));
+        if ($phase === '' || $phase === 'unknown') {
+            return false;
+        }
+
+        if (is_numeric($payload['moon_illumination_percent'] ?? null)) {
+            return true;
+        }
+
+        if (is_numeric($payload['moon_altitude_deg'] ?? null) || is_numeric($payload['moon_azimuth_deg'] ?? null)) {
+            return true;
+        }
+
+        return trim((string) ($payload['next_moonrise_at'] ?? '')) !== '';
     }
 
     private function resolveTimeBucketSuffix(CarbonImmutable $moment, int $bucketMinutes): ?string

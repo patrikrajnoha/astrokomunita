@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Console\Commands\ImportEventCandidates;
 use App\Console\Commands\BotsPurgeCommand;
 use App\Console\Commands\CrawlAstropixelsEventsCommand;
+use App\Console\Commands\DiagnoseEventDescriptionCommand;
 use App\Console\Commands\RunBotSourceCommand;
 use App\Console\Commands\RunBotSchedulesCommand;
 use App\Console\Commands\SendEventReminders;
@@ -66,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
             SendEventNotificationReminders::class,
             SendWeeklyNewsletterCommand::class,
             GenerateEventDescriptionsCommand::class,
+            DiagnoseEventDescriptionCommand::class,
         ]);
     }
 

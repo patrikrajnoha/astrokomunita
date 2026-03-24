@@ -87,16 +87,25 @@ class LibreTranslateClient implements TranslationClientInterface
 
         if (! $response->successful()) {
             $statusCode = $response->status();
+            $errorMessage = $this->extractErrorMessage($response->json(), (string) $response->body());
             if (in_array($statusCode, [408, 504], true)) {
                 throw new TranslationTimeoutException(
                     $this->provider(),
-                    sprintf('LibreTranslate request timed out (HTTP %d).', $statusCode)
+                    sprintf(
+                        'LibreTranslate request timed out (HTTP %d%s).',
+                        $statusCode,
+                        $errorMessage !== '' ? ': ' . $errorMessage : ''
+                    )
                 );
             }
 
             throw new TranslationProviderUnavailableException(
                 $this->provider(),
-                sprintf('LibreTranslate failed with HTTP %d.', $statusCode)
+                sprintf(
+                    'LibreTranslate failed with HTTP %d%s.',
+                    $statusCode,
+                    $errorMessage !== '' ? ': ' . $errorMessage : ''
+                )
             );
         }
 
@@ -135,5 +144,39 @@ class LibreTranslateClient implements TranslationClientInterface
         return str_contains($message, 'timed out')
             || str_contains($message, 'timeout')
             || str_contains($message, 'curl error 28');
+    }
+
+    /**
+     * @param mixed $jsonPayload
+     */
+    private function extractErrorMessage(mixed $jsonPayload, string $rawBody): string
+    {
+        if (is_array($jsonPayload)) {
+            $candidate = trim((string) ($jsonPayload['error'] ?? $jsonPayload['message'] ?? ''));
+            if ($candidate !== '') {
+                return $this->truncateErrorMessage($candidate);
+            }
+        }
+
+        $candidate = trim($rawBody);
+        if ($candidate === '') {
+            return '';
+        }
+
+        return $this->truncateErrorMessage($candidate);
+    }
+
+    private function truncateErrorMessage(string $message): string
+    {
+        $normalized = trim(preg_replace('/\s+/u', ' ', $message) ?? $message);
+        if ($normalized === '') {
+            return '';
+        }
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($normalized, 0, 160);
+        }
+
+        return substr($normalized, 0, 160);
     }
 }

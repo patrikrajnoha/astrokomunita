@@ -2,6 +2,7 @@
 
 namespace App\Services\AI;
 
+use App\Services\Events\EventAiPolicyService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Throwable;
@@ -9,54 +10,48 @@ use Throwable;
 class OllamaRefinementService
 {
     private const SYSTEM_PROMPT = <<<'PROMPT'
-You are an editor for Slovak astronomy event content.
-Improve naturalness and readability while preserving factual meaning.
-Never invent facts, dates, times, locations, visibility details, or numeric values.
-Always use correct Slovak diacritics.
-Write strictly in Slovak (never Czech, never mixed Slovak/Czech).
-If Slovak diacritics are applicable, they must be present.
+Si skúsený redaktor slovenských astronomických textov.
+Tvojou úlohou je upraviť strojový preklad do prirodzenej, plynulej slovenčiny so správnou diakritikou.
+Zachovaj presný faktický obsah — nikdy nepridávaj nové fakty, dátumy, časy, lokality, čísla ani pozorovacie tvrdenia, ktoré nie sú vo vstupe.
+Ak informácia chýba, použi neutrálne znenie — nevymýšľaj.
+Píš výlučne po slovensky: bez češtiny, bez anglicizmov, bez miešania jazykov.
 PROMPT;
     private const TITLE_PROMPT_TEMPLATE = <<<'PROMPT'
-Refine the Slovak event title for an astronomy audience.
-Rules:
-- Max 90 characters.
-- Natural Slovak.
-- Use correct Slovak diacritics.
-- Write strictly in Slovak (never Czech).
-- If a word normally uses Slovak diacritics, always write it with diacritics.
-- No clickbait.
-- No emojis.
-- Use correct astronomical terminology.
-- Avoid literal translation if unnatural.
-- Prefer descriptive but concise form.
-Examples:
-"Peak of the Perseids meteor shower" -> "Maximum meteorického roja Perzeidy"
-"Jupiter 3.7 S of Moon" -> "Jupiter 3,7 južne od Mesiaca"
-"Regulus 1.4 N of Moon" -> "Regulus 1,4 severne od Mesiaca"
+Úloha: Uprav strojový slovenský preklad názvu astronomickej udalosti na prirodzený, čitateľský titul.
+Pravidlá:
+- Maximálne 90 znakov.
+- Znel prirodzene po slovensky — nie ako doslovný preklad z angličtiny.
+- Správna slovenská diakritika (ä, č, ď, é, í, ľ, ň, ó, ô, š, ť, ú, ý, ž).
+- Presná astronomická terminológia — nepoužívaj hovorové ani vymyslené výrazy.
+- Bez clickbaitu, bez emoji, bez otáznikov.
+- Vzdialenosti píš s čiarkou: 3,7° nie 3.7°.
+- Svetové strany: S→severné, J→južné, V→východné, Z→západné.
+Príklady správneho prekladu:
+"Peak of the Perseids meteor shower" → "Maximum meteorického roja Perzeidy"
+"Jupiter 3.7 S of Moon" → "Jupiter 3,7° južne od Mesiaca"
+"Regulus 1.4 N of Moon" → "Regulus 1,4° severne od Mesiaca"
+"Full Moon" → "Spln Mesiaca"
+"Mars at Opposition" → "Mars v opozícii"
 PROMPT;
     private const DESCRIPTION_PROMPT_TEMPLATE = <<<'PROMPT'
-Refine the Slovak event description.
-Rules:
-- Exactly 2 to 3 sentences total.
-- Clear, educational tone for a general Slovak audience.
-- Use correct Slovak diacritics.
-- Write strictly in Slovak (never Czech).
-- If a word normally uses Slovak diacritics, always write it with diacritics.
-- Explain what the event is, when it happens, how to observe it, and whether equipment is needed.
-- Avoid hallucinated dates or data.
-- Do not invent numeric values.
-- If unsure, keep neutral phrasing.
-- If the input does not contain date/time/location, do not add specific date/time/location claims.
-- If input does not contain date/time/location, do not add phrases like "v noci", "večer", exact hour, or city names.
-- Keep observational advice generic unless the input explicitly includes concrete observing details.
-Guardrail: If information is missing, do not fabricate details.
+Úloha: Uprav strojový slovenský opis astronomickej udalosti na čitateľský, edukačný text.
+Vychádzaj výlučne z poľa translated_description — iba ho stylisticky vylepši, nerozširuj o nové informácie.
+Pravidlá:
+- Presne 2 až 3 vety. Nie viac, nie menej.
+- Tón: jasný, ľudský, edukačný — ako keby si vysvetľoval priateľovi.
+- Správna slovenská diakritika.
+- Výlučne slovenčina — bez češtiny, bez anglicizmov.
+- Vysvetli čo jav je, prípadne ako ho pozorovať — ale len ak je to vo vstupe.
+- Ak vstup neobsahuje dátum, čas ani lokalitu — vôbec ich nepridávaj (ani "v noci", "večer", názov mesta).
+- Ak vstup neobsahuje pozorovacie vybavenie — nepridávaj ho (ani ďalekohľad, binokuláre).
+- Nikdy nespájaj nesúvisiace objekty len pre podobnosť názvov (napr. Ursidy ≠ Urán).
+- Ak informácia chýba — použi neutrálnu formuláciu, nevymýšľaj.
 PROMPT;
 
     private const OUTPUT_PROMPT_TEMPLATE = <<<'PROMPT'
-Return valid JSON only with keys:
-- refined_title
-- refined_description
-Do not include markdown or additional keys.
+Vráť iba platný JSON objekt s dvoma kľúčmi:
+{"refined_title": "...", "refined_description": "..."}
+Bez markdown blokov, bez komentárov, bez ďalších kľúčov.
 PROMPT;
 
     private const TITLE_MAX_CHARS = 90;
@@ -89,28 +84,58 @@ PROMPT;
         'dalekohlad',
         'binokular',
     ];
-    private const DATE_MONTH_PATTERN = '/\\b(január|januar|február|februar|marec|apríl|april|máj|maj|jún|jun|júl|jul|august|september|október|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december)\\b/iu';
-    private const TIME_OF_DAY_PATTERN = '/\\b(v noci|nocou|večer|vecer|ráno|rano|po polnoci|pred svitaním|pred svitanim|overnight|at night|in the evening|before dawn)\\b/iu';
+    private const DATE_MONTH_PATTERN = '/\\b(januar|februar|marec|april|maj|jun|jul|august|september|oktober|november|december|january|february|march|april|may|june|july|august|september|october|november|december)\\b/iu';
+    private const TIME_OF_DAY_PATTERN = '/\\b(v noci|nocou|vecer|rano|po polnoci|pred svitanim|overnight|at night|in the evening|before dawn)\\b/iu';
     private const LOCATION_PATTERN = '/\\b(v|vo|na|nad|pri|in|at|over)\\s+\\p{Lu}[\\p{L}\\-]{2,}\\b/u';
-    private const OBSERVATION_DETAIL_PATTERN = '/\\b(ďalekohľad\\w*|dalekohlad\\w*|dalekohled\\w*|teleskop\\w*|binokulár\\w*|binokular\\w*|binoculars?\\w*|montáž\\w*|montaz\\w*|kamera\\w*|fotoaparát\\w*|fotoaparat\\w*|expozíci\\w*|expozici\\w*|filter\\w*|stativ\\w*|statív\\w*|okulár\\w*|okular\\w*|telescope\\w*|camera\\w*|tripod\\w*)\\b/iu';
+    private const OBSERVATION_DETAIL_PATTERN = '/\\b(dalekohlad\\w*|dalekohled\\w*|teleskop\\w*|binokular\\w*|binoculars?\\w*|montaz\\w*|kamera\\w*|fotoaparat\\w*|expozici\\w*|filter\\w*|stativ\\w*|okular\\w*|telescope\\w*|camera\\w*|tripod\\w*)\\b/iu';
     private const NUMERIC_TOKEN_PATTERN = '/\\b\\d{1,4}(?:[.,:]\\d{1,4}){0,2}\\b/u';
     private const CZECH_SPECIFIC_CHARS_PATTERN = '/[\\x{011B}\\x{0159}\\x{016F}]/iu';
+    private const CELESTIAL_TERMS = [
+        'sun',
+        'moon',
+        'mercury',
+        'venus',
+        'mars',
+        'jupiter',
+        'saturn',
+        'uranus',
+        'neptune',
+        'pluto',
+        'slnko',
+        'mesiac',
+        'merkur',
+        'mars',
+        'jupiter',
+        'saturn',
+        'uran',
+        'neptun',
+        'pluto',
+        'pleiades',
+        'plejady',
+    ];
+    private const UNNATURAL_SLOVAK_MARKERS = [
+        'conductov',
+        'kontakt s ludmi na mesiac',
+        'kontaktu s ludmi na mesiac',
+    ];
 
     private static ?string $detectedGpuName = null;
 
     public function __construct(
         private readonly OllamaClient $ollamaClient,
+        private readonly ?EventAiPolicyService $policyService = null,
     ) {
     }
 
     /**
-     * @return array{refined_title:string,refined_description:?string,used_fallback:bool,model:string,duration_ms:int|null}
+     * @return array{refined_title:string,refined_description:?string,used_fallback:bool,title_used_fallback:bool,description_used_fallback:bool,model:string,duration_ms:int|null}
      */
     public function refine(
         string $originalEnglishTitle,
         ?string $originalEnglishDescription,
         string $translatedTitle,
-        ?string $translatedDescription
+        ?string $translatedDescription,
+        bool $forceRun = false,
     ): array {
         $fallbackTitle = $this->sanitizeInline($translatedTitle, self::TITLE_MAX_CHARS);
         if ($fallbackTitle === '') {
@@ -121,6 +146,20 @@ PROMPT;
         $fallbackDescription = $this->sanitizeDescription($translatedDescription, self::DESCRIPTION_MAX_CHARS);
         if ($fallbackDescription === null && $translatedDescription !== null) {
             $fallbackDescription = '';
+        }
+
+        $englishDescriptionLength = mb_strlen(trim(strip_tags((string) ($originalEnglishDescription ?? ''))));
+        $minDescriptionLength = (int) config('ai.ollama_refinement_min_description_length', 80);
+        if (! $forceRun && $englishDescriptionLength < $minDescriptionLength) {
+            return [
+                'refined_title' => $fallbackTitle,
+                'refined_description' => $fallbackDescription,
+                'used_fallback' => true,
+                'title_used_fallback' => true,
+                'description_used_fallback' => true,
+                'model' => $this->resolveModel(),
+                'duration_ms' => null,
+            ];
         }
 
         try {
@@ -143,6 +182,8 @@ PROMPT;
                 'refined_title' => $fallbackTitle,
                 'refined_description' => $fallbackDescription,
                 'used_fallback' => true,
+                'title_used_fallback' => true,
+                'description_used_fallback' => true,
                 'model' => $this->resolveModel(),
                 'duration_ms' => null,
             ];
@@ -156,17 +197,20 @@ PROMPT;
                 'refined_title' => $fallbackTitle,
                 'refined_description' => $fallbackDescription,
                 'used_fallback' => true,
+                'title_used_fallback' => true,
+                'description_used_fallback' => true,
                 'model' => $this->resolveModel(),
                 'duration_ms' => null,
             ];
         }
 
-        $usedFallback = false;
+        $titleUsedFallback = false;
+        $descriptionUsedFallback = false;
 
         $refinedTitle = $this->sanitizeInline((string) ($parsed['refined_title'] ?? ''), self::TITLE_MAX_CHARS);
         if ($refinedTitle === '') {
             $refinedTitle = $fallbackTitle;
-            $usedFallback = true;
+            $titleUsedFallback = true;
         }
         $refinedTitle = $this->normalizeAstronomyTitleFromSource($originalEnglishTitle, $refinedTitle);
 
@@ -183,7 +227,7 @@ PROMPT;
             $refinedDescription = null;
         } elseif (($refinedDescription === null || $refinedDescription === '') && $fallbackDescription !== null) {
             $refinedDescription = $fallbackDescription;
-            $usedFallback = true;
+            $descriptionUsedFallback = true;
         }
 
         $titleValidation = $this->validateRefinedTitle(
@@ -198,7 +242,7 @@ PROMPT;
             ]);
 
             $refinedTitle = $fallbackTitle;
-            $usedFallback = true;
+            $titleUsedFallback = true;
         }
 
         $descriptionValidation = $this->validateRefinedDescription(
@@ -215,13 +259,17 @@ PROMPT;
             ]);
 
             $refinedDescription = $fallbackDescription;
-            $usedFallback = true;
+            $descriptionUsedFallback = true;
         }
+
+        $usedFallback = $titleUsedFallback || $descriptionUsedFallback;
 
         return [
             'refined_title' => $refinedTitle,
             'refined_description' => $refinedDescription,
             'used_fallback' => $usedFallback,
+            'title_used_fallback' => $titleUsedFallback,
+            'description_used_fallback' => $descriptionUsedFallback,
             'model' => (string) ($result['model'] ?? $this->resolveModel()),
             'duration_ms' => isset($result['duration_ms']) ? (int) $result['duration_ms'] : null,
         ];
@@ -235,7 +283,7 @@ PROMPT;
 
     private function resolveTimeoutSeconds(): int
     {
-        $value = (int) config('ai.ollama_timeout_seconds', self::DEFAULT_TIMEOUT_SECONDS);
+        $value = (int) config('ai.ollama_timeout_seconds', config('ai.ollama.timeout', self::DEFAULT_TIMEOUT_SECONDS));
         return max(1, $value);
     }
 
@@ -283,6 +331,7 @@ PROMPT;
                         'temperature' => $this->resolveTemperature(),
                         'num_predict' => $this->resolveMaxTokens(),
                         'timeout' => $this->resolveTimeoutSeconds(),
+                        'format' => 'json',
                     ]
                 );
             } catch (Throwable $exception) {
@@ -461,6 +510,7 @@ PROMPT;
         return self::TITLE_PROMPT_TEMPLATE
             . "\n\n"
             . self::DESCRIPTION_PROMPT_TEMPLATE
+            . $this->buildPolicyRulesSection()
             . "\n\n"
             . self::OUTPUT_PROMPT_TEMPLATE
             . "\n\nInput JSON:\n"
@@ -593,6 +643,13 @@ PROMPT;
             ];
         }
 
+        if ($this->containsUnnaturalSlovakArtifacts($refinedTitle)) {
+            return [
+                'valid' => false,
+                'reason' => 'unnatural_slovak_artifacts',
+            ];
+        }
+
         $titleInputContext = implode("\n", array_filter([
             $originalEnglishTitle,
             $translatedTitle,
@@ -614,6 +671,38 @@ PROMPT;
     /**
      * @return array{valid:bool,reason:string}
      */
+    /**
+     * Returns additional description rules from the AI policy as a prompt section,
+     * or an empty string if the policy is unavailable or empty.
+     */
+    private function buildPolicyRulesSection(): string
+    {
+        try {
+            $service = $this->policyService ?? app(EventAiPolicyService::class);
+            $rules = $service->value('prompts.legacy.rules', []);
+        } catch (Throwable) {
+            return '';
+        }
+
+        if (! is_array($rules) || $rules === []) {
+            return '';
+        }
+
+        $lines = array_values(array_filter(
+            array_map(static fn (mixed $r): string => trim((string) $r), $rules),
+            static fn (string $r): bool => $r !== ''
+        ));
+
+        if ($lines === []) {
+            return '';
+        }
+
+        return "\n\nDalsie pravidla kvality:\n" . implode("\n", array_map(
+            static fn (string $r): string => '- ' . $r,
+            $lines
+        ));
+    }
+
     private function validateRefinedDescription(
         string $originalEnglishTitle,
         ?string $originalEnglishDescription,
@@ -642,6 +731,13 @@ PROMPT;
             ];
         }
 
+        if ($this->containsUnnaturalSlovakArtifacts($refinedDescription)) {
+            return [
+                'valid' => false,
+                'reason' => 'unnatural_slovak_artifacts',
+            ];
+        }
+
         $sentenceCount = $this->countSentences($refinedDescription);
         if ($sentenceCount < 2 || $sentenceCount > 3) {
             return [
@@ -662,6 +758,32 @@ PROMPT;
                 'valid' => false,
                 'reason' => 'anti_hallucination_failed',
             ];
+        }
+
+        try {
+            $service = $this->policyService ?? app(EventAiPolicyService::class);
+
+            $forbiddenSubstrings = $service->value('safety.forbidden_substrings', []);
+            if (is_array($forbiddenSubstrings)) {
+                foreach ($forbiddenSubstrings as $substring) {
+                    $needle = strtolower(trim((string) $substring));
+                    if ($needle !== '' && str_contains(strtolower($refinedDescription), $needle)) {
+                        return ['valid' => false, 'reason' => 'policy_forbidden_substring'];
+                    }
+                }
+            }
+
+            $forbiddenRegex = $service->value('safety.forbidden_regex', []);
+            if (is_array($forbiddenRegex)) {
+                foreach ($forbiddenRegex as $pattern) {
+                    $normalized = EventAiPolicyService::normalizeRegexPattern((string) $pattern);
+                    if ($normalized !== null && @preg_match($normalized, $refinedDescription) === 1) {
+                        return ['valid' => false, 'reason' => 'policy_forbidden_regex'];
+                    }
+                }
+            }
+        } catch (Throwable) {
+            // Policy unavailable — skip guard
         }
 
         return [
@@ -740,6 +862,10 @@ PROMPT;
         }
 
         if ($this->introducesUnknownNumericTokens($inputContext, $outputContext)) {
+            return true;
+        }
+
+        if ($this->mentionsUnexpectedCelestialTerms($inputContext, $outputContext)) {
             return true;
         }
 
@@ -845,23 +971,25 @@ PROMPT;
             return false;
         }
 
-        if (preg_match('/\\b\\d{1,2}\\s*(?:h|hod(?:\\.|ina|iny|in)?)\\b/iu', $text) === 1) {
+        $normalized = $this->normalizeLanguageText($text);
+
+        if (preg_match('/\\b\\d{1,2}\\s*(?:h|hod(?:\\.|ina|iny|in)?)\\b/iu', $normalized) === 1) {
             return true;
         }
 
-        if (preg_match(self::DATE_MONTH_PATTERN, $text) === 1) {
+        if (preg_match(self::DATE_MONTH_PATTERN, $normalized) === 1) {
             return true;
         }
 
-        if (preg_match(self::TIME_OF_DAY_PATTERN, $text) === 1) {
+        if (preg_match(self::TIME_OF_DAY_PATTERN, $normalized) === 1) {
             return true;
         }
 
-        if (preg_match('/\b\d{1,2}:\d{2}\b/u', $text) === 1) {
+        if (preg_match('/\b\d{1,2}:\d{2}\b/u', $normalized) === 1) {
             return true;
         }
 
-        if (preg_match('/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/u', $text) === 1) {
+        if (preg_match('/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/u', $normalized) === 1) {
             return true;
         }
 
@@ -878,14 +1006,73 @@ PROMPT;
             return false;
         }
 
-        if (preg_match(self::OBSERVATION_DETAIL_PATTERN, $text) === 1) {
+        $normalized = $this->normalizeLanguageText($text);
+
+        if (preg_match(self::OBSERVATION_DETAIL_PATTERN, $normalized) === 1) {
             return true;
         }
 
-        if (preg_match('/\b\d{1,3}\s?(x|mm|cm)\b/iu', $text) === 1) {
+        if (preg_match('/\b\d{1,3}\s?(x|mm|cm)\b/iu', $normalized) === 1) {
             return true;
         }
 
         return false;
+    }
+
+    private function mentionsUnexpectedCelestialTerms(string $inputContext, string $outputContext): bool
+    {
+        if (trim($outputContext) === '') {
+            return false;
+        }
+
+        $inputNormalized = $this->normalizeLanguageText($inputContext);
+        $outputNormalized = $this->normalizeLanguageText($outputContext);
+
+        $allowed = [];
+        $used = [];
+
+        foreach (self::CELESTIAL_TERMS as $term) {
+            if ($term === '') {
+                continue;
+            }
+
+            if (str_contains($inputNormalized, $term)) {
+                $allowed[$term] = true;
+            }
+
+            if (str_contains($outputNormalized, $term)) {
+                $used[$term] = true;
+            }
+        }
+
+        foreach (array_keys($used) as $term) {
+            if (! isset($allowed[$term])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function containsUnnaturalSlovakArtifacts(string $text): bool
+    {
+        if (trim($text) === '') {
+            return false;
+        }
+
+        $normalized = $this->normalizeLanguageText($text);
+
+        foreach (self::UNNATURAL_SLOVAK_MARKERS as $marker) {
+            if ($marker !== '' && str_contains($normalized, $marker)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeLanguageText(string $text): string
+    {
+        return Str::of($text)->ascii()->lower()->value();
     }
 }

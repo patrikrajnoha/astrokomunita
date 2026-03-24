@@ -35,9 +35,21 @@ class OllamaClient
                 'num_predict' => (int) ($options['num_predict'] ?? ($config['num_predict'] ?? 256)),
             ],
         ];
+        $stop = $options['stop'] ?? null;
+        if (is_array($stop) && $stop !== []) {
+            $payload['options']['stop'] = array_values(array_filter(array_map(
+                static fn (mixed $item): string => trim((string) $item),
+                $stop
+            ), static fn (string $item): bool => $item !== ''));
+        }
 
         if ($system !== null && trim($system) !== '') {
             $payload['system'] = $system;
+        }
+
+        $format = $options['format'] ?? null;
+        if (is_string($format) && $format !== '') {
+            $payload['format'] = $format;
         }
 
         $verifyOption = app(SslVerificationPolicy::class)->resolveVerifyOption(

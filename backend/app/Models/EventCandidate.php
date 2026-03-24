@@ -29,6 +29,18 @@ class EventCandidate extends Model
 
     public const TRANSLATION_FAILED = 'failed';
 
+    public const TRANSLATION_MODE_TEMPLATE = 'template';
+
+    public const TRANSLATION_MODE_TRANSLATED = 'translated';
+
+    public const TRANSLATION_MODE_AI_TITLE = 'ai_title';
+
+    public const TRANSLATION_MODE_AI_DESCRIPTION = 'ai_description';
+
+    public const TRANSLATION_MODE_AI_REFINED = 'ai_refined';
+
+    public const TRANSLATION_MODE_MANUAL = 'manual';
+
     protected $fillable = [
         'event_source_id',
         'source_name',
@@ -59,6 +71,7 @@ class EventCandidate extends Model
         'translated_description',
         'visibility',
         'translation_status',
+        'translation_mode',
         'translation_error',
         'translated_at',
 

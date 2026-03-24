@@ -64,7 +64,8 @@ class SidebarDataController extends Controller
             || in_array('observing_conditions', $sections, true)
             || in_array('observing_weather', $sections, true)
             || in_array('night_sky', $sections, true)
-            || in_array('iss_pass', $sections, true);
+            || in_array('iss_pass', $sections, true)
+            || in_array('constellations_now', $sections, true);
 
         if (! $needsObservingContext) {
             return null;

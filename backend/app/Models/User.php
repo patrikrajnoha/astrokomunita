@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\Storage\MediaStorageService;
 use App\Services\UserCleanupService;
+use App\Support\BotAvatarResolver;
 use App\Support\EventFollowTable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -34,6 +35,7 @@ class User extends Authenticatable implements MustVerifyEmail
                 $user->email = null;
                 $user->requires_email_verification = false;
                 $user->email_verified_at = null;
+                BotAvatarResolver::ensurePersistedBotAvatarPath($user);
             }
         });
 
@@ -138,9 +140,13 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getAvatarUrlAttribute(): ?string
     {
-        $path = $this->avatar_path;
+        $path = BotAvatarResolver::resolveBotAvatarPath($this, (string) ($this->avatar_path ?? ''));
         if (! $path) {
             return null;
+        }
+
+        if (BotAvatarResolver::isValidBotAvatarPath($path, (string) $this->username)) {
+            return BotAvatarResolver::publicUrlFromRelativePath($path);
         }
 
         $media = app(MediaStorageService::class);

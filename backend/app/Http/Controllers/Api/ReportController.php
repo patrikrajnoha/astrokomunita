@@ -34,7 +34,16 @@ class ReportController extends Controller
 
         $postId = (int) ($validated['post_id'] ?? $validated['target_id']);
 
-        $targetPost = Post::query()->select('id', 'user_id')->findOrFail($postId);
+        $targetPost = Post::query()
+            ->with(['user:id,role,is_bot'])
+            ->select('id', 'user_id')
+            ->findOrFail($postId);
+
+        if ($targetPost->user?->isBot()) {
+            return response()->json([
+                'message' => 'Prispevky botov nie je mozne nahlasovat cez moderaciu.',
+            ], 422);
+        }
         if ((int) $targetPost->user_id === (int) $user->id) {
             return response()->json([
                 'message' => 'Nemôžete nahlásiť vlastný príspevok.',

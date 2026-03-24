@@ -44,6 +44,12 @@ return [
                 )
             ))),
         ],
+        'refinement' => [
+            'skip_on_template_fallback' => filter_var(
+                env('EVENTS_TRANSLATION_REFINEMENT_SKIP_ON_TEMPLATE_FALLBACK', true),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+        ],
     ],
     'ai' => [
         'description_mode' => env('EVENTS_AI_DESCRIPTION_MODE', 'template'),
@@ -65,6 +71,70 @@ return [
         'title_postedit_temperature' => (float) env('EVENTS_AI_TITLE_POSTEDIT_TEMPERATURE', 0.25),
         'title_postedit_num_predict' => (int) env('EVENTS_AI_TITLE_POSTEDIT_NUM_PREDICT', 120),
         'title_postedit_timeout' => (int) env('EVENTS_AI_TITLE_POSTEDIT_TIMEOUT', 25),
+        'description_routing' => [
+            // Conservative router:
+            // - keep AI for richer narrative event classes
+            // - default to deterministic template for technical positional events
+            //   where AI can introduce awkward wording or risky factual drift
+            'enabled' => filter_var(env('EVENTS_AI_DESCRIPTION_ROUTING_ENABLED', true), FILTER_VALIDATE_BOOLEAN),
+            'ai_worthy_types' => [
+                'mission',
+                'space_event',
+                'eclipse',
+                'eclipse_lunar',
+                'eclipse_solar',
+                'aurora',
+            ],
+            'template_by_default_types' => [
+                'conjunction',
+                'observation_window',
+                'planet',
+                'meteors',
+                'meteor_shower',
+            ],
+            'template_by_default_sources' => [
+                'nasa_watch_the_skies',
+            ],
+            'template_by_default_title_keywords' => [
+                'moon phase',
+                'lunar phase',
+                'full moon',
+                'new moon',
+                'first quarter moon',
+                'last quarter moon',
+                'prva stvrt',
+                'posledna stvrt',
+                'spln',
+                'nov',
+                'konjunkcia',
+                'conjunction',
+                'perihel',
+                'perih',
+                'aphel',
+                'afel',
+                'perige',
+                'apoge',
+                'elongation',
+                'elongac',
+                'opposition',
+                'opozic',
+                'ascending node',
+                'descending node',
+                'vzostupn',
+                'zostupn',
+                'angular distance',
+                'uhlov',
+                'separation',
+                'meteor shower',
+                'meteoricky roj',
+                'perseid',
+                'lyrid',
+                'leonid',
+                'quadrantid',
+                'taurid',
+                'ursid',
+            ],
+        ],
     ],
     'astropixels' => [
         'min_year' => (int) env('EVENTS_ASTROPIXELS_MIN_YEAR', 2021),

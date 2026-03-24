@@ -55,8 +55,8 @@ class ModerationClient
 
     public function moderateImageFromPath(string $absolutePath): array
     {
-        $contents = @file_get_contents($absolutePath);
-        if ($contents === false) {
+        $stream = @fopen($absolutePath, 'rb');
+        if ($stream === false || !is_resource($stream)) {
             throw new ModerationClientException(
                 'Unable to read attachment for moderation.',
                 'file_read_error'
@@ -65,7 +65,7 @@ class ModerationClient
 
         $request = $this->baseRequest()->attach(
             'image',
-            $contents,
+            $stream,
             basename($absolutePath)
         );
         $this->logRequestDiagnostics('/moderate/image');
@@ -84,6 +84,10 @@ class ModerationClient
                 'Moderation image request failed.',
                 'service_error'
             );
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
         }
 
         if ($response->failed()) {

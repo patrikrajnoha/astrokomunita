@@ -100,14 +100,42 @@ class BotTranslationService implements BotTranslationServiceInterface
 
         $sourceLang = $this->normalizeSourceLanguage((string) config('bots.translation.source_lang', 'en'));
         $titleResult = $normalizedTitle !== ''
-            ? $this->translateLongText($normalizedTitle, $targetLang, $sourceLang, $providers)
+            ? $this->translateLongText(
+                $normalizedTitle,
+                $targetLang,
+                $sourceLang,
+                $providers,
+                allowPostEdit: false,
+                allowQualityRetry: false
+            )
             : null;
         $contentResult = $normalizedContent !== ''
-            ? $this->translateLongText($normalizedContent, $targetLang, $sourceLang, $providers)
+            ? $this->translateLongText(
+                $normalizedContent,
+                $targetLang,
+                $sourceLang,
+                $providers,
+                allowPostEdit: true,
+                allowQualityRetry: true
+            )
             : null;
 
         $translatedTitle = trim((string) ($titleResult['text'] ?? ''));
         $translatedContent = trim((string) ($contentResult['text'] ?? ''));
+        $titleScreeningFlags = [];
+        if ($translatedTitle !== '') {
+            $titleScreeningFlags = $this->evaluateTitleQualityFlags($normalizedTitle, $translatedTitle, $targetLang);
+            if ($titleScreeningFlags !== []) {
+                Log::warning('Bot translation title rejected by title-quality guard.', [
+                    'target_lang' => $targetLang,
+                    'provider' => $titleResult['provider'] ?? null,
+                    'flags' => $titleScreeningFlags,
+                    'source_title_preview' => $this->limitText($normalizedTitle, 160),
+                    'translated_title_preview' => $this->limitText($translatedTitle, 160),
+                ]);
+                $translatedTitle = '';
+            }
+        }
 
         $totalDurationMs = (int) ($titleResult['duration_ms'] ?? 0) + (int) ($contentResult['duration_ms'] ?? 0);
         $totalChars = (int) ($titleResult['chars'] ?? 0) + (int) ($contentResult['chars'] ?? 0);
@@ -125,19 +153,58 @@ class BotTranslationService implements BotTranslationServiceInterface
             $titleResult['provider_chain'] ?? [],
             $contentResult['provider_chain'] ?? []
         );
-        $qualityFlags = $this->mergeStringLists(
-            $titleResult['quality_flags'] ?? [],
-            $contentResult['quality_flags'] ?? []
-        );
+        $titleQualityFlags = array_values(array_unique($titleResult['quality_flags'] ?? []));
+        if ($titleScreeningFlags !== []) {
+            $titleQualityFlags = $this->mergeStringLists($titleQualityFlags, $titleScreeningFlags);
+        }
+        $contentQualityFlags = array_values(array_unique($contentResult['quality_flags'] ?? []));
+        $qualityFlags = $this->mergeStringLists($titleQualityFlags, $contentQualityFlags);
+        $titleHardQualityFlags = $this->hardQualityFlags($titleQualityFlags);
+        $contentHardQualityFlags = $this->hardQualityFlags($contentQualityFlags);
+        $combinedHardQualityFlags = $this->mergeStringLists($titleHardQualityFlags, $contentHardQualityFlags);
         $qualityRetryCount = (int) ($titleResult['quality_retry_count'] ?? 0) + (int) ($contentResult['quality_retry_count'] ?? 0);
         $mode = $this->resolveCombinedMode(
             $titleResult['mode'] ?? null,
             $contentResult['mode'] ?? null
         );
+        $rawTranslatedTitle = $translatedTitle;
+        $rawTranslatedContent = $translatedContent;
+        $qualityError = null;
+        if ($titleHardQualityFlags !== []) {
+            $translatedTitle = '';
+        }
+        if ($contentHardQualityFlags !== []) {
+            $translatedContent = '';
+        }
 
-        $status = ($translatedTitle !== '' || $translatedContent !== '')
-            ? BotTranslationStatus::DONE->value
-            : BotTranslationStatus::SKIPPED->value;
+        $hardQualityFlags = $contentHardQualityFlags;
+        if ($translatedContent === '') {
+            $hardQualityFlags = $this->mergeStringLists($hardQualityFlags, $titleHardQualityFlags);
+        }
+
+        if ($hardQualityFlags !== []) {
+            $qualityError = 'quality_guard_failed:' . implode(',', $hardQualityFlags);
+
+            Log::warning('Bot translation rejected by quality guard.', [
+                'target_lang' => $targetLang,
+                'provider' => $provider,
+                'quality_flags' => $qualityFlags,
+                'combined_hard_quality_flags' => $combinedHardQualityFlags,
+                'hard_quality_flags' => $hardQualityFlags,
+                'title_hard_quality_flags' => $titleHardQualityFlags,
+                'content_hard_quality_flags' => $contentHardQualityFlags,
+                'title_preview' => $this->limitText($rawTranslatedTitle, 180),
+                'content_preview' => $this->limitText($rawTranslatedContent, 240),
+            ]);
+        }
+
+        if ($translatedTitle !== '' || $translatedContent !== '') {
+            $status = BotTranslationStatus::DONE->value;
+        } elseif ($hardQualityFlags !== []) {
+            $status = BotTranslationStatus::FAILED->value;
+        } else {
+            $status = BotTranslationStatus::SKIPPED->value;
+        }
 
         return [
             'translated_title' => $translatedTitle !== '' ? $translatedTitle : null,
@@ -157,8 +224,12 @@ class BotTranslationService implements BotTranslationServiceInterface
                 'chars' => $totalChars,
                 'fallback_used' => $fallbackUsed,
                 'quality_flags' => $qualityFlags,
+                'quality_hard_fail_flags' => $hardQualityFlags,
+                'quality_hard_fail_flags_title' => $titleHardQualityFlags,
+                'quality_hard_fail_flags_content' => $contentHardQualityFlags,
+                'title_rejected_flags' => $titleScreeningFlags,
                 'quality_retry_count' => $qualityRetryCount,
-                'error' => null,
+                'error' => $qualityError,
                 'translated_at' => now()->toIso8601String(),
             ],
         ];
@@ -179,7 +250,14 @@ class BotTranslationService implements BotTranslationServiceInterface
      *   quality_retry_count:int
      * }
      */
-    private function translateLongText(string $text, string $targetLang, string $sourceLang, array $providerOrder): array
+    private function translateLongText(
+        string $text,
+        string $targetLang,
+        string $sourceLang,
+        array $providerOrder,
+        bool $allowPostEdit = true,
+        bool $allowQualityRetry = true
+    ): array
     {
         $protection = $this->protectTermsInText($text);
         $chunks = $this->chunkText($protection['text']);
@@ -195,7 +273,14 @@ class BotTranslationService implements BotTranslationServiceInterface
         $model = null;
 
         foreach ($chunks as $chunk) {
-            $chunkResult = $this->translateChunkWithFallback($chunk, $targetLang, $sourceLang, $providerOrder);
+            $chunkResult = $this->translateChunkWithFallback(
+                chunk: $chunk,
+                targetLang: $targetLang,
+                sourceLang: $sourceLang,
+                providerOrder: $providerOrder,
+                allowPostEdit: $allowPostEdit,
+                allowQualityRetry: $allowQualityRetry
+            );
             $translatedChunks[] = $chunkResult['text'];
             $providersUsed[] = $chunkResult['provider'];
             $allModes[] = $chunkResult['mode'];
@@ -217,6 +302,7 @@ class BotTranslationService implements BotTranslationServiceInterface
         $translatedText = implode("\n\n", $translatedChunks);
         $translatedText = $this->restoreProtectedTerms($translatedText, $protection['map']);
         $translatedText = $this->applyTerminologyMap($translatedText);
+        $translatedText = $this->polishSlovakArtifacts($translatedText, $targetLang);
         $provider = $this->resolveCombinedProviderFromList($providersUsed);
         $mode = $this->resolveModeFromList($allModes);
 
@@ -253,7 +339,9 @@ class BotTranslationService implements BotTranslationServiceInterface
         string $chunk,
         string $targetLang,
         string $sourceLang,
-        array $providerOrder
+        array $providerOrder,
+        bool $allowPostEdit = true,
+        bool $allowQualityRetry = true
     ): array {
         $errors = [];
 
@@ -266,18 +354,72 @@ class BotTranslationService implements BotTranslationServiceInterface
                 $translatedDuration = (int) ($translated['duration_ms'] ?? 0);
                 $providerChain = [$translatedProvider];
                 $mode = $translated['mode'] ?? ($translatedProvider === 'ollama' ? 'ollama_direct' : 'lt_only');
+                $allowQualityRetryForChunk = $allowQualityRetry;
 
-                if ($providerName === 'libretranslate' && $this->shouldUsePostEdit($targetLang, $providerOrder)) {
+                if (
+                    $allowPostEdit
+                    && $providerName === 'libretranslate'
+                    && $this->shouldUsePostEdit($targetLang, $providerOrder)
+                ) {
+                    $draftFlags = $this->evaluateQualityFlags($chunk, $translatedText, $targetLang);
+
+                    if (! $this->shouldAttemptPostEdit($targetLang, $draftFlags)) {
+                        $quality = $this->applyQualityRetryIfNeeded(
+                            originalText: $chunk,
+                            translatedText: $translatedText,
+                            targetLang: $targetLang,
+                            sourceLang: $sourceLang,
+                            providerOrder: $providerOrder,
+                            allowQualityRetry: $allowQualityRetryForChunk
+                        );
+
+                        $translatedText = $quality['text'];
+                        $translatedProvider = $quality['provider'] ?? $translatedProvider;
+                        $translatedModel = $quality['model'] ?? $translatedModel;
+                        $translatedDuration += (int) ($quality['duration_ms'] ?? 0);
+                        $providerChain = $this->mergeStringLists($providerChain, $quality['provider_chain'] ?? []);
+                        $mode = $quality['mode'] ?? $mode;
+
+                        return [
+                            'text' => $translatedText,
+                            'provider' => $translatedProvider,
+                            'model' => $translatedModel,
+                            'duration_ms' => $translatedDuration,
+                            'chars' => (int) ($translated['chars'] ?? $this->stringLength($chunk)),
+                            'fallback_used' => $index > 0,
+                            'provider_chain' => $providerChain,
+                            'mode' => $mode,
+                            'quality_flags' => $quality['quality_flags'] ?? [],
+                            'quality_retry_count' => (int) ($quality['quality_retry_count'] ?? 0),
+                        ];
+                    }
+
                     try {
                         $postEdit = $this->ollamaTranslateClient->postEdit($chunk, $translatedText, $targetLang, $sourceLang);
                         $postEditText = trim((string) ($postEdit['text'] ?? ''));
                         if ($postEditText !== '') {
-                            $translatedText = $postEditText;
-                            $translatedProvider = 'ollama_postedit';
-                            $translatedModel = $this->nullableString($postEdit['model'] ?? $translatedModel);
-                            $translatedDuration += (int) ($postEdit['duration_ms'] ?? 0);
-                            $providerChain[] = 'ollama_postedit';
-                            $mode = 'lt_ollama_postedit';
+                            $postEditFlags = $this->evaluateQualityFlags($chunk, $postEditText, $targetLang);
+
+                            if ($this->shouldAcceptPostEditResult($draftFlags, $postEditFlags)) {
+                                $translatedText = $postEditText;
+                                $translatedProvider = 'ollama_postedit';
+                                $translatedModel = $this->nullableString($postEdit['model'] ?? $translatedModel);
+                                $translatedDuration += (int) ($postEdit['duration_ms'] ?? 0);
+                                $providerChain[] = 'ollama_postedit';
+                                $mode = 'lt_ollama_postedit';
+                                // Post-edit already represents the secondary AI quality pass.
+                                $allowQualityRetryForChunk = false;
+                            } else {
+                                Log::warning('Bot translation post-edit rejected; keeping LibreTranslate draft.', [
+                                    'target_lang' => $targetLang,
+                                    'draft_flags' => $draftFlags,
+                                    'post_edit_flags' => $postEditFlags,
+                                    'draft_preview' => $this->limitText($translatedText, 200),
+                                    'post_edit_preview' => $this->limitText($postEditText, 200),
+                                ]);
+                                // Avoid degrading outputs by switching to a third variant.
+                                $allowQualityRetryForChunk = false;
+                            }
                         }
                     } catch (Throwable $exception) {
                         Log::warning('Bot translation post-edit skipped; Ollama unavailable.', [
@@ -293,7 +435,8 @@ class BotTranslationService implements BotTranslationServiceInterface
                     translatedText: $translatedText,
                     targetLang: $targetLang,
                     sourceLang: $sourceLang,
-                    providerOrder: $providerOrder
+                    providerOrder: $providerOrder,
+                    allowQualityRetry: $allowQualityRetryForChunk
                 );
 
                 $translatedText = $quality['text'];
@@ -342,6 +485,59 @@ class BotTranslationService implements BotTranslationServiceInterface
     }
 
     /**
+     * @param  list<string>  $draftFlags
+     */
+    private function shouldAttemptPostEdit(string $targetLang, array $draftFlags): bool
+    {
+        if (strtolower(trim($targetLang)) !== 'sk') {
+            return false;
+        }
+
+        $mode = strtolower(trim((string) config('bots.translation.post_edit.mode', 'smart')));
+        if ($mode === 'always') {
+            return true;
+        }
+
+        if (! in_array($mode, ['smart', 'on_flags'], true)) {
+            return false;
+        }
+
+        $configured = config('bots.translation.post_edit.trigger_flags', [
+            'identical',
+            'too_short',
+            'too_much_en',
+            'contains_en_connectors',
+            'encoding_artifacts',
+            'czech_drift',
+            'prompt_leakage',
+        ]);
+        if (! is_array($configured) || $configured === []) {
+            return false;
+        }
+
+        $flagSet = [];
+        foreach ($draftFlags as $flag) {
+            $normalized = strtolower(trim((string) $flag));
+            if ($normalized !== '') {
+                $flagSet[$normalized] = true;
+            }
+        }
+
+        if ($flagSet === []) {
+            return false;
+        }
+
+        foreach ($configured as $flag) {
+            $normalized = strtolower(trim((string) $flag));
+            if ($normalized !== '' && isset($flagSet[$normalized])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @return array{text:string,provider:string,model:?string,duration_ms:int,chars:int,mode:string}
      */
     private function translateUsingProvider(
@@ -382,7 +578,8 @@ class BotTranslationService implements BotTranslationServiceInterface
         string $translatedText,
         string $targetLang,
         string $sourceLang,
-        array $providerOrder
+        array $providerOrder,
+        bool $allowQualityRetry = true
     ): array {
         $qualityEnabled = (bool) config('bots.translation.quality.enabled', true);
         $flags = $qualityEnabled
@@ -398,6 +595,19 @@ class BotTranslationService implements BotTranslationServiceInterface
                 'provider_chain' => [],
                 'mode' => null,
                 'quality_flags' => [],
+                'quality_retry_count' => 0,
+            ];
+        }
+
+        if (! $allowQualityRetry) {
+            return [
+                'text' => $translatedText,
+                'provider' => null,
+                'model' => null,
+                'duration_ms' => 0,
+                'provider_chain' => [],
+                'mode' => null,
+                'quality_flags' => $flags,
                 'quality_retry_count' => 0,
             ];
         }

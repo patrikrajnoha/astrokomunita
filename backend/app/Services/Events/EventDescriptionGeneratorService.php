@@ -22,7 +22,7 @@ class EventDescriptionGeneratorService
     private const TELEMETRY_STATUS_ERROR = 'error';
     private const NUMERIC_TOKEN_PATTERN = '/\b\d{1,4}(?:[.,:]\d{1,4}){0,2}\b/u';
     private const ISO_TIMESTAMP_PATTERN = '/\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+\-]\d{2}:\d{2})\b/u';
-    private const CELESTIAL_TERMS = [
+    private const DEFAULT_CELESTIAL_TERMS = [
         'slnko',
         'mesiac',
         'zem',
@@ -41,12 +41,27 @@ class EventDescriptionGeneratorService
         'pleiades',
         'plejady',
     ];
+    private const DEFAULT_FORBIDDEN_SUBSTRINGS = [
+        'conductov',
+        'kontakt s ludmi na mesiac',
+        'kontaktu s ludmi na mesiac',
+    ];
+    private const HUMANIZED_DESCRIPTION_MAX = 500;
+    private const HUMANIZED_SHORT_MAX = 180;
+    private const HUMANIZED_WHY_INTERESTING_MAX = 200;
+    private const HUMANIZED_HOW_TO_OBSERVE_MAX = 250;
+    private const HUMANIZED_DESCRIPTION_HARD_MAX = 1600;
+    private const HUMANIZED_SHORT_HARD_MAX = 420;
+    private const HUMANIZED_WHY_INTERESTING_HARD_MAX = 900;
+    private const HUMANIZED_HOW_TO_OBSERVE_HARD_MAX = 900;
+    private const REJECTED_OUTPUT_LOG_MAX_CHARS = 1800;
 
     public function __construct(
         private readonly OllamaClient $ollamaClient,
         private readonly EventDescriptionTemplateBuilder $templateBuilder,
         private readonly JsonGuard $jsonGuard,
         private readonly EventInsightsCacheService $insightsCache,
+        private readonly ?EventAiPolicyService $eventAiPolicyService = null,
     ) {
     }
 
@@ -117,11 +132,35 @@ class EventDescriptionGeneratorService
     }
 
     /**
-     * @return array{description:string,short:string,provider:string,insights?:array{why_interesting:string,how_to_observe:string}}
+     * @return array{
+     *   description:string,
+     *   short:string,
+     *   provider:string,
+     *   insights?:array{why_interesting:string,how_to_observe:string},
+     *   diagnostics?:array{
+     *     validation_stage:string,
+     *     error_codes:array<int,string>,
+     *     raw_output_excerpt:string,
+     *     raw_output_length:int,
+     *     candidate_output:array<string,mixed>|null
+     *   }
+     * }
      */
     public function generateForEvent(Event $event, ?string $mode = null): array
     {
-        $resolvedMode = $this->resolveMode($mode);
+        $requestedMode = $this->resolveMode($mode);
+        $routing = $this->resolveModeForEvent($event, $requestedMode);
+        $resolvedMode = $routing['mode'];
+
+        if ($requestedMode === 'ollama' && $resolvedMode === 'template') {
+            Log::info('Event description routing selected deterministic template.', [
+                'event_id' => (int) $event->id,
+                'type' => (string) ($event->type ?? ''),
+                'source_name' => (string) ($event->source_name ?? ''),
+                'reason' => $routing['reason'],
+                'matched' => $routing['matched'],
+            ]);
+        }
 
         if ($resolvedMode === 'template') {
             return $this->templateBuilder->build($event);
@@ -131,7 +170,19 @@ class EventDescriptionGeneratorService
     }
 
     /**
-     * @return array{description:string,short:string,provider:string,insights?:array{why_interesting:string,how_to_observe:string}}
+     * @return array{
+     *   description:string,
+     *   short:string,
+     *   provider:string,
+     *   insights?:array{why_interesting:string,how_to_observe:string},
+     *   diagnostics?:array{
+     *     validation_stage:string,
+     *     error_codes:array<int,string>,
+     *     raw_output_excerpt:string,
+     *     raw_output_length:int,
+     *     candidate_output:array<string,mixed>|null
+     *   }
+     * }
      */
     private function generateWithOllama(Event $event): array
     {
@@ -143,7 +194,19 @@ class EventDescriptionGeneratorService
     }
 
     /**
-     * @return array{description:string,short:string,provider:string,insights?:array{why_interesting:string,how_to_observe:string}}
+     * @return array{
+     *   description:string,
+     *   short:string,
+     *   provider:string,
+     *   insights?:array{why_interesting:string,how_to_observe:string},
+     *   diagnostics?:array{
+     *     validation_stage:string,
+     *     error_codes:array<int,string>,
+     *     raw_output_excerpt:string,
+     *     raw_output_length:int,
+     *     candidate_output:array<string,mixed>|null
+     *   }
+     * }
      */
     private function generateWithOllamaLegacy(Event $event): array
     {
@@ -152,22 +215,13 @@ class EventDescriptionGeneratorService
         $startLocal = $this->formatDateTime($event->start_at, $tz);
         $endLocal = $this->formatDateTime($event->end_at, $tz);
         $maxLocal = $this->formatDateTime($event->max_at, $tz);
+        $promptRules = $this->promptRuleBlock($this->legacyPromptRules(), false);
 
-        $system = 'Si redaktor astronomickeho kalendara. Pises iba po slovensky so spravnou diakritikou.';
+        $system = 'Si skuseny slovensky redaktor astronomickeho kalendara. Pises prirodzenou slovencinou so spravnou diakritikou. Pracuj iba s faktami zo vstupu a nikdy nic nedomyslaj.';
         $prompt = <<<PROMPT
 Vytvor JSON s klucmi "description" a "short".
 Poziadavky:
-- Jazyk: slovencina so spravnou diakritikou
-- prepis a obohat BASE_DESCRIPTION, ale nemen jeho fakticky obsah
-- bez halucinacii, nemen cisla ani casy
-- description: 2-3 plne vety, max 500 znakov
-- veta 1: vysvetli, o aky jav ide
-- veta 2: preco sa oplati jav sledovat a ako ho pozorovat
-- veta 3 (volitelna): kratka zaujimavost pre bezneho pozorovatela
-- description musi obsahovat aj informaciu, kedy je jav viditelny; pouzi iba casy/datumy zo vstupu
-- ak cas vo vstupe chyba, napis neutralne "Cas viditelnosti zavisi od polohy pozorovatela."
-- short: jedna veta, max 180 znakov
-- bez markdownu
+{$promptRules}
 
 Vstup:
 - title: {$event->title}
@@ -244,6 +298,10 @@ PROMPT;
         }
 
         if (! $this->passesSafetyGuards((string) $event->title, (string) $template['description'], $description)) {
+            Log::warning('Event description generation safety/style fallback.', [
+                'event_id' => (int) $event->id,
+                'provider' => 'ollama',
+            ]);
             $description = (string) $template['description'];
             $provider = 'template';
         }
@@ -281,7 +339,19 @@ PROMPT;
     }
 
     /**
-     * @return array{description:string,short:string,provider:string,insights?:array{why_interesting:string,how_to_observe:string}}
+     * @return array{
+     *   description:string,
+     *   short:string,
+     *   provider:string,
+     *   insights?:array{why_interesting:string,how_to_observe:string},
+     *   diagnostics?:array{
+     *     validation_stage:string,
+     *     error_codes:array<int,string>,
+     *     raw_output_excerpt:string,
+     *     raw_output_length:int,
+     *     candidate_output:array<string,mixed>|null
+     *   }
+     * }
      */
     private function generateWithOllamaHumanized(Event $event): array
     {
@@ -291,29 +361,16 @@ PROMPT;
         if (! is_string($factualPackJson) || $factualPackJson === '') {
             $factualPackJson = '{}';
         }
+        $promptRules = $this->promptRuleBlock($this->humanizedPromptRules(), true);
 
-        $system = 'Si redaktor astronomickeho kalendara. Vystupuj iba po slovensky so spravnou diakritikou.';
+        $system = 'Si skuseny slovensky redaktor astronomickeho kalendara. Vystupuj iba prirodzenou slovencinou so spravnou diakritikou. Pouzivaj iba overitelne fakty zo vstupu.';
         $prompt = <<<PROMPT
 Zadanie:
 Mas fakticky balicek eventu vo formate JSON. Tento balicek je jediny zdroj faktov.
 Tvojou ulohou je preformulovat text tak, aby bol ludsky, jasny a uzitocny, ale bez zmeny faktov.
 
 Pravidla:
-1. Vrat STRICT JSON objekt bez markdownu a bez dodatocneho textu.
-2. JSON musi obsahovat presne kluce:
-   - "description"
-   - "short"
-   - "why_interesting"
-   - "how_to_observe"
-3. Kazda hodnota musi byt string.
-4. Limity dlzky:
-   - short: max 180 znakov
-   - description: max 500 znakov
-   - why_interesting: max 200 znakov
-   - how_to_observe: max 250 znakov
-5. NIKDY nemen cisla, datumy, casy ani nazvy objektov z factual packu.
-6. Ak informacia nie je vo factual packu, nepridavaj ju ako fakt.
-7. Môžeš pridať iba všeobecné rady na pozorovanie (napr. tmavé miesto, adaptácia zraku, stabilná atmosféra), bez konkrétnych neoverených tvrdení.
+{$promptRules}
 
 Factual pack JSON:
 {$factualPackJson}
@@ -364,12 +421,7 @@ PROMPT;
 
         $raw = (string) ($result['text'] ?? '');
         $retryCount = max(0, (int) ($result['retry_count'] ?? 0));
-        $guardResult = $this->jsonGuard->parseAndValidate($raw, [
-            'description' => 500,
-            'short' => 180,
-            'why_interesting' => 200,
-            'how_to_observe' => 250,
-        ]);
+        $guardResult = $this->validateHumanizedPayload($raw);
 
         if (! (bool) ($guardResult['valid'] ?? false)) {
             $this->emitGenerationTelemetry(
@@ -381,14 +433,26 @@ PROMPT;
                 inputChars: $inputChars,
                 outputChars: $this->textLength($raw)
             );
-            return $this->guardFallback($event, $template, (array) ($guardResult['errors'] ?? []));
+            return $this->guardFallback(
+                event: $event,
+                template: $template,
+                errors: (array) ($guardResult['errors'] ?? []),
+                context: [
+                    'stage' => 'json_guard',
+                    'raw_output' => $raw,
+                    'validation' => [
+                        'errors' => (array) ($guardResult['errors'] ?? []),
+                        'warnings' => (array) ($guardResult['warnings'] ?? []),
+                    ],
+                ]
+            );
         }
 
         $payload = (array) ($guardResult['data'] ?? []);
-        $description = $this->sanitizeText((string) ($payload['description'] ?? ''), 500);
-        $short = $this->sanitizeText((string) ($payload['short'] ?? ''), 180);
-        $whyInteresting = $this->sanitizeText((string) ($payload['why_interesting'] ?? ''), 200);
-        $howToObserve = $this->sanitizeText((string) ($payload['how_to_observe'] ?? ''), 250);
+        $description = $this->sanitizeText((string) ($payload['description'] ?? ''), self::HUMANIZED_DESCRIPTION_MAX);
+        $short = $this->sanitizeText((string) ($payload['short'] ?? ''), self::HUMANIZED_SHORT_MAX);
+        $whyInteresting = $this->sanitizeText((string) ($payload['why_interesting'] ?? ''), self::HUMANIZED_WHY_INTERESTING_MAX);
+        $howToObserve = $this->sanitizeText((string) ($payload['how_to_observe'] ?? ''), self::HUMANIZED_HOW_TO_OBSERVE_MAX);
 
         if ($description === '' && $whyInteresting !== '') {
             $description = $whyInteresting;
@@ -423,7 +487,85 @@ PROMPT;
                 outputChars: $this->textLength($raw)
             );
 
-            return $this->guardFallback($event, $template, $driftErrors);
+            return $this->guardFallback(
+                event: $event,
+                template: $template,
+                errors: $driftErrors,
+                context: [
+                    'stage' => 'factual_drift',
+                    'raw_output' => $raw,
+                    'candidate_output' => [
+                        'description' => $description,
+                        'short' => $short,
+                        'why_interesting' => $whyInteresting,
+                        'how_to_observe' => $howToObserve,
+                    ],
+                ]
+            );
+        }
+
+        $styleErrors = $this->detectHumanizedStyleIssues($description, $short, $insights);
+        if ($styleErrors !== []) {
+            $this->emitGenerationTelemetry(
+                eventId: (int) $event->id,
+                model: $model !== '' ? $model : (string) ($result['model'] ?? ''),
+                startedAt: $startedAt,
+                status: self::TELEMETRY_STATUS_FALLBACK,
+                retryCount: $retryCount,
+                inputChars: $inputChars,
+                outputChars: $this->textLength($raw)
+            );
+
+            return $this->guardFallback(
+                event: $event,
+                template: $template,
+                errors: $styleErrors,
+                context: [
+                    'stage' => 'style_guard',
+                    'raw_output' => $raw,
+                    'candidate_output' => [
+                        'description' => $description,
+                        'short' => $short,
+                        'why_interesting' => $whyInteresting,
+                        'how_to_observe' => $howToObserve,
+                    ],
+                ]
+            );
+        }
+
+        $combinedCandidate = trim(implode("\n", array_filter([
+            $description,
+            $short,
+            $whyInteresting,
+            $howToObserve,
+        ], static fn (string $value): bool => trim($value) !== '')));
+
+        if (! $this->passesSafetyGuards((string) ($event->title ?? ''), (string) ($template['description'] ?? ''), $combinedCandidate)) {
+            $this->emitGenerationTelemetry(
+                eventId: (int) $event->id,
+                model: $model !== '' ? $model : (string) ($result['model'] ?? ''),
+                startedAt: $startedAt,
+                status: self::TELEMETRY_STATUS_FALLBACK,
+                retryCount: $retryCount,
+                inputChars: $inputChars,
+                outputChars: $this->textLength($raw)
+            );
+
+            return $this->guardFallback(
+                event: $event,
+                template: $template,
+                errors: ['factual_drift:unexpected_terms_or_numbers'],
+                context: [
+                    'stage' => 'safety_guard',
+                    'raw_output' => $raw,
+                    'candidate_output' => [
+                        'description' => $description,
+                        'short' => $short,
+                        'why_interesting' => $whyInteresting,
+                        'how_to_observe' => $howToObserve,
+                    ],
+                ]
+            );
         }
 
         $this->emitGenerationTelemetry(
@@ -449,26 +591,190 @@ PROMPT;
     /**
      * @param array{description:string,short:string,provider:string} $template
      * @param array<int,string> $errors
-     * @return array{description:string,short:string,provider:string}
+     * @return array{
+     *   description:string,
+     *   short:string,
+     *   provider:string,
+     *   diagnostics:array{
+     *     validation_stage:string,
+     *     error_codes:array<int,string>,
+     *     raw_output_excerpt:string,
+     *     raw_output_length:int,
+     *     candidate_output:array<string,mixed>|null
+     *   }
+     * }
      */
-    private function guardFallback(Event $event, array $template, array $errors): array
+    private function guardFallback(
+        Event $event,
+        array $template,
+        array $errors,
+        array $context = []
+    ): array
     {
-        Log::warning('Event description generation JSON guard fallback.', [
-            'event_id' => (int) $event->id,
-            'error_codes' => array_values(array_unique($errors)),
-        ]);
-
         $description = $this->sanitizeText((string) ($template['description'] ?? ''), 500);
         $short = $this->sanitizeText((string) ($template['short'] ?? ''), 180);
         if ($short === '') {
             $short = Str::limit($description, 180, '');
         }
 
+        $rawOutput = (string) ($context['raw_output'] ?? '');
+        $validationStage = (string) ($context['stage'] ?? 'json_guard');
+        $errorCodes = array_values(array_unique(array_filter(array_map(
+            static fn (mixed $value): string => trim((string) $value),
+            $errors
+        ), static fn (string $value): bool => $value !== '')));
+        $candidateOutput = is_array($context['candidate_output'] ?? null)
+            ? $context['candidate_output']
+            : null;
+        $rawOutputExcerpt = $this->logExcerpt($rawOutput, self::REJECTED_OUTPUT_LOG_MAX_CHARS);
+        $rawOutputLength = $this->textLength($rawOutput);
+
+        Log::warning('Event description generation JSON guard fallback.', [
+            'event_id' => (int) $event->id,
+            'validation_stage' => $validationStage,
+            'error_codes' => $errorCodes,
+            'validation' => is_array($context['validation'] ?? null) ? $context['validation'] : null,
+            'raw_output_length' => $rawOutputLength,
+            'raw_output_excerpt' => $rawOutputExcerpt,
+            'candidate_output' => $candidateOutput,
+            'fallback_output' => [
+                'description' => $description,
+                'short' => $short,
+            ],
+        ]);
+
         return [
             'description' => $description,
             'short' => $short,
             'provider' => 'template_guard_fallback',
+            'diagnostics' => [
+                'validation_stage' => $validationStage,
+                'error_codes' => $errorCodes,
+                'raw_output_excerpt' => $this->logExcerpt($rawOutput, 480),
+                'raw_output_length' => $rawOutputLength,
+                'candidate_output' => $candidateOutput,
+            ],
         ];
+    }
+
+    /**
+     * @return array{valid:bool,data:array{description:string,short:string,why_interesting:string,how_to_observe:string},errors:array<int,string>,warnings:array<int,string>}
+     */
+    private function validateHumanizedPayload(string $raw): array
+    {
+        $parsed = $this->jsonGuard->parseJsonObject($raw);
+        if (! (bool) ($parsed['valid'] ?? false)) {
+            return [
+                'valid' => false,
+                'data' => [
+                    'description' => '',
+                    'short' => '',
+                    'why_interesting' => '',
+                    'how_to_observe' => '',
+                ],
+                'errors' => array_values(array_unique((array) ($parsed['errors'] ?? []))),
+                'warnings' => [],
+            ];
+        }
+
+        $decoded = (array) ($parsed['data'] ?? []);
+        $warnings = [];
+
+        $description = $this->normalizeHumanizedField(
+            decoded: $decoded,
+            key: 'description',
+            hardLimit: self::HUMANIZED_DESCRIPTION_HARD_MAX,
+            warnings: $warnings
+        );
+        $short = $this->normalizeHumanizedField(
+            decoded: $decoded,
+            key: 'short',
+            hardLimit: self::HUMANIZED_SHORT_HARD_MAX,
+            warnings: $warnings
+        );
+        $whyInteresting = $this->normalizeHumanizedField(
+            decoded: $decoded,
+            key: 'why_interesting',
+            hardLimit: self::HUMANIZED_WHY_INTERESTING_HARD_MAX,
+            warnings: $warnings
+        );
+        $howToObserve = $this->normalizeHumanizedField(
+            decoded: $decoded,
+            key: 'how_to_observe',
+            hardLimit: self::HUMANIZED_HOW_TO_OBSERVE_HARD_MAX,
+            warnings: $warnings
+        );
+
+        $errors = [];
+        if ($description === '' && $short === '') {
+            $errors[] = 'missing_required_text_fields:description_or_short';
+        }
+
+        return [
+            'valid' => $errors === [],
+            'data' => [
+                'description' => $description,
+                'short' => $short,
+                'why_interesting' => $whyInteresting,
+                'how_to_observe' => $howToObserve,
+            ],
+            'errors' => array_values(array_unique($errors)),
+            'warnings' => array_values(array_unique($warnings)),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $decoded
+     * @param array<int,string> $warnings
+     */
+    private function normalizeHumanizedField(
+        array $decoded,
+        string $key,
+        int $hardLimit,
+        array &$warnings
+    ): string {
+        if (! array_key_exists($key, $decoded)) {
+            return '';
+        }
+
+        $value = $decoded[$key];
+        if (! is_string($value)) {
+            $warnings[] = 'invalid_type:' . $key;
+            return '';
+        }
+
+        $normalized = $this->normalizeModelText($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        if ($this->textLength($normalized) > $hardLimit) {
+            $warnings[] = 'max_length_hard_exceeded:' . $key;
+            return '';
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeModelText(string $value): string
+    {
+        $plain = trim(strip_tags($value));
+        if ($plain === '') {
+            return '';
+        }
+
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
+        return trim($plain);
+    }
+
+    private function logExcerpt(string $value, int $maxLength): string
+    {
+        $normalized = $this->normalizeModelText($value);
+        if ($normalized === '') {
+            return '';
+        }
+
+        return Str::limit($normalized, max(64, $maxLength), ' ...');
     }
 
     /**
@@ -510,6 +816,29 @@ PROMPT;
         $expectedSeparationDeg = $keyValues['separation_deg'] ?? null;
         if (is_numeric($expectedSeparationDeg) && $this->hasSeparationDegDrift($text, (float) $expectedSeparationDeg)) {
             $errors[] = 'factual_drift:separation_deg';
+        }
+
+        return array_values(array_unique($errors));
+    }
+
+    /**
+     * @param array{why_interesting:string,how_to_observe:string} $insights
+     * @return array<int,string>
+     */
+    private function detectHumanizedStyleIssues(string $description, string $short, array $insights): array
+    {
+        $errors = [];
+        $fields = [
+            'description' => $description,
+            'short' => $short,
+            'why_interesting' => (string) ($insights['why_interesting'] ?? ''),
+            'how_to_observe' => (string) ($insights['how_to_observe'] ?? ''),
+        ];
+
+        foreach ($fields as $field => $value) {
+            if ($this->containsUnnaturalSlovakArtifacts($value)) {
+                $errors[] = 'style_guard:unnatural_slovak:' . $field;
+            }
         }
 
         return array_values(array_unique($errors));
@@ -578,6 +907,136 @@ PROMPT;
         }
 
         return in_array($value, ['template', 'ollama'], true) ? $value : 'template';
+    }
+
+    /**
+     * Conservative router for event descriptions:
+     * - keep AI for richer/high-value narratives
+     * - default to deterministic template for simple technical/positional events
+     *   where wording quality and factual precision are easier to preserve with templates.
+     *
+     * @return array{mode:string,reason:string,matched:?string}
+     */
+    private function resolveModeForEvent(Event $event, string $requestedMode): array
+    {
+        if ($requestedMode !== 'ollama') {
+            return [
+                'mode' => $requestedMode,
+                'reason' => 'requested_mode',
+                'matched' => null,
+            ];
+        }
+
+        if (! (bool) config('events.ai.description_routing.enabled', true)) {
+            return [
+                'mode' => $requestedMode,
+                'reason' => 'routing_disabled',
+                'matched' => null,
+            ];
+        }
+
+        $eventType = $this->normalizeRoutingToken((string) ($event->type ?? ''));
+        $templateRule = $this->matchTemplateByDefaultRule($event, $eventType);
+        if ($templateRule !== null) {
+            return [
+                'mode' => 'template',
+                'reason' => $templateRule['reason'],
+                'matched' => $templateRule['matched'],
+            ];
+        }
+
+        if ($eventType !== '' && in_array($eventType, $this->routingList('ai_worthy_types'), true)) {
+            return [
+                'mode' => 'ollama',
+                'reason' => 'ai_worthy_type',
+                'matched' => $eventType,
+            ];
+        }
+
+        return [
+            'mode' => 'ollama',
+            'reason' => 'default_ollama',
+            'matched' => null,
+        ];
+    }
+
+    /**
+     * @return array{reason:string,matched:string}|null
+     */
+    private function matchTemplateByDefaultRule(Event $event, string $normalizedEventType): ?array
+    {
+        if ($normalizedEventType !== '' && in_array($normalizedEventType, $this->routingList('template_by_default_types'), true)) {
+            return [
+                'reason' => 'template_by_type',
+                'matched' => $normalizedEventType,
+            ];
+        }
+
+        $normalizedSource = $this->normalizeRoutingToken((string) ($event->source_name ?? ''));
+        if ($normalizedSource !== '' && in_array($normalizedSource, $this->routingList('template_by_default_sources'), true)) {
+            return [
+                'reason' => 'template_by_source',
+                'matched' => $normalizedSource,
+            ];
+        }
+
+        $title = trim((string) ($event->title ?? ''));
+        $normalizedTitle = $this->normalizeRoutingToken($title);
+        foreach ($this->routingList('template_by_default_title_keywords') as $keyword) {
+            if ($keyword !== '' && str_contains($normalizedTitle, $keyword)) {
+                return [
+                    'reason' => 'template_by_title_keyword',
+                    'matched' => $keyword,
+                ];
+            }
+        }
+
+        if (preg_match('/\b\d+(?:[.,]\d+)?\s*(?:\x{00B0}|deg)\b/u', $title) === 1) {
+            if (
+                str_contains($normalizedTitle, 'od mesiaca')
+                || str_contains($normalizedTitle, 'of moon')
+                || str_contains($normalizedTitle, 'from moon')
+            ) {
+                return [
+                    'reason' => 'template_by_angular_distance',
+                    'matched' => 'angular_distance_moon',
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function routingList(string $key): array
+    {
+        $value = config('events.ai.description_routing.' . $key, []);
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($value as $item) {
+            if (! is_string($item)) {
+                continue;
+            }
+
+            $token = $this->normalizeRoutingToken($item);
+            if ($token !== '') {
+                $normalized[] = $token;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private function normalizeRoutingToken(string $value): string
+    {
+        $ascii = Str::of($value)->ascii()->lower()->value();
+        $ascii = preg_replace('/\s+/u', ' ', $ascii) ?? $ascii;
+        return trim($ascii);
     }
 
     private function formatDateTime(mixed $value, string $timezone): string
@@ -810,11 +1269,24 @@ PROMPT;
     {
         $inputContext = $title . "\n" . $baseDescription;
 
-        if ($this->introducesUnknownNumericTokens($inputContext, $candidateDescription)) {
+        if (
+            $this->safetyGuardEnabled('numeric_token_guard_enabled', true)
+            && $this->introducesUnknownNumericTokens($inputContext, $candidateDescription)
+        ) {
             return false;
         }
 
-        if ($this->mentionsUnexpectedCelestialTerms($inputContext, $candidateDescription)) {
+        if (
+            $this->safetyGuardEnabled('celestial_term_guard_enabled', true)
+            && $this->mentionsUnexpectedCelestialTerms($inputContext, $candidateDescription)
+        ) {
+            return false;
+        }
+
+        if (
+            $this->safetyGuardEnabled('artifact_guard_enabled', true)
+            && $this->containsUnnaturalSlovakArtifacts($candidateDescription)
+        ) {
             return false;
         }
 
@@ -869,11 +1341,12 @@ PROMPT;
     {
         $inputNormalized = Str::of($inputContext)->ascii()->lower()->value();
         $outputNormalized = Str::of($outputContext)->ascii()->lower()->value();
+        $terms = $this->celestialTermsPolicyList();
 
         $allowed = [];
         $used = [];
 
-        foreach (self::CELESTIAL_TERMS as $term) {
+        foreach ($terms as $term) {
             if (str_contains($inputNormalized, $term)) {
                 $allowed[$term] = true;
             }
@@ -885,6 +1358,72 @@ PROMPT;
 
         foreach (array_keys($used) as $term) {
             if (! isset($allowed[$term])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function containsUnnaturalSlovakArtifacts(string $text): bool
+    {
+        if (trim($text) === '') {
+            return false;
+        }
+
+        $normalized = Str::of($text)->ascii()->lower()->value();
+        $forbidden = $this->forbiddenSubstringPolicyList();
+        foreach ($forbidden as $needle) {
+            if ($needle !== '' && str_contains($normalized, $needle)) {
+                return true;
+            }
+        }
+
+        $regexList = $this->forbiddenRegexPolicyList();
+        if ($regexList !== [] && $this->matchesAnyForbiddenRegex($text, $regexList)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function forbiddenRegexPolicyList(): array
+    {
+        $items = $this->policyList('safety.forbidden_regex', []);
+        $normalized = [];
+
+        foreach ($items as $pattern) {
+            $trimmed = trim((string) $pattern);
+            if ($trimmed === '') {
+                continue;
+            }
+
+            if (! EventAiPolicyService::isRegexPatternValid($trimmed)) {
+                continue;
+            }
+
+            $normalized[] = $trimmed;
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    /**
+     * @param array<int,string> $patterns
+     */
+    private function matchesAnyForbiddenRegex(string $text, array $patterns): bool
+    {
+        foreach ($patterns as $pattern) {
+            $normalized = EventAiPolicyService::normalizeRegexPattern($pattern);
+            if ($normalized === null) {
+                continue;
+            }
+
+            $match = @preg_match($normalized, $text);
+            if ($match === 1) {
                 return true;
             }
         }
@@ -929,6 +1468,147 @@ PROMPT;
         }
 
         return false;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function legacyPromptRules(): array
+    {
+        return $this->policyList(
+            'prompts.legacy.rules',
+            [
+                'Jazyk: slovencina so spravnou diakritikou.',
+                'Pis prirodzene ako clovek, nie roboticky ani prehnane formalne.',
+                'Neprekladaj text slovo po slove z anglictiny.',
+                'Nepouzivaj cudzo znejuce alebo umele slova (napr. "conductovat").',
+                'Pouzivaj jednoduche, plynule a bezne slovenske formulacie.',
+                'Prepis a obohat BASE_DESCRIPTION, ale nemen jeho fakticky obsah.',
+                'Bez halucinacii, nemen cisla ani casy.',
+                'Pracuj iba s faktami zo vstupu (title/type/casy/BASE_DESCRIPTION/BASE_SHORT).',
+                'Ak fakt vo vstupe chyba alebo je nejasny, pouzi neutralnu formulaciu a nedoplnaj ho odhadom.',
+                'Nikdy nespajaj objekty iba podla podobnosti nazvu (napr. Ursids nie je planeta Uranus).',
+                'Vyhni sa prehnane sebavedomym tvrdeniam, ak nie su explicitne vo vstupe.',
+                'Description ma mat 2-3 plne vety, max 500 znakov.',
+                'Veta 1: vysvetli, o aky jav ide.',
+                'Veta 2: preco sa oplati jav sledovat a ako ho pozorovat.',
+                'Veta 3 (volitelna): kratka zaujimavost pre bezneho pozorovatela.',
+                'Description musi obsahovat aj informaciu, kedy je jav viditelny; pouzi iba casy/datumy zo vstupu.',
+                'Ak cas vo vstupe chyba, napis neutralne: "Cas viditelnosti zavisi od polohy pozorovatela."',
+                'Short ma byt jedna veta, max 180 znakov.',
+                'Bez markdownu.',
+            ]
+        );
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function humanizedPromptRules(): array
+    {
+        return $this->policyList(
+            'prompts.humanized.rules',
+            [
+                'Vrat STRICT JSON objekt bez markdownu a bez dodatocneho textu.',
+                'JSON musi obsahovat presne kluce: "description", "short", "why_interesting", "how_to_observe".',
+                'Kazda hodnota musi byt string.',
+                'Limity dlzky: short max 180, description max 500, why_interesting max 200, how_to_observe max 250 znakov.',
+                'NIKDY nemen cisla, datumy, casy ani nazvy objektov z factual packu.',
+                'Ak informacia nie je vo factual packu, nepridavaj ju ako fakt.',
+                'Jazyk musi byt prirodzena plynula slovencina (bez doslovneho prekladu a umelych slov).',
+                'Mozes pridat iba vseobecne rady na pozorovanie bez konkretnych neoverenych tvrdeni.',
+                'Ak je informacia nejasna alebo chyba, pouzi neutralne formulacie a neuvadzaj odhady.',
+                'Nepouzivaj prehnane sebavedomy ton, ak tvrdenie nie je priamo vo factual packu.',
+                'Nikdy nespajaj objekty iba podla podobnosti nazvu (napr. Ursids nie je planeta Uranus).',
+            ]
+        );
+    }
+
+    private function promptRuleBlock(array $rules, bool $numbered): string
+    {
+        $lines = [];
+        $index = 1;
+
+        foreach ($rules as $rule) {
+            $normalized = trim((string) $rule);
+            if ($normalized === '') {
+                continue;
+            }
+
+            if ($numbered) {
+                $lines[] = $index . '. ' . $normalized;
+                $index++;
+            } else {
+                $lines[] = '- ' . $normalized;
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function safetyGuardEnabled(string $key, bool $default): bool
+    {
+        return (bool) $this->policyService()->value('safety.' . $key, $default);
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function celestialTermsPolicyList(): array
+    {
+        $items = $this->policyList(
+            'safety.celestial_terms',
+            self::DEFAULT_CELESTIAL_TERMS
+        );
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            fn (string $term): string => $this->normalizeRoutingToken($term),
+            $items
+        ), static fn (string $term): bool => $term !== '')));
+
+        return $normalized !== [] ? $normalized : self::DEFAULT_CELESTIAL_TERMS;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function forbiddenSubstringPolicyList(): array
+    {
+        $items = $this->policyList(
+            'safety.forbidden_substrings',
+            self::DEFAULT_FORBIDDEN_SUBSTRINGS
+        );
+
+        $normalized = array_values(array_unique(array_filter(array_map(
+            fn (string $term): string => $this->normalizeRoutingToken($term),
+            $items
+        ), static fn (string $term): bool => $term !== '')));
+
+        return $normalized !== [] ? $normalized : self::DEFAULT_FORBIDDEN_SUBSTRINGS;
+    }
+
+    /**
+     * @param array<int,string> $fallback
+     * @return array<int,string>
+     */
+    private function policyList(string $key, array $fallback): array
+    {
+        $value = $this->policyService()->value($key, $fallback);
+        if (! is_array($value)) {
+            $value = $fallback;
+        }
+
+        $normalized = array_values(array_filter(array_map(
+            static fn (mixed $item): string => is_string($item) ? trim($item) : '',
+            $value
+        ), static fn (string $item): bool => $item !== ''));
+
+        return $normalized !== [] ? $normalized : $fallback;
+    }
+
+    private function policyService(): EventAiPolicyService
+    {
+        return $this->eventAiPolicyService ?? app(EventAiPolicyService::class);
     }
 
     private function emitGenerationTelemetry(

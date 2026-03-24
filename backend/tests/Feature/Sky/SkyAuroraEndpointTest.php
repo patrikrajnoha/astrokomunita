@@ -48,7 +48,7 @@ class SkyAuroraEndpointTest extends TestCase
             ])
             ->assertJsonPath('available', true)
             ->assertJsonPath('watch_score', 72)
-            ->assertJsonPath('watch_label', 'Vysoka sanca')
+            ->assertJsonPath('watch_label', 'Vysoká šanca')
             ->assertJsonPath('source.label', 'NOAA SWPC OVATION');
     }
 

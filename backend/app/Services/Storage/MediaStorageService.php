@@ -47,6 +47,11 @@ class MediaStorageService
         return $this->storePublicly($file, sprintf('blog-covers/%d', $userId));
     }
 
+    public function storeBlogInlineImage(UploadedFile $file, int $userId): string
+    {
+        return $this->storePublicly($file, sprintf('blog-inline/%d', $userId));
+    }
+
     public function storeObservationImage(UploadedFile $file, int $observationId): string
     {
         return $this->storePublicly($file, sprintf('observations/%d/images', $observationId));

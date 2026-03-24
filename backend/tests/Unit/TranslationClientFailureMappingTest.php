@@ -91,4 +91,42 @@ class TranslationClientFailureMappingTest extends TestCase
 
         $this->assertSame('Ahoj', $result['text']);
     }
+
+    public function test_ollama_translate_client_removes_prompt_leakage_from_output(): void
+    {
+        $ollamaClient = $this->createMock(OllamaClient::class);
+        $ollamaClient
+            ->expects($this->once())
+            ->method('generate')
+            ->willReturn([
+                'text' => "Vypustenie plamu: SpaceX Meduza\n\n[TEXT]\nThe Hubble Space Telescope was launched in 1990.",
+                'model' => 'mistral',
+                'duration_ms' => 18,
+                'raw' => [],
+            ]);
+
+        $client = new OllamaTranslateClient($ollamaClient);
+        $result = $client->translate('Launch Plume: SpaceX Jellyfish', 'sk', 'en');
+
+        $this->assertSame('Vypustenie plamu: SpaceX Meduza', $result['text']);
+    }
+
+    public function test_ollama_translate_client_strips_task_lines_from_output(): void
+    {
+        $ollamaClient = $this->createMock(OllamaClient::class);
+        $ollamaClient
+            ->expects($this->once())
+            ->method('generate')
+            ->willReturn([
+                'text' => "TASK: Translate SOURCE_TEXT from en to sk.\nSOURCE_TEXT:\n<<<\nLaunch Plume\n>>>\nVypustenie plamu",
+                'model' => 'mistral',
+                'duration_ms' => 15,
+                'raw' => [],
+            ]);
+
+        $client = new OllamaTranslateClient($ollamaClient);
+        $result = $client->translate('Launch Plume', 'sk', 'en');
+
+        $this->assertSame('Vypustenie plamu', $result['text']);
+    }
 }

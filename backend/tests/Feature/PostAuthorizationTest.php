@@ -51,6 +51,25 @@ class PostAuthorizationTest extends TestCase
         ]);
     }
 
+    public function test_user_cannot_report_bot_post(): void
+    {
+        $botOwner = User::factory()->bot()->create([
+            'username' => 'kozmobot',
+        ]);
+        $reporter = User::factory()->create();
+        $post = Post::factory()->for($botOwner)->create();
+
+        Sanctum::actingAs($reporter);
+
+        $this->postJson('/api/reports', [
+            'target_id' => $post->id,
+            'reason' => 'misinfo',
+            'message' => 'translation issue',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseCount('reports', 0);
+    }
+
     public function test_user_can_report_other_users_post_with_post_id_payload(): void
     {
         $owner = User::factory()->create();

@@ -22,6 +22,12 @@ class AdminRouteContractTest extends TestCase
             ->assertStatus(401);
     }
 
+    public function test_admin_blog_posts_inline_image_upload_route_exists_and_is_protected(): void
+    {
+        $this->postJson('/api/admin/blog-posts/images')
+            ->assertStatus(401);
+    }
+
     public function test_admin_event_candidates_route_exists_and_is_protected(): void
     {
         $this->getJson('/api/admin/event-candidates')
@@ -51,6 +57,19 @@ class AdminRouteContractTest extends TestCase
     {
         $this->getJson('/api/admin/ai/config')
             ->assertStatus(401);
+    }
+
+    public function test_admin_ai_policy_get_route_exists_and_is_protected(): void
+    {
+        $this->getJson('/api/admin/ai/policy')
+            ->assertStatus(401);
+    }
+
+    public function test_admin_ai_policy_patch_route_exists_and_is_protected(): void
+    {
+        $this->patchJson('/api/admin/ai/policy', [
+            'policy' => [],
+        ])->assertStatus(401);
     }
 
     public function test_admin_event_ai_generate_route_exists_and_is_protected(): void

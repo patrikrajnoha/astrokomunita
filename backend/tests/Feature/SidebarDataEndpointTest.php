@@ -152,6 +152,50 @@ XML;
             ->assertJsonPath('data.upcoming_launches.source.label', 'The Space Devs Launch Library 2');
     }
 
+    public function test_it_can_bundle_constellations_now_payload(): void
+    {
+        Cache::flush();
+
+        $response = $this->getJson('/api/sidebar-data?sections=constellations_now')
+            ->assertOk()
+            ->assertJsonPath('requested_sections.0', 'constellations_now')
+            ->assertJsonPath('data.constellations_now.available', true)
+            ->assertJsonPath('data.constellations_now.meta.default_location_used', true);
+
+        $items = $response->json('data.constellations_now.items');
+        $this->assertIsArray($items);
+        $this->assertGreaterThanOrEqual(3, count($items));
+        $this->assertLessThanOrEqual(5, count($items));
+
+        $first = $items[0] ?? [];
+        $this->assertIsString($first['name'] ?? null);
+        $this->assertIsString($first['display_name'] ?? null);
+        $this->assertIsString($first['direction'] ?? null);
+        $this->assertIsString($first['best_time'] ?? null);
+        $this->assertIsArray($first['visibility'] ?? null);
+        $this->assertContains($first['visibility']['level'] ?? null, ['high', 'medium']);
+    }
+
+    public function test_it_adds_evening_cloud_percent_to_constellations_payload_when_context_is_present(): void
+    {
+        Cache::flush();
+
+        Http::fake([
+            'https://api.open-meteo.com/*' => Http::response($this->openMeteoPayload(
+                currentCloud: 72,
+                hourlyCloud: [86, 91]
+            ), 200),
+        ]);
+
+        $this->getJson('/api/sidebar-data?sections=constellations_now&lat=48.1486&lon=17.1077&tz=Europe/Bratislava')
+            ->assertOk()
+            ->assertJsonPath('requested_sections.0', 'constellations_now')
+            ->assertJsonPath('data.constellations_now.meta.default_location_used', false)
+            ->assertJsonPath('data.constellations_now.meta.evening_cloud_percent', 91);
+
+        Http::assertSentCount(1);
+    }
+
     public function test_it_bundles_space_weather_and_aurora_with_one_shared_noaa_fetch_cycle(): void
     {
         Cache::flush();
@@ -179,7 +223,7 @@ XML;
             ->assertJsonPath('requested_sections.0', 'space_weather')
             ->assertJsonPath('requested_sections.1', 'aurora_watch')
             ->assertJsonPath('data.space_weather.kp_index', 6)
-            ->assertJsonPath('data.aurora_watch.watch_label', 'Vysoka sanca')
+            ->assertJsonPath('data.aurora_watch.watch_label', 'Vysoká šanca')
             ->assertJsonPath('data.aurora_watch.source.label', 'NOAA SWPC OVATION');
 
         Http::assertSentCount(2);
@@ -346,13 +390,16 @@ XML;
         Http::assertNotSent(fn ($request) => str_starts_with($request->url(), 'http://sky.test/sky-summary'));
     }
 
-    private function openMeteoPayload(): array
+    private function openMeteoPayload(
+        int $currentCloud = 32,
+        array $hourlyCloud = [32, 32]
+    ): array
     {
         return [
             'current' => [
                 'time' => '2026-03-15T20:00',
                 'relative_humidity_2m' => 56,
-                'cloud_cover' => 32,
+                'cloud_cover' => $currentCloud,
                 'wind_speed_10m' => 13.0,
                 'temperature_2m' => 9.8,
                 'apparent_temperature' => 8.9,
@@ -364,7 +411,7 @@ XML;
                     '2026-03-15T20:00',
                 ],
                 'relative_humidity_2m' => [56, 56],
-                'cloud_cover' => [32, 32],
+                'cloud_cover' => $hourlyCloud,
                 'wind_speed_10m' => [13.0, 13.0],
                 'temperature_2m' => [9.8, 9.8],
             ],

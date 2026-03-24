@@ -60,7 +60,19 @@ class BotOverviewService
                     ->orWhere('role', User::ROLE_BOT);
             })
             ->orderBy('username')
-            ->get(['id', 'username', 'role', 'is_bot']);
+            ->get([
+                'id',
+                'name',
+                'username',
+                'role',
+                'is_bot',
+                'is_active',
+                'avatar_path',
+                'avatar_mode',
+                'avatar_color',
+                'avatar_icon',
+                'avatar_seed',
+            ]);
 
         $posts24ByUser = $this->botPostsBaseQuery()
             ->whereRaw('COALESCE(ingested_at, created_at) >= ?', [$windowStart->toDateTimeString()])
@@ -155,8 +167,17 @@ class BotOverviewService
 
             return [
                 'id' => $botUser->id,
+                'name' => (string) ($botUser->name ?: ''),
                 'username' => (string) $botUser->username,
                 'role' => (string) ($botUser->role ?: User::ROLE_BOT),
+                'is_bot' => (bool) $botUser->is_bot,
+                'is_active' => (bool) $botUser->is_active,
+                'avatar_url' => $botUser->avatar_url,
+                'avatar_path' => (string) ($botUser->avatar_path ?: ''),
+                'avatar_mode' => (string) ($botUser->avatar_mode ?: ''),
+                'avatar_color' => $botUser->avatar_color,
+                'avatar_icon' => $botUser->avatar_icon,
+                'avatar_seed' => (string) ($botUser->avatar_seed ?: ''),
                 'bot_identity' => $identity,
                 'last_activity_at' => $lastActivityAt,
                 'posts_24h' => $posts24,

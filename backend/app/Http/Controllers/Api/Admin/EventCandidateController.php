@@ -18,6 +18,7 @@ class EventCandidateController extends Controller
             'status'      => ['nullable', 'string', 'max:50'],
             'type'        => ['nullable', 'string', 'max:100'],
             'raw_type'    => ['nullable', 'string', 'max:100'],
+            'description_mode' => ['nullable', 'string', 'in:all,missing,template,ai,ai_refined,translated,manual'],
             'source_name' => ['nullable', 'string', 'max:100'],
             'source'      => ['nullable', 'string', 'max:100'],
             'source_key'  => ['nullable', 'string', 'max:100'],
@@ -28,12 +29,20 @@ class EventCandidateController extends Controller
             'date_from'   => ['nullable', 'date'],
             'date_to'     => ['nullable', 'date', 'after_or_equal:date_from'],
             'q'           => ['nullable', 'string', 'max:200'],
-            'per_page'    => ['nullable', 'integer', 'min:1', 'max:200'],
+            'per_page'    => ['nullable', 'integer', 'min:1', 'max:9999'],
         ]);
 
         $perPage    = $validated['per_page'] ?? 20;
 
-        $items = $this->buildFilteredQuery($validated)
+        $baseQuery = $this->buildFilteredQuery($validated);
+
+        $modeCounts = (clone $baseQuery)
+            ->selectRaw('COALESCE(translation_mode, \'unknown\') as mode, COUNT(*) as cnt')
+            ->groupBy('translation_mode')
+            ->pluck('cnt', 'mode')
+            ->all();
+
+        $items = (clone $baseQuery)
             ->select([
                 'id',
                 'source_name',
@@ -53,11 +62,13 @@ class EventCandidateController extends Controller
                 'translated_title',
                 'translated_description',
                 'translation_status',
+                'translation_mode',
                 'translation_error',
                 'translated_at',
                 'reviewed_by',
                 'reviewed_at',
                 'reject_reason',
+                'published_event_id',
                 'created_at',
                 'updated_at',
             ])
@@ -65,7 +76,14 @@ class EventCandidateController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
-        return response()->json($items);
+        return response()->json(array_merge($items->toArray(), [
+            'mode_counts' => [
+                'template'   => (int) ($modeCounts['template'] ?? 0),
+                'ai_refined' => (int) ($modeCounts['ai_refined'] ?? 0),
+                'translated' => (int) ($modeCounts['translated'] ?? 0),
+                'manual'     => (int) ($modeCounts['manual'] ?? 0),
+            ],
+        ]));
     }
 
     public function show(EventCandidate $eventCandidate)
@@ -79,6 +97,7 @@ class EventCandidateController extends Controller
             'status'      => ['nullable', 'string', 'max:50'],
             'type'        => ['nullable', 'string', 'max:100'],
             'raw_type'    => ['nullable', 'string', 'max:100'],
+            'description_mode' => ['nullable', 'string', 'in:all,missing,template,ai,ai_refined,translated,manual'],
             'source_name' => ['nullable', 'string', 'max:100'],
             'source'      => ['nullable', 'string', 'max:100'],
             'source_key'  => ['nullable', 'string', 'max:100'],
@@ -138,6 +157,7 @@ class EventCandidateController extends Controller
             'status'      => ['nullable', 'string', 'max:50'],
             'type'        => ['nullable', 'string', 'max:100'],
             'raw_type'    => ['nullable', 'string', 'max:100'],
+            'description_mode' => ['nullable', 'string', 'in:all,missing,template,ai,ai_refined,translated,manual'],
             'source_name' => ['nullable', 'string', 'max:100'],
             'source'      => ['nullable', 'string', 'max:100'],
             'source_key'  => ['nullable', 'string', 'max:100'],
@@ -224,6 +244,7 @@ class EventCandidateController extends Controller
         $status = $validated['status'] ?? EventCandidate::STATUS_PENDING;
         $type = $validated['type'] ?? null;
         $rawType = $validated['raw_type'] ?? null;
+        $descriptionMode = $validated['description_mode'] ?? null;
         $sourceName = $validated['source_name'] ?? $validated['source'] ?? null;
         $sourceKey = $validated['source_key'] ?? null;
         $runId = $validated['run_id'] ?? null;
@@ -271,6 +292,7 @@ class EventCandidateController extends Controller
             });
 
         $this->applyCalendarFilter($query, $year, $month, $week, $dateFrom, $dateTo);
+        $this->applyDescriptionModeFilter($query, $descriptionMode);
 
         return $query->when($q !== null && $q !== '', function ($qq) use ($q) {
             $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
@@ -281,6 +303,50 @@ class EventCandidateController extends Controller
                     ->orWhere('description', 'like', $like);
             });
         });
+    }
+
+    private function applyDescriptionModeFilter(Builder $query, ?string $descriptionMode): void
+    {
+        $normalizedMode = strtolower(trim((string) $descriptionMode));
+        if ($normalizedMode === '' || $normalizedMode === 'all') {
+            return;
+        }
+
+        if ($normalizedMode === 'missing') {
+            $query->where(function (Builder $missingQuery): void {
+                $missingQuery
+                    ->whereNull('translated_description')
+                    ->orWhereRaw("TRIM(COALESCE(translated_description, '')) = ''");
+            });
+            return;
+        }
+
+        if ($normalizedMode === 'template') {
+            $query->where('translation_mode', EventCandidate::TRANSLATION_MODE_TEMPLATE);
+            return;
+        }
+
+        if ($normalizedMode === 'manual') {
+            $query->where('translation_mode', EventCandidate::TRANSLATION_MODE_MANUAL);
+            return;
+        }
+
+        if ($normalizedMode === 'ai_refined') {
+            $query->where('translation_mode', EventCandidate::TRANSLATION_MODE_AI_REFINED);
+            return;
+        }
+
+        if ($normalizedMode === 'translated') {
+            $query->where('translation_mode', EventCandidate::TRANSLATION_MODE_TRANSLATED);
+            return;
+        }
+
+        if ($normalizedMode === 'ai') {
+            $query->whereIn('translation_mode', [
+                EventCandidate::TRANSLATION_MODE_TRANSLATED,
+                EventCandidate::TRANSLATION_MODE_AI_REFINED,
+            ]);
+        }
     }
 
     private function applyCalendarFilter(

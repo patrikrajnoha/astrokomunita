@@ -11,7 +11,7 @@ class UserPreferenceSidebarWidgetsApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_get_returns_default_sidebar_widgets_for_user_without_widget_selection(): void
+    public function test_get_returns_empty_sidebar_widget_overrides_for_user_without_widget_selection(): void
     {
         $user = User::factory()->create();
         Sanctum::actingAs($user);
@@ -19,8 +19,8 @@ class UserPreferenceSidebarWidgetsApiTest extends TestCase
         $this->getJson('/api/me/preferences')
             ->assertOk()
             ->assertJsonPath('data.has_preferences', false)
-            ->assertJsonPath('data.sidebar_widget_keys', ['next_event', 'nasa_apod', 'search'])
-            ->assertJsonPath('data.sidebar_widget_overrides.home', ['next_event', 'nasa_apod', 'search']);
+            ->assertJsonPath('data.sidebar_widget_keys', [])
+            ->assertJsonPath('data.sidebar_widget_overrides', []);
     }
 
     public function test_put_rejects_more_than_three_sidebar_widgets(): void

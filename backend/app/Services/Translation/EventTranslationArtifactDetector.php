@@ -22,6 +22,9 @@ class EventTranslationArtifactDetector
         '%v konflikte so slnkom%',
         '%na vrchole%',
         '%odrazeferora%',
+        '%perihelion%',
+        '%aphelion%',
+        '%opposition%',
         '%meteor sprcha%',
         '%meteoricka sprcha%',
         '%meteorická sprcha%',
@@ -119,6 +122,18 @@ class EventTranslationArtifactDetector
                 ->orWhere(function ($q): void {
                     $q->whereRaw('LOWER(COALESCE(event_candidates.title, \'\')) LIKE ?', ['% at inferior conjunction%'])
                         ->whereRaw('LOWER(COALESCE(event_candidates.translated_title, \'\')) NOT LIKE ?', ['% v dolnej konjunkcii%']);
+                })
+                ->orWhere(function ($q): void {
+                    $q->whereRaw('LOWER(COALESCE(event_candidates.title, \'\')) LIKE ?', ['% at perihelion%'])
+                        ->whereRaw('LOWER(COALESCE(event_candidates.translated_title, \'\')) NOT LIKE ?', ['% v perih%liu%']);
+                })
+                ->orWhere(function ($q): void {
+                    $q->whereRaw('LOWER(COALESCE(event_candidates.title, \'\')) LIKE ?', ['% at aphelion%'])
+                        ->whereRaw('LOWER(COALESCE(event_candidates.translated_title, \'\')) NOT LIKE ?', ['% v af%liu%']);
+                })
+                ->orWhere(function ($q): void {
+                    $q->whereRaw('LOWER(COALESCE(event_candidates.title, \'\')) LIKE ?', ['% at opposition%'])
+                        ->whereRaw('LOWER(COALESCE(event_candidates.translated_title, \'\')) NOT LIKE ?', ['% v opoz%cii%']);
                 })
                 ->orWhere(function ($q): void {
                     $q->whereRaw('LOWER(COALESCE(event_candidates.title, \'\')) LIKE ?', ['% first quarter moon%'])

@@ -88,10 +88,10 @@ class EventViewingForecastService
         $currentSun = $this->sunMoonProvider->get($lat, $lon, $currentDate, $tz);
         $nextSun = $this->sunMoonProvider->get($lat, $lon, $nextDate, $tz);
 
-        $currentMorningEnd = $this->combineLocalDateTime($currentDate, $currentSun['civil_twilight_begin'] ?? null, $tz);
-        $previousNightStart = $this->combineLocalDateTime($previousDate, $previousSun['civil_twilight_end'] ?? null, $tz);
-        $upcomingNightStart = $this->combineLocalDateTime($currentDate, $currentSun['civil_twilight_end'] ?? null, $tz);
-        $upcomingNightEnd = $this->combineLocalDateTime($nextDate, $nextSun['civil_twilight_begin'] ?? null, $tz);
+        $currentMorningEnd = $this->resolveMorningBoundary($currentDate, $currentSun, $tz);
+        $previousNightStart = $this->resolveEveningBoundary($previousDate, $previousSun, $tz);
+        $upcomingNightStart = $this->resolveEveningBoundary($currentDate, $currentSun, $tz);
+        $upcomingNightEnd = $this->resolveMorningBoundary($nextDate, $nextSun, $tz);
 
         $usePreviousNight = $currentMorningEnd !== null && $anchorLocal->lt($currentMorningEnd);
         $nightStart = $usePreviousNight ? $previousNightStart : $upcomingNightStart;
@@ -209,27 +209,27 @@ class EventViewingForecastService
         if ($clouds === null || $precipitation === null || $windMs === null) {
             return [
                 'rating' => 'avg',
-                'label_sk' => 'Priemerne',
+                'label_sk' => 'Priemerné',
             ];
         }
 
         if ($clouds <= 25 && $precipitation <= 20 && $windMs <= 6.0) {
             return [
                 'rating' => 'good',
-                'label_sk' => 'Dobre',
+                'label_sk' => 'Dobré',
             ];
         }
 
         if ($clouds <= 60 && $precipitation <= 40 && $windMs <= 10.0) {
             return [
                 'rating' => 'avg',
-                'label_sk' => 'Priemerne',
+                'label_sk' => 'Priemerné',
             ];
         }
 
         return [
             'rating' => 'bad',
-            'label_sk' => 'Zle',
+            'label_sk' => 'Zlé',
         ];
     }
 
@@ -244,6 +244,32 @@ class EventViewingForecastService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * @param array<string,mixed> $sunData
+     */
+    private function resolveMorningBoundary(string $date, array $sunData, string $tz): ?CarbonImmutable
+    {
+        $civilBegin = $this->combineLocalDateTime($date, $sunData['civil_twilight_begin'] ?? null, $tz);
+        if ($civilBegin !== null) {
+            return $civilBegin;
+        }
+
+        return $this->combineLocalDateTime($date, $sunData['sunrise'] ?? null, $tz);
+    }
+
+    /**
+     * @param array<string,mixed> $sunData
+     */
+    private function resolveEveningBoundary(string $date, array $sunData, string $tz): ?CarbonImmutable
+    {
+        $civilEnd = $this->combineLocalDateTime($date, $sunData['civil_twilight_end'] ?? null, $tz);
+        if ($civilEnd !== null) {
+            return $civilEnd;
+        }
+
+        return $this->combineLocalDateTime($date, $sunData['sunset'] ?? null, $tz);
     }
 
     private function parseIsoDateTime(mixed $value): ?CarbonImmutable

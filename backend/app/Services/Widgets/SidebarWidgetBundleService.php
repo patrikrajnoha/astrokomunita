@@ -20,6 +20,7 @@ class SidebarWidgetBundleService
         'observing_conditions' => true,
         'observing_weather' => true,
         'night_sky' => true,
+        'constellations_now' => true,
         'iss_pass' => true,
         'nasa_apod' => true,
         'next_event' => true,
@@ -37,6 +38,7 @@ class SidebarWidgetBundleService
         private readonly ArticlesWidgetService $articlesWidgetService,
         private readonly EventWidgetService $eventWidgetService,
         private readonly NasaIotdWidgetService $nasaIotdWidgetService,
+        private readonly ConstellationsNowWidgetService $constellationsNowWidgetService,
         private readonly SkyWeatherService $skyWeatherService,
         private readonly SkyAstronomyService $skyAstronomyService,
         private readonly SkyVisiblePlanetsService $skyVisiblePlanetsService,
@@ -69,6 +71,7 @@ class SidebarWidgetBundleService
                     'observing_conditions' => $this->bundleObservingConditionsPayload($weatherPayload, $astronomyPayload),
                     'observing_weather' => $this->bundleObservingWeatherPayload($weatherPayload),
                     'night_sky' => $this->bundleNightSkyPayload($astronomyPayload, $visiblePlanetsPayload, $lightPollutionPayload),
+                    'constellations_now' => $this->constellationsNowWidgetService->payload($skyContext, $weatherPayload),
                     'iss_pass' => $this->bundleIssPassPayload($issPreviewPayload),
                     'nasa_apod' => $this->nasaIotdWidgetService->payload(),
                     'next_event' => $this->eventWidgetService->nextEvent(),
@@ -168,7 +171,7 @@ class SidebarWidgetBundleService
      */
     private function resolveBundledWeatherPayload(array $sectionKeys, ?array $skyContext): ?array
     {
-        if (! $this->requiresAnySection($sectionKeys, ['observing_conditions', 'observing_weather']) || $skyContext === null) {
+        if (! $this->requiresAnySection($sectionKeys, ['observing_conditions', 'observing_weather', 'constellations_now']) || $skyContext === null) {
             return null;
         }
 

@@ -78,6 +78,10 @@ Schedule::command('events:translation-quality-report --sample=20')
     ->dailyAt('03:10')
     ->withoutOverlapping();
 
+Schedule::command('events:generate-descriptions --mode=ollama --fallback=base --resume')
+    ->dailyAt('04:05')
+    ->withoutOverlapping();
+
 Schedule::command('reminders:send')
     ->everyMinute()
     ->withoutOverlapping();

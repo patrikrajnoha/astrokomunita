@@ -62,7 +62,7 @@ class SkySpaceWeatherEndpointTest extends TestCase
             ->assertJsonPath('kp_index', 6)
             ->assertJsonPath('noaa_scale', 'G2')
             ->assertJsonPath('aurora.watch_score', 72)
-            ->assertJsonPath('aurora.watch_label', 'Vysoka sanca')
+            ->assertJsonPath('aurora.watch_label', 'Vysoká šanca')
             ->assertJsonPath('source.label', 'NOAA SWPC');
     }
 

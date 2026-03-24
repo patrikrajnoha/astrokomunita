@@ -59,16 +59,16 @@ class EventLiveHighlightsService
         }
 
         if ($nearest !== null) {
-            $detailParts[] = sprintf('Najblizsia bunka: %d/100', $nearest);
+            $detailParts[] = sprintf('Najbližšia bunka: %d/100', $nearest);
         }
 
         return [
             'key' => 'aurora_watch',
             'kind' => 'live_signal',
             'type' => 'aurora',
-            'title' => 'Aurora watch',
-            'badge' => 'Zive teraz',
-            'status_label' => $this->stringOrNull($payload['watch_label'] ?? null) ?? 'Aurora watch',
+            'title' => 'Polárna žiara',
+            'badge' => 'Živé teraz',
+            'status_label' => $this->stringOrNull($payload['watch_label'] ?? null) ?? 'Polárna žiara',
             'status_score' => $score,
             'tone' => $this->toneForScore($score),
             'summary' => $this->summaryForScore($score),
@@ -97,14 +97,14 @@ class EventLiveHighlightsService
     private function summaryForScore(int $score): string
     {
         if ($score >= 70) {
-            return 'Signal je silny aj nad severnym obzorom.';
+            return 'Signál je silný aj nad severným obzorom.';
         }
 
         if ($score >= 40) {
-            return 'Signal je zvyseny smerom na sever.';
+            return 'Signál je zvýšený smerom na sever.';
         }
 
-        return 'Slaby signal na severe, oplati sa sledovat severny obzor.';
+        return 'Slabý signál na severe, oplatí sa sledovať severný obzor.';
     }
 
     private function stringOrNull(mixed $value): ?string

@@ -69,9 +69,21 @@ class PublicUserPayload
             $payload['location'] = $locationLabel;
         }
 
+        if (BotAvatarResolver::isBotAccount($payload)) {
+            $payload['avatar_path'] = BotAvatarResolver::resolveBotAvatarPath(
+                $payload,
+                (string) ($payload['avatar_path'] ?? '')
+            );
+            $payload['avatar_mode'] = 'image';
+            $payload['avatar_color'] = null;
+            $payload['avatar_icon'] = null;
+            $payload['avatar_seed'] = null;
+        }
+
         $payload['avatar_url'] = $this->resolveMediaUrl(
             $userData['avatar_url'] ?? null,
-            $payload['avatar_path'] ?? null
+            $payload['avatar_path'] ?? null,
+            $payload,
         );
         $payload['cover_url'] = $this->resolveMediaUrl(
             $userData['cover_url'] ?? null,
@@ -81,7 +93,10 @@ class PublicUserPayload
         return $payload;
     }
 
-    private function resolveMediaUrl(mixed $existingUrl, mixed $path): ?string
+    /**
+     * @param array<string,mixed> $userData
+     */
+    private function resolveMediaUrl(mixed $existingUrl, mixed $path, array $userData = []): ?string
     {
         $url = trim((string) ($existingUrl ?? ''));
         if ($url !== '') {
@@ -90,7 +105,16 @@ class PublicUserPayload
 
         $normalizedPath = trim((string) ($path ?? ''));
         if ($normalizedPath === '') {
+            if (BotAvatarResolver::isBotAccount($userData)) {
+                $resolvedBotPath = BotAvatarResolver::resolveBotAvatarPath($userData, null);
+                return BotAvatarResolver::publicUrlFromRelativePath($resolvedBotPath);
+            }
             return null;
+        }
+
+        if (BotAvatarResolver::isBotAccount($userData)) {
+            $resolvedBotPath = BotAvatarResolver::resolveBotAvatarPath($userData, $normalizedPath);
+            return BotAvatarResolver::publicUrlFromRelativePath($resolvedBotPath);
         }
 
         if (!$this->mediaStorage->exists($normalizedPath)) {

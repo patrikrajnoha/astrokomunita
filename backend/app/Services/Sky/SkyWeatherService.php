@@ -15,6 +15,7 @@ class SkyWeatherService
     /**
      * @return array{
      *   cloud_percent:int,
+     *   evening_cloud_percent:int,
      *   wind_speed:float,
      *   wind_unit:string,
      *   humidity_percent:int,
@@ -38,6 +39,7 @@ class SkyWeatherService
         }
 
         $cloud = $this->normalizePercent($payload['current_cloud_pct'] ?? null);
+        $eveningCloud = $this->normalizePercent($payload['evening_cloud_pct'] ?? null);
         $humidity = $this->normalizePercent($payload['current_pct'] ?? null);
         $wind = $this->normalizeWind($payload['current_wind_kmh'] ?? null);
         $temperature = $this->normalizeTemperature($payload['current_temperature_c'] ?? null);
@@ -51,11 +53,13 @@ class SkyWeatherService
         }
 
         $cloudSafe = $cloud ?? 0;
+        $eveningCloudSafe = $eveningCloud ?? $cloudSafe;
         $humiditySafe = $humidity ?? 0;
         $windSafe = $wind ?? 0.0;
 
         return [
             'cloud_percent' => $cloudSafe,
+            'evening_cloud_percent' => $eveningCloudSafe,
             'wind_speed' => round($windSafe, 1),
             'wind_unit' => 'km/h',
             'humidity_percent' => $humiditySafe,

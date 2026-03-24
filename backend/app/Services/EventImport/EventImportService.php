@@ -143,6 +143,7 @@ class EventImportService
                 'original_description' => $description,
                 'translated_description' => null,
                 'translation_status' => EventCandidate::TRANSLATION_PENDING,
+                'translation_mode' => null,
                 'translation_error' => null,
                 'translated_at' => null,
                 'raw_payload' => $payloadString,

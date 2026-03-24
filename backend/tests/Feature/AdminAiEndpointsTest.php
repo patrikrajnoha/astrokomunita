@@ -31,6 +31,8 @@ class AdminAiEndpointsTest extends TestCase
     {
         $routes = [
             ['GET', '/api/admin/ai/config'],
+            ['GET', '/api/admin/ai/policy'],
+            ['PATCH', '/api/admin/ai/policy'],
             ['POST', '/api/admin/events/1/ai/generate-description'],
             ['POST', '/api/admin/blog-posts/1/ai/suggest-tags'],
         ];
@@ -128,6 +130,83 @@ class AdminAiEndpointsTest extends TestCase
         $this->assertArrayNotHasKey('meta', $lastRun);
     }
 
+    public function test_generate_description_dry_run_returns_preview_without_persisting_event(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $event = Event::query()->create([
+            'title' => 'Dry run event',
+            'type' => 'other',
+            'start_at' => CarbonImmutable::parse('2026-04-11 20:00:00', 'UTC'),
+            'max_at' => CarbonImmutable::parse('2026-04-11 20:00:00', 'UTC'),
+            'short' => 'Povodny short',
+            'description' => 'Povodny opis',
+            'visibility' => 1,
+            'source_name' => 'manual',
+            'source_uid' => 'evt-admin-ai-dry-run',
+            'source_hash' => hash('sha256', 'evt-admin-ai-dry-run'),
+        ]);
+
+        $response = $this->postJson('/api/admin/events/' . $event->id . '/ai/generate-description', [
+            'sync' => true,
+            'dry_run' => true,
+            'mode' => 'template',
+            'fallback' => 'skip',
+            'force' => false,
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'done')
+            ->assertJsonPath('dry_run', true)
+            ->assertJsonPath('job_id', null)
+            ->assertJsonPath('data.event_id', (int) $event->id)
+            ->assertJsonPath('data.dry_run', true)
+            ->assertJsonPath('data.fallback_used', true)
+            ->assertJsonPath('last_run.feature_name', 'event_description_generate')
+            ->assertJsonPath('last_run.status', 'fallback');
+
+        $description = trim((string) $response->json('data.description'));
+        $short = trim((string) $response->json('data.short'));
+        $this->assertNotSame('', $description);
+        $this->assertNotSame('', $short);
+
+        $event->refresh();
+        $this->assertSame('Povodny opis', (string) $event->description);
+        $this->assertSame('Povodny short', (string) $event->short);
+    }
+
+    public function test_generate_description_dry_run_requires_sync_mode(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $event = Event::query()->create([
+            'title' => 'Dry run invalid mode',
+            'type' => 'other',
+            'start_at' => CarbonImmutable::parse('2026-04-12 20:00:00', 'UTC'),
+            'max_at' => CarbonImmutable::parse('2026-04-12 20:00:00', 'UTC'),
+            'visibility' => 1,
+            'source_name' => 'manual',
+            'source_uid' => 'evt-admin-ai-dry-run-invalid',
+            'source_hash' => hash('sha256', 'evt-admin-ai-dry-run-invalid'),
+        ]);
+
+        $this->postJson('/api/admin/events/' . $event->id . '/ai/generate-description', [
+            'sync' => false,
+            'dry_run' => true,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['dry_run']);
+    }
+
     public function test_config_endpoint_returns_sanitized_last_run_payload_without_sensitive_fields(): void
     {
         $admin = User::factory()->create([
@@ -172,6 +251,108 @@ class AdminAiEndpointsTest extends TestCase
         $this->assertArrayNotHasKey('prompt', $lastRun);
         $this->assertArrayNotHasKey('raw_text', $lastRun);
         $this->assertArrayNotHasKey('meta', $lastRun);
+    }
+
+    public function test_ai_policy_endpoint_returns_effective_policy_payload(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $response = $this->getJson('/api/admin/ai/policy')
+            ->assertOk();
+
+        $this->assertIsArray($response->json('data.effective.prompts.legacy.rules'));
+        $this->assertIsArray($response->json('data.effective.prompts.humanized.rules'));
+        $this->assertIsArray($response->json('data.effective.safety.celestial_terms'));
+        $this->assertIsArray($response->json('data.effective.safety.forbidden_substrings'));
+        $this->assertIsArray($response->json('data.effective.safety.forbidden_regex'));
+    }
+
+    public function test_ai_policy_patch_rejects_invalid_regex_pattern(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->patchJson('/api/admin/ai/policy', [
+            'policy' => [
+                'safety' => [
+                    'forbidden_regex' => [
+                        '/(/',
+                    ],
+                ],
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors([
+                'policy.safety.forbidden_regex.0',
+            ]);
+    }
+
+    public function test_ai_policy_patch_persists_forbidden_regex_override(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->patchJson('/api/admin/ai/policy', [
+            'policy' => [
+                'safety' => [
+                    'forbidden_regex' => [
+                        '/\\bmeteorit\\s+daj\\b/iu',
+                        'hviezdne\\s+metro',
+                    ],
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.has_override', true)
+            ->assertJsonPath('data.effective.safety.forbidden_regex.0', '/\\bmeteorit\\s+daj\\b/iu')
+            ->assertJsonPath('data.effective.safety.forbidden_regex.1', 'hviezdne\\s+metro');
+    }
+
+    public function test_ai_policy_patch_replaces_list_values_instead_of_appending_old_entries(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        $this->patchJson('/api/admin/ai/policy', [
+            'policy' => [
+                'safety' => [
+                    'forbidden_regex' => [
+                        'alpha',
+                        'beta',
+                    ],
+                ],
+            ],
+        ])->assertOk();
+
+        $this->patchJson('/api/admin/ai/policy', [
+            'policy' => [
+                'safety' => [
+                    'forbidden_regex' => [
+                        'gamma',
+                    ],
+                ],
+            ],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.effective.safety.forbidden_regex.0', 'gamma')
+            ->assertJsonCount(1, 'data.effective.safety.forbidden_regex');
     }
 
     public function test_blog_tag_suggestions_valid_response_returns_existing_tags(): void

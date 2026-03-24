@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\ManualEvent;
 use App\Support\EventTime;
 use App\Services\Events\EventFeedRealtimePublisher;
+use App\Services\Events\EventDescriptionOriginRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -17,6 +18,7 @@ class ManualEventController extends Controller
 {
     public function __construct(
         private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
+        private readonly EventDescriptionOriginRecorder $originRecorder,
     ) {
     }
 
@@ -115,6 +117,11 @@ class ManualEventController extends Controller
         $event->source_name = 'manual';
         $event->source_uid = (string) Str::uuid();
         $event->save();
+        $this->originRecorder->record(
+            event: $event,
+            source: 'manual_event_publish',
+            sourceDetail: 'manual_draft'
+        );
         $this->eventFeedRealtimePublisher->publish($event);
 
         $manualEvent->status = 'published';
@@ -196,6 +203,11 @@ class ManualEventController extends Controller
                 $event->source_name = 'manual';
                 $event->source_uid = (string) Str::uuid();
                 $event->save();
+                $this->originRecorder->record(
+                    event: $event,
+                    source: 'manual_event_publish',
+                    sourceDetail: 'manual_draft_batch'
+                );
                 $this->eventFeedRealtimePublisher->publish($event);
 
                 $manual->status = 'published';

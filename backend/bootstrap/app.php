@@ -12,6 +12,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use App\Support\ApiResponse;
+use App\Support\Telemetry\SentryReporter;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Middleware\IsAdminContent;
 use App\Http\Middleware\EnsureUserActive;
@@ -47,6 +48,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->report(function (\Throwable $throwable): void {
+            app(SentryReporter::class)->report($throwable);
+        });
+
         $exceptions->render(function (\Throwable $throwable, Request $request) {
             if (!$request->expectsJson()) {
                 return null;

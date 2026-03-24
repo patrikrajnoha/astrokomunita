@@ -154,13 +154,19 @@ class ImageVariantService
             ];
         }
 
-        if ($this->shouldBypassRasterProcessing($width, $height)) {
-            return $this->buildUnprocessedFallback($sourcePath, $originalMime, $width, $height);
-        }
-
+        // Always try Imagick first — it streams large images efficiently and handles
+        // typical DSLR photos (15–25 MP) without memory issues. The pixel-limit bypass
+        // only applies when Imagick is unavailable, to prevent GD from running out of
+        // PHP memory on very large rasters.
         $imagickResult = $this->buildWithImagick($sourcePath, $originalMime);
         if ($imagickResult !== null) {
             return $imagickResult;
+        }
+
+        // Skip GD for images that exceed the configured pixel budget — GD loads the
+        // entire raster into a PHP-managed buffer, which can exhaust memory limits.
+        if ($this->shouldBypassRasterProcessing($width, $height)) {
+            return $this->buildUnprocessedFallback($sourcePath, $originalMime, $width, $height);
         }
 
         $gdResult = $this->buildWithGd($sourcePath, $originalMime);
