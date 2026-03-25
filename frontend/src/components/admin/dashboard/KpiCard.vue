@@ -31,30 +31,27 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
   gap: 6px;
   min-height: 92px;
   padding: 12px;
-  border-radius: var(--dashboard-radius, 12px);
-  background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.42));
+  border-radius: 12px;
+  background: #1c2736;
   color: inherit;
   text-decoration: none;
-  transition:
-    background-color 160ms ease,
-    transform 120ms ease,
-    box-shadow 120ms ease;
+  transition: background-color 160ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .kpiCard.linked:hover {
-  background: var(--dashboard-panel-strong, rgb(var(--color-bg-rgb) / 0.62));
+  background: #222E3F;
   transform: translateY(-1px);
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .kpiCard.linked:focus-visible {
   outline: none;
-  background: var(--dashboard-panel-strong, rgb(var(--color-bg-rgb) / 0.62));
-  box-shadow: var(--focus-ring);
+  background: #222E3F;
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .kpiLabel {
-  color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.86));
+  color: rgba(171, 184, 201, 0.86);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -62,7 +59,7 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
 }
 
 .kpiValue {
-  color: var(--color-surface);
+  color: #ffffff;
   font-size: clamp(1.55rem, 2.2vw, 2rem);
   font-weight: 700;
   line-height: 1;
@@ -71,7 +68,7 @@ const rootProps = computed(() => (props.viewTo ? { to: props.viewTo } : {}))
 }
 
 .kpiCard.weight-primary {
-  background: rgb(var(--color-primary-rgb) / 0.13);
+  background: rgba(15, 115, 255, 0.13);
 }
 
 .kpiCard.weight-primary .kpiValue {

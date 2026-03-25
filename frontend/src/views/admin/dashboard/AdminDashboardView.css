@@ -1,45 +1,34 @@
 .dashboardView {
-  --dashboard-gap-xs: 4px;
-  --dashboard-gap-sm: 8px;
-  --dashboard-gap-md: 12px;
-  --dashboard-gap-lg: 16px;
-  --dashboard-radius: 12px;
-  --dashboard-border: rgb(var(--color-surface-rgb) / 0.14);
-  --dashboard-panel: rgb(var(--color-bg-rgb) / 0.76);
-  --dashboard-panel-strong: rgb(var(--color-bg-rgb) / 0.9);
-  --dashboard-muted: rgb(var(--color-text-secondary-rgb) / 0.86);
   display: grid;
-  gap: var(--dashboard-gap-md);
+  gap: 12px;
   min-width: 0;
 }
 
-.dashboardAlert :deep(.inlineStatus) {
-  margin-top: 0;
-}
-
+/* ── KPI grid ──────────────────────────────────── */
 .kpiGrid {
   display: grid;
-  gap: var(--dashboard-gap-sm);
+  gap: 8px;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
 }
 
+/* ── Main 2-col layout ─────────────────────────── */
 .mainGrid {
   display: grid;
-  gap: var(--dashboard-gap-md);
+  gap: 12px;
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
 }
 
+/* ── Metric toggle tabs ────────────────────────── */
 .metricTabs {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
+  gap: 2px;
   padding: 2px;
   border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.62);
+  background: #151d28;
   max-width: 100%;
   min-width: 0;
 }
@@ -50,38 +39,32 @@
   min-height: 30px;
   padding: 4px 10px;
   background: transparent;
-  color: var(--dashboard-muted);
+  color: rgba(171, 184, 201, 0.86);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  font-family: inherit;
   flex: 0 1 auto;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
+  transition: background-color 150ms ease, color 150ms ease;
 }
 
 .metricBtn:hover:not(.active) {
-  background: rgb(var(--color-surface-rgb) / 0.08);
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .metricBtn.active {
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-surface);
+  background: rgba(15, 115, 255, 0.16);
+  color: #ffffff;
 }
 
-.metricBtn:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
+/* ── Moderation pulse ──────────────────────────── */
 .moderationPulse {
   display: grid;
   gap: 6px;
   padding: 10px;
-  border-radius: var(--dashboard-radius);
-  background: rgb(var(--color-primary-rgb) / 0.11);
+  border-radius: 12px;
+  background: rgba(15, 115, 255, 0.11);
 }
 
 .pulseMetric {
@@ -92,13 +75,13 @@
 }
 
 .pulseMetric span {
-  color: var(--dashboard-muted);
+  color: rgba(171, 184, 201, 0.86);
   font-size: 12px;
   font-weight: 600;
 }
 
 .pulseMetric strong {
-  color: var(--color-surface);
+  color: #ffffff;
   font-size: 1.25rem;
   line-height: 1;
   letter-spacing: -0.02em;
@@ -109,22 +92,24 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 12px;
-  color: var(--dashboard-muted);
+  color: rgba(171, 184, 201, 0.86);
   font-size: 11px;
 }
 
+/* ── Quick action list ─────────────────────────── */
 .actionList {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+/* ── Analytics card ────────────────────────────── */
 .analyticsCard {
   display: grid;
   gap: 10px;
-  border-radius: var(--dashboard-radius);
+  border-radius: 12px;
   padding: 12px;
-  background: var(--dashboard-panel);
+  background: #1c2736;
   min-width: 0;
 }
 
@@ -140,16 +125,16 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .analyticsTabs {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 2px;
   border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.62);
+  background: #151d28;
 }
 
 .analyticsTab {
@@ -158,28 +143,21 @@
   min-height: 28px;
   padding: 4px 10px;
   background: transparent;
-  color: var(--dashboard-muted);
+  color: rgba(171, 184, 201, 0.86);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
+  font-family: inherit;
+  transition: background-color 150ms ease, color 150ms ease;
 }
 
 .analyticsTab:hover:not(.active) {
-  background: rgb(var(--color-surface-rgb) / 0.08);
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .analyticsTab.active {
-  background: rgb(var(--color-primary-rgb) / 0.16);
-  color: var(--color-surface);
-}
-
-.analyticsTab:focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  background: rgba(15, 115, 255, 0.16);
+  color: #ffffff;
 }
 
 .analyticsList {
@@ -194,37 +172,45 @@
   gap: 10px;
   min-height: 34px;
   padding: 0 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.analyticsRow:last-child {
+  border-bottom: none;
 }
 
 .analyticsLabel {
-  color: var(--dashboard-muted);
+  color: rgba(171, 184, 201, 0.86);
   font-size: 12px;
 }
 
 .analyticsValue {
-  color: var(--color-surface);
+  color: #ffffff;
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Skeleton cards ────────────────────────────── */
 .skeletonCard {
   min-height: 92px;
-  border-radius: var(--dashboard-radius);
+  border-radius: 12px;
   background: linear-gradient(
     90deg,
-    rgb(var(--color-surface-rgb) / 0.04),
-    rgb(var(--color-surface-rgb) / 0.1),
-    rgb(var(--color-surface-rgb) / 0.04)
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.09),
+    rgba(255, 255, 255, 0.04)
   );
   background-size: 200% 100%;
   animation: shimmer 1.15s infinite linear;
 }
 
+/* ── Fade-in animation ─────────────────────────── */
 .sectionFade {
   animation: sectionFadeIn 220ms ease both;
 }
 
+/* ── Responsive ────────────────────────────────── */
 @media (min-width: 720px) {
   .kpiGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -284,23 +270,11 @@
 }
 
 @keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-
-  100% {
-    background-position: -200% 0;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 @keyframes sectionFadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
 }

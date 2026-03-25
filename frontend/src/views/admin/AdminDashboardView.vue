@@ -5,7 +5,6 @@ import DashboardSection from '@/components/admin/dashboard/DashboardSection.vue'
 import KpiCard from '@/components/admin/dashboard/KpiCard.vue'
 import QuickActionTile from '@/components/admin/dashboard/QuickActionTile.vue'
 import StatsChart from '@/components/admin/dashboard/StatsChart.vue'
-import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { getStats, downloadStatsCsv } from '@/services/api/admin/stats'
 import { useToast } from '@/composables/useToast'
 

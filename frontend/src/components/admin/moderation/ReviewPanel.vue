@@ -20,13 +20,13 @@ const emptyState = computed(() => {
   if (props.mode === 'reviewed') {
     return {
       title: 'Zatiaľ nič',
-      description: 'Skontrolovane polozky sa zobrazia tu.',
+      description: 'Skontrolované položky sa zobrazia tu.',
     }
   }
 
   return {
     title: 'Zatiaľ nič',
-    description: 'Polozky na kontrolu sa zobrazia tu.',
+    description: 'Položky na kontrolu sa zobrazia tu.',
   }
 })
 
@@ -50,7 +50,7 @@ async function load() {
 }
 
 function sourceLabel(item) {
-  return item.kind === 'report' ? 'Nahlasenie' : 'Fronta'
+  return item.kind === 'report' ? 'Nahlásenie' : 'Fronta'
 }
 
 function targetSummary(item) {
@@ -69,113 +69,51 @@ watch(
 </script>
 
 <template>
-  <section class="reviewPanel">
-    <div v-if="error" class="alert">{{ error }}</div>
+  <section class="grid gap-3">
 
-    <div v-if="loading" class="list">
-      <div v-for="index in 4" :key="index" class="skeletonRow" />
+    <div v-if="error" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-xs">{{ error }}</div>
+
+    <!-- Loading skeletons -->
+    <div v-if="loading" class="grid gap-2">
+      <div
+        v-for="index in 4"
+        :key="index"
+        class="rounded-xl bg-hover/60 min-h-[108px] animate-pulse"
+      />
     </div>
 
-    <div v-else-if="!items.length" class="emptyState">
-      <div class="emptyTitle">{{ emptyState.title }}</div>
-      <div class="emptyDescription">{{ emptyState.description }}</div>
+    <!-- Empty state -->
+    <div v-else-if="!items.length" class="rounded-xl bg-hover px-4 py-8 text-center">
+      <p class="m-0 font-bold text-sm">{{ emptyState.title }}</p>
+      <p class="m-0 mt-1.5 text-xs text-muted/70">{{ emptyState.description }}</p>
     </div>
 
-    <div v-else class="list">
-      <article v-for="item in items" :key="`${item.kind}-${item.id}`" class="reviewItem">
-        <div class="metaRow">
-          <span class="sourceBadge">{{ sourceLabel(item) }}</span>
-          <span class="timeLabel">{{ formatRelativeTime(item.created_at) }}</span>
+    <!-- Items -->
+    <div v-else class="grid gap-2">
+      <article
+        v-for="item in items"
+        :key="`${item.kind}-${item.id}`"
+        class="rounded-xl bg-hover p-3 grid gap-2"
+      >
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <span class="text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full bg-secondary-btn text-muted">{{ sourceLabel(item) }}</span>
+          <span class="text-[11px] text-muted/60">{{ formatRelativeTime(item.created_at) }}</span>
         </div>
 
-        <div class="itemLabel">{{ item.label }}</div>
-        <div class="itemTarget">{{ targetSummary(item) }}</div>
-        <div class="itemReason">{{ item.reason || '-' }}</div>
+        <p class="m-0 text-[13.5px] font-bold leading-snug">{{ item.label }}</p>
+        <p class="m-0 text-[12.5px] text-muted/85">{{ targetSummary(item) }}</p>
+        <p class="m-0 text-[12.5px] text-muted/70">{{ item.reason || '—' }}</p>
 
-        <div class="actions">
-          <span class="statusBadge">{{ item.status }}</span>
-          <button type="button" class="actionBtn" @click="emit('inspect', item)">Skontrolovat</button>
+        <div class="flex items-center justify-between gap-2 flex-wrap pt-1 border-t border-white/[0.07]">
+          <span class="text-[10.5px] font-bold uppercase px-2 py-0.5 rounded-full bg-secondary-btn text-muted">{{ item.status }}</span>
+          <button
+            type="button"
+            class="px-3 py-1.5 rounded-xl bg-secondary-btn text-muted text-xs font-bold border-0 cursor-pointer hover:text-white transition-colors"
+            @click="emit('inspect', item)"
+          >Skontrolovať</button>
         </div>
       </article>
     </div>
+
   </section>
 </template>
-
-<style scoped>
-.reviewPanel {
-  display: grid;
-  gap: 12px;
-}
-
-.alert {
-  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
-  border-radius: 10px;
-  padding: 10px;
-  color: var(--color-danger);
-}
-
-.list {
-  display: grid;
-  gap: 10px;
-}
-
-.reviewItem,
-.skeletonRow,
-.emptyState {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 14px;
-  padding: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.35);
-}
-
-.skeletonRow {
-  min-height: 112px;
-  background:
-    linear-gradient(90deg, rgb(var(--color-surface-rgb) / 0.05), rgb(var(--color-surface-rgb) / 0.1), rgb(var(--color-surface-rgb) / 0.05));
-}
-
-.metaRow,
-.actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.sourceBadge,
-.statusBadge,
-.timeLabel {
-  font-size: 12px;
-  opacity: 0.82;
-}
-
-.sourceBadge,
-.statusBadge {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
-  border-radius: 999px;
-  padding: 2px 8px;
-  text-transform: uppercase;
-}
-
-.itemLabel {
-  margin-top: 8px;
-  font-weight: 700;
-}
-
-.itemTarget,
-.itemReason {
-  margin-top: 4px;
-  font-size: 13px;
-  opacity: 0.85;
-}
-
-.emptyTitle {
-  font-weight: 700;
-}
-
-.emptyDescription {
-  margin-top: 6px;
-  opacity: 0.75;
-}
-</style>

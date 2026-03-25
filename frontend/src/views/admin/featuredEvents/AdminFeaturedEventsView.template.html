@@ -1,11 +1,17 @@
-<AdminPageShell title="Mark your calendar">
-  <div v-if="error" class="alert alert--error">{{ error }}</div>
-  <div v-if="success" class="alert alert--ok">{{ success }}</div>
+
+<AdminPageShell title="Odporúčané udalosti" subtitle="Správa odporúčaných udalostí pre popup Mark your calendar.">
+  <div v-if="error" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-[12.5px] mb-3">{{ error }}</div>
+  <div v-if="success" class="rounded-xl bg-[#22C55E]/10 text-[#22C55E] px-3 py-2 text-[12.5px] mb-3">{{ success }}</div>
 
   <!-- TOOLBAR -->
   <div class="toolbar">
     <div class="toolbar__left">
-      <select v-model="selectedMonth" :disabled="loading || saving" class="monthSelect" @change="onMonthChange">
+      <select
+        v-model="selectedMonth"
+        :disabled="loading || saving"
+        class="min-h-[32px] rounded-xl bg-hover border-0 text-[12.5px] px-2.5 [color-scheme:dark] cursor-pointer focus:outline-none disabled:opacity-50"
+        @change="onMonthChange"
+      >
         <option v-for="opt in monthOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
       </select>
       <span class="pill" :class="isAutomaticSelection ? 'pill--blue' : 'pill--green'">
@@ -72,12 +78,17 @@
       <div class="panel__head">
         <p class="panel__label">Návrh systému</p>
         <div class="panel__acts">
-          <button type="button" class="textBtn" :disabled="refreshingFallback || loading" @click="refreshFallbackPreview">
+          <button
+            type="button"
+            class="min-h-[28px] px-2.5 rounded-lg bg-transparent text-vivid text-xs font-semibold border-0 cursor-pointer disabled:opacity-40 hover:bg-vivid/10"
+            :disabled="refreshingFallback || loading"
+            @click="refreshFallbackPreview"
+          >
             {{ refreshingFallback ? '…' : 'Obnoviť' }}
           </button>
           <button
             type="button"
-            class="btn btn--primary btn--sm"
+            class="min-h-[28px] px-2.5 rounded-lg bg-vivid text-white text-xs font-bold border-0 cursor-pointer disabled:opacity-50"
             :disabled="applyingFallback || loading || fallbackPreview.length === 0"
             title="Uloží tento zoznam ako manuálny výber"
             @click="useFallbackAsFeatured"
@@ -103,13 +114,23 @@
       <p class="panel__label">Manuálny výber</p>
       <div class="addRow">
         <label for="event-select" class="srOnly">Vybrať udalosť</label>
-        <select id="event-select" v-model="selectedEventId" :disabled="saving || loading" class="eventSelect">
+        <select
+          id="event-select"
+          v-model="selectedEventId"
+          :disabled="saving || loading"
+          class="flex-1 min-w-0 min-h-[32px] rounded-xl bg-app border-0 text-[12.5px] px-2.5 [color-scheme:dark] focus:outline-none disabled:opacity-50"
+        >
           <option value="">Vybrať udalosť…</option>
           <option v-for="ev in candidateEvents" :key="ev.id" :value="String(ev.id)">
             {{ ev.id }} – {{ ev.title }}
           </option>
         </select>
-        <button type="button" class="btn btn--primary btn--sm" :disabled="!canAdd" @click="addFeaturedEvent">
+        <button
+          type="button"
+          class="shrink-0 min-h-[32px] px-3 rounded-xl bg-vivid text-white text-xs font-bold border-0 cursor-pointer disabled:opacity-50"
+          :disabled="!canAdd"
+          @click="addFeaturedEvent"
+        >
           Pridať
         </button>
       </div>
@@ -149,7 +170,12 @@
     <span class="footer__meta">
       v{{ settings.force_version || 0 }}<span v-if="settings.force_at"> · {{ formatDateTime(settings.force_at) }}</span>
     </span>
-    <button type="button" class="btn btn--secondary btn--sm" :disabled="forcing || loading" @click="forceNow">
+    <button
+      type="button"
+      class="min-h-[30px] px-3 rounded-xl bg-secondary-btn text-muted text-xs font-semibold border-0 cursor-pointer disabled:opacity-50"
+      :disabled="forcing || loading"
+      @click="forceNow"
+    >
       {{ forcing ? '…' : 'Zobraziť všetkým teraz' }}
     </button>
   </div>

@@ -281,9 +281,9 @@ async function copyEmail(email, postId) {
 
 /* Filter panel */
 .filterPanel {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(21, 29, 40, 0.38);
   padding: 12px;
   position: sticky;
   top: 12px;
@@ -304,15 +304,21 @@ async function copyEmail(email, postId) {
 }
 
 .refreshBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 8px;
   padding: 4px 8px;
   background: transparent;
-  color: inherit;
+  color: #ABB8C9;
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
   min-width: 28px;
+  transition: background 0.14s, color 0.14s;
+}
+
+.refreshBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
 }
 
 .refreshBtn:disabled {
@@ -329,17 +335,23 @@ async function copyEmail(email, postId) {
   display: grid;
   gap: 5px;
   font-size: 0.8rem;
-  color: rgb(var(--color-surface-rgb) / 0.7);
+  color: rgba(171, 184, 201, 0.9);
 }
 
-input {
+.fieldLabel input {
   width: 100%;
   border-radius: 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(21, 29, 40, 0.5);
+  color: #ffffff;
   padding: 6px 9px;
   font-size: 13px;
+  outline: none;
+  color-scheme: dark;
+}
+
+.fieldLabel input:focus {
+  border-color: rgba(15, 115, 255, 0.6);
 }
 
 .presetRow {
@@ -358,24 +370,25 @@ input {
 
 .presetBtn {
   flex: 1;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 6px;
   padding: 3px 0;
   background: transparent;
-  color: rgb(var(--color-surface-rgb) / 0.65);
+  color: rgba(171, 184, 201, 0.65);
   cursor: pointer;
   font-size: 11px;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
 .presetBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.14);
-  color: var(--color-primary);
+  border-color: rgba(15, 115, 255, 0.5);
+  background: rgba(15, 115, 255, 0.14);
+  color: #0F73FF;
 }
 
 .presetBtn:hover:not(.active) {
-  background: rgb(var(--color-surface-rgb) / 0.06);
-  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
 }
 
 /* Results panel */
@@ -398,14 +411,14 @@ input {
 
 .summary {
   font-size: 12px;
-  color: rgb(var(--color-surface-rgb) / 0.6);
+  color: rgba(171, 184, 201, 0.8);
   padding: 3px 9px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
 }
 
 .error {
-  color: var(--color-danger);
+  color: #EB2452;
   font-size: 13px;
 }
 
@@ -421,9 +434,9 @@ input {
 
 /* Tag card */
 .tagCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(21, 29, 40, 0.5);
   padding: 12px;
   display: grid;
   gap: 8px;
@@ -443,7 +456,7 @@ input {
 }
 
 .count {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 2px 9px;
   font-size: 0.75rem;
@@ -455,15 +468,15 @@ input {
 }
 
 .count--some {
-  border-color: rgb(var(--color-primary-rgb) / 0.35);
-  background: rgb(var(--color-primary-rgb) / 0.08);
-  color: var(--color-primary);
+  border-color: rgba(15, 115, 255, 0.35);
+  background: rgba(15, 115, 255, 0.08);
+  color: #0F73FF;
 }
 
 .count--high {
-  border-color: rgb(var(--color-success-rgb) / 0.4);
-  background: rgb(var(--color-success-rgb) / 0.1);
-  color: var(--color-success);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.1);
+  color: #22C55E;
 }
 
 /* Post list */
@@ -473,9 +486,9 @@ input {
 }
 
 .postCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  border-radius: 9px;
-  background: rgb(var(--color-bg-rgb) / 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(21, 29, 40, 0.45);
   padding: 9px 10px;
   display: grid;
   gap: 6px;
@@ -491,12 +504,12 @@ input {
 .metaStrong {
   font-size: 11px;
   font-weight: 600;
-  color: rgb(var(--color-surface-rgb) / 0.85);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .metaMuted {
   font-size: 11px;
-  color: rgb(var(--color-surface-rgb) / 0.5);
+  color: rgba(171, 184, 201, 0.7);
 }
 
 .postBody {
@@ -527,7 +540,7 @@ input {
   width: 80px;
   height: 80px;
   border-radius: 8px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   object-fit: cover;
 }
 
@@ -541,24 +554,29 @@ input {
 .username {
   font-size: 12px;
   font-weight: 600;
-  color: rgb(var(--color-surface-rgb) / 0.85);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .copyEmailBtn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   padding: 3px 10px;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  color: inherit;
+  background: rgba(21, 29, 40, 0.55);
+  color: #ABB8C9;
   cursor: pointer;
   font-size: 11px;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
+.copyEmailBtn:hover:not(:disabled):not(.copied) {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
 .copyEmailBtn.copied {
-  border-color: rgb(var(--color-success-rgb) / 0.5);
-  background: rgb(var(--color-success-rgb) / 0.12);
-  color: var(--color-success);
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.12);
+  color: #22C55E;
 }
 
 .copyEmailBtn:disabled {
@@ -568,10 +586,10 @@ input {
 
 /* Empty tags */
 .emptyTagsSection {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
   padding: 10px 12px;
-  background: rgb(var(--color-bg-rgb) / 0.25);
+  background: rgba(21, 29, 40, 0.25);
 }
 
 .emptyTagsLabel {
@@ -585,7 +603,7 @@ input {
 }
 
 .emptyTagChip {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 999px;
   padding: 2px 9px;
   font-size: 11px;

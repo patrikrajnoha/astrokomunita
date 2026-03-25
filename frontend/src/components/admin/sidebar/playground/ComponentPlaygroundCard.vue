@@ -100,7 +100,7 @@
         </div>
       </div>
 
-      <p v-else class="emptyProps">Tento widget nema editovatelne nastavenia.</p>
+      <p v-else class="emptyProps">Tento widget nemá editovateľné nastavenia.</p>
 
       <details class="codeBlock">
         <summary>Payload</summary>

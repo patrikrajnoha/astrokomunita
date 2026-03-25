@@ -88,9 +88,9 @@ export function useAdminBlogPostsEditor() {
       return coverFile.value.name;
     }
     if (coverPreview.value) {
-      return "Pouziva sa aktualny ulozeny obrazok";
+      return "Používa sa aktuálny uložený obrázok";
     }
-    return "Nie je vybraty ziaden subor";
+    return "Nie je vybratý žiadny súbor";
   });
   const tagCount = computed(() => parseTagsInput().length);
   const titleSlugPreview = computed(() =>
@@ -352,14 +352,14 @@ export function useAdminBlogPostsEditor() {
     if (!selectedId.value) return;
 
     const ok = await confirm({
-      title: copy.title || (nextHidden ? "Skryt clanok" : "Zobrazit clanok"),
+      title: copy.title || (nextHidden ? "Skryť článok" : "Zobraziť článok"),
       message:
         copy.message ||
         (nextHidden
-          ? "Clanok zostane publikovany, ale nebude viditelny pre citatelov. Chces pokracovat?"
-          : "Clanok bude znovu viditelny pre citatelov. Chces pokracovat?"),
-      confirmText: copy.confirmText || (nextHidden ? "Skryt" : "Zobrazit"),
-      cancelText: "Spat",
+          ? "Článok zostane publikovaný, ale nebude viditeľný pre čitateľov. Chceš pokračovať?"
+          : "Článok bude znovu viditeľný pre čitateľov. Chceš pokračovať?"),
+      confirmText: copy.confirmText || (nextHidden ? "Skryť" : "Zobraziť"),
+      cancelText: "Späť",
     });
     if (!ok) return;
 
@@ -388,13 +388,13 @@ export function useAdminBlogPostsEditor() {
       }
 
       lastSavedAt.value = new Date();
-      toast.success(nextHidden ? "Clanok bol skryty." : "Clanok je znovu viditelny.");
+      toast.success(nextHidden ? "Článok bol skrytý." : "Článok je znovu viditeľný.");
     } catch (e) {
       formError.value =
         e?.response?.data?.message ||
         (nextHidden
-          ? "Nepodarilo sa skryt clanok."
-          : "Nepodarilo sa zobrazit clanok.");
+          ? "Nepodarilo sa skryť článok."
+          : "Nepodarilo sa zobraziť článok.");
       toast.error(formError.value);
     } finally {
       saving.value = false;
@@ -403,18 +403,18 @@ export function useAdminBlogPostsEditor() {
 
   async function hidePublished() {
     return setHiddenState(true, {
-      title: "Skryt publikovany clanok",
+      title: "Skryť publikovaný článok",
       message:
-        "Clanok zostane publikovany, ale nebude viditelny pre citatelov. Chces pokracovat?",
-      confirmText: "Skryt",
+        "Článok zostane publikovaný, ale nebude viditeľný pre čitateľov. Chceš pokračovať?",
+      confirmText: "Skryť",
     });
   }
 
   async function unhidePublished() {
     return setHiddenState(false, {
-      title: "Zobrazit clanok",
-      message: "Clanok bude znovu viditelny pre citatelov. Chces pokracovat?",
-      confirmText: "Zobrazit",
+      title: "Zobraziť článok",
+      message: "Článok bude znovu viditeľný pre čitateľov. Chceš pokračovať?",
+      confirmText: "Zobraziť",
     });
   }
 
@@ -526,19 +526,19 @@ export function useAdminBlogPostsEditor() {
 
   async function uploadInlineImage(file) {
     if (!file || typeof file !== "object") {
-      throw new Error("Neplatny subor.");
+      throw new Error("Neplatný súbor.");
     }
 
     const mime = String(file.type || "").toLowerCase();
     if (!mime.startsWith("image/")) {
-      throw new Error("Podporovane su iba obrazky.");
+      throw new Error("Podporované sú iba obrázky.");
     }
 
     try {
       const payload = await blogPosts.adminUploadInlineImage(file);
       const url = String(payload?.url || "").trim();
       if (!url) {
-        throw new Error("Server nevratil URL obrazka.");
+        throw new Error("Server nevrátil URL obrázka.");
       }
       return { url };
     } catch (e) {
@@ -546,7 +546,7 @@ export function useAdminBlogPostsEditor() {
         e?.response?.data?.errors?.image?.[0] ||
         e?.response?.data?.message ||
         e?.message ||
-        "Nepodarilo sa nahrat obrazok.";
+        "Nepodarilo sa nahrať obrázok.";
       throw new Error(msg);
     }
   }

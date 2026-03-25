@@ -2,7 +2,7 @@
   <div class="settingsTab">
     <div class="settingsCard">
       <h2 class="settingsTitle">Nastavenia AstroBot</h2>
-      <p class="settingsSubtitle">Konfiguracia RSS pipeline a automatizacie (dočasne MVP)</p>
+      <p class="settingsSubtitle">Konfigurácia RSS pipeline a automatizácie (dočasne MVP)</p>
 
       <div class="settingsSection">
         <h3>Auto-sync</h3>
@@ -13,10 +13,10 @@
             class="toggleInput"
           />
           <span class="toggleSlider"></span>
-          Povolit RSS sync scheduler (kazdu hodinu)
+          Povoliť RSS sync scheduler (každú hodinu)
         </label>
         <p class="settingsNote">
-          Toto nastavenie je iba UI. Scheduler spusta <code>astrobot:sync-rss</code> kazdu hodinu v <code>routes/console.php</code>.
+          Toto nastavenie je iba UI. Scheduler spúšťa <code>astrobot:sync-rss</code> každú hodinu v <code>routes/console.php</code>.
         </p>
       </div>
 
@@ -29,7 +29,7 @@
             class="toggleInput"
           />
           <span class="toggleSlider"></span>
-          Automaticky publikovat bezpecne polozky
+          Automaticky publikovať bezpečné položky
         </label>
         <p class="settingsNote">
           Controlled by <code>ASTROBOT_AUTO_PUBLISH_ENABLED</code>.
@@ -40,14 +40,14 @@
         <h3>Info</h3>
         <ul class="infoList">
           <li><strong>Zdroj:</strong> NASA News Release RSS</li>
-          <li><strong>Deduplikacia:</strong> stable_key = GUID alebo hash(link + published_at)</li>
-          <li><strong>Bot ucet:</strong> AstroBot (astrobot@astrokomunita.local)</li>
+          <li><strong>Deduplikácia:</strong> stable_key = GUID alebo hash(link + published_at)</li>
+          <li><strong>Bot účet:</strong> AstroBot (astrobot@astrokomunita.local)</li>
           <li><strong>Kontrola:</strong> potrebná iba pri rizikových položkách alebo keď je auto-publish vypnutý</li>
         </ul>
       </div>
 
       <div class="settingsSection">
-        <h3>Manualne prikazy</h3>
+        <h3>Manuálne príkazy</h3>
         <div class="codeBlock">
           <div class="codeLine">
             <span class="codePrompt">$</span> php artisan astrobot:ensure-user

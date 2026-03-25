@@ -172,7 +172,7 @@ function shouldShowLabel(index) {
 
 <template>
   <div class="chartRoot" role="img" aria-label="Graf trendu">
-    <div v-if="!displayed.length" class="chartEmpty">Trend nie je dostupny.</div>
+    <div v-if="!displayed.length" class="chartEmpty">Trend nie je dostupný.</div>
     <div v-else class="chartGrid">
       <div class="yAxis">
         <span v-for="tick in yTicks" :key="`tick-${tick}`" class="yTick">{{
@@ -227,7 +227,7 @@ function shouldShowLabel(index) {
 }
 
 .chartEmpty {
-  color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
+  color: rgba(171, 184, 201, 0.88);
   font-size: 11px;
 }
 
@@ -248,7 +248,7 @@ function shouldShowLabel(index) {
 }
 
 .yTick {
-  color: rgb(var(--color-text-secondary-rgb) / 0.76);
+  color: rgba(171, 184, 201, 0.76);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
@@ -263,8 +263,8 @@ function shouldShowLabel(index) {
   position: relative;
   height: 124px;
   min-width: 0;
-  border-bottom: 1px solid var(--divider-color);
-  background-image: linear-gradient(to top, var(--divider-color) 1px, transparent 1px);
+  border-bottom: 1px solid rgba(171, 184, 201, 0.08);
+  background-image: linear-gradient(to top, rgba(171, 184, 201, 0.08) 1px, transparent 1px);
   background-size: 100% 33.33%;
   overflow: hidden;
 }
@@ -277,20 +277,20 @@ function shouldShowLabel(index) {
 }
 
 .chartArea {
-  fill: rgb(var(--color-primary-rgb) / 0.14);
+  fill: rgba(15, 115, 255, 0.14);
 }
 
 .chartLine {
   fill: none;
-  stroke: rgb(var(--color-primary-rgb) / 0.95);
+  stroke: rgba(15, 115, 255, 0.95);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .chartPoint {
-  fill: rgb(var(--color-bg-rgb));
-  stroke: rgb(var(--color-primary-rgb) / 1);
+  fill: #151d28;
+  stroke: #0F73FF;
   stroke-width: 2.5;
 }
 
@@ -301,7 +301,7 @@ function shouldShowLabel(index) {
 }
 
 .xLabel {
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  color: rgba(171, 184, 201, 0.82);
   font-size: 9px;
   text-align: center;
   white-space: nowrap;

@@ -176,7 +176,7 @@ async function act(report, action) {
   try {
     const res = await api.post(`/admin/reports/${report.id}/${action}`)
     updateRow(res.data)
-    toast.success('Akcia bola vykonana.')
+    toast.success('Akcia bola vykonaná.')
     emit('changed')
   } catch (e) {
     error.value = e?.response?.data?.message || 'Akcia zlyhala.'
@@ -256,10 +256,8 @@ load()
 </script>
 
 <template>
-  <section ref="rootRef" class="moderationPanel">
-    <div v-if="error" class="adminAlert">
-      {{ error }}
-    </div>
+  <section ref="rootRef" class="grid gap-3">
+    <div v-if="error" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-xs">{{ error }}</div>
 
     <AdminToolbar :loading="loading">
       <template #search>
@@ -269,7 +267,7 @@ load()
           v-model="searchInput"
           :disabled="loading"
           type="search"
-          placeholder="Hľadať reporty..."
+          placeholder="Hľadať reporty…"
           class="fieldInput"
         />
       </template>
@@ -310,7 +308,7 @@ load()
       </template>
 
       <template #actions>
-        <button type="button" class="btn ghost" :disabled="loading" @click="refresh">Obnovit</button>
+        <button type="button" class="ghostBtn" :disabled="loading" @click="refresh">Obnoviť</button>
       </template>
     </AdminToolbar>
 
@@ -342,11 +340,11 @@ load()
 
       <template #[`cell(actions)`]="{ row }">
         <div class="rowActions">
-          <button class="btn action" :disabled="loading" @click="act(row, 'hide')">Skryť</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'delete')">Zmazať</button>
-          <button class="btn action subtle" :disabled="loading" @click="act(row, 'warn')">Upozornit</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'ban')">Ban</button>
-          <button class="btn action" :disabled="loading" @click="act(row, 'dismiss')">Zamietnut</button>
+          <button class="actionBtn" :disabled="loading" @click="act(row, 'hide')">Skryť</button>
+          <button class="actionBtn actionBtn--danger" :disabled="loading" @click="act(row, 'delete')">Zmazať</button>
+          <button class="actionBtn" :disabled="loading" @click="act(row, 'warn')">Upozorniť</button>
+          <button class="actionBtn actionBtn--danger" :disabled="loading" @click="act(row, 'ban')">Ban</button>
+          <button class="actionBtn" :disabled="loading" @click="act(row, 'dismiss')">Zamietnuť</button>
         </div>
       </template>
     </AdminDataTable>
@@ -356,82 +354,118 @@ load()
 </template>
 
 <style scoped>
-.moderationPanel {
-  display: grid;
-  gap: 14px;
-}
-
-.adminAlert {
-  color: var(--color-danger);
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
-  background: rgb(var(--color-danger-rgb, 239 68 68) / 0.08);
-}
-
+/* ── Field labels & inputs ────────────────────── */
 .fieldLabel {
   display: block;
-  font-size: 12px;
-  opacity: 0.8;
-  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(171, 184, 201, 0.6);
+  margin-bottom: 5px;
 }
 
 .fieldInput {
   width: 100%;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  background: transparent;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: none;
+  background: #1c2736;
   color: inherit;
+  font-size: 13px;
+  font-family: inherit;
+  color-scheme: dark;
 }
 
+.fieldInput:focus-visible {
+  outline: none;
+}
+
+/* ── Filter row ───────────────────────────────── */
 .filtersRow {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .filtersRow > div {
-  min-width: 160px;
+  min-width: 140px;
 }
 
+/* ── Ghost button ─────────────────────────────── */
+.ghostBtn {
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #222E3F;
+  color: #ABB8C9;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.1s;
+}
+
+.ghostBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Status badge ─────────────────────────────── */
 .statusBadge {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
+  font-size: 11px;
+  font-weight: 600;
   text-transform: uppercase;
+  background: #222E3F;
+  color: #ABB8C9;
 }
 
+/* ── Row actions ──────────────────────────────── */
 .rowActions {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
-.btn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 10px;
-  padding: 6px 10px;
-  background: transparent;
-  color: inherit;
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: #222E3F;
+  color: #ABB8C9;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.1s;
 }
 
-.btn.subtle {
-  background: rgb(var(--color-surface-rgb) / 0.08);
+.actionBtn:hover:not(:disabled) {
+  opacity: 0.8;
 }
 
-.btn:disabled {
-  opacity: 0.5;
+.actionBtn:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
+.actionBtn--danger {
+  background: rgba(235, 36, 82, 0.1);
+  color: #EB2452;
+}
+
+/* ── Focused row ──────────────────────────────── */
 :deep(.adminTable__row.is-focused) {
-  background: rgb(var(--color-primary-rgb) / 0.08);
-  box-shadow: inset 3px 0 0 rgb(var(--color-primary-rgb) / 0.75);
+  background: rgba(15, 115, 255, 0.07);
+  box-shadow: inset 3px 0 0 rgba(15, 115, 255, 0.75);
 }
 </style>

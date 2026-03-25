@@ -147,30 +147,30 @@
 .runBtn,
 .ghostBtn,
 .dangerBtn {
-  min-height: 32px;
-  border-radius: 9px;
-  padding: 0 11px;
+  min-height: 34px;
+  border-radius: 12px;
+  padding: 0 16px;
   border: none;
   line-height: 1;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 160ms ease, opacity 160ms ease;
+  transition: opacity 150ms ease;
 }
 
 .runBtn {
-  background: var(--color-accent);
-  color: var(--color-white);
+  background: #0F73FF;
+  color: #FFFFFF;
 }
 
 .ghostBtn {
-  background: var(--color-btn-secondary-bg);
-  color: var(--color-btn-secondary-text);
+  background: #222E3F;
+  color: #ABB8C9;
 }
 
 .dangerBtn {
-  background: var(--color-danger);
-  color: var(--color-white);
+  background: #EB2452;
+  color: #FFFFFF;
 }
 
 .runBtn:hover:not(:disabled),
@@ -182,7 +182,7 @@
 .runBtn:disabled,
 .ghostBtn:disabled,
 .dangerBtn:disabled {
-  opacity: 0.58;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 

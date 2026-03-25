@@ -14,7 +14,7 @@ const tabs = [
   { id: 'review', label: 'Na kontrolu' },
   { id: 'reports', label: 'Reporty' },
   { id: 'queue', label: 'Fronta' },
-  { id: 'reviewed', label: 'Skontrolovane' },
+  { id: 'reviewed', label: 'Skontrolované' },
 ]
 
 const overview = ref(null)
@@ -119,20 +119,22 @@ watch(activeTab, () => {
 </script>
 
 <template>
-  <AdminPageShell title="Moderacia">
-    <div class="hubTabs" role="tablist" aria-label="Moderacne sekcie">
+  <AdminPageShell title="Moderácia">
+    <div class="flex gap-1 flex-wrap mb-4 p-1 bg-hover rounded-2xl w-fit" role="tablist" aria-label="Moderačné sekcie">
       <button
         v-for="tab in tabs"
         :key="tab.id"
-        class="hubTab"
-        :class="{ active: activeTab === tab.id }"
+        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold border-0 cursor-pointer transition-colors duration-150"
+        :class="activeTab === tab.id ? 'bg-vivid text-white' : 'bg-transparent text-muted'"
         type="button"
         @click="setTab(tab.id)"
       >
         <span>{{ tab.label }}</span>
-        <span v-if="tabBadge(tab.id) !== ''" class="hubTabBadge">
-          {{ overviewLoading ? '...' : tabBadge(tab.id) }}
-        </span>
+        <span
+          v-if="tabBadge(tab.id) !== ''"
+          class="min-w-[1.1rem] text-center text-[11px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
+          :class="activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-secondary-btn text-muted'"
+        >{{ overviewLoading ? '…' : tabBadge(tab.id) }}</span>
       </button>
     </div>
 
@@ -159,40 +161,3 @@ watch(activeTab, () => {
     />
   </AdminPageShell>
 </template>
-
-<style scoped>
-.hubTabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.hubTab {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: rgb(var(--color-bg-rgb) / 0.32);
-  color: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hubTab.active {
-  background: linear-gradient(
-    135deg,
-    rgb(var(--color-primary-rgb) / 0.2),
-    rgb(var(--color-surface-rgb) / 0.08)
-  );
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
-}
-
-.hubTabBadge {
-  min-width: 1.4rem;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgb(var(--color-surface-rgb) / 0.12);
-  font-size: 12px;
-  line-height: 1.2;
-}
-</style>

@@ -58,8 +58,8 @@ const {
   toErrorMessage,
 })
 
-const pageTitle = computed(() => 'Legacy n?stroje')
-const pageSubtitle = computed(() => 'Sekund?rny servisn? panel pre zriedkav? manu?lne akcie.')
+const pageTitle = computed(() => 'Legacy nástroje')
+const pageSubtitle = computed(() => 'Sekundárny servisný panel pre zriedkavé manuálne akcie.')
 
 const quickRunBusyIdentity = ref('')
 const quickRunProgress = ref({
@@ -89,7 +89,7 @@ const quickRunProgressLabel = computed(() => {
     return identityLabel ? `Run control: ${identityLabel}` : 'Run control'
   }
 
-  return 'Run control: v?etky zdroje'
+  return 'Run control: všetky zdroje'
 })
 
 const quickRunProgressHint = computed(() => {
@@ -100,13 +100,13 @@ const quickRunProgressHint = computed(() => {
   const total = Number(quickRunProgress.value.total || 0)
   const completed = Number(quickRunProgress.value.completed || 0)
   const sourceKey = String(quickRunProgress.value.sourceKey || '').trim()
-  const runningText = sourceKey !== '' ? `Sprac?va sa zdroj ${sourceKey}.` : 'Sprac?vaj? sa zdroje.'
+  const runningText = sourceKey !== '' ? `Spracúva sa zdroj ${sourceKey}.` : 'Spracúvajú sa zdroje.'
 
   if (quickRunProgress.value.phase === 'running') {
-    return `${runningText} Hotov?: ${completed}/${total}.`
+    return `${runningText} Hotové: ${completed}/${total}.`
   }
 
-  return `Hotov?: ${completed}/${total}.`
+  return `Hotové: ${completed}/${total}.`
 })
 
 function resetQuickRunProgress() {
@@ -191,7 +191,7 @@ const aiStatus = computed(() => {
 
   if (status === 'fallback') {
     return {
-      label: 'Degradovan?',
+      label: 'Degradovaný',
       className: 'statusBadge statusBadge--partial',
     }
   }
@@ -204,7 +204,7 @@ const aiStatus = computed(() => {
   }
 
   return {
-    label: 'Pripraven?',
+    label: 'Pripravený',
     className: 'statusBadge statusBadge--muted',
   }
 })
