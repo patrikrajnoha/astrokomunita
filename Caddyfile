@@ -6,16 +6,35 @@
 #   https://api.{$DOMAIN}  -> Laravel API (nginx -> php-fpm)
 #   https://ws.{$DOMAIN}   -> Laravel Reverb websocket server
 
+{
+    admin localhost:2019 {
+        origins localhost:2019 localhost
+    }
+}
+
+http://localhost {
+    encode gzip
+    reverse_proxy frontend:80
+}
+
+http://localhost/api* {
+    encode gzip
+    reverse_proxy backend-api:80
+}
+
 {$DOMAIN} {
     encode gzip
+    tls internal
     reverse_proxy frontend:80
 }
 
 api.{$DOMAIN} {
     encode gzip
+    tls internal
     reverse_proxy backend-api:80
 }
 
 ws.{$DOMAIN} {
+    tls internal
     reverse_proxy reverb:8080
 }
