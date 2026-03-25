@@ -123,7 +123,7 @@ async function submitReport() {
     const status = e?.response?.status
     const message =
       status === 401
-        ? 'Prihlas sa.'
+        ? 'Prihlás sa.'
         : status === 403
           ? 'Vlastný príspevok nemôžeš nahlásiť.'
           : status === 409
@@ -143,7 +143,7 @@ function updatePostPoll(post, nextPoll) {
 }
 
 function onPollLoginRequired() {
-  error.value = 'Prihlas sa pre hlasovanie.'
+  error.value = 'Prihlás sa pre hlasovanie.'
 }
 
 function bumpLike(id) {
@@ -163,7 +163,7 @@ function applyLikeResponse(post, res) {
 async function toggleLike(post) {
   if (!post?.id || isLikeLoading(post)) return
   if (!auth.isAuthed) {
-    error.value = 'Prihlas sa pre lajkovanie.'
+    error.value = 'Prihlás sa pre lajkovanie.'
     return
   }
 
@@ -185,7 +185,7 @@ async function toggleLike(post) {
     post.liked_by_me = prevLiked
     post.likes_count = prevCount
     const status = e?.response?.status
-    if (status === 401) error.value = 'Prihlas sa.'
+    if (status === 401) error.value = 'Prihlás sa.'
     else error.value = e?.response?.data?.message || 'Lajk zlyhal.'
   } finally {
     setLikeLoading(post.id, false)

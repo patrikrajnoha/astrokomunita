@@ -18,55 +18,65 @@
       tabindex="-1"
       @click.stop
     >
+      <!-- Close -->
       <button
         type="button"
         class="tourClose"
-        aria-label="Zavriet onboarding tour"
+        aria-label="Zatvoriť prehliadku"
         @click="skipTour"
       >
-        x
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
       </button>
 
-      <p class="tourProgress">Krok {{ currentStepIndex + 1 }} z {{ steps.length }}</p>
-      <div class="tourProgressBar" role="progressbar" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
-        <span class="tourProgressBarFill" :style="{ width: `${progressPercent}%` }"></span>
+      <!-- Progress -->
+      <div class="tourMeta">
+        <span class="tourStep">Krok {{ currentStepIndex + 1 }} / {{ steps.length }}</span>
+        <div class="tourProgressBar" role="progressbar" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
+          <span class="tourProgressFill" :style="{ width: `${progressPercent}%` }"></span>
+        </div>
       </div>
 
       <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
       <p class="tourBody">{{ currentStep.body }}</p>
-      <p class="tourTip">{{ currentStep.tip }}</p>
+
+      <p v-if="currentStep.tip" class="tourTip">{{ currentStep.tip }}</p>
+
       <OnboardingWidgetPreview v-if="showWidgetPreview" size="compact" />
+
       <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
 
-      <div class="tourStepDots" role="tablist" aria-label="Kroky tour">
+      <!-- Dots -->
+      <div class="tourDots" role="tablist" aria-label="Kroky prehliadky">
         <button
           v-for="(step, index) in steps"
           :key="step.id"
           type="button"
-          class="tourStepDot"
+          class="tourDot"
           :class="{ active: index === currentStepIndex }"
-          :aria-label="`Prejst na krok ${index + 1}: ${step.title}`"
+          :aria-label="`Prejsť na krok ${index + 1}: ${step.title}`"
           :aria-current="index === currentStepIndex ? 'step' : undefined"
           @click="jumpToStep(index)"
         ></button>
       </div>
 
+      <!-- Actions -->
       <div class="tourActions">
-        <button type="button" class="tourBtn ghost" @click="skipTour">Preskocit</button>
-
+        <button type="button" class="tourBtnGhost" @click="skipTour">Preskočiť</button>
         <div class="tourActionsRight">
           <button
             v-if="currentStepIndex > 0"
             type="button"
-            class="tourBtn ghost"
+            class="tourBtnGhost"
             @click="goPrev"
           >
-            Spat
+            Späť
           </button>
           <button
             v-if="!isLastStep"
             type="button"
-            class="tourBtn primary"
+            class="tourBtnPrimary"
             @click="goNext"
           >
             {{ nextButtonLabel }}
@@ -74,7 +84,7 @@
           <button
             v-else
             type="button"
-            class="tourBtn primary"
+            class="tourBtnPrimary"
             @click="finishTour"
           >
             Hotovo
@@ -104,7 +114,7 @@ const steps = [
     body: 'Tu nájdeš nové príspevky, diskusie a pozorovania od komunity.',
     tip: 'Skús prepnúť kartu alebo otvoriť detail príspevku.',
     missingHint: 'Feed sa teraz nenašiel. Skús prejsť na domovskú stránku a pokračovať.',
-    nextLabel: 'Na kalendar',
+    nextLabel: 'Na kalendár',
     route: { name: 'home' },
   },
   {
@@ -162,7 +172,7 @@ const progressPercent = computed(() => {
   if (steps.length === 0) return 0
   return Math.round(((currentStepIndex.value + 1) / steps.length) * 100)
 })
-const nextButtonLabel = computed(() => currentStep.value?.nextLabel || 'Dalej')
+const nextButtonLabel = computed(() => currentStep.value?.nextLabel || 'Ďalej')
 const spotlightStyle = computed(() => {
   if (!targetRect.value) return {}
 
@@ -489,171 +499,213 @@ onBeforeUnmount(() => {
 .tourOverlay {
   position: absolute;
   inset: 0;
-  background: rgb(3 7 18 / 0.62);
+  background: rgba(3, 7, 18, 0.6);
   pointer-events: none;
 }
 
 .tourSpotlight {
   position: fixed;
   z-index: 2101;
-  border: 2px solid rgb(var(--color-primary-rgb) / 0.95);
+  border: 1.5px solid rgba(15, 115, 255, 0.9);
   border-radius: 12px;
-  box-shadow: 0 0 0 1px rgb(var(--color-bg-rgb) / 0.6);
+  box-shadow:
+    0 0 0 9999px rgba(3, 7, 18, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   pointer-events: none;
+  transition: top 200ms ease, left 200ms ease, width 200ms ease, height 200ms ease;
 }
 
 .tourTooltip {
   position: fixed;
   z-index: 2102;
   pointer-events: auto;
-  width: min(360px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - 24px));
   max-height: min(78vh, 520px);
   overflow: auto;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.4);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.96);
-  color: var(--color-surface);
-  box-shadow: 0 18px 42px rgb(2 6 23 / 0.45);
-  padding: 0.85rem;
-  display: grid;
-  gap: 0.65rem;
+  border-radius: 16px;
+  background: #151d28;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  animation: tourIn 260ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+@keyframes tourIn {
+  from {
+    opacity: 0;
+    transform: scale(0.93) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .tourClose {
   position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
-  border: 0;
-  width: 1.7rem;
-  height: 1.7rem;
+  top: 0.6rem;
+  right: 0.6rem;
+  width: 1.65rem;
+  height: 1.65rem;
   border-radius: 999px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.18);
-  color: var(--color-surface);
-  font-size: 0.85rem;
+  border: none;
+  background: rgba(171, 184, 201, 0.12);
+  color: #ABB8C9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: background 140ms ease;
 }
 
 .tourClose:hover {
-  background: rgb(var(--color-text-secondary-rgb) / 0.28);
+  background: rgba(171, 184, 201, 0.2);
 }
 
-.tourProgress {
-  margin: 0;
+.tourMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-right: 1.8rem;
+}
+
+.tourStep {
+  flex-shrink: 0;
   font-size: 0.72rem;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
-  font-weight: 700;
+  color: #ABB8C9;
+  opacity: 0.7;
 }
 
 .tourProgressBar {
-  width: 100%;
-  height: 0.4rem;
+  flex: 1;
+  height: 3px;
   border-radius: 999px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.2);
+  background: rgba(171, 184, 201, 0.18);
   overflow: hidden;
 }
 
-.tourProgressBarFill {
+.tourProgressFill {
   display: block;
   height: 100%;
-  background: rgb(var(--color-primary-rgb) / 0.9);
-  transition: width 180ms ease;
+  background: #0F73FF;
+  border-radius: 999px;
+  transition: width 220ms ease;
 }
 
 .tourTitle {
   margin: 0;
-  font-size: 1rem;
-  line-height: 1.2;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  line-height: 1.3;
 }
 
 .tourBody {
   margin: 0;
-  font-size: 0.86rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.98);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #ABB8C9;
 }
 
 .tourTip {
   margin: 0;
-  font-size: 0.79rem;
-  color: rgb(var(--color-primary-rgb) / 0.9);
-  border-left: 2px solid rgb(var(--color-primary-rgb) / 0.58);
-  padding-left: 0.48rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: rgba(15, 115, 255, 0.9);
+  border-left: 2px solid rgba(15, 115, 255, 0.45);
+  padding-left: 0.5rem;
 }
 
 .tourMissing {
   margin: 0;
   font-size: 0.78rem;
-  color: rgb(var(--color-warning-rgb) / 0.95);
-  background: rgb(var(--color-warning-rgb) / 0.12);
-  border: 1px solid rgb(var(--color-warning-rgb) / 0.4);
-  border-radius: 0.56rem;
-  padding: 0.42rem 0.5rem;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
 }
 
-.tourStepDots {
+.tourDots {
   display: flex;
   align-items: center;
-  gap: 0.36rem;
+  gap: 0.35rem;
 }
 
-.tourStepDot {
-  width: 0.5rem;
-  height: 0.5rem;
+.tourDot {
+  width: 5px;
+  height: 5px;
   border-radius: 999px;
-  border: 0;
-  background: rgb(var(--color-text-secondary-rgb) / 0.35);
+  border: none;
+  background: rgba(171, 184, 201, 0.3);
   padding: 0;
   cursor: pointer;
+  transition: background 180ms ease, width 180ms ease;
 }
 
-.tourStepDot.active {
-  background: rgb(var(--color-primary-rgb) / 0.95);
+.tourDot.active {
+  width: 14px;
+  background: #0F73FF;
 }
 
 .tourActions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  gap: 0.5rem;
+  margin-top: 0.1rem;
 }
 
 .tourActionsRight {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.4rem;
 }
 
-.tourBtn {
-  border-radius: 9px;
-  border: 1px solid transparent;
+.tourBtnGhost,
+.tourBtnPrimary {
+  border: none;
+  border-radius: 999px;
   font-size: 0.8rem;
-  font-weight: 700;
-  padding: 0.42rem 0.68rem;
+  font-weight: 500;
+  padding: 0.42rem 0.9rem;
   cursor: pointer;
+  transition: background 140ms ease, opacity 140ms ease;
 }
 
-.tourBtn.ghost {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: rgb(var(--color-bg-rgb) / 0.64);
-  color: var(--color-surface);
+.tourBtnGhost {
+  background: rgba(171, 184, 201, 0.1);
+  color: #ABB8C9;
 }
 
-.tourBtn.primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.25);
-  color: var(--color-surface);
+.tourBtnGhost:hover {
+  background: rgba(171, 184, 201, 0.16);
 }
 
-.tourBtn:focus-visible {
-  outline: 2px solid rgb(var(--color-primary-rgb) / 0.9);
+.tourBtnPrimary {
+  background: #0F73FF;
+  color: #FFFFFF;
+}
+
+.tourBtnPrimary:hover {
+  background: #0d65e6;
+}
+
+.tourBtnGhost:focus-visible,
+.tourBtnPrimary:focus-visible {
+  outline: 2px solid rgba(15, 115, 255, 0.7);
   outline-offset: 2px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .tourTooltip {
     width: calc(100vw - 16px);
-    padding: 0.75rem;
+    padding: 0.85rem;
   }
 
   .tourActions {

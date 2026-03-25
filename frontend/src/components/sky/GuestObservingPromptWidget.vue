@@ -22,17 +22,17 @@ const auth = useAuthStore()
 const isAuthed = computed(() => auth.isAuthed)
 
 const promptTitle = computed(() => (
-  isAuthed.value ? 'Pridaj si lokalitu' : 'Prihlas sa'
+  isAuthed.value ? 'Pridaj si lokalitu' : 'Prihlás sa'
 ))
 
 const promptMessage = computed(() => (
   isAuthed.value
-    ? 'Pridaj si lokalitu, aby si videl astronomicke podmienky pre tvoje mesto.'
-    : 'Prihlas sa, nastav polohu a zobrazime lokalne podmienky.'
+    ? 'Pridaj si lokalitu, aby si videl astronomické podmienky pre tvoje mesto.'
+    : 'Prihlás sa, nastav polohu a zobrazíme lokálne podmienky.'
 ))
 
 const actionLabel = computed(() => (
-  isAuthed.value ? 'Nastavit polohu' : 'Prihlasit sa'
+  isAuthed.value ? 'Nastaviť polohu' : 'Prihlásiť sa'
 ))
 
 function handleAction() {

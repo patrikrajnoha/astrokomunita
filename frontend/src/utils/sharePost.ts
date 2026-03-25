@@ -34,8 +34,8 @@ export function buildPostUrl(post: GenericRecord): string {
 
 export async function shareLink(post: GenericRecord): Promise<void> {
   const url = buildPostUrl(post)
-  const title = String(post?.title || 'Prispevok')
-  const text = String(post?.content || '').trim().slice(0, 120) || 'Pozri si tento prispevok.'
+  const title = String(post?.title || 'Príspevok')
+  const text = String(post?.content || '').trim().slice(0, 120) || 'Pozri si tento príspevok.'
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {
@@ -79,8 +79,8 @@ export async function shareImage(post: GenericRecord): Promise<void> {
   ) {
     try {
       await navigator.share({
-        title: String(post?.title || 'Prispevok'),
-        text: 'Zdielam post z Astrokomunity',
+        title: String(post?.title || 'Príspevok'),
+        text: 'Zdieľam post z Astrokomunity',
         files: [generated.file],
       })
       return
@@ -208,7 +208,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('Nepodarilo sa precitat vygenerovany obrazok.'))
+    reader.onerror = () => reject(new Error('Nepodarilo sa prečítať vygenerovaný obrázok.'))
     reader.readAsDataURL(blob)
   })
 }

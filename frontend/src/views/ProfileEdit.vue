@@ -472,7 +472,7 @@ function onLocationSuggestionSelect(option) {
     timezone: option.timezone,
   })
   clearLocationSuggestions()
-  msg.value = `Poloha nastavena: ${option.label}.`
+  msg.value = `Poloha nastavená: ${option.label}.`
 }
 
 function onLocationAutocompleteOutsidePointerDown(event) {
@@ -625,7 +625,7 @@ async function validateLocationPayload() {
   }
 
   if (!payload.timezone || !payload.timezone.includes('/')) {
-    fieldErr.timezone = 'Zadaj platne IANA timezone, napr. Europe/Bratislava.'
+    fieldErr.timezone = 'Zadaj platné IANA timezone, napr. Europe/Bratislava.'
     valid = false
   }
 
@@ -635,7 +635,7 @@ async function validateLocationPayload() {
   }
 
   if (payload.location_source !== 'manual') {
-    fieldErr.locationSource = 'Vyber validny sposob polohy.'
+    fieldErr.locationSource = 'Vyber validný spôsob polohy.'
     valid = false
   }
 

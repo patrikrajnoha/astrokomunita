@@ -138,13 +138,13 @@ export function normalizeFeedError(error) {
   const code = String(error?.code || '')
   const message = String(error?.message || '')
 
-  if (status === 401) return 'Prihlas sa pre tuto akciu.'
+  if (status === 401) return 'Prihlás sa pre túto akciu.'
   if (code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')) {
-    return 'Server neodpoveda. Skus to znova neskor.'
+    return 'Server neodpovedá. Skús to znova neskôr.'
   }
   if (!status && (code === 'ERR_NETWORK' || message.toLowerCase().includes('network'))) {
-    return 'Backend je nedostupny. Skontroluj, ci bezi API server.'
+    return 'Backend je nedostupný. Skontroluj, či beží API server.'
   }
 
-  return error?.response?.data?.message || message || 'Nacitanie feedu zlyhalo.'
+  return error?.response?.data?.message || message || 'Načítanie feedu zlyhalo.'
 }

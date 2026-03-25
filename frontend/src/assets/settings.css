@@ -17,7 +17,7 @@
   max-width: 860px;
   margin: 0 auto;
   display: grid;
-  gap: var(--space-4);
+  gap: 1rem;
 }
 
 
@@ -29,7 +29,7 @@
 .settings-page .settings-group-label {
   margin: 0;
   padding: 0 0.35rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgba(171, 184, 201, 0.9);
   font-size: 0.74rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -42,9 +42,9 @@
 }
 
 .settings-page .settings-nav-block {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.85rem;
+  background: #1c2736;
   overflow: hidden;
 }
 
@@ -59,14 +59,14 @@
   min-height: 44px;
   border: 0;
   background: transparent;
-  color: var(--color-surface);
+  color: #ffffff;
   padding: 0.8rem 0.95rem;
   display: flex;
   align-items: center;
   gap: 0.8rem;
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--motion-fast), transform var(--motion-fast);
+  transition: background-color 150ms ease, transform 150ms ease;
 }
 
 .settings-page .settings-nav-item + .settings-nav-item .settings-nav-button {
@@ -84,26 +84,26 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: var(--divider-color);
+  background: rgba(255, 255, 255, 0.07);
   pointer-events: none;
 }
 
 .settings-page .settings-nav-button:hover {
-  background: var(--interactive-hover);
+  background: #1c2736;
 }
 
 .settings-page .settings-nav-button:active {
-  background: var(--interactive-active);
+  background: #172130;
   transform: scale(0.998);
 }
 
 .settings-page .settings-nav-button:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .settings-page .settings-nav-button.is-active {
-  background: rgb(var(--primary-rgb) / 0.16);
+  background: rgba(15, 115, 255, 0.16);
 }
 
 .settings-page .settings-nav-icon {
@@ -111,11 +111,11 @@
   width: 2rem;
   height: 2rem;
   border-radius: 0.72rem;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   display: grid;
   place-items: center;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  color: rgb(var(--primary-rgb) / 0.95);
+  background: rgba(21, 29, 40, 0.55);
+  color: rgba(15, 115, 255, 0.95);
 }
 
 .settings-page .settings-nav-icon svg {
@@ -138,7 +138,7 @@
 
 .settings-page .settings-nav-description {
   font-size: 0.82rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgba(171, 184, 201, 0.9);
   line-height: 1.3;
 }
 
@@ -146,7 +146,7 @@
   flex: 0 0 auto;
   width: 1.1rem;
   height: 1.1rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgba(171, 184, 201, 0.9);
 }
 
 .settings-page .settings-nav-chevron svg {
@@ -160,28 +160,28 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: rgb(var(--color-accent-rgb) / 0.9);
+  color: rgba(15, 115, 255, 0.9);
   padding: 0.8rem 0.95rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--motion-fast), transform var(--motion-fast);
+  transition: background-color 150ms ease, transform 150ms ease;
 }
 
 .settings-page .settings-install-button:hover {
-  background: rgb(var(--color-accent-rgb) / 0.1);
+  background: rgba(15, 115, 255, 0.1);
 }
 
 .settings-page .settings-install-button:active {
-  background: rgb(var(--color-accent-rgb) / 0.18);
+  background: rgba(15, 115, 255, 0.18);
   transform: scale(0.998);
 }
 
 .settings-page .settings-install-button:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px rgb(var(--color-accent-rgb) / 0.72);
+  box-shadow: inset 0 0 0 2px rgba(15, 115, 255, 0.72);
 }
 
 .settings-page .settings-logout-button {
@@ -190,28 +190,28 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: rgb(var(--color-danger-rgb) / 0.9);
+  color: rgba(235, 36, 82, 0.9);
   padding: 0.8rem 0.95rem;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--motion-fast), transform var(--motion-fast);
+  transition: background-color 150ms ease, transform 150ms ease;
 }
 
 .settings-page .settings-logout-button:hover {
-  background: rgb(var(--color-danger-rgb) / 0.14);
+  background: rgba(235, 36, 82, 0.14);
 }
 
 .settings-page .settings-logout-button:active {
-  background: rgb(var(--color-danger-rgb) / 0.2);
+  background: rgba(235, 36, 82, 0.2);
   transform: scale(0.998);
 }
 
 .settings-page .settings-logout-button:focus-visible {
   outline: none;
-  box-shadow: inset 0 0 0 2px rgb(var(--color-danger-rgb) / 0.72);
+  box-shadow: inset 0 0 0 2px rgba(235, 36, 82, 0.72);
 }
 
 .settings-page .settings-logout-button:disabled {
@@ -224,9 +224,9 @@
   width: 2rem;
   height: 2rem;
   border-radius: 0.72rem;
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.42);
-  background: rgb(var(--color-danger-rgb) / 0.16);
-  color: rgb(var(--color-danger-rgb) / 0.9);
+  border: 1px solid rgba(235, 36, 82, 0.42);
+  background: rgba(235, 36, 82, 0.16);
+  color: rgba(235, 36, 82, 0.9);
   display: grid;
   place-items: center;
 }
@@ -242,15 +242,15 @@
 }
 
 .settings-page .settings-card {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.85rem;
   padding: 1.2rem;
-  background: var(--color-card);
+  background: #1c2736;
 }
 
 .settings-page .settings-card-danger {
-  border-color: rgb(var(--danger-rgb) / 0.36);
-  background: rgb(var(--danger-rgb) / 0.12);
+  border-color: rgba(235, 36, 82, 0.36);
+  background: rgba(235, 36, 82, 0.12);
 }
 
 .settings-page .settings-back-link {
@@ -258,33 +258,33 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.85rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: rgba(171, 184, 201, 0.95);
   text-decoration: none;
   font-size: 0.86rem;
   font-weight: 600;
 }
 
 .settings-page .settings-back-link:hover {
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .settings-page .settings-back-link:focus-visible {
   border-radius: 0.5rem;
-  outline: 2px solid rgb(var(--color-primary-rgb) / 0.7);
+  outline: 2px solid rgba(15, 115, 255, 0.7);
   outline-offset: 2px;
 }
 
 .settings-page .card-title {
   margin: 0;
   font-size: 1.05rem;
-  color: var(--color-surface);
+  color: #ffffff;
   font-weight: 700;
 }
 
 .settings-page .card-subtitle {
   margin: 0.35rem 0 0;
   font-size: 0.92rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: rgba(171, 184, 201, 0.95);
 }
 
 .settings-page .email-status-row {
@@ -293,15 +293,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.8rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  background: rgba(21, 29, 40, 0.5);
   padding: 0.72rem 0.8rem;
 }
 
 .settings-page .email-value {
   margin: 0;
-  color: var(--color-surface);
+  color: #ffffff;
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -317,51 +317,51 @@
 }
 
 .settings-page .email-badge.is-verified {
-  border: 1px solid rgb(var(--color-success-rgb) / 0.5);
-  color: rgb(var(--color-success-rgb) / 0.95);
-  background: rgb(var(--color-success-rgb) / 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  color: rgba(34, 197, 94, 0.95);
+  background: rgba(34, 197, 94, 0.18);
 }
 
 .settings-page .email-badge.is-unverified {
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
-  color: rgb(var(--text-primary-rgb) / 0.95);
-  background: rgb(var(--color-danger-rgb) / 0.18);
+  border: 1px solid rgba(235, 36, 82, 0.5);
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(235, 36, 82, 0.18);
 }
 
 .settings-page .pending-email-box {
   margin-top: 0.95rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
   padding: 0.9rem;
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  background: rgba(21, 29, 40, 0.5);
 }
 
 .settings-page .pending-email-title {
   margin: 0;
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .settings-page .pending-email-hint {
   margin: 0.35rem 0 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: rgba(171, 184, 201, 0.95);
   font-size: 0.86rem;
 }
 
 .settings-page .danger-note {
   margin: 0.45rem 0 0;
   font-size: 0.84rem;
-  color: rgb(var(--color-danger-rgb) / 0.95);
+  color: rgba(235, 36, 82, 0.95);
 }
 
 .settings-page .btn-ghost {
-  color: var(--color-surface);
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.45);
+  color: #ffffff;
+  border-color: rgba(171, 184, 201, 0.24);
+  background: rgba(21, 29, 40, 0.45);
 }
 
 .settings-page .btn-ghost:hover {
-  border-color: rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-bg-rgb) / 0.6);
+  border-color: rgba(15, 115, 255, 0.55);
+  background: rgba(21, 29, 40, 0.6);
 }
 
 .settings-page .activity-panel {
@@ -376,28 +376,28 @@
 
 .settings-page .field-label {
   font-size: 0.86rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+  color: rgba(171, 184, 201, 0.96);
   font-weight: 600;
 }
 
 .settings-page .field-input {
   width: 100%;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: rgb(var(--bg-app-rgb) / 0.66);
-  color: var(--color-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  background: rgba(21, 29, 40, 0.66);
+  color: #ffffff;
   padding: 0.62rem 0.85rem;
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 
 .settings-page .field-input::placeholder {
-  color: rgb(var(--color-text-secondary-rgb) / 0.58);
+  color: rgba(171, 184, 201, 0.58);
 }
 
 .settings-page .field-input:focus-visible {
-  border-color: rgb(var(--primary-rgb) / 0.8);
-  box-shadow: var(--focus-ring);
+  border-color: rgba(15, 115, 255, 0.8);
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .settings-page .field-input:disabled {
@@ -406,27 +406,27 @@
 }
 
 .settings-page .field-input-danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.5);
+  border-color: rgba(235, 36, 82, 0.5);
 }
 
 .settings-page .field-input-danger:focus-visible {
-  border-color: rgb(var(--color-danger-rgb) / 0.9);
-  box-shadow: 0 0 0 3px rgb(var(--color-danger-rgb) / 0.2);
+  border-color: rgba(235, 36, 82, 0.9);
+  box-shadow: 0 0 0 3px rgba(235, 36, 82, 0.2);
 }
 
 .settings-page .field-error {
   margin: 0;
-  color: rgb(var(--color-danger-rgb) / 0.95);
+  color: rgba(235, 36, 82, 0.95);
   font-size: 0.88rem;
 }
 
 .settings-page .btn {
   appearance: none;
-  border-radius: var(--radius-pill);
+  border-radius: 999px;
   border: 1px solid transparent;
-  min-height: var(--control-height-sm);
+  min-height: 32px;
   padding: 0 0.95rem;
-  font-size: var(--font-size-sm);
+  font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.2;
   cursor: pointer;
@@ -444,32 +444,32 @@
 }
 
 .settings-page .btn-primary {
-  color: var(--text-primary);
-  border-color: rgb(var(--primary-rgb) / 0.42);
-  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: rgba(15, 115, 255, 0.42);
+  background: #0F73FF;
   box-shadow: none;
 }
 
 .settings-page .btn-primary:hover {
-  border-color: rgb(var(--primary-rgb) / 0.62);
-  background: var(--accent-primary-hover);
+  border-color: rgba(15, 115, 255, 0.62);
+  background: #2080ff;
 }
 
 .settings-page .btn-secondary {
-  color: var(--color-btn-secondary-text);
+  color: #ABB8C9;
   border-color: transparent;
-  background: var(--color-btn-secondary-bg);
+  background: #222E3F;
 }
 
 .settings-page .btn-secondary:hover {
-  background: rgb(var(--color-btn-secondary-bg-rgb) / 0.75);
-  color: var(--color-text-primary);
+  background: rgba(34, 46, 63, 0.75);
+  color: #ffffff;
 }
 
 .settings-page .btn-danger {
-  color: var(--color-white);
+  color: #ffffff;
   border: none;
-  background: var(--color-danger);
+  background: #EB2452;
   box-shadow: none;
 }
 
@@ -479,14 +479,14 @@
 
 .settings-page .toggle-box {
   margin-top: 0.8rem;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
   padding: 0.72rem 0.8rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.9rem;
-  background: rgb(var(--bg-app-rgb) / 0.6);
+  background: rgba(21, 29, 40, 0.6);
 }
 
 .settings-page .toggle-meta {
@@ -502,19 +502,19 @@
 .settings-page .toggle-hint {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: rgba(171, 184, 201, 0.92);
 }
 
 .settings-page .export-note {
   margin: 0;
   font-size: 0.82rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: rgba(171, 184, 201, 0.92);
 }
 
 .settings-page .toggle-box input[type='checkbox'] {
   width: 1.05rem;
   height: 1.05rem;
-  accent-color: rgb(var(--color-primary-rgb));
+  accent-color: #0F73FF;
 }
 
 .settings-page .settings-sidebar-builder {
@@ -535,7 +535,7 @@
 .settings-page .settings-sidebar-builder__meta {
   margin: 0;
   font-size: 0.8rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: rgba(171, 184, 201, 0.92);
 }
 
 .settings-page .settings-sidebar-builder__toolbar {
@@ -556,35 +556,35 @@
 .settings-page .settings-sidebar-builder__summary {
   margin: 0.26rem 0 0;
   font-size: 0.8rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: rgba(171, 184, 201, 0.92);
 }
 
 .settings-page .settings-sidebar-builder__save-state {
   margin-top: 0.1rem;
   font-size: 0.78rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: rgba(171, 184, 201, 0.9);
 }
 
 .settings-page .settings-sidebar-builder__save-state.is-saved {
-  color: rgb(var(--color-success-rgb) / 1);
+  color: #22C55E;
 }
 
 .settings-page .settings-sidebar-builder__save-state.is-saving {
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .settings-page .settings-sidebar-builder__save-state.is-error {
-  color: rgb(var(--color-danger-rgb) / 0.95);
+  color: rgba(235, 36, 82, 0.95);
 }
 
 .settings-page .settings-sidebar-builder__loading,
 .settings-page .settings-sidebar-builder__empty {
   border-radius: 0.72rem;
-  border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: rgb(var(--color-bg-rgb) / 0.18);
+  border: 1px dashed rgba(171, 184, 201, 0.3);
+  background: rgba(21, 29, 40, 0.18);
   padding: 0.72rem;
   font-size: 0.83rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: rgba(171, 184, 201, 0.92);
 }
 
 .settings-page .settings-sidebar-builder__rows {
@@ -596,7 +596,7 @@
   min-height: 3rem;
   border-radius: 0.8rem;
   border: 1px solid transparent;
-  background: rgb(var(--color-bg-rgb) / 0.14);
+  background: rgba(21, 29, 40, 0.14);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -606,8 +606,8 @@
 }
 
 .settings-page .settings-sidebar-builder__row:hover {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.22);
+  border-color: rgba(171, 184, 201, 0.24);
+  background: rgba(21, 29, 40, 0.22);
 }
 
 .settings-page .settings-sidebar-builder__row.disabled {
@@ -634,12 +634,13 @@
   width: 2rem;
   height: 2rem;
   border-radius: 0.48rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.28);
-  background: rgb(var(--color-bg-rgb) / 0.38);
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+  border: 1px solid rgba(171, 184, 201, 0.28);
+  background: rgba(21, 29, 40, 0.38);
+  color: rgba(171, 184, 201, 0.96);
   font-size: 0.64rem;
   font-weight: 800;
   line-height: 1;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -653,7 +654,7 @@
 .settings-page .settings-sidebar-builder__row-title {
   margin: 0;
   font-size: 0.92rem;
-  color: var(--color-surface);
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -662,7 +663,7 @@
 .settings-page .settings-sidebar-builder__row-meta {
   margin: 0.14rem 0 0;
   font-size: 0.78rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.92);
+  color: rgba(171, 184, 201, 0.92);
 }
 
 .settings-page .settings-sidebar-builder__toggle {
@@ -682,7 +683,7 @@
   width: 38px;
   height: 20px;
   border-radius: 999px;
-  background: rgb(var(--color-text-secondary-rgb) / 0.3);
+  background: rgba(171, 184, 201, 0.3);
   position: relative;
 }
 
@@ -699,7 +700,7 @@
 }
 
 .settings-page .settings-sidebar-builder__toggle input[type='checkbox']:checked + .settings-sidebar-builder__slider {
-  background: rgb(var(--color-primary-rgb) / 0.68);
+  background: rgba(15, 115, 255, 0.68);
 }
 
 .settings-page .settings-sidebar-builder__toggle input[type='checkbox']:checked + .settings-sidebar-builder__slider::before {
@@ -708,7 +709,7 @@
 
 .settings-page .settings-sidebar-builder__toggle-label {
   font-size: 0.74rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: rgba(171, 184, 201, 0.95);
 }
 
 @media (max-width: 640px) {

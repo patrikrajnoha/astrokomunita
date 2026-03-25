@@ -194,7 +194,7 @@ function isBookmarkLoading(item) {
 async function toggleLike(item) {
   if (!item?.id || isLikeLoading(item)) return
   if (!auth.isAuthed) {
-    reportNotice.value = 'Prihlas sa pre lajkovanie.'
+    reportNotice.value = 'Prihlás sa pre lajkovanie.'
     return
   }
 
@@ -228,7 +228,7 @@ async function toggleLike(item) {
 async function toggleBookmark(item) {
   if (!item?.id || isBookmarkLoading(item)) return
   if (!auth.isAuthed) {
-    reportNotice.value = 'Prihlas sa pre zalozky.'
+    reportNotice.value = 'Prihlás sa pre záložky.'
     return
   }
 
@@ -250,7 +250,7 @@ async function toggleBookmark(item) {
     item.is_bookmarked = prevBookmarked
     item.bookmarked_at = prevBookmarkedAt
     bookmarks.setBookmarked(item.id, prevBookmarked)
-    reportNotice.value = e?.response?.data?.message || 'Ulozenie zalozky zlyhalo.'
+    reportNotice.value = e?.response?.data?.message || 'Uloženie záložky zlyhalo.'
   }
 }
 
@@ -374,7 +374,7 @@ async function saveInlineEdit(post) {
     const status = Number(e?.response?.status || 0)
     const message =
       status === 401 || status === 419
-        ? 'Relacia vyprsala. Prihlas sa znova.'
+        ? 'Relácia vypršala. Prihlás sa znova.'
         : e?.response?.data?.message || 'Úprava príspevku zlyhala.'
     reportNotice.value = message
     toastError(message)
@@ -413,7 +413,7 @@ function updateRootPoll(nextPoll) {
 }
 
 function onPollLoginRequired() {
-  reportNotice.value = 'Prihlas sa pre hlasovanie.'
+  reportNotice.value = 'Prihlás sa pre hlasovanie.'
 }
 
 function onAttachmentUnblurred(item, { isBlurred, status }) {
@@ -443,9 +443,9 @@ async function submitReport() {
     reportNotice.value = 'Ďakujeme, nahlásenie sme prijali.'
   } catch (e) {
     const status = e?.response?.status
-    if (status === 401) reportNotice.value = 'Prihlas sa.'
+    if (status === 401) reportNotice.value = 'Prihlás sa.'
     else if (status === 409) reportNotice.value = 'Už si reportoval tento post.'
-    else reportNotice.value = e?.response?.data?.message || 'Nahlasenie zlyhalo.'
+    else reportNotice.value = e?.response?.data?.message || 'Nahlásenie zlyhalo.'
   } finally {
     closeReport()
   }

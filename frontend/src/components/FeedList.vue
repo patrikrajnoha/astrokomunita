@@ -285,7 +285,7 @@ async function saveInlineEdit(post) {
     const status = Number(e?.response?.status || 0)
     const message =
       status === 401 || status === 419
-        ? 'Relacia vyprsala. Prihlas sa znova.'
+        ? 'Relácia vypršala. Prihlás sa znova.'
         : e?.response?.data?.message || 'Úprava príspevku zlyhala.'
     toastError(message)
   } finally {
@@ -319,9 +319,9 @@ async function submitReport() {
     toastSuccess('Ďakujeme, nahlásenie sme prijali.')
   } catch (e) {
     const status = e?.response?.status
-    if (status === 401) currentFeed.value.err = 'Prihlas sa.'
+    if (status === 401) currentFeed.value.err = 'Prihlás sa.'
     else if (status === 409) currentFeed.value.err = 'Už si reportoval tento post.'
-    else currentFeed.value.err = e?.response?.data?.message || 'Nahlasenie zlyhalo.'
+    else currentFeed.value.err = e?.response?.data?.message || 'Nahlásenie zlyhalo.'
   } finally {
     closeReport()
   }
@@ -332,7 +332,7 @@ function updatePostPoll(post, nextPoll) {
 }
 
 function onPollLoginRequired() {
-  currentFeed.value.err = 'Prihlas sa pre hlasovanie.'
+  currentFeed.value.err = 'Prihlás sa pre hlasovanie.'
 }
 
 function fmt(iso) {

@@ -6,7 +6,7 @@ export function useSettingsContext() {
   const context = inject(settingsContextKey, null)
 
   if (!context) {
-    throw new Error('Kontext nastaveni nie je dostupny. Pripojte toto zobrazenie pod /settings.')
+    throw new Error('Kontext nastavení nie je dostupný. Pripojte toto zobrazenie pod /settings.')
   }
 
   return context
