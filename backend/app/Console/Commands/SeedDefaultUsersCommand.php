@@ -14,9 +14,15 @@ class SeedDefaultUsersCommand extends Command
 
     public function handle(DefaultUsersSeeder $defaultUsersSeeder, DemoFeedSeeder $demoFeedSeeder): int
     {
-        if (app()->environment('production') && ! $this->option('force')) {
-            $this->error('Refusing to run in production without --force.');
-            return Command::FAILURE;
+        if (app()->environment('production')) {
+            if (! $this->option('force')) {
+                $this->error('Refusing to run in production without --force.');
+                return Command::FAILURE;
+            }
+            if (! env('SEED_DEFAULT_USERS_ENABLED')) {
+                $this->error('Refusing to run in production without SEED_DEFAULT_USERS_ENABLED=true in env.');
+                return Command::FAILURE;
+            }
         }
 
         $purgeNonCoreUsers = app()->environment(['local', 'testing']) || (bool) $this->option('purge-non-core');
