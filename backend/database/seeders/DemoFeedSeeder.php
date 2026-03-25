@@ -24,10 +24,11 @@ class DemoFeedSeeder extends Seeder
 
         $sourceName = 'demo_seed';
         $now = now();
+        $communityUsername = DefaultUsersSeeder::DEFAULT_ADMIN_USERNAME;
         $roots = [
             [
                 'uid' => 'demo-community-admin-1',
-                'username' => 'admin',
+                'username' => $communityUsername,
                 'content' => 'Dnes je super seeing, skusam M42 po zapade. #astro #pozorovanie',
                 'feed_key' => PostFeedKey::COMMUNITY->value,
                 'author_kind' => PostAuthorKind::USER->value,
@@ -36,7 +37,7 @@ class DemoFeedSeeder extends Seeder
             ],
             [
                 'uid' => 'demo-community-patrik-1',
-                'username' => 'patrik',
+                'username' => $communityUsername,
                 'content' => 'Podarilo sa mi odfotit Jupiter mobilom cez okulár. #jupiter #astrofoto',
                 'feed_key' => PostFeedKey::COMMUNITY->value,
                 'author_kind' => PostAuthorKind::USER->value,
@@ -45,7 +46,7 @@ class DemoFeedSeeder extends Seeder
             ],
             [
                 'uid' => 'demo-community-admin-2',
-                'username' => 'admin',
+                'username' => $communityUsername,
                 'content' => 'Tip: nechaj teleskop aklimatizovat aspon 20 minut. #tip #astro',
                 'feed_key' => PostFeedKey::COMMUNITY->value,
                 'author_kind' => PostAuthorKind::USER->value,
@@ -133,14 +134,14 @@ class DemoFeedSeeder extends Seeder
         $replies = [
             [
                 'uid' => 'demo-reply-patrik-1',
-                'username' => 'patrik',
+                'username' => $communityUsername,
                 'parent_uid' => 'demo-community-admin-1',
                 'content' => 'Parada, dnes vyskusam tiez. Dik za tip.',
                 'minutes_ago' => 168,
             ],
             [
                 'uid' => 'demo-reply-admin-1',
-                'username' => 'admin',
+                'username' => $communityUsername,
                 'parent_uid' => 'demo-community-patrik-1',
                 'content' => 'Super! Ak mozes, hod foto aj do post detailu.',
                 'minutes_ago' => 120,

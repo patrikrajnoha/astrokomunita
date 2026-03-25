@@ -8,7 +8,7 @@ use Database\Seeders\DefaultUsersSeeder;
 
 class SeedDefaultUsersCommand extends Command
 {
-    protected $signature = 'app:seed-default-users {--force : Run this command in production} {--without-demo-posts : Skip demo feed post seeding}';
+    protected $signature = 'app:seed-default-users {--force : Run this command in production} {--without-demo-posts : Skip demo feed post seeding} {--purge-non-core : Delete all users except core default accounts}';
 
     protected $description = 'Create or update default users and optionally seed demo feed posts';
 
@@ -19,13 +19,16 @@ class SeedDefaultUsersCommand extends Command
             return Command::FAILURE;
         }
 
-        $summary = $defaultUsersSeeder->seed();
+        $purgeNonCoreUsers = app()->environment(['local', 'testing']) || (bool) $this->option('purge-non-core');
+        $summary = $defaultUsersSeeder->seed($purgeNonCoreUsers);
 
         $created = (array) ($summary['created'] ?? []);
         $updated = (array) ($summary['updated'] ?? []);
+        $deleted = (array) ($summary['deleted'] ?? []);
 
         $this->line('Created: ' . ($created === [] ? 'none' : implode(', ', $created)));
         $this->line('Updated: ' . ($updated === [] ? 'none' : implode(', ', $updated)));
+        $this->line('Deleted: ' . ($deleted === [] ? 'none' : implode(', ', $deleted)));
 
         if (! $this->option('without-demo-posts')) {
             $feedSummary = $demoFeedSeeder->seed();

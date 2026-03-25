@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Database\Seeders\DefaultUsersSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -16,15 +17,18 @@ class SeedDefaultUsersCommandTest extends TestCase
         $this->artisan('app:seed-default-users')
             ->expectsOutputToContain('Created:')
             ->expectsOutputToContain('Updated:')
+            ->expectsOutputToContain('Deleted:')
             ->assertExitCode(0);
 
-        $this->assertSame(4, User::query()->count());
+        $this->assertSame(3, User::query()->count());
         $this->assertNull(User::query()->where('username', 'astrobot')->first());
 
-        $admin = User::query()->where('username', 'admin')->firstOrFail();
+        $admin = User::query()->where('username', DefaultUsersSeeder::DEFAULT_ADMIN_USERNAME)->firstOrFail();
         $this->assertTrue((bool) $admin->is_admin);
         $this->assertSame(User::ROLE_ADMIN, $admin->role);
-        $this->assertNotNull($admin->email);
+        $this->assertSame(DefaultUsersSeeder::DEFAULT_ADMIN_NAME, (string) $admin->name);
+        $this->assertSame(DefaultUsersSeeder::DEFAULT_ADMIN_EMAIL, (string) $admin->email);
+        $this->assertTrue(Hash::check(DefaultUsersSeeder::DEFAULT_ADMIN_PASSWORD, (string) $admin->password));
 
         $kozmobot = User::query()->where('username', 'kozmobot')->firstOrFail();
         $this->assertTrue((bool) $kozmobot->is_bot);
@@ -37,14 +41,9 @@ class SeedDefaultUsersCommandTest extends TestCase
         $this->assertSame(User::ROLE_BOT, $stellarbot->role);
         $this->assertNull($stellarbot->email);
         $this->assertSame('Stella', (string) $stellarbot->name);
-
-        $patrik = User::query()->where('username', 'patrik')->firstOrFail();
-        $this->assertFalse((bool) $patrik->is_bot);
-        $this->assertSame(User::ROLE_USER, $patrik->role);
-        $this->assertTrue(Hash::check('patrik', (string) $patrik->password));
     }
 
-    public function test_command_is_idempotent_and_updates_existing_legacy_bot_usernames(): void
+    public function test_command_is_idempotent_and_removes_non_core_accounts(): void
     {
         User::query()->create([
             'name' => 'Legacy AstroBot',
@@ -58,16 +57,53 @@ class SeedDefaultUsersCommandTest extends TestCase
             'is_banned' => false,
         ]);
 
+        User::query()->create([
+            'name' => 'Legacy User',
+            'username' => 'legacy_user',
+            'email' => 'legacy-user@example.test',
+            'password' => Hash::make('legacy-password'),
+            'is_admin' => false,
+            'is_bot' => false,
+            'role' => User::ROLE_USER,
+            'is_active' => true,
+            'is_banned' => false,
+        ]);
+
         $this->artisan('app:seed-default-users')
             ->expectsOutputToContain('Created:')
             ->expectsOutputToContain('Updated:')
+            ->expectsOutputToContain('Deleted:')
             ->assertExitCode(0);
 
         $this->assertNull(User::query()->where('username', 'astrobot')->first());
+        $this->assertNull(User::query()->where('username', 'legacy_user')->first());
+        $this->assertSame(3, User::query()->count());
 
         $this->artisan('app:seed-default-users')
             ->expectsOutputToContain('Created: none')
             ->expectsOutputToContain('Updated:')
+            ->expectsOutputToContain('Deleted: none')
             ->assertExitCode(0);
+    }
+
+    public function test_seeder_can_skip_non_core_purge_when_requested(): void
+    {
+        User::query()->create([
+            'name' => 'Legacy User',
+            'username' => 'legacy_user',
+            'email' => 'legacy-user@example.test',
+            'password' => Hash::make('legacy-password'),
+            'is_admin' => false,
+            'is_bot' => false,
+            'role' => User::ROLE_USER,
+            'is_active' => true,
+            'is_banned' => false,
+        ]);
+
+        $summary = app(DefaultUsersSeeder::class)->seed(false);
+
+        $this->assertSame([], $summary['deleted']);
+        $this->assertNotNull(User::query()->where('username', 'legacy_user')->first());
+        $this->assertNotNull(User::query()->where('username', DefaultUsersSeeder::DEFAULT_ADMIN_USERNAME)->first());
     }
 }

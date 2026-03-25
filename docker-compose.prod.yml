@@ -119,6 +119,7 @@ services:
       sh -lc "
         php artisan storage:link --force 2>/dev/null || true &&
         php artisan migrate --force &&
+        php artisan app:seed-default-users --force --without-demo-posts &&
         php artisan bots:sources:sync --quiet-summary &&
         php-fpm -F
       "
