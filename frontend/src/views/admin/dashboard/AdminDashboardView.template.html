@@ -1,26 +1,32 @@
 <AdminPageShell title="Prehľad">
   <template #right-actions>
-    <button type="button" class="ui-btn ui-btn--primary" :disabled="loading" @click="loadDashboard(true)">
+    <button
+      type="button"
+      class="min-h-[34px] px-3.5 rounded-xl bg-vivid text-white text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      :disabled="loading"
+      @click="loadDashboard(true)"
+    >
       {{ loading ? 'Načítavam...' : 'Obnoviť' }}
     </button>
-    <button type="button" class="ui-btn ui-btn--secondary" :disabled="exporting" @click="exportCsv">
+    <button
+      type="button"
+      class="min-h-[34px] px-3.5 rounded-xl bg-secondary-btn text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      :disabled="exporting"
+      @click="exportCsv"
+    >
       {{ exporting ? 'Exportujem...' : 'Export CSV' }}
     </button>
   </template>
 
   <div class="dashboardView">
-    <div v-if="error" class="dashboardAlert">
-      <InlineStatus
-        variant="error"
-        :message="error"
-        action-label="Skúsiť znova"
-        @action="loadDashboard(true)"
-      />
+    <div v-if="error" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-xs flex items-center justify-between gap-3">
+      <span>{{ error }}</span>
+      <button type="button" class="shrink-0 font-semibold underline text-danger bg-transparent border-0 cursor-pointer text-xs" @click="loadDashboard(true)">Skúsiť znova</button>
     </div>
 
     <section class="kpiGrid sectionFade" aria-label="Kľúčové ukazovatele">
       <template v-if="loading && !stats">
-        <div v-for="idx in 4" :key="`kpi-skeleton-${idx}`" class="skeletonCard"></div>
+        <div v-for="idx in 4" :key="`kpi-skeleton-${idx}`" class="skeletonCard" />
       </template>
 
       <template v-else>
@@ -84,7 +90,7 @@
     <section class="analyticsCard sectionFade" aria-label="Sekundárna analytika">
       <header class="analyticsHeader">
         <h2>Sekundárna analytika</h2>
-        <div class="analyticsTabs" role="tablist" aria-label="Prehľad statistik">
+        <div class="analyticsTabs" role="tablist" aria-label="Prehľad štatistík">
           <button
             v-for="tab in secondaryTabs"
             :key="tab.key"

@@ -41,7 +41,7 @@ const types = [
   { value: 'eclipse_lunar', label: 'Zatmenie (L)' },
   { value: 'eclipse_solar', label: 'Zatmenie (S)' },
   { value: 'planetary_event', label: 'Konjunkcia' },
-  { value: 'aurora', label: 'Polarna ziara' },
+  { value: 'aurora', label: 'Polárna žiara' },
   { value: 'other', label: 'Iné' },
 ]
 
@@ -214,7 +214,7 @@ async function runTemplateDescription() {
 async function runAiDescription({ dryRun = false, mode = 'ollama' } = {}) {
   if (aiLoading.value || !aiEnabled.value) return
   const selectedMode = String(mode || '').trim().toLowerCase() === 'template' ? 'template' : 'ollama'
-  const modeLabel = selectedMode === 'template' ? 'Sablona' : 'AI popis'
+  const modeLabel = selectedMode === 'template' ? 'Šablóna' : 'AI popis'
 
   const previousDescription = String(form.description || '')
   const previousShort = String(aiShortDraft.value || '')
@@ -264,10 +264,10 @@ async function runAiDescription({ dryRun = false, mode = 'ollama' } = {}) {
         description: previousDescription,
         short: previousShort,
       }
-      aiNotice.value = `${modeLabel} bol aplikovany.`
+      aiNotice.value = `${modeLabel} bol aplikovaný.`
     } else {
       aiUndoSnapshot.value = null
-      aiNotice.value = 'Navrh pripraveny (bez ulozenia).'
+      aiNotice.value = 'Návrh pripravený (bez uloženia).'
     }
 
     await focusDescriptionPreview()
@@ -281,11 +281,11 @@ async function runAiDescription({ dryRun = false, mode = 'ollama' } = {}) {
     if (backendMessage !== '') {
       aiError.value = backendMessage
     } else if (isTimeout) {
-      aiError.value = 'AI generovanie trva dlhsie ako limit klienta. Skus to znova o chvilu.'
+      aiError.value = 'AI generovanie trvá dlhšie ako limit klienta. Skús to znova o chvíľu.'
     } else if (normalizedUserMessage !== '') {
       aiError.value = normalizedUserMessage
     } else {
-      aiError.value = 'Nepodarilo sa vylepsit opis.'
+      aiError.value = 'Nepodarilo sa vylepšiť opis.'
     }
     aiRawStatusCode.value = Number(e?.response?.status || 0) || null
   } finally {
@@ -321,10 +321,10 @@ async function undoAiDescription() {
     form.description = snapshot.description
     aiShortDraft.value = snapshot.short
     aiStatus.value = 'success'
-    aiNotice.value = 'Opis bol vrateny.'
+    aiNotice.value = 'Opis bol vrátený.'
   } catch (e) {
     aiStatus.value = 'error'
-    aiError.value = String(e?.response?.data?.message || 'Vratenie povodneho opisu zlyhalo.')
+    aiError.value = String(e?.response?.data?.message || 'Vrátenie pôvodného opisu zlyhalo.')
     aiRawStatusCode.value = Number(e?.response?.status || 0) || null
     return
   } finally {
@@ -371,8 +371,8 @@ onBeforeUnmount(() => {
         <AdminAiActionPanel
           class="aiPanel aiPanelSecondary"
           title="AI asistent"
-          description="Minimalny flow: otestuj navrh, potom pouzi navrh."
-          action-label="Pouzit navrh"
+          description="Minimálny flow: otestuj návrh, potom použi návrh."
+          action-label="Použiť návrh"
           :enabled="aiEnabled"
           :status="aiStatus"
           :latency-ms="aiLastRun?.latency_ms ?? null"
@@ -395,7 +395,7 @@ onBeforeUnmount(() => {
                 class="aiInlineBtn"
                 :disabled="aiLoading || !aiEnabled"
               >
-                Otestovat navrh
+                Otestovať návrh
               </button>
               <button
                 type="button"
@@ -403,10 +403,10 @@ onBeforeUnmount(() => {
                 class="aiInlineBtn"
                 :disabled="aiLoading || !aiEnabled"
               >
-                Pouzit sablonu
+                Použiť šablónu
               </button>
             </div>
-            <p class="aiPanelHint">Krok 1: otestuj navrh. Krok 2: pouzi navrh.</p>
+            <p class="aiPanelHint">Krok 1: otestuj návrh. Krok 2: použi návrh.</p>
             <div
               v-if="aiNotice"
               class="aiNoticeRow"
@@ -419,18 +419,18 @@ onBeforeUnmount(() => {
                 class="aiInlineBtn"
                 :disabled="aiLoading || !aiUndoSnapshot"
               >
-                Vratit
+                Vrátiť
               </button>
             </div>
             <span
               v-if="aiStatus === 'fallback'"
               class="aiFallbackBadge"
             >
-              Pouzity bezpecny fallback
+              Použitý bezpečný fallback
             </span>
             <div class="aiProposalCard">
-              <p class="aiProposalLine"><strong>Kratky opis:</strong> {{ aiResult?.short || aiShortDraft || '-' }}</p>
-              <p class="aiProposalLine"><strong>AI navrh:</strong> {{ aiResult?.description || '-' }}</p>
+              <p class="aiProposalLine"><strong>Krátky opis:</strong> {{ aiResult?.short || aiShortDraft || '-' }}</p>
+              <p class="aiProposalLine"><strong>AI návrh:</strong> {{ aiResult?.description || '-' }}</p>
             </div>
           </template>
         </AdminAiActionPanel>

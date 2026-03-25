@@ -22,7 +22,7 @@ const emit = defineEmits(['action'])
         <button
           v-if="actionLabel"
           type="button"
-          class="ui-btn ui-btn--secondary sectionAction"
+          class="sectionAction"
           :disabled="actionDisabled"
           @click="emit('action')"
         >
@@ -42,8 +42,8 @@ const emit = defineEmits(['action'])
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: var(--dashboard-radius, 12px);
-  background: var(--dashboard-panel, rgb(var(--color-bg-rgb) / 0.42));
+  border-radius: 12px;
+  background: #1c2736;
   min-width: 0;
 }
 
@@ -64,13 +64,13 @@ const emit = defineEmits(['action'])
   font-size: 1rem;
   font-weight: 650;
   letter-spacing: -0.01em;
-  color: var(--color-surface);
+  color: #ffffff;
 }
 
 .sectionSubtitle {
   margin: 3px 0 0;
   font-size: 11px;
-  color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
+  color: rgba(171, 184, 201, 0.88);
 }
 
 .sectionControls {
@@ -83,9 +83,20 @@ const emit = defineEmits(['action'])
 
 .sectionAction {
   min-height: 30px;
-  padding-inline: 10px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #222E3F;
+  color: #ABB8C9;
+  border: none;
   font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sectionAction:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .sectionBody {

@@ -21,10 +21,10 @@ const route = useRoute()
 const router = useRouter()
 
 const tabs = [
-  { id: 'pending', label: 'Pending' },
-  { id: 'flagged', label: 'Flagged' },
-  { id: 'blocked', label: 'Blocked' },
-  { id: 'reviewed', label: 'Reviewed' },
+  { id: 'pending', label: 'Čakajúce' },
+  { id: 'flagged', label: 'Označené' },
+  { id: 'blocked', label: 'Blokované' },
+  { id: 'reviewed', label: 'Skontrolované' },
 ]
 
 const queueRef = ref(null)
@@ -204,254 +204,132 @@ loadQueue()
 </script>
 
 <template>
-  <section class="queuePanel">
-    <div v-if="error" class="alert">{{ error }}</div>
+  <section class="grid gap-3">
+    <div v-if="error" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-xs">{{ error }}</div>
 
-    <div class="tabs">
+    <!-- Sub-tabs -->
+    <div class="flex gap-1 flex-wrap p-0.5 bg-hover rounded-xl w-fit">
       <button
         v-for="tab in tabs"
         :key="tab.id"
-        class="tab"
-        :class="{ active: activeTab === tab.id }"
+        class="px-3 py-1.5 rounded-[10px] text-[12px] font-semibold border-0 cursor-pointer transition-colors duration-150 disabled:opacity-50"
+        :class="activeTab === tab.id ? 'bg-secondary-btn text-white' : 'bg-transparent text-muted'"
         type="button"
         :disabled="loading"
         @click="activeTab = tab.id"
-      >
-        {{ tab.label }}
-      </button>
+      >{{ tab.label }}</button>
     </div>
 
-    <div class="layout">
-      <section ref="queueRef" class="queue">
-        <div v-if="loading" class="hint">Načítavam frontu...</div>
-        <div v-else-if="!items.length" class="hint">Žiadne položky.</div>
+    <!-- Master-detail layout -->
+    <div class="queueLayout">
+
+      <!-- List -->
+      <section ref="queueRef" class="rounded-xl border border-white/[0.08] overflow-auto max-h-[75vh]">
+        <div v-if="loading" class="p-3 text-muted/60 text-xs">Načítavam frontu…</div>
+        <div v-else-if="!items.length" class="p-3 text-muted/60 text-xs">Žiadne položky.</div>
         <button
           v-for="item in items"
           :key="item.id"
-          class="queueItem"
-          :class="{ selected: String(selectedId) === String(item.id) }"
+          class="queueItem w-full text-left px-3 py-2.5 border-b border-white/[0.06] last:border-b-0 cursor-pointer transition-colors"
+          :class="String(selectedId) === String(item.id)
+            ? 'bg-vivid/10 shadow-[inset_3px_0_0_#0F73FF]'
+            : 'hover:bg-hover'"
           :data-queue-id="item.id"
           type="button"
           @click="selectedId = item.id"
         >
-          <div class="row">
-            <strong>#{{ item.id }}</strong>
-            <span class="badge">{{ item.moderation_status }}</span>
+          <div class="flex justify-between items-center gap-2 mb-1">
+            <strong class="text-[12.5px] tabular-nums">#{{ item.id }}</strong>
+            <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-secondary-btn text-muted">{{ item.moderation_status }}</span>
           </div>
-          <div class="snippet">{{ item.snippet || '-' }}</div>
-          <div class="meta">{{ scoreSummary(item) }}</div>
-          <div class="meta">{{ formatDateTime(item.created_at) }}</div>
+          <div class="text-[12.5px] text-muted/90 overflow-hidden text-ellipsis whitespace-nowrap">{{ item.snippet || '—' }}</div>
+          <div class="mt-1 text-[11px] text-muted/60 font-mono">{{ scoreSummary(item) }}</div>
+          <div class="text-[11px] text-muted/50">{{ formatDateTime(item.created_at) }}</div>
         </button>
       </section>
 
-      <section class="detail">
-        <div v-if="!detail" class="hint">Vyber polozku na kontrolu.</div>
+      <!-- Detail -->
+      <section class="rounded-xl border border-white/[0.08] p-3 grid gap-3 content-start overflow-auto max-h-[75vh]">
+        <div v-if="!detail" class="text-muted/60 text-xs py-2">Vyber položku na kontrolu.</div>
         <template v-else>
-          <div class="detailHeader">
-            <h3>Prispevok #{{ detail.post.id }}</h3>
-            <span class="badge">{{ detail.post.moderation_status }}</span>
+
+          <div class="flex justify-between items-center gap-2">
+            <h3 class="m-0 text-[13.5px] font-bold">Príspevok #{{ detail.post.id }}</h3>
+            <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-secondary-btn text-muted shrink-0">{{ detail.post.moderation_status }}</span>
           </div>
 
-          <p class="text">{{ detail.post.content }}</p>
+          <p class="m-0 text-[13px] leading-relaxed whitespace-pre-wrap text-muted/90">{{ detail.post.content }}</p>
 
           <img
             v-if="detail.post.attachment_url"
             :src="detail.post.attachment_url"
-            alt="attachment"
-            class="preview"
+            alt="príloha"
+            class="w-full max-h-64 object-contain rounded-xl"
           />
 
           <textarea
             v-model="note"
-            class="note"
-            rows="3"
-            placeholder="Admin poznámka"
+            class="w-full box-border rounded-xl bg-hover border-0 text-[13px] px-2.5 py-2 resize-y focus:outline-none placeholder:text-muted/40"
+            rows="2"
+            placeholder="Admin poznámka…"
           />
 
-          <div class="actions">
-            <button class="btn" type="button" :disabled="actionLoading" @click="act('approve')">Approve</button>
-            <button class="btn danger" type="button" :disabled="actionLoading" @click="act('reject')">Reject</button>
+          <div class="flex gap-2">
+            <button
+              class="px-4 py-1.5 rounded-xl bg-vivid text-white text-[13px] font-bold border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+              :disabled="actionLoading"
+              @click="act('approve')"
+            >Schváliť</button>
+            <button
+              class="px-4 py-1.5 rounded-xl bg-danger text-white text-[13px] font-bold border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+              :disabled="actionLoading"
+              @click="act('reject')"
+            >Zamietnuť</button>
           </div>
 
-          <h4>Logy</h4>
-          <div v-if="!detail.logs?.length" class="hint">Zatiaľ bez logov.</div>
-          <div v-for="log in detail.logs" :key="log.id" class="logItem">
-            <div class="row">
-              <span>{{ log.entity_type }}</span>
-              <span class="badge">{{ log.decision }}</span>
+          <!-- Logs -->
+          <div class="pt-2 border-t border-white/[0.07]">
+            <p class="m-0 mb-2 text-[10.5px] font-bold uppercase tracking-[0.07em] text-muted/60">Logy</p>
+            <div v-if="!detail.logs?.length" class="text-muted/60 text-xs">Zatiaľ bez logov.</div>
+            <div
+              v-for="log in detail.logs"
+              :key="log.id"
+              class="rounded-xl bg-hover px-2.5 py-2 mb-1.5 grid gap-1"
+            >
+              <div class="flex justify-between items-center gap-2">
+                <span class="text-xs text-muted/80">{{ log.entity_type }}</span>
+                <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-secondary-btn text-muted">{{ log.decision }}</span>
+              </div>
+              <div class="text-[11px] text-muted/60">{{ formatDateTime(log.created_at) }} · {{ log.latency_ms }}ms</div>
+              <div class="text-[11px] text-muted/60">Chyba: {{ log.error_code || '—' }}</div>
+              <pre class="m-0 mt-1 text-[10.5px] rounded-lg bg-app px-2 py-1.5 overflow-auto max-h-40 font-mono leading-relaxed">{{ JSON.stringify(log.model_versions || {}, null, 2) }}</pre>
             </div>
-            <div class="meta">{{ formatDateTime(log.created_at) }} | {{ log.latency_ms }}ms</div>
-            <div class="meta">error: {{ log.error_code || '-' }}</div>
-            <pre class="json">{{ JSON.stringify(log.model_versions || {}, null, 2) }}</pre>
           </div>
+
         </template>
       </section>
+
     </div>
   </section>
 </template>
 
 <style scoped>
-.queuePanel {
+.queueLayout {
   display: grid;
-  gap: 12px;
-}
-
-.alert {
-  border: 1px solid rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
-  border-radius: 10px;
-  padding: 10px;
-  color: var(--color-danger);
-}
-
-.tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.tab {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 999px;
-  padding: 6px 12px;
-  background: transparent;
-  color: inherit;
-}
-
-.tab.active {
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-}
-
-.layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 12px;
-}
-
-.queue,
-.detail {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 12px;
-  padding: 10px;
-}
-
-.queue {
-  max-height: 75vh;
-  overflow: auto;
+  grid-template-columns: 280px 1fr;
+  gap: 10px;
+  align-items: start;
 }
 
 .queueItem {
-  width: 100%;
-  text-align: left;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
-  padding: 8px;
-  margin-bottom: 8px;
   background: transparent;
   color: inherit;
 }
 
-.queueItem.selected {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.1);
-}
-
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.badge {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 999px;
-  font-size: 11px;
-  padding: 2px 8px;
-  text-transform: uppercase;
-}
-
-.snippet {
-  margin-top: 6px;
-  font-size: 13px;
-}
-
-.meta {
-  margin-top: 4px;
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.detailHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.text {
-  white-space: pre-wrap;
-}
-
-.preview {
-  width: 100%;
-  max-height: 280px;
-  object-fit: contain;
-  border-radius: 10px;
-  margin-bottom: 10px;
-}
-
-.note {
-  width: 100%;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.18);
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  padding: 8px;
-}
-
-.actions {
-  margin: 10px 0;
-  display: flex;
-  gap: 8px;
-}
-
-.btn {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
-  border-radius: 10px;
-  background: transparent;
-  color: inherit;
-  padding: 6px 12px;
-}
-
-.btn.danger {
-  border-color: rgb(var(--color-danger-rgb, 239 68 68) / 0.35);
-  color: var(--color-danger);
-}
-
-.logItem {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 10px;
-  padding: 8px;
-  margin-top: 8px;
-}
-
-.json {
-  margin: 6px 0 0;
-  max-height: 180px;
-  overflow: auto;
-  font-size: 11px;
-  border-radius: 8px;
-  padding: 6px;
-  background: rgb(var(--color-bg-rgb) / 0.45);
-}
-
-.hint {
-  opacity: 0.8;
-  font-size: 13px;
-}
-
-@media (max-width: 960px) {
-  .layout {
+@media (max-width: 760px) {
+  .queueLayout {
     grid-template-columns: 1fr;
   }
 }

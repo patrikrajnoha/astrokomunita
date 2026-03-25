@@ -21,7 +21,7 @@
       <template v-else>
         <section class="usersFilters" aria-label="Filtre používateľov">
           <label class="usersFiltersLabel" for="users-search">Hľadaj používateľov</label>
-          <div class="usersFiltersRow usersFiltersRow--search">
+          <div class="usersFiltersRow">
             <div class="searchInputWrap">
               <span class="searchIcon" aria-hidden="true">
                 <svg viewBox="0 0 20 20" fill="none">
@@ -34,7 +34,7 @@
                 v-model="searchInput"
                 :disabled="loading"
                 type="text"
-                placeholder="Hľadaj používateľov..."
+                placeholder="Hľadaj..."
                 autocomplete="off"
                 class="usersSearchInput"
               />
@@ -49,9 +49,7 @@
                 <span aria-hidden="true">×</span>
               </button>
             </div>
-          </div>
 
-          <div class="usersFiltersRow usersFiltersRow--selects">
             <select
               v-model="filterRole"
               :disabled="loading"
@@ -59,7 +57,7 @@
               aria-label="Filtrovať podľa roly"
               @change="page = 1"
             >
-              <option value="">Všetky roly</option>
+              <option value="">Rola</option>
               <option value="admin">Admin</option>
               <option value="editor">Editor</option>
               <option value="user">Používateľ</option>
@@ -72,13 +70,11 @@
               aria-label="Filtrovať podľa stavu"
               @change="page = 1"
             >
-              <option value="">Všetky stavy</option>
+              <option value="">Stav</option>
               <option value="active">Aktívny</option>
               <option value="banned">Zablokovaný</option>
               <option value="inactive">Neaktívny</option>
             </select>
-
-            <div class="filtersSpacer"></div>
 
             <select
               id="users-per-page"
@@ -87,9 +83,9 @@
               class="perPageSelect"
               @change="page = 1"
             >
-              <option :value="10">10</option>
-              <option :value="20">20</option>
-              <option :value="50">50</option>
+              <option :value="10">10 / str.</option>
+              <option :value="20">20 / str.</option>
+              <option :value="50">50 / str.</option>
             </select>
           </div>
         </section>

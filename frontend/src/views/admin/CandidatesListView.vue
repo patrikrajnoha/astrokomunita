@@ -344,7 +344,7 @@ async function runCrawledBatchPublishWithProgress(payload, modeSteps, completedS
 
   if (run.isTerminal) {
     if (run.status === 'failed') {
-      throw new Error(run.errorMessage || 'Publikovanie crawlovanych kandidatov zlyhalo.')
+      throw new Error(run.errorMessage || 'Publikovanie crawlovaných kandidátov zlyhalo.')
     }
     return { ...run, timedOut: false }
   }
@@ -366,7 +366,7 @@ async function runCrawledBatchPublishWithProgress(payload, modeSteps, completedS
 
     if (run.isTerminal) {
       if (run.status === 'failed') {
-        throw new Error(run.errorMessage || 'Publikovanie crawlovanych kandidatov zlyhalo.')
+        throw new Error(run.errorMessage || 'Publikovanie crawlovaných kandidátov zlyhalo.')
       }
       return { ...run, timedOut: false, usedSyncFallback: false }
     }
@@ -614,8 +614,8 @@ async function runDetailRetranslate(mode = 'ai') {
     }
 
     if (pollResult.timedOut) {
-      detailRetranslateLabel.value = `${modeLabel}: spracovanie este bezi na pozadi.`
-      toast.warn(`${modeLabel} bol spusteny, dokoncenie moze trvat dlhsie.`)
+      detailRetranslateLabel.value = `${modeLabel}: spracovanie ešte beží na pozadí.`
+      toast.warn(`${modeLabel} bol spustený, dokončenie môže trvať dlhšie.`)
       startDetailRetranslateBackgroundPolling(selectedMode, candidateId, token)
       return
     }
@@ -627,7 +627,7 @@ async function runDetailRetranslate(mode = 'ai') {
 
     if (isTimeout || isNetwork) {
       detailRetranslateProgress.value = Math.max(70, detailRetranslateProgress.value)
-      detailRetranslateLabel.value = `${modeLabel}: poziadavka trva dlhsie, overujem stav...`
+      detailRetranslateLabel.value = `${modeLabel}: požiadavka trvá dlhšie, overujem stav...`
       try {
         const refreshed = await refreshDetailCandidate(candidateId)
         await load()
@@ -645,12 +645,12 @@ async function runDetailRetranslate(mode = 'ai') {
           }
         } else {
           detailRetranslateProgress.value = Math.max(90, detailRetranslateProgress.value)
-          detailRetranslateLabel.value = `${modeLabel}: spustene, dokoncenie bezi na pozadi.`
-          toast.warn(`${modeLabel} je spusteny, dokoncenie moze trvat dlhsie.`)
+          detailRetranslateLabel.value = `${modeLabel}: spustené, dokončenie beží na pozadí.`
+          toast.warn(`${modeLabel} je spustený, dokončenie môže trvať dlhšie.`)
           startDetailRetranslateBackgroundPolling(selectedMode, candidateId, token)
         }
       } catch {
-        const timeoutMessage = `${modeLabel}: poziadavka trva dlhsie, stav sa nepodarilo overit.`
+        const timeoutMessage = `${modeLabel}: požiadavka trvá dlhšie, stav sa nepodarilo overiť.`
         detailRetranslateError.value = timeoutMessage
         error.value = timeoutMessage
         toast.warn(timeoutMessage)
@@ -778,7 +778,7 @@ async function publishBySelectedMode() {
     const totalFailed = Number(crawledResult.failed || 0) + Number(manualResult.failed || 0)
 
     if (crawledTimedOut) {
-      toast.warn('Publikovanie crawlovanych kandidatov bezi na pozadi. Obnov zoznam o chvilu.')
+      toast.warn('Publikovanie crawlovaných kandidátov beží na pozadí. Obnov zoznam o chvíľu.')
     } else if (crawledResult.usedSyncFallback) {
       if (totalFailed > 0) {
         toast.warn(`Queue worker nereagoval, publikovane spolu: ${totalPublished}, zlyhalo: ${totalFailed}.`)
@@ -889,7 +889,7 @@ async function generateAiDescriptionsForCandidates() {
       || String(error?.message || '').toLowerCase().includes('timeout')
 
     if (isTimeout) {
-      toast.warn('Poziadavka trva dlhsie. Generovanie mohlo byt spustene na pozadi. Obnov zoznam kandidatov o chvilu.')
+      toast.warn('Požiadavka trvá dlhšie. Generovanie mohlo byť spustené na pozadí. Obnov zoznam kandidátov o chvíľu.')
     } else {
       toast.error(message || 'Hromadne AI popisy pre kandidatov zlyhali.')
     }

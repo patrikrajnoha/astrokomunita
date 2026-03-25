@@ -27,25 +27,22 @@ defineProps({
   min-height: 52px;
   padding: 9px 10px;
   border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.35);
+  background: #151d28;
   color: inherit;
   text-decoration: none;
-  transition:
-    background-color 160ms ease,
-    transform 120ms ease,
-    box-shadow 120ms ease;
+  transition: background-color 160ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
 .quickActionTile:hover {
-  background: rgb(var(--color-bg-rgb) / 0.58);
+  background: #1c2736;
   transform: translateY(-1px);
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .quickActionTile:focus-visible {
   outline: none;
-  background: rgb(var(--color-bg-rgb) / 0.58);
-  box-shadow: var(--focus-ring);
+  background: #1c2736;
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .quickActionBody {
@@ -55,13 +52,13 @@ defineProps({
 }
 
 .quickActionTitle {
-  color: var(--color-surface);
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
 }
 
 .quickActionSubtitle {
-  color: var(--dashboard-muted, rgb(var(--color-text-secondary-rgb) / 0.88));
+  color: rgba(171, 184, 201, 0.88);
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -76,8 +73,8 @@ defineProps({
   height: 24px;
   padding: 0 8px;
   border-radius: 999px;
-  background: rgb(var(--color-bg-rgb) / 0.7);
-  color: var(--color-surface);
+  background: #222E3F;
+  color: #ABB8C9;
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -85,16 +82,17 @@ defineProps({
 
 .quickActionBadge.tone-accent,
 .quickActionBadge.tone-attention {
-  background: rgb(var(--color-primary-rgb) / 0.18);
+  background: rgba(15, 115, 255, 0.18);
+  color: #7EB8FF;
 }
 
 .quickActionBadge.tone-warning {
-  background: rgb(var(--color-warning-rgb) / 0.16);
-  color: rgb(var(--color-warning-rgb));
+  background: rgba(245, 158, 11, 0.16);
+  color: rgb(245, 158, 11);
 }
 
 .quickActionBadge.tone-danger {
-  background: rgb(var(--color-danger-rgb) / 0.16);
-  color: rgb(var(--color-danger-rgb));
+  background: rgba(235, 36, 82, 0.16);
+  color: #EB2452;
 }
 </style>

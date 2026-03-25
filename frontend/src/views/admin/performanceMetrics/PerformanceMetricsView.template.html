@@ -1,192 +1,213 @@
 
-  <AdminPageShell :title="t('page.title')" :subtitle="t('page.subtitle')">
+<AdminPageShell :title="t('page.title')" :subtitle="t('page.subtitle')">
 
-    <!-- ── Summary tiles ── -->
-    <div v-if="!loading && summaryTiles.some(tile => tile.row)" class="summaryStrip">
-      <div v-for="tile in summaryTiles" :key="tile.id" class="summaryTile">
-        <span class="summaryTile__label">{{ tile.label }}</span>
-        <template v-if="tile.row">
-          <strong
-            class="summaryTile__value"
-            :class="`summaryTile__value--${latencyTone(tile.row.avg_ms)}`"
-          >{{ formatMilliseconds(tile.row.avg_ms) }}</strong>
-          <span class="summaryTile__sub">p95 {{ formatMilliseconds(tile.row.p95_ms) }}</span>
-        </template>
-        <span v-else class="summaryTile__empty">Bez dát</span>
+  <!-- ── Summary tiles ── -->
+  <div v-if="!loading && summaryTiles.some(tile => tile.row)" class="grid grid-cols-3 gap-2 mb-3">
+    <div v-for="tile in summaryTiles" :key="tile.id" class="rounded-xl bg-hover p-3 grid gap-0.5">
+      <span class="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted/50">{{ tile.label }}</span>
+      <template v-if="tile.row">
+        <strong
+          class="text-[22px] font-bold leading-tight tabular-nums summaryValue"
+          :class="`summaryValue--${latencyTone(tile.row.avg_ms)}`"
+        >{{ formatMilliseconds(tile.row.avg_ms) }}</strong>
+        <span class="text-[11.5px] text-muted/50 tabular-nums">p95 {{ formatMilliseconds(tile.row.p95_ms) }}</span>
+      </template>
+      <span v-else class="text-xs text-muted/40 py-1">Bez dát</span>
+    </div>
+  </div>
+
+  <!-- ── Run form ── -->
+  <section class="rounded-xl border border-white/5 bg-hover p-3 mb-3 grid gap-1.5">
+    <div class="flex items-end gap-2 flex-wrap">
+      <label class="grid gap-1 flex-[0_1_150px] min-w-0">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted/60 whitespace-nowrap">Typ</span>
+        <select
+          v-model="form.run"
+          class="w-full min-h-[34px] rounded-xl bg-app border-0 text-[12.5px] px-2.5 [color-scheme:dark] focus:outline-none cursor-pointer"
+          data-testid="run-type"
+        >
+          <option v-for="option in runOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+
+      <label class="grid gap-1 flex-[0_0_80px] min-w-0">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted/60 whitespace-nowrap">{{ t('form.sampleSize.label') }}</span>
+        <input
+          v-model.number="form.sample_size"
+          type="number"
+          :min="SAMPLE_MIN"
+          :max="SAMPLE_MAX"
+          :placeholder="t('form.sampleSize.placeholder')"
+          class="w-full min-h-[34px] rounded-xl bg-app border-0 text-[12.5px] px-2.5 [color-scheme:dark] focus:outline-none"
+          data-testid="sample-size"
+        />
+      </label>
+
+      <label class="grid gap-1 flex-[0_1_130px] min-w-0">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted/60 whitespace-nowrap">Mód</span>
+        <select
+          v-model="form.mode"
+          class="w-full min-h-[34px] rounded-xl bg-app border-0 text-[12.5px] px-2.5 [color-scheme:dark] focus:outline-none cursor-pointer"
+          data-testid="mode-select"
+        >
+          <option v-for="option in modeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+
+      <label v-if="showBotSource" class="grid gap-1 flex-[1_1_140px] min-w-0">
+        <span class="text-[11px] font-semibold uppercase tracking-[0.04em] text-muted/60 whitespace-nowrap">Bot zdroj</span>
+        <select
+          v-model="form.bot_source"
+          class="w-full min-h-[34px] rounded-xl bg-app border-0 text-[12.5px] px-2.5 [color-scheme:dark] focus:outline-none cursor-pointer"
+          data-testid="bot-source"
+        >
+          <option v-for="source in botSources" :key="source.value" :value="source.value">{{ source.label }}</option>
+        </select>
+      </label>
+
+      <button
+        class="shrink-0 self-end min-h-[34px] px-4 rounded-xl bg-vivid text-white text-[13px] font-bold border-0 cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+        :disabled="runButtonDisabled"
+        data-testid="run-benchmark-btn"
+        @click="runBenchmark"
+      >
+        <span class="inline-flex items-center gap-1.5">
+          <span v-if="running" class="inlineSpinner" aria-hidden="true"></span>
+          <span>{{ runButtonLabel }}</span>
+        </span>
+      </button>
+    </div>
+
+    <div v-if="fieldErrors.sample_size || fieldErrors.bot_source" class="flex gap-2 flex-wrap">
+      <span v-if="fieldErrors.sample_size" class="text-danger text-[11.5px]">{{ fieldErrors.sample_size }}</span>
+      <span v-if="fieldErrors.bot_source" class="text-danger text-[11.5px]">{{ fieldErrors.bot_source }}</span>
+    </div>
+
+    <p v-if="running" class="m-0 text-xs text-muted/60" data-testid="run-progress">{{ t('form.progress') }}</p>
+  </section>
+
+  <!-- ── Error notice ── -->
+  <div v-if="errorMessage" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-[12.5px] mb-3">{{ errorMessage }}</div>
+
+  <!-- ── Results ── -->
+  <section class="grid gap-2">
+    <div class="flex items-center justify-between gap-2 flex-wrap">
+      <span class="text-[12.5px] text-muted/60">{{ resultsSummary }}</span>
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <select
+          v-model.number="tableLimit"
+          class="min-h-[30px] rounded-xl bg-secondary-btn text-muted border-0 px-2.5 text-xs [color-scheme:dark] cursor-pointer focus:outline-none"
+          data-testid="results-limit"
+        >
+          <option v-for="option in limitOptions" :key="option" :value="option">{{ option }} záznamov</option>
+        </select>
+        <select
+          v-model="sortOrder"
+          class="min-h-[30px] rounded-xl bg-secondary-btn text-muted border-0 px-2.5 text-xs [color-scheme:dark] cursor-pointer focus:outline-none"
+          data-testid="results-sort-order"
+        >
+          <option v-for="option in sortOrderOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
       </div>
     </div>
 
-    <!-- ── Run form ── -->
-    <section class="runSection">
-      <div class="runRow">
-        <label class="inlineField">
-          <span>Typ</span>
-          <select v-model="form.run" data-testid="run-type">
-            <option v-for="option in runOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
+    <div v-if="loading" class="text-xs text-muted/60">{{ t('messages.loading') }}</div>
+    <div v-else class="rounded-xl border border-white/[0.12] overflow-x-auto">
+      <table class="resultsTable">
+        <thead>
+          <tr>
+            <th>{{ t('table.columns.key') }}</th>
+            <th>{{ t('table.columns.created') }}</th>
+            <th class="metricCol">{{ t('table.columns.avg_ms') }}</th>
+            <th class="metricCol">{{ t('table.columns.p95_ms') }}</th>
+            <th class="metricCol">{{ t('table.columns.db_queries_avg') }}</th>
+            <th class="trendCol">Trend</th>
+          </tr>
+        </thead>
+        <tbody v-if="visibleLogs.length">
+          <tr
+            v-for="row in visibleLogs"
+            :key="row.id"
+            class="eRow"
+            @click="openDetail(row)"
+          >
+            <td><span class="keyTag">{{ row.key }}</span></td>
+            <td class="text-xs text-muted/60">{{ formatDate(row.created_at) }}</td>
+            <td class="metricCol" :class="`metric--${latencyTone(row.avg_ms)}`">{{ formatMilliseconds(row.avg_ms) }}</td>
+            <td class="metricCol text-muted/60">{{ formatMilliseconds(row.p95_ms) }}</td>
+            <td class="metricCol text-muted/60">{{ formatDecimal(row.db_queries_avg) }}</td>
+            <td class="trendCol">
+              <span
+                class="trendArrow"
+                :class="`trendArrow--${trendForRow(row).tone}`"
+                :title="trendForRow(row).text"
+              >{{ trendForRow(row).symbol }}</span>
+            </td>
+          </tr>
+        </tbody>
+        <tbody v-else>
+          <tr>
+            <td colspan="6" class="text-center py-5 px-2.5" data-testid="empty-state">
+              <strong class="block mb-1 text-[13px]">{{ t('table.empty.title') }}</strong>
+              <span class="text-xs text-muted/60">{{ t('table.empty.description') }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-        <label class="inlineField inlineField--narrow">
-          <span>{{ t('form.sampleSize.label') }}</span>
-          <input
-            v-model.number="form.sample_size"
-            type="number"
-            :min="SAMPLE_MIN"
-            :max="SAMPLE_MAX"
-            :placeholder="t('form.sampleSize.placeholder')"
-            data-testid="sample-size"
-          />
-        </label>
+  <!-- ── Detail modal ── -->
+  <BaseModal
+    :open="Boolean(selectedLogDetail)"
+    :title="selectedLogDetail ? t('detail.title', { key: selectedLogDetail.key, id: selectedLogDetail.id }) : t('cards.detailTitle')"
+    test-id="performance-log-detail-modal"
+    close-test-id="performance-log-detail-close"
+    @update:open="closeDetail"
+  >
+    <template v-if="selectedLogDetail">
 
-        <label class="inlineField">
-          <span>Mód</span>
-          <select v-model="form.mode" data-testid="mode-select">
-            <option v-for="option in modeOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </label>
-
-        <label v-if="showBotSource" class="inlineField">
-          <span>Bot zdroj</span>
-          <select v-model="form.bot_source" data-testid="bot-source">
-            <option v-for="source in botSources" :key="source.value" :value="source.value">
-              {{ source.label }}
-            </option>
-          </select>
-        </label>
-
-        <button class="runBtn" :disabled="runButtonDisabled" data-testid="run-benchmark-btn" @click="runBenchmark">
-          <span class="btnContent">
-            <span v-if="running" class="inlineSpinner" aria-hidden="true"></span>
-            <span>{{ runButtonLabel }}</span>
-          </span>
-        </button>
-      </div>
-
-      <div v-if="fieldErrors.sample_size || fieldErrors.bot_source" class="runErrors">
-        <span v-if="fieldErrors.sample_size" class="fieldError">{{ fieldErrors.sample_size }}</span>
-        <span v-if="fieldErrors.bot_source" class="fieldError">{{ fieldErrors.bot_source }}</span>
-      </div>
-
-      <p v-if="running" class="progressText" data-testid="run-progress">{{ t('form.progress') }}</p>
-    </section>
-
-    <!-- ── Error notice ── -->
-    <div v-if="errorMessage" class="noticeError">{{ errorMessage }}</div>
-
-    <!-- ── Results ── -->
-    <section class="resultsSection">
-      <div class="resultsHead">
-        <span class="resultsHead__meta">{{ resultsSummary }}</span>
-        <div class="resultsHead__controls">
-          <select v-model.number="tableLimit" data-testid="results-limit">
-            <option v-for="option in limitOptions" :key="option" :value="option">{{ option }} záznamov</option>
-          </select>
-          <select v-model="sortOrder" data-testid="results-sort-order">
-            <option v-for="option in sortOrderOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
+      <div class="grid grid-cols-3 gap-1.5 mb-3.5">
+        <div
+          class="rounded-xl bg-hover p-2.5 grid gap-0.5 detailStat"
+          :class="`detailStat--${latencyTone(selectedLog?.avg_ms)}`"
+        >
+          <strong class="text-[17px] font-bold leading-tight tabular-nums">{{ selectedLogDetail.avgMs }}</strong>
+          <span class="text-[11px] text-muted/50">Avg</span>
+        </div>
+        <div class="rounded-xl bg-hover p-2.5 grid gap-0.5">
+          <strong class="text-[17px] font-bold leading-tight tabular-nums">{{ selectedLogDetail.p95Ms }}</strong>
+          <span class="text-[11px] text-muted/50">P95</span>
+        </div>
+        <div class="rounded-xl bg-hover p-2.5 grid gap-0.5">
+          <strong class="text-[17px] font-bold leading-tight tabular-nums">{{ selectedLogDetail.dbQueriesAvg }}</strong>
+          <span class="text-[11px] text-muted/50">DB dotazy</span>
         </div>
       </div>
 
-      <div v-if="loading" class="muted">{{ t('messages.loading') }}</div>
-      <div v-else class="resultsTableWrap">
-        <table class="resultsTable resultsTable--dense">
-          <thead>
-            <tr>
-              <th>{{ t('table.columns.key') }}</th>
-              <th>{{ t('table.columns.created') }}</th>
-              <th class="metricCol">{{ t('table.columns.avg_ms') }}</th>
-              <th class="metricCol">{{ t('table.columns.p95_ms') }}</th>
-              <th class="metricCol">{{ t('table.columns.db_queries_avg') }}</th>
-              <th class="trendCol">Trend</th>
-            </tr>
-          </thead>
-          <tbody v-if="visibleLogs.length">
-            <tr
-              v-for="row in visibleLogs"
-              :key="row.id"
-              class="eRow"
-              @click="openDetail(row)"
-            >
-              <td><span class="keyTag">{{ row.key }}</span></td>
-              <td class="dateMuted">{{ formatDate(row.created_at) }}</td>
-              <td class="metricCol" :class="`metric--${latencyTone(row.avg_ms)}`">{{ formatMilliseconds(row.avg_ms) }}</td>
-              <td class="metricCol muted">{{ formatMilliseconds(row.p95_ms) }}</td>
-              <td class="metricCol muted">{{ formatDecimal(row.db_queries_avg) }}</td>
-              <td class="trendCol">
-                <span
-                  class="trendArrow"
-                  :class="`trendArrow--${trendForRow(row).tone}`"
-                  :title="trendForRow(row).text"
-                >{{ trendForRow(row).symbol }}</span>
-              </td>
-            </tr>
-          </tbody>
-          <tbody v-else>
-            <tr>
-              <td colspan="6" class="emptyState" data-testid="empty-state">
-                <strong>{{ t('table.empty.title') }}</strong>
-                <span>{{ t('table.empty.description') }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+      <dl class="detailMeta">
+        <dt>{{ t('detail.fields.runType') }}</dt>
+        <dd>{{ selectedLogDetail.runType }}</dd>
 
-    <!-- ── Detail modal ── -->
-    <BaseModal
-      :open="Boolean(selectedLogDetail)"
-      :title="selectedLogDetail ? t('detail.title', { key: selectedLogDetail.key, id: selectedLogDetail.id }) : t('cards.detailTitle')"
-      test-id="performance-log-detail-modal"
-      close-test-id="performance-log-detail-close"
-      @update:open="closeDetail"
-    >
-      <template v-if="selectedLogDetail">
+        <dt>{{ t('detail.fields.sampleSize') }}</dt>
+        <dd>{{ selectedLogDetail.sampleSize }}</dd>
 
-        <div class="detailStats">
-          <div class="detailStat" :class="`detailStat--${latencyTone(selectedLog?.avg_ms)}`">
-            <strong>{{ selectedLogDetail.avgMs }}</strong>
-            <span>Avg</span>
-          </div>
-          <div class="detailStat">
-            <strong>{{ selectedLogDetail.p95Ms }}</strong>
-            <span>P95</span>
-          </div>
-          <div class="detailStat">
-            <strong>{{ selectedLogDetail.dbQueriesAvg }}</strong>
-            <span>DB dotazy</span>
-          </div>
-        </div>
+        <dt>{{ t('detail.fields.mode') }}</dt>
+        <dd>{{ selectedLogDetail.mode }}</dd>
 
-        <dl class="detailMeta">
-          <dt>{{ t('detail.fields.runType') }}</dt>
-          <dd>{{ selectedLogDetail.runType }}</dd>
+        <dt>{{ t('detail.fields.botSource') }}</dt>
+        <dd>{{ selectedLogDetail.botSource }}</dd>
 
-          <dt>{{ t('detail.fields.sampleSize') }}</dt>
-          <dd>{{ selectedLogDetail.sampleSize }}</dd>
+        <dt>{{ t('detail.fields.createdAt') }}</dt>
+        <dd>{{ selectedLogDetail.createdAt }}</dd>
+      </dl>
 
-          <dt>{{ t('detail.fields.mode') }}</dt>
-          <dd>{{ selectedLogDetail.mode }}</dd>
+      <details class="border border-white/[0.14] rounded-xl overflow-hidden">
+        <summary class="payloadTrigger list-none cursor-pointer px-2.5 py-1.5 text-xs text-muted/70 bg-white/[0.04]">Raw payload</summary>
+        <pre class="m-0 px-2.5 py-2 text-[11px] whitespace-pre-wrap break-words max-h-60 overflow-y-auto">{{ selectedLogPayload }}</pre>
+      </details>
 
-          <dt>{{ t('detail.fields.botSource') }}</dt>
-          <dd>{{ selectedLogDetail.botSource }}</dd>
+    </template>
+  </BaseModal>
 
-          <dt>{{ t('detail.fields.createdAt') }}</dt>
-          <dd>{{ selectedLogDetail.createdAt }}</dd>
-        </dl>
-
-        <details class="payloadDetails">
-          <summary class="payloadDetails__trigger">Raw payload</summary>
-          <pre class="detailPayload">{{ selectedLogPayload }}</pre>
-        </details>
-
-      </template>
-    </BaseModal>
-
-  </AdminPageShell>
+</AdminPageShell>

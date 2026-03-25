@@ -31,8 +31,8 @@ export const performanceMetricsMessages = {
         },
       },
       sampleSize: {
-        label: 'Veľkosť vzorky',
-        placeholder: 'Napríklad 200',
+        label: 'Vzorka',
+        placeholder: '200',
       },
       mode: {
         label: 'Režim',
@@ -85,7 +85,7 @@ export const performanceMetricsMessages = {
         created: 'Vytvorené',
         avg_ms: 'Priemer ms',
         p95_ms: 'P95 ms',
-        db_queries_avg: 'DB dopyty (priemer)',
+        db_queries_avg: 'DB dopyty',
         trend: 'Trend',
       },
       empty: {

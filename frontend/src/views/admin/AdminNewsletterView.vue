@@ -47,16 +47,16 @@ const canSaveSelection = computed(
 )
 const weekStart = computed(() => String(preview.value?.week?.start || '-'))
 const weekEnd = computed(() => String(preview.value?.week?.end || '-'))
-const pageTitle = computed(() => `Newsletter - Tyzden ${weekStart.value} az ${weekEnd.value}`)
+const pageTitle = computed(() => `Newsletter – Týždeň ${weekStart.value} – ${weekEnd.value}`)
 const previewTopEvents = computed(() => (Array.isArray(preview.value?.top_events) ? preview.value.top_events : []))
 const topArticles = computed(() => (Array.isArray(preview.value?.top_articles) ? preview.value.top_articles : []))
 const selectedEventsForSummary = computed(() => previewTopEvents.value.slice(0, 5))
 const selectionMode = computed(() => String(preview.value?.selection?.mode || 'manual'))
 const isAutoSelectionMode = computed(() => selectionMode.value === 'automatic_fallback')
-const selectionModeLabel = computed(() => (isAutoSelectionMode.value ? 'Automaticky vyber' : 'Rucny vyber'))
+const selectionModeLabel = computed(() => (isAutoSelectionMode.value ? 'Automatický výber' : 'Ručný výber'))
 const draftStatusLabel = computed(() => {
   if (!draftSavedAt.value) return ''
-  return `Draft sa ulozil ${formatDateTime(draftSavedAt.value)}`
+  return `Draft uložený ${formatDateTime(draftSavedAt.value)}`
 })
 const visibleCandidateEvents = computed(() => {
   if (!Array.isArray(candidateEvents.value) || candidateEvents.value.length === 0) {
@@ -85,13 +85,13 @@ const visibleCandidateEvents = computed(() => {
 })
 
 function defaultNewsletterSubject() {
-  return 'Nebesky sprievodca: Tyzdenny newsletter'
+  return 'Nebeský sprievodca: Týždenný newsletter'
 }
 
 function defaultNewsletterIntro() {
   const start = preview.value?.week?.start || '-'
   const end = preview.value?.week?.end || '-'
-  return `Prehlad na tyzden ${start} az ${end}.`
+  return `Prehľad na týždeň ${start} – ${end}.`
 }
 
 function syncLocalCopyFieldsFromPreview() {
@@ -102,7 +102,7 @@ function syncLocalCopyFieldsFromPreview() {
   newsletterTipText.value = String(preview.value?.astronomical_tip || '').trim()
 
   if (!newsletterTipText.value) {
-    newsletterTipText.value = 'Tip pripraveny z udalosti.'
+    newsletterTipText.value = 'Tip pripravený z udalostí.'
   }
 }
 
@@ -232,7 +232,7 @@ async function load() {
     syncLocalCopyFieldsFromPreview()
     hydrateCopyDraftOnce()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa nacitat data newslettera.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa načítať dáta newslettera.'
   } finally {
     loading.value = false
   }
@@ -268,10 +268,10 @@ async function saveFeaturedEvents() {
       event_ids: selectedEventIds.value,
     })
 
-    success.value = 'Vyber udalosti bol ulozeny.'
+    success.value = 'Výber udalostí bol uložený.'
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa ulozit vybrane udalosti.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa uložiť vybrané udalosti.'
   } finally {
     savingSelection.value = false
   }
@@ -293,12 +293,12 @@ async function triggerSend() {
     const reason = response?.data?.reason || 'created'
     const runId = response?.data?.data?.id
     success.value = runId
-      ? `Newsletter run ${runId} bol prijaty (${reason}).`
-      : `Newsletter akcia skoncila (${reason}).`
+      ? `Newsletter run ${runId} bol prijatý (${reason}).`
+      : `Newsletter akcia skončila (${reason}).`
 
     await load()
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslat newsletter.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslať newsletter.'
   } finally {
     sending.value = false
   }
@@ -309,7 +309,7 @@ async function triggerPreviewSend() {
 
   const normalizedEmail = String(previewEmail.value || '').trim()
   if (!normalizedEmail) {
-    error.value = 'Email pre test je povinny.'
+    error.value = 'Email pre test je povinný.'
     success.value = ''
     return
   }
@@ -343,9 +343,9 @@ async function triggerPreviewSend() {
     const eventsCount = Number(data?.events_count || 0)
     const articlesCount = Number(data?.articles_count || 0)
 
-    success.value = `Test bol odoslany na ${email} (${eventsCount} udalosti, ${articlesCount} clanky).`
+    success.value = `Test bol odoslaný na ${email} (${eventsCount} udalostí, ${articlesCount} článkov).`
   } catch (e) {
-    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslat test.'
+    error.value = e?.response?.data?.message || e?.userMessage || 'Nepodarilo sa odoslať test.'
   } finally {
     previewSending.value = false
   }

@@ -5,6 +5,7 @@ import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { getBotOverview, getBotTranslationHealth } from '@/services/api/admin/bots'
 import BotActivityView from '@/views/admin/BotActivityView.vue'
 import BotEngineDashboardView from '@/views/admin/BotEngineDashboardView.vue'
+import BotEngineView from '@/views/admin/BotEngineView.vue'
 import BotSchedulesView from '@/views/admin/BotSchedulesView.vue'
 import BotSourcesHealthView from '@/views/admin/BotSourcesHealthView.vue'
 
@@ -35,6 +36,8 @@ const translationHealth = ref({
   },
   provider_probes: {},
 })
+
+const showEngineModal = ref(false)
 
 const tabs = Object.freeze([
   {
@@ -239,7 +242,10 @@ onMounted(() => {
 <template>
   <AdminPageShell title="Správa botov" subtitle="Control panel pre bot pipeline, zdroje, plány a logy.">
     <template #right-actions>
-      <button class="actionBtn" type="button" :disabled="loadingOverview || refreshingWorkspace" @click="refreshWorkspace">
+      <button class="secondaryBtn" type="button" @click="showEngineModal = true">
+        Legacy nástroje
+      </button>
+      <button class="refreshBtn" type="button" :disabled="loadingOverview || refreshingWorkspace" @click="refreshWorkspace">
         {{ loadingOverview || refreshingWorkspace ? 'Načítavam…' : 'Obnoviť' }}
       </button>
     </template>
@@ -321,15 +327,32 @@ onMounted(() => {
         :overview-loading="loadingOverview"
       />
     </div>
+
+    <teleport to="body">
+      <transition name="modal-fade">
+        <div v-if="showEngineModal" class="engineModalBackdrop" @mousedown.self="showEngineModal = false">
+          <transition name="modal-pop">
+            <div v-if="showEngineModal" class="engineModalCard" role="dialog" aria-modal="true" aria-label="Legacy nástroje">
+              <div class="engineModalHead">
+                <p class="engineModalTitle">Legacy nástroje</p>
+                <button class="engineModalClose" type="button" aria-label="Zavrieť" @click="showEngineModal = false">✕</button>
+              </div>
+              <div class="engineModalBody">
+                <BotEngineView embedded />
+              </div>
+            </div>
+          </transition>
+        </div>
+      </transition>
+    </teleport>
   </AdminPageShell>
 </template>
 
 <style scoped>
 .botWorkspace {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 12px;
-  background: rgb(var(--color-bg-rgb) / 0.38);
-  padding: 10px;
+  border-radius: 14px;
+  background: #1c2736;
+  padding: 12px;
   min-width: 0;
   container-type: inline-size;
 }
@@ -343,17 +366,16 @@ onMounted(() => {
 
 .summaryWrap {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
 }
 
 .summaryCard {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.12);
-  border-radius: 9px;
-  background: rgb(var(--color-bg-rgb) / 0.62);
-  padding: 8px 9px;
+  border-radius: 12px;
+  background: #222E3F;
+  padding: 14px 16px;
   display: grid;
-  gap: 3px;
+  gap: 6px;
 }
 
 .summaryLabel {
@@ -361,42 +383,44 @@ onMounted(() => {
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: rgb(var(--color-text-secondary-rgb) / 0.84);
+  color: #ABB8C9;
 }
 
 .summaryValue {
   margin: 0;
-  font-size: 1.12rem;
+  font-size: 1.18rem;
   font-weight: 800;
+  color: #FFFFFF;
 }
 
 .statusBadge {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
-  padding: 2px 9px;
+  padding: 3px 10px;
   font-size: 0.7rem;
   font-weight: 700;
 }
 
 .statusBadge--ok {
-  border-color: rgb(var(--color-success-rgb) / 0.52);
-  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.12);
+  color: #22C55E;
 }
 
 .statusBadge--warn {
-  border-color: rgb(var(--color-warning-rgb) / 0.52);
-  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
 }
 
 .statusBadge--danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.55);
-  color: var(--color-danger);
+  background: rgba(235, 36, 82, 0.12);
+  color: #EB2452;
 }
 
 .metaLine {
   margin: 0;
   font-size: 0.74rem;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+  color: #ABB8C9;
   overflow-wrap: anywhere;
 }
 
@@ -412,33 +436,36 @@ onMounted(() => {
   font-size: 0.68rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: rgb(var(--color-text-secondary-rgb) / 0.86);
+  color: #ABB8C9;
 }
 
 .translationPill {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.2);
   border-radius: 999px;
-  padding: 2px 8px;
+  padding: 3px 10px;
   font-size: 0.68rem;
   font-weight: 700;
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
 }
 
 .translationPill--ok {
-  border-color: rgb(var(--color-success-rgb) / 0.52);
-  color: var(--color-success);
+  background: rgba(34, 197, 94, 0.12);
+  color: #22C55E;
 }
 
 .translationPill--warn {
-  border-color: rgb(var(--color-warning-rgb) / 0.52);
-  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.12);
+  color: #F59E0B;
 }
 
 .translationPill--danger {
-  border-color: rgb(var(--color-danger-rgb) / 0.52);
-  color: var(--color-danger);
+  background: rgba(235, 36, 82, 0.12);
+  color: #EB2452;
+}
+
+.translationPill--muted {
+  background: rgba(171, 184, 201, 0.1);
+  color: #ABB8C9;
 }
 
 .tabHeader {
@@ -448,55 +475,63 @@ onMounted(() => {
 
 .tabNav {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   padding: 4px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.42);
+  border-radius: 999px;
+  background: #1c2736;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabNav::-webkit-scrollbar {
+  display: none;
 }
 
 .tabLink {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.16);
-  border-radius: 8px;
-  padding: 6px 9px;
+  border-radius: 999px;
+  padding: 7px 16px;
   text-decoration: none;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: #ABB8C9;
   white-space: nowrap;
-  font-size: 0.77rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease;
 }
 
 .tabLink:hover {
-  border-color: rgb(var(--color-surface-rgb) / 0.2);
-  background: rgb(var(--color-surface-rgb) / 0.05);
+  background: #222E3F;
+  color: #FFFFFF;
 }
 
 .tabLink.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.4);
-  background: rgb(var(--color-primary-rgb) / 0.15);
-  color: rgb(var(--color-surface-rgb) / 0.98);
+  background: #0F73FF;
+  color: #FFFFFF;
 }
 
-.actionBtn {
-  border-radius: 8px;
-  padding: 5px 9px;
-  font-size: 0.74rem;
+.refreshBtn {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 18px;
+  font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.55);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
+  background: #0F73FF;
+  color: #FFFFFF;
+  transition: opacity 150ms ease;
 }
 
-.actionBtn:disabled {
-  opacity: 0.6;
+.refreshBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.refreshBtn:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
 .error {
   margin: 0;
-  color: var(--color-danger);
+  color: #EB2452;
 }
 
 .botWorkspace :deep(.botSection),
@@ -522,7 +557,7 @@ onMounted(() => {
 
 .botWorkspace :deep(.card),
 .botWorkspace :deep(.panel) {
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 10px;
   min-width: 0;
 }
@@ -569,8 +604,26 @@ onMounted(() => {
 .botWorkspace :deep(.dangerBtn),
 .botWorkspace :deep(.runBtn) {
   min-height: 32px;
-  padding: 5px 9px;
+  padding: 5px 14px;
   font-size: 0.74rem;
+  border: none;
+  border-radius: 12px;
+}
+
+.botWorkspace :deep(.runBtn) {
+  background: #0F73FF;
+  color: #FFFFFF;
+}
+
+.botWorkspace :deep(.ghostBtn),
+.botWorkspace :deep(.actionBtn) {
+  background: #222E3F;
+  color: #ABB8C9;
+}
+
+.botWorkspace :deep(.dangerBtn) {
+  background: #EB2452;
+  color: #FFFFFF;
 }
 
 @container (max-width: 860px) {
@@ -649,5 +702,109 @@ onMounted(() => {
   .botWorkspace {
     padding: 8px;
   }
+}
+
+/* Secondary button */
+.secondaryBtn {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #222E3F;
+  color: #ABB8C9;
+  transition: opacity 150ms ease;
+}
+
+.secondaryBtn:hover {
+  opacity: 0.88;
+}
+
+/* Engine modal */
+.engineModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.engineModalCard {
+  width: min(680px, 100%);
+  max-height: min(88vh, 860px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  background: #151d28;
+  overflow: hidden;
+}
+
+.engineModalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(171, 184, 201, 0.1);
+  flex-shrink: 0;
+}
+
+.engineModalTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.engineModalClose {
+  border: none;
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #222E3F;
+  color: #ABB8C9;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+  flex-shrink: 0;
+}
+
+.engineModalClose:hover {
+  opacity: 0.8;
+}
+
+.engineModalBody {
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+  flex: 1;
+}
+
+/* Modal transitions */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-pop-enter-active,
+.modal-pop-leave-active {
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+.modal-pop-enter-from,
+.modal-pop-leave-to {
+  transform: translateY(16px) scale(0.97);
+  opacity: 0;
 }
 </style>

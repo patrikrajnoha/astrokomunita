@@ -33,7 +33,7 @@ export function toErrorMessage(error, fallbackMessage) {
     code === 'ECONNABORTED' || code === 'ERR_NETWORK' || messageText.includes('timeout')
 
   if (isTimeoutOrNetwork) {
-    return 'Run trva dlhsie. Skus to o chvilu, alebo otvor detail runu.'
+    return 'Run trvá dlhšie. Skús to o chvíľu, alebo otvor detail runu.'
   }
 
   if (
@@ -306,7 +306,7 @@ export function quickRunResultChips(result) {
   }
 
   if (Number(result?.partialCount || 0) > 0) {
-    chips.push(`ciastocne ${Number(result.partialCount)}`)
+    chips.push(`čiastočne ${Number(result.partialCount)}`)
   }
 
   if (Number(result?.skippedCount || 0) > 0) {
@@ -318,7 +318,7 @@ export function quickRunResultChips(result) {
   }
 
   if (chips.length === 0) {
-    chips.push('bez vysledku')
+    chips.push('bez výsledku')
   }
 
   return chips.join(', ')
