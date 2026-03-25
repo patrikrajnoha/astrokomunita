@@ -9,13 +9,32 @@ use Illuminate\Support\Str;
 
 class DefaultUsersSeeder extends Seeder
 {
+    public const DEFAULT_ADMIN_NAME = 'Astrokomunita';
+    public const DEFAULT_ADMIN_USERNAME = 'astrokomunita';
+    public const DEFAULT_ADMIN_EMAIL = 'rajnohapatrik@gmail.com';
+    public const DEFAULT_ADMIN_PASSWORD = 'XLfYb;)@+\xz9%&';
+    public const KOZMOBOT_USERNAME = 'kozmobot';
+    public const STELLARBOT_USERNAME = 'stellarbot';
+
     /**
-     * @return array{created:array<int,string>,updated:array<int,string>}
+     * @return list<string>
      */
-    public function seed(): array
+    public static function coreUsernames(): array
     {
-        if (!app()->environment(['local', 'testing'])) {
-            throw new \RuntimeException('DefaultUsersSeeder can only run in local/testing environments.');
+        return [
+            self::DEFAULT_ADMIN_USERNAME,
+            self::KOZMOBOT_USERNAME,
+            self::STELLARBOT_USERNAME,
+        ];
+    }
+
+    /**
+     * @return array{created:array<int,string>,updated:array<int,string>,deleted:array<int,string>}
+     */
+    public function seed(?bool $purgeNonCoreUsers = null): array
+    {
+        if ($purgeNonCoreUsers === null) {
+            $purgeNonCoreUsers = app()->environment(['local', 'testing']);
         }
 
         $this->normalizeLegacyBotAlias();
@@ -25,17 +44,17 @@ class DefaultUsersSeeder extends Seeder
 
         $defaults = [
             [
-                'name' => 'Admin',
-                'username' => 'admin',
-                'email' => 'admin@admin.sk',
-                'password' => 'admin',
+                'name' => self::DEFAULT_ADMIN_NAME,
+                'username' => self::DEFAULT_ADMIN_USERNAME,
+                'email' => self::DEFAULT_ADMIN_EMAIL,
+                'password' => self::DEFAULT_ADMIN_PASSWORD,
                 'is_admin' => true,
                 'is_bot' => false,
-                'role' => 'admin',
+                'role' => User::ROLE_ADMIN,
             ],
             [
                 'name' => 'Kozmo',
-                'username' => 'kozmobot',
+                'username' => self::KOZMOBOT_USERNAME,
                 'email' => null,
                 'password' => Str::random(40),
                 'is_admin' => false,
@@ -44,21 +63,12 @@ class DefaultUsersSeeder extends Seeder
             ],
             [
                 'name' => 'Stella',
-                'username' => 'stellarbot',
+                'username' => self::STELLARBOT_USERNAME,
                 'email' => null,
                 'password' => Str::random(40),
                 'is_admin' => false,
                 'is_bot' => true,
                 'role' => User::ROLE_BOT,
-            ],
-            [
-                'name' => 'Patrik',
-                'username' => 'patrik',
-                'email' => 'patrik@patrik.sk',
-                'password' => 'patrik',
-                'is_admin' => false,
-                'is_bot' => false,
-                'role' => 'user',
             ],
         ];
 
@@ -101,9 +111,12 @@ class DefaultUsersSeeder extends Seeder
             }
         }
 
+        $deleted = $purgeNonCoreUsers ? $this->purgeNonCoreUsers() : [];
+
         return [
             'created' => $created,
             'updated' => $updated,
+            'deleted' => $deleted,
         ];
     }
 
@@ -136,11 +149,11 @@ class DefaultUsersSeeder extends Seeder
             return;
         }
 
-        $stellar = User::query()->where('username', 'stellarbot')->first();
+        $stellar = User::query()->where('username', self::STELLARBOT_USERNAME)->first();
         if (! $stellar) {
             $legacy->forceFill([
                 'name' => 'Stella',
-                'username' => 'stellarbot',
+                'username' => self::STELLARBOT_USERNAME,
                 'email' => null,
                 'is_bot' => true,
                 'role' => User::ROLE_BOT,
@@ -156,5 +169,36 @@ class DefaultUsersSeeder extends Seeder
         }
 
         $legacy->delete();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function purgeNonCoreUsers(): array
+    {
+        $usersToDelete = User::query()
+            ->where(function ($query): void {
+                $query->whereNull('username')
+                    ->orWhereNotIn('username', self::coreUsernames());
+            })
+            ->get(['id', 'username']);
+
+        if ($usersToDelete->isEmpty()) {
+            return [];
+        }
+
+        $deletedUsernames = $usersToDelete
+            ->map(static function (User $user): string {
+                $username = trim((string) $user->username);
+
+                return $username !== '' ? $username : 'id:'.$user->id;
+            })
+            ->all();
+
+        User::query()
+            ->whereIn('id', $usersToDelete->pluck('id')->all())
+            ->delete();
+
+        return $deletedUsernames;
     }
 }

@@ -184,12 +184,19 @@ class AuthController extends Controller
             return;
         }
 
-        $hasLocalAdmin = User::query()
-            ->whereRaw('LOWER(email) = ?', ['admin@admin.sk'])
-            ->orWhere('username', 'admin')
+        $coreUsernames = DefaultUsersSeeder::coreUsernames();
+        $coreUserCount = count($coreUsernames);
+        $hasExactCoreSet = User::query()->count() === $coreUserCount
+            && User::query()
+                ->whereIn('username', $coreUsernames)
+                ->count() === $coreUserCount;
+
+        $hasDefaultAdmin = User::query()
+            ->whereRaw('LOWER(email) = ?', [mb_strtolower(DefaultUsersSeeder::DEFAULT_ADMIN_EMAIL)])
+            ->orWhere('username', DefaultUsersSeeder::DEFAULT_ADMIN_USERNAME)
             ->exists();
 
-        if ($hasLocalAdmin) {
+        if ($hasExactCoreSet && $hasDefaultAdmin) {
             return;
         }
 
