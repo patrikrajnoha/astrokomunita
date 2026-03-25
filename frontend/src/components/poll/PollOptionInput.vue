@@ -24,7 +24,7 @@
         type="text"
         class="optionInput"
         maxlength="25"
-        :placeholder="`Moznost ${index + 1}`"
+        :placeholder="`Možnosť ${index + 1}`"
         :disabled="disabled"
         @input="onTextInput"
       />

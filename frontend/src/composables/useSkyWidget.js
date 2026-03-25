@@ -293,7 +293,7 @@ export function useSkyWidget(options = {}) {
 
     if (isDaylight.value) {
       const nightStart = nightStartsAt.value ? formatTime(nightStartsAt.value, effectiveTz.value) : ''
-      return nightStart ? `Noc začne: ${nightStart}` : 'Najlepšie dnes: po zotmeni'
+      return nightStart ? `Noc začne: ${nightStart}` : 'Najlepšie dnes: po zotmení'
     }
 
     if (!bestTimeToday.value?.window) return 'Najlepšie dnes nie je dostupne.'
@@ -319,7 +319,7 @@ export function useSkyWidget(options = {}) {
   const heroTitle = computed(() => (isDaylight.value ? 'Denné podmienky' : 'Pozorovanie dnes'))
   const heroSubtitle = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED) {
-      return 'Poloha nie je nastavena. Nastav ju pre presny vypocet oblohy.'
+      return 'Poloha nie je nastavená. Nastav ju pre presný výpočet oblohy.'
     }
 
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
@@ -489,7 +489,7 @@ export function useSkyWidget(options = {}) {
       return parts.join(' | ')
     }
 
-    return 'Skus to znovu zajtra po zotmeni alebo obnov data neskor.'
+    return 'Skús to znova zajtra po zotmení alebo obnov dáta neskôr.'
   })
 
   const issLine = computed(() => {
@@ -531,7 +531,7 @@ export function useSkyWidget(options = {}) {
     const source = String(planetsPayload.value?.source || '').trim().toLowerCase()
     if (source === 'jpl_horizons') return 'Zdroj: JPL Horizons'
     if (source === 'sky_microservice') return 'Zdroj: sky microservice'
-    return 'Zdroj: vypocet polohy planet'
+    return 'Zdroj: výpočet polohy planét'
   })
 
   const planetsNightV15 = computed(() => (
@@ -544,8 +544,8 @@ export function useSkyWidget(options = {}) {
   const shouldShowPlanetsListV15 = computed(() => planetsDisplayListV15.value.length > 0)
   const planetsContextLineV15 = computed(() => {
     if (!hasLocationCoords.value) return ''
-    if (isDaylight.value) return 'Aktuálne je den. Planety budu citatelnejsie po zotmeni.'
-    if (isTwilightLimited.value) return 'Aktuálne je súmrak. Najlepšie po úplnom zotmeni.'
+    if (isDaylight.value) return 'Aktuálne je deň. Planety budú čitateľnejšie po zotmení.'
+    if (isTwilightLimited.value) return 'Aktuálne je súmrak. Najlepšie po úplnom zotmení.'
     if (!shouldShowPlanetsListV15.value) return ''
 
     const count = planetsDisplayListV15.value.length
@@ -569,7 +569,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (!planetsNightV15.value) {
-      return 'Zobrazime po zotmeni.'
+      return 'Zobrazíme po zotmení.'
     }
 
     if (planetsDisplayListV15.value.length === 0) {

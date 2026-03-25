@@ -1,95 +1,144 @@
 <template>
   <transition name="onbFade" appear>
-    <div class="onbOverlay">
-      <div ref="modalRef" class="onbModal" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-        <header class="onbHeader">
-          <p class="onbProgress">Krok {{ step }} z 2</p>
-          <h1 id="onboarding-title">Nastav si uvodny profil</h1>
-          <p class="onbLead">
-            {{ step === 1 ? 'Vyber oblasti, ktore ta zaujimaju.' : 'Kde najcastejsie pozorujes oblohu?' }}
+    <div class="fixed inset-0 z-[1300] flex items-center justify-center p-4" style="background:rgba(1,6,15,0.72);backdrop-filter:blur(12px) saturate(180%)">
+      <div
+        ref="modalRef"
+        class="onbCard w-full max-w-[860px] bg-app rounded-2xl overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+      >
+        <!-- Header -->
+        <div class="px-6 pt-6 pb-0">
+          <!-- Step dots -->
+          <div class="flex items-center gap-1.5 mb-4">
+            <span
+              v-for="n in 2"
+              :key="n"
+              class="h-1.5 rounded-full transition-all duration-300"
+              :class="n === step ? 'w-5 bg-vivid' : 'w-1.5 bg-muted/25'"
+            ></span>
+            <span class="ml-1.5 text-muted text-xs">{{ step }} / 2</span>
+          </div>
+
+          <h1 id="onboarding-title" class="text-white text-xl font-semibold leading-snug">
+            Nastav si úvodný profil
+          </h1>
+          <p class="mt-1.5 text-muted text-sm">
+            {{ step === 1 ? 'Vyber oblasti, ktoré ťa zaujímajú.' : 'Kde najčastejšie pozoruješ oblohu?' }}
           </p>
-        </header>
+        </div>
 
-        <div class="onbBody">
-          <transition name="onbStep" mode="out-in">
-            <section v-if="step === 1" key="step-1" class="onbStepSection">
-              <p class="onbSectionIntro">Vyber si temy, ktore chces mat vo feede a vo widgetoch stale po ruke.</p>
-              <div class="chipWrap">
-                <button
-                  v-for="item in interestsCatalog"
-                  :key="item.key"
-                  type="button"
-                  class="chip"
-                  :class="{ active: isSelected(item.key) }"
-                  @click="toggleInterest(item.key)"
-                >
-                  {{ item.label }}
-                </button>
-              </div>
-            </section>
-
-            <section v-else key="step-2" class="onbStepSection">
-              <p class="onbSectionIntro">Tvoju lokalitu pouzijeme pre pocasie, seeing a dalsie pozorovacie widgety.</p>
-              <label class="field">
-                <span class="fieldLabel">Mesto alebo obec</span>
-                <input
-                  v-model.trim="locationLabel"
-                  class="fieldInput"
-                  type="text"
-                  placeholder="Napriklad Bratislava"
-                  autocomplete="off"
-                  @focus="openSuggestions = true"
-                />
-              </label>
-
-              <ul v-if="openSuggestions && suggestions.length > 0" class="suggestions" role="listbox">
-                <li v-for="option in suggestions" :key="option.place_id">
-                  <button type="button" class="suggestionItem" @click="selectLocation(option)">
-                    <span class="suggestionTitle">{{ option.label }}</span>
-                    <span v-if="option.country || option.timezone" class="suggestionMeta">
-                      {{ [option.country, option.timezone].filter(Boolean).join(' / ') }}
-                    </span>
+        <!-- Body -->
+        <div class="onbBody px-6 py-5">
+          <!-- Step content -->
+          <div class="onbStepWrap min-w-0">
+            <transition name="onbStep" mode="out-in">
+              <!-- Step 1: Interests -->
+              <section v-if="step === 1" key="step-1">
+                <p class="text-muted text-sm mb-4">Vyber si témy, ktoré chceš mať vo feede a vo widgetoch stále po ruke.</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="item in interestsCatalog"
+                    :key="item.key"
+                    type="button"
+                    class="onbChip rounded-2xl px-4 py-2 text-sm font-medium transition-all"
+                    :class="isSelected(item.key) ? 'bg-vivid text-white' : 'bg-hover text-muted hover:text-white'"
+                    @click="toggleInterest(item.key)"
+                  >
+                    {{ item.label }}
                   </button>
-                </li>
-              </ul>
-            </section>
-          </transition>
+                </div>
+              </section>
 
-          <aside class="onbShowcase" aria-label="Ukazka widgetov">
-            <p class="onbShowcaseEyebrow">Widgety na mieru</p>
-            <h2 class="onbShowcaseTitle">{{ showcaseContent.title }}</h2>
-            <p class="onbShowcaseText">{{ showcaseContent.body }}</p>
-            <OnboardingWidgetPreview class="onbShowcasePreview" />
-            <div class="onbShowcasePoints">
-              <span
-                v-for="point in showcaseContent.points"
-                :key="point"
-                class="onbShowcasePoint"
-              >
-                {{ point }}
-              </span>
+              <!-- Step 2: Location -->
+              <section v-else key="step-2">
+                <p class="text-muted text-sm mb-4">Tvoju lokalitu použijeme pre počasie, seeing a ďalšie pozorovacie widgety.</p>
+                <div class="relative">
+                  <label class="block text-muted text-xs font-medium mb-1.5">Mesto alebo obec</label>
+                  <input
+                    v-model.trim="locationLabel"
+                    class="onbInput w-full bg-hover rounded-xl px-4 py-3 text-white text-sm transition-shadow"
+                    type="text"
+                    placeholder="Napríklad Bratislava"
+                    autocomplete="off"
+                    @focus="openSuggestions = true"
+                  />
+                  <ul
+                    v-if="openSuggestions && suggestions.length > 0"
+                    class="absolute left-0 right-0 mt-1.5 bg-app rounded-xl overflow-hidden z-10 divide-y divide-white/5"
+                    style="box-shadow:0 8px 24px rgba(0,0,0,0.4);"
+                    role="listbox"
+                  >
+                    <li v-for="option in suggestions" :key="option.place_id">
+                      <button
+                        type="button"
+                        class="w-full text-left px-4 py-2.5 hover:bg-hover transition-colors"
+                        @click="selectLocation(option)"
+                      >
+                        <span class="block text-white text-sm">{{ option.label }}</span>
+                        <span v-if="option.country || option.timezone" class="block text-muted text-xs mt-0.5">
+                          {{ [option.country, option.timezone].filter(Boolean).join(' · ') }}
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </section>
+            </transition>
+          </div>
+
+          <!-- Showcase -->
+          <aside class="onbShowcase min-w-0 rounded-xl overflow-hidden" aria-label="Ukážka widgetov" style="background:rgba(15,115,255,0.05);border:1px solid rgba(15,115,255,0.12);">
+            <div class="px-4 pt-4 pb-3">
+              <p class="text-vivid text-[0.68rem] font-semibold uppercase tracking-widest mb-1">Widgety na mieru</p>
+              <h2 class="text-white text-[0.95rem] font-semibold leading-snug">{{ showcaseContent.title }}</h2>
+              <p class="text-muted text-xs leading-relaxed mt-1.5">{{ showcaseContent.body }}</p>
             </div>
+            <OnboardingWidgetPreview class="mx-3 mb-3" />
           </aside>
         </div>
 
-        <footer class="onbActions">
-          <button type="button" class="btnGhost" :disabled="loading" @click="emitSkip">Preskocit</button>
-          <div class="rightActions">
-            <button v-if="step === 2" type="button" class="btnGhost" :disabled="loading" @click="step = 1">Spat</button>
+        <!-- Footer -->
+        <div class="flex items-center justify-between px-6 pb-6 gap-3">
+          <button
+            type="button"
+            class="rounded-2xl bg-secondary-btn text-muted font-medium px-5 py-2.5 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-secondary-btn-hover active:scale-[0.97]"
+            :disabled="loading"
+            @click="emitSkip"
+          >
+            Preskočiť
+          </button>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="step === 2"
+              type="button"
+              class="rounded-2xl bg-secondary-btn text-muted font-medium px-5 py-2.5 text-sm transition-all disabled:opacity-40 hover:bg-secondary-btn-hover active:scale-[0.97]"
+              :disabled="loading"
+              @click="step = 1"
+            >
+              Späť
+            </button>
             <button
               v-if="step === 1"
               type="button"
-              class="btnPrimary"
+              class="rounded-2xl bg-vivid text-white font-medium px-5 py-2.5 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-vivid-hover active:scale-[0.97]"
               :disabled="loading || selectedInterests.length === 0"
               @click="step = 2"
             >
               Ďalej
             </button>
-            <button v-else type="button" class="btnPrimary" :disabled="loading" @click="emitFinish">
-              {{ loading ? 'Ukladám...' : 'Dokončiť' }}
+            <button
+              v-else
+              type="button"
+              class="rounded-2xl bg-vivid text-white font-medium px-5 py-2.5 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-vivid-hover active:scale-[0.97]"
+              :disabled="loading"
+              @click="emitFinish"
+            >
+              {{ loading ? 'Ukladám…' : 'Dokončiť' }}
             </button>
           </div>
-        </footer>
+        </div>
       </div>
     </div>
   </transition>
@@ -138,24 +187,14 @@ const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:n
 const showcaseContent = computed(() => {
   if (step.value === 2) {
     return {
-      title: 'Lokalita spravi widgety skutocne uzitocne.',
-      body: 'Po uložení budeš mat v pravom paneli alebo v mobile presnejšie podmienky pre tvoje miesto.',
-      points: [
-        'pocasie a seeing podla lokality',
-        'mesiac, ISS a ukazy rychlo po ruke',
-        'všetko vieš neskôr zmeniť v nastaveniach',
-      ],
+      title: 'Lokalita spraví widgety skutočne užitočné.',
+      body: 'Po uložení budeš mať v pravom paneli alebo v mobile presnejšie podmienky pre tvoje miesto.',
     }
   }
 
   return {
-    title: 'Zaujmy menia to, co ti aplikacia prioritne ukazuje.',
-    body: 'Feed aj sidebar widgety sa pri prvom pouziti vedia lepsie trafit do toho, co chces sledovat.',
-    points: [
-      'relevantnejsi feed od prveho otvorenia',
-      'widgety pre ukazy, mesiac a oblohu',
-      'bez zbytocneho nastavovania navyse',
-    ],
+    title: 'Záujmy menia to, čo ti aplikácia prioritne ukazuje.',
+    body: 'Feed aj sidebar widgety sa pri prvom použití vedia lepšie trafiť do toho, čo chceš sledovať.',
   }
 })
 
@@ -290,302 +329,89 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.onbOverlay {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  background: rgb(var(--color-bg-rgb) / 0.55);
-  backdrop-filter: blur(4px);
+/* Modal entrance */
+.onbFade-enter-active {
+  transition: opacity 220ms ease;
 }
-
-.onbModal {
-  width: min(100%, 860px);
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  background:
-    radial-gradient(700px 240px at 0% 0%, rgb(var(--color-primary-rgb) / 0.12), transparent 65%),
-    rgb(var(--color-bg-rgb));
-  box-shadow: 0 24px 70px rgb(var(--color-bg-rgb) / 0.45);
-  padding: 1.1rem;
-  display: grid;
-  gap: 1rem;
-  transition: transform 180ms ease;
-}
-
-.onbHeader h1 {
-  margin: 0.2rem 0 0;
-  font-size: clamp(1.25rem, 2.8vw, 1.6rem);
-}
-
-.onbProgress {
-  margin: 0;
-  font-size: 0.82rem;
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.onbLead {
-  margin: 0.4rem 0 0;
-  color: var(--color-text-secondary);
-}
-
-.onbBody {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
-  gap: 1rem;
-  align-items: start;
-}
-
-.onbStepSection,
-.onbShowcase {
-  min-width: 0;
-  border-radius: 0.95rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-}
-
-.onbStepSection {
-  display: grid;
-  gap: 0.85rem;
-  align-content: start;
-  min-height: 100%;
-  padding: 0.95rem;
-  background: rgb(var(--color-bg-rgb) / 0.48);
-}
-
-.onbSectionIntro {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--color-text-secondary);
-}
-
-.onbShowcase {
-  display: grid;
-  gap: 0.8rem;
-  padding: 1rem;
-  background:
-    radial-gradient(140% 120% at 100% 0%, rgb(var(--color-primary-rgb) / 0.16), transparent 55%),
-    rgb(var(--color-bg-rgb) / 0.56);
-}
-
-.onbShowcaseEyebrow,
-.onbShowcaseText {
-  margin: 0;
-}
-
-.onbShowcaseEyebrow {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.onbShowcaseTitle {
-  margin: 0;
-  font-size: clamp(1rem, 2vw, 1.2rem);
-  line-height: 1.2;
-}
-
-.onbShowcaseText {
-  font-size: 0.84rem;
-  color: var(--color-text-secondary);
-}
-
-.onbShowcasePoints {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.onbShowcasePoint {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.8rem;
-  border-radius: 999px;
-  padding: 0.26rem 0.62rem;
-  background: rgb(var(--color-primary-rgb) / 0.12);
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.18);
-  font-size: 0.75rem;
-  color: rgb(var(--color-surface-rgb) / 0.92);
-}
-
-.chipWrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.chip {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  color: inherit;
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-
-.chip.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.75);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
-}
-
-.field {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.fieldLabel {
-  font-size: 0.82rem;
-  color: var(--color-text-secondary);
-}
-
-.fieldInput {
-  width: 100%;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
-  border-radius: 0.7rem;
-  padding: 0.64rem 0.72rem;
-  background: rgb(var(--color-bg-rgb) / 0.6);
-  color: inherit;
-}
-
-.fieldInput:focus-visible {
-  outline: 0;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 0.2);
-}
-
-.suggestions {
-  list-style: none;
-  margin: 0.5rem 0 0;
-  padding: 0.35rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.25);
-  border-radius: 0.7rem;
-  background: rgb(var(--color-bg-rgb) / 0.9);
-  max-height: 220px;
-  overflow: auto;
-}
-
-.suggestionItem {
-  width: 100%;
-  text-align: left;
-  display: grid;
-  gap: 0.12rem;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  border-radius: 0.45rem;
-  padding: 0.48rem 0.55rem;
-  cursor: pointer;
-}
-
-.suggestionTitle {
-  font-size: 0.88rem;
-}
-
-.suggestionMeta {
-  font-size: 0.72rem;
-  color: var(--color-text-secondary);
-}
-
-.suggestionItem:hover {
-  background: rgb(var(--color-primary-rgb) / 0.14);
-}
-
-.onbActions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-
-.rightActions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.btnGhost,
-.btnPrimary {
-  border-radius: 0.65rem;
-  padding: 0.54rem 0.84rem;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.btnGhost {
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: rgb(var(--color-bg-rgb) / 0.45);
-  color: inherit;
-}
-
-.btnPrimary {
-  border-color: rgb(var(--color-primary-rgb) / 0.5);
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
-}
-
-.btnGhost:disabled,
-.btnPrimary:disabled {
-  opacity: 0.58;
-  cursor: not-allowed;
-}
-
-.onbFade-enter-active,
 .onbFade-leave-active {
   transition: opacity 180ms ease;
 }
-
 .onbFade-enter-from,
 .onbFade-leave-to {
   opacity: 0;
 }
-
-.onbFade-enter-from .onbModal,
-.onbFade-leave-to .onbModal {
-  transform: scale(0.98);
+.onbFade-enter-active .onbCard {
+  animation: onbCardIn 300ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+.onbFade-leave-active .onbCard {
+  animation: onbCardOut 180ms ease forwards;
 }
 
+@keyframes onbCardIn {
+  from {
+    transform: scale(0.93) translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes onbCardOut {
+  to {
+    transform: scale(0.96) translateY(8px);
+    opacity: 0;
+  }
+}
+
+/* Step transition */
 .onbStep-enter-active,
 .onbStep-leave-active {
-  transition: all 180ms ease;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
-
 .onbStep-enter-from {
   opacity: 0;
-  transform: translateX(10px);
+  transform: translateX(12px);
 }
-
 .onbStep-leave-to {
   opacity: 0;
-  transform: translateX(-10px);
+  transform: translateX(-12px);
 }
 
-@media (max-width: 680px) {
-  .onbOverlay {
-    padding: 0.65rem;
-  }
+/* Layout */
+.onbBody {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 260px);
+  gap: 1.25rem;
+  align-items: start;
+}
 
-  .onbModal {
-    border-radius: 0.85rem;
-    padding: 0.85rem;
-  }
+/* Input */
+.onbInput {
+  border: none;
+  outline: none;
+}
+.onbInput::placeholder {
+  color: rgba(171, 184, 201, 0.35);
+}
+.onbInput:focus {
+  box-shadow: 0 0 0 2px rgba(15, 115, 255, 0.35);
+}
 
+/* Chip */
+.onbChip {
+  border: none;
+  cursor: pointer;
+}
+
+/* Mobile */
+@media (max-width: 640px) {
   .onbBody {
     grid-template-columns: 1fr;
   }
 
-  .onbActions {
-    flex-wrap: wrap;
-  }
-
-  .rightActions {
-    width: 100%;
-    justify-content: flex-end;
+  .onbShowcase {
+    display: none;
   }
 }
 </style>

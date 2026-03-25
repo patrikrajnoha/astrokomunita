@@ -478,8 +478,8 @@ async function fetchGifResults(query) {
   } catch (error) {
     const status = Number(error?.response?.status || 0)
     gifError.value = status === 429
-      ? 'GIF vyhladavanie je dočasne pretazene. Skus neskor.'
-      : (error?.response?.data?.message || 'GIF vyhladavanie zlyhalo.')
+      ? 'GIF vyhľadávanie je dočasne preťažené. Skús neskôr.'
+      : (error?.response?.data?.message || 'GIF vyhľadávanie zlyhalo.')
   } finally {
     gifLoading.value = false
   }

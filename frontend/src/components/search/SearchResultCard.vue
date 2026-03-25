@@ -148,25 +148,23 @@ const iconPaths = computed(() => {
 <style scoped>
 .searchResultCard {
   display: block;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: rgb(var(--bg-app-rgb) / 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  background: rgba(21, 29, 40, 0.42);
   padding: 0.72rem;
   color: inherit;
   text-decoration: none;
-  transition:
-    background-color var(--motion-base),
-    border-color var(--motion-base);
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
 
 .searchResultCard:hover {
-  border-color: var(--color-border-strong);
-  background: rgb(var(--bg-app-rgb) / 0.56);
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(21, 29, 40, 0.56);
 }
 
 .searchResultCard:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .searchResultCard__row {
@@ -183,10 +181,10 @@ const iconPaths = computed(() => {
   flex-shrink: 0;
   width: 2rem;
   height: 2rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: rgb(var(--color-text-secondary-rgb) / 0.94);
-  background: rgb(var(--bg-app-rgb) / 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  color: rgba(171, 184, 201, 0.94);
+  background: rgba(21, 29, 40, 0.58);
 }
 
 .searchResultCard__content {
@@ -197,16 +195,16 @@ const iconPaths = computed(() => {
 
 .searchResultCard__title {
   margin: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  color: #ffffff;
+  font-size: 0.875rem;
   font-weight: 650;
   line-height: 1.34;
 }
 
 .searchResultCard__excerpt {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  color: #ABB8C9;
+  font-size: 0.875rem;
   line-height: 1.45;
   overflow: hidden;
   display: -webkit-box;
@@ -216,14 +214,14 @@ const iconPaths = computed(() => {
 
 .searchResultCard__meta {
   margin: 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  color: rgba(171, 184, 201, 0.82);
   font-size: 0.72rem;
   line-height: 1.3;
 }
 
 .searchResultCard__mark {
   border-radius: 0.28rem;
-  background: rgb(var(--color-accent-rgb) / 0.16);
+  background: rgba(15, 115, 255, 0.16);
   padding-inline: 0.2rem;
   color: inherit;
 }

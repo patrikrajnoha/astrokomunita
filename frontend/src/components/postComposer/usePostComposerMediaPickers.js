@@ -89,8 +89,8 @@ export function usePostComposerMediaPickers({
     } catch (e) {
       const status = Number(e?.response?.status || 0)
       gifError.value = status === 429
-        ? 'GIF vyhladavanie je dočasne pretazene. Skus neskor.'
-        : (e?.response?.data?.message || 'GIF vyhladavanie zlyhalo.')
+        ? 'GIF vyhľadávanie je dočasne preťažené. Skús neskôr.'
+        : (e?.response?.data?.message || 'GIF vyhľadávanie zlyhalo.')
     } finally {
       gifLoading.value = false
     }

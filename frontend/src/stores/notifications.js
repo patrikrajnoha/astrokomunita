@@ -32,26 +32,26 @@ function normalizeNotificationPayload(payload) {
 function toastMessageFor(notification) {
   if (notification.type === 'event_invite') {
     const inviter = notification.data?.actor_name || notification.data?.actor_username || 'Niekto'
-    return `${inviter} ta pozval na astronomicke podujatie.`
+    return `${inviter} ťa pozval na astronomické podujatie.`
   }
 
   if (notification.type === 'event_invite_response') {
     const actor = notification.data?.actor_name || notification.data?.actor_username || 'Niekto'
     const status = String(notification.data?.response_status || '').toLowerCase()
-    if (status === 'accepted') return `${actor} prijal tvoju pozvanku.`
-    if (status === 'declined') return `${actor} odmietol tvoju pozvanku.`
-    return `${actor} odpovedal na tvoju pozvanku.`
+    if (status === 'accepted') return `${actor} prijal tvoju pozvánku.`
+    if (status === 'declined') return `${actor} odmietol tvoju pozvánku.`
+    return `${actor} odpovedal na tvoju pozvánku.`
   }
 
   if (notification.type === 'contest_winner') {
-    return 'Vyhral si sutaz.'
+    return 'Vyhral si súťaž.'
   }
 
   if (notification.type === 'account_restricted') {
-    return 'Tvoj ucet bol obmedzeny.'
+    return 'Tvoj účet bol obmedzený.'
   }
 
-  return 'Nova notifikacia'
+  return 'Nová notifikácia'
 }
 
 function notificationCreatedAtTimestamp(item) {
@@ -234,11 +234,11 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (err) {
         const status = err?.response?.status
         if (status === 401) {
-          this.error = 'Relacia vyprsala. Prihlas sa znova.'
+          this.error = 'Relácia vypršala. Prihlás sa znova.'
         } else if (status === 403) {
-          this.error = 'Tento ucet nema pristup k notifikaciam.'
+          this.error = 'Tento účet nemá prístup k notifikáciám.'
         } else {
-          this.error = err?.response?.data?.message || 'Nepodarilo sa nacitat notifikacie.'
+          this.error = err?.response?.data?.message || 'Nepodarilo sa načítať notifikácie.'
         }
         console.warn('Notifications fetch failed:', err?.message || err)
       } finally {
@@ -284,11 +284,11 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (err) {
         const status = err?.response?.status
         if (status === 401) {
-          this.latestError = 'Relacia vyprsala. Prihlas sa znova.'
+          this.latestError = 'Relácia vypršala. Prihlás sa znova.'
         } else if (status === 403) {
-          this.latestError = 'Tento ucet nema pristup k notifikaciam.'
+          this.latestError = 'Tento účet nemá prístup k notifikáciám.'
         } else {
-          this.latestError = err?.response?.data?.message || 'Nepodarilo sa nacitat notifikacie.'
+          this.latestError = err?.response?.data?.message || 'Nepodarilo sa načítať notifikácie.'
         }
         console.warn('Latest notifications fetch failed:', err?.message || err)
       } finally {
@@ -334,7 +334,7 @@ export const useNotificationsStore = defineStore('notifications', {
         if (fetchSeq !== this.unreadCountFetchSeq) return
         const status = err?.response?.status
         if (status === 403 && !this.error) {
-          this.error = 'Tento ucet nema pristup k notifikaciam.'
+          this.error = 'Tento účet nemá prístup k notifikáciám.'
         }
         console.warn('Unread count fetch failed:', err?.message || err)
       } finally {

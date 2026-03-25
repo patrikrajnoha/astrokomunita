@@ -215,19 +215,19 @@ function normalizeHttpErrorMessage(error) {
 
   const isTimeoutError = code === 'ECONNABORTED' || message.toLowerCase().includes('timeout')
   if (isTimeoutError) {
-    return 'Server neodpoveda. Skus to znova neskor.'
+    return 'Server neodpovedá. Skús to znova neskôr.'
   }
 
   const isNetworkError = !status && (code === 'ERR_NETWORK' || message === 'Network Error' || message.toLowerCase().includes('network'))
   if (isNetworkError) {
-    return 'Backend je nedostupny. Skontroluj, ci bezi API server.'
+    return 'Backend je nedostupný. Skontroluj, či beží API server.'
   }
 
   if (status >= 500) {
-    return 'Chyba servera. Skus to neskor.'
+    return 'Chyba servera. Skús to neskôr.'
   }
 
-  return String(error?.response?.data?.message || message || 'Poziadavka zlyhala.')
+  return String(error?.response?.data?.message || message || 'Požiadavka zlyhala.')
 }
 
 function logDevAuthDiagnostic(error, status) {
@@ -326,7 +326,7 @@ api.interceptors.response.use(
 
     if (!suppressToast) {
       if (status === 422) {
-        toast.warn('Skontroluj formular.')
+        toast.warn('Skontroluj formulár.')
       } else if (isVerificationError(error, status, normalizedMessage)) {
         const backendCode = resolveBackendErrorCode(error)
         const backendAction = resolveBackendAction(error)
@@ -334,8 +334,8 @@ api.interceptors.response.use(
           backendAction === 'GO_TO_SETTINGS_EMAIL' || !backendAction
         const verificationMessage =
           backendCode === 'EMAIL_VERIFY_DEPRECATED'
-            ? 'Overenie cez odkaz uz nie je podporovane.'
-            : 'Najprv over emailovu adresu.'
+            ? 'Overenie cez odkaz už nie je podporované.'
+            : 'Najprv over emailovú adresu.'
 
         toast.warn(verificationMessage, {
           action: shouldOfferSettingsLink
@@ -359,12 +359,12 @@ api.interceptors.response.use(
           }
 
           if (shouldRedirect) {
-            toast.warn(error?.response?.data?.message || 'Relacia vyprsala. Prihlas sa znova.')
+            toast.warn(error?.response?.data?.message || 'Relácia vypršala. Prihlás sa znova.')
             redirectToLoginIfNeeded()
           }
         }
       } else if (status === 419) {
-        toast.warn(error?.response?.data?.message || 'Bezpecnostny token vyprsal. Obnov stranku a skus to znova.')
+        toast.warn(error?.response?.data?.message || 'Bezpečnostný token vypršal. Obnov stránku a skús to znova.')
       } else if (status >= 500 || isTimeoutOrNetwork) {
         if (shouldShowErrorToast(normalizedMessage, status)) {
           toast.error(normalizedMessage)

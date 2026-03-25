@@ -160,7 +160,7 @@ const windowStatusText = computed(() => {
   if (raw.includes('Nastav') || raw.includes('nedostupne') || raw.includes('nie je dostupne')) return ''
   if (raw === 'Prave prebieha') return 'Práve prebieha'
   if (raw.startsWith('Noc začne:')) return `Noc začne: ${raw.slice('Noc začne: '.length).trim()}`
-  if (raw === 'Najlepšie dnes: po zotmeni') return 'Najlepšie po zotmení'
+  if (raw === 'Najlepšie dnes: po zotmení') return 'Najlepšie po zotmení'
   // time window like "21:15 - 23:45"
   return `Okno: ${raw}`
 })

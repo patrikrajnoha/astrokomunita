@@ -1,5 +1,6 @@
 <template>
-  <section class="min-h-screen bg-[linear-gradient(180deg,rgb(var(--bg-app-rgb)/0.98)_0%,rgb(var(--bg-app-rgb)/0.95)_48%,rgb(var(--bg-surface-rgb)/0.94)_100%)] text-[var(--text-primary)]">
+  <div>
+  <section class="min-h-screen bg-app text-white">
     <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col">
       <div class="px-5 pt-6 pb-2 sm:px-8">
         <PageHeader title="Notifikácie">
@@ -7,14 +8,14 @@
             <button
               v-if="items.length"
               type="button"
-              class="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)]"
+              class="rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-muted transition hover:border-white/[0.16] hover:text-white"
               @click="markAll"
             >
               Označiť všetko
             </button>
             <button
               data-testid="open-notification-settings"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--color-border)] text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] text-muted transition hover:border-white/[0.16] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF]"
               type="button"
               @click="openSettingsModal"
             >
@@ -32,7 +33,7 @@
         <div
           v-for="index in 5"
           :key="`notification-list-skeleton-${index}`"
-          class="h-16 animate-pulse rounded-2xl bg-[color:rgb(var(--bg-surface-2-rgb)/0.5)]"
+          class="h-16 animate-pulse rounded-2xl bg-[rgba(28,39,54,0.5)]"
         ></div>
       </div>
 
@@ -48,15 +49,15 @@
 
       <div v-else-if="!items.length" class="flex flex-1 flex-col items-center px-5 py-16 text-center">
         <div class="mt-8 flex h-full min-h-[60vh] flex-col items-center pt-16" data-testid="notifications-page-empty">
-          <svg viewBox="0 0 24 24" class="h-14 w-14 text-[color:rgb(var(--text-secondary-rgb)/0.6)]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" class="h-14 w-14 text-[rgba(171,184,201,0.6)]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z"></path>
             <path d="M9.5 18a2.5 2.5 0 0 0 5 0"></path>
           </svg>
-          <p class="mt-4 text-xl font-semibold tracking-tight text-[color:rgb(var(--text-secondary-rgb)/0.88)] sm:text-2xl">Zatiaľ žiadne notifikácie.</p>
-          <p class="mt-2 text-sm text-[var(--text-secondary)]">Keď nastane aktivita, zobrazí sa tu.</p>
+          <p class="mt-4 text-xl font-semibold tracking-tight text-[rgba(171,184,201,0.88)] sm:text-2xl">Zatiaľ žiadne notifikácie.</p>
+          <p class="mt-2 text-sm text-muted">Keď nastane aktivita, zobrazí sa tu.</p>
           <button
             type="button"
-            class="mt-6 rounded-full border border-[var(--color-border)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)]"
+            class="mt-6 rounded-full border border-white/[0.08] px-4 py-2 text-sm text-muted transition hover:border-white/[0.16] hover:text-white"
             @click="openSettingsModal"
           >
             Nastaviť upozornenia
@@ -65,34 +66,34 @@
       </div>
 
       <div v-else class="mx-auto w-full max-w-3xl flex-1 px-5 py-7 sm:px-8">
-        <div class="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[color:rgb(var(--bg-surface-rgb)/0.4)]">
+        <div class="overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(28,39,54,0.4)]">
           <button
             v-for="item in items"
             :key="item.id"
             type="button"
-            class="group flex w-full items-center gap-3 border-b border-[var(--divider-color)] px-5 py-3.5 text-left transition hover:bg-[color:rgb(var(--bg-surface-2-rgb)/0.58)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)] last:border-b-0"
-            :class="item.read_at ? 'opacity-75' : 'border-l-[3px] border-l-[color:rgb(var(--primary-rgb)/0.65)] bg-[color:rgb(var(--bg-surface-2-rgb)/0.38)]'"
+            class="group flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.07)] px-5 py-3.5 text-left transition hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF] last:border-b-0"
+            :class="item.read_at ? 'opacity-75' : 'border-l-[3px] border-l-[rgba(15,115,255,0.65)] bg-[rgba(28,39,54,0.38)]'"
             @click="openNotification(item)"
           >
             <span class="flex-none text-base leading-none" aria-hidden="true">{{ formatIcon(item) }}</span>
             <span class="min-w-0 flex-1">
-              <span class="block text-sm font-semibold text-[var(--text-primary)]">{{ formatTitle(item) }}</span>
-              <span class="mt-0.5 block text-xs text-[var(--text-secondary)]">{{ formatSubtitle(item) }}</span>
+              <span class="block text-sm font-semibold text-white">{{ formatTitle(item) }}</span>
+              <span class="mt-0.5 block text-xs text-muted">{{ formatSubtitle(item) }}</span>
             </span>
-            <span class="shrink-0 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+            <span class="shrink-0 flex items-center gap-1.5 text-xs text-muted">
               <span>{{ formatTime(item) }}</span>
               <span aria-hidden="true" class="opacity-30 transition-opacity group-hover:opacity-60">›</span>
             </span>
           </button>
         </div>
 
-        <div v-if="isPaginating" class="px-2 py-4 text-xs text-[var(--text-muted)]" data-testid="notifications-page-paginating">
+        <div v-if="isPaginating" class="px-2 py-4 text-xs text-muted" data-testid="notifications-page-paginating">
           Načítavam ďalšie...
         </div>
 
         <button
           v-if="page < lastPage"
-          class="mt-4 w-full rounded-xl border border-[var(--color-border)] py-2.5 text-sm text-[var(--text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--text-primary)]"
+          class="mt-4 w-full rounded-xl border border-white/[0.08] py-2.5 text-sm text-muted transition hover:border-white/[0.16] hover:text-white"
           type="button"
           :disabled="isPaginating"
           @click="loadMore"
@@ -111,15 +112,15 @@
     @close="handleModalClose"
   >
     <template #description>
-      <p class="mt-2 text-sm text-[var(--text-secondary)]">Vyber si upozornenia pre pozorovanie oblohy.</p>
+      <p class="mt-2 text-sm text-muted">Vyber si upozornenia pre pozorovanie oblohy.</p>
 
     </template>
 
     <div id="notification-settings" class="space-y-4">
-      <section class="overflow-hidden rounded-2xl bg-[color:rgb(var(--bg-surface-rgb)/0.32)]">
-        <div class="border-b border-[var(--divider-color)] px-4 py-3">
-          <p class="text-sm font-semibold text-[var(--text-primary)]">Tipy na oblohu</p>
-          <p class="mt-1 text-xs text-[var(--text-secondary)]">Rýchle upozornenia na lokálne podmienky a ISS prelety.</p>
+      <section class="overflow-hidden rounded-2xl bg-[rgba(28,39,54,0.32)]">
+        <div class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3">
+          <p class="text-sm font-semibold text-white">Tipy na oblohu</p>
+          <p class="mt-1 text-xs text-muted">Rýchle upozornenia na lokálne podmienky a ISS prelety.</p>
         </div>
 
         <button
@@ -135,81 +136,81 @@
           <div
             v-for="index in 2"
             :key="`preference-skeleton-${index}`"
-            class="h-16 animate-pulse rounded-2xl bg-[color:rgb(var(--text-secondary-rgb)/0.15)]"
+            class="h-16 animate-pulse rounded-2xl bg-[rgba(171,184,201,0.15)]"
           ></div>
         </div>
 
         <div v-else>
           <p
             v-if="preferencesError"
-            class="border-b border-[var(--divider-color)] px-4 py-3 text-sm text-[var(--text-primary)]"
+            class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3 text-sm text-white"
             role="status"
           >
             Nastavenia sky alertov sú dočasne nedostupné. Skús znova.
           </p>
 
           <label
-            class="flex items-center justify-between gap-4 border-b border-[var(--divider-color)] bg-[color:rgb(var(--bg-surface-2-rgb)/0.32)] px-4 py-4"
+            class="flex items-center justify-between gap-4 border-b border-[rgba(255,255,255,0.07)] bg-[rgba(28,39,54,0.32)] px-4 py-4"
           >
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-[var(--text-primary)]">Upozorniť ma pri výborných podmienkach</p>
-              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
+              <p class="text-sm font-semibold text-white">Upozorniť ma pri výborných podmienkach</p>
+              <p class="mt-1 text-xs text-muted">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
             </div>
             <button
               type="button"
-              class="inline-flex h-11 w-14 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
-              :class="preferences.good_conditions_alerts ? 'justify-end bg-[color:rgb(var(--primary-rgb)/0.32)]' : 'justify-start bg-[color:rgb(var(--text-primary-rgb)/0.05)]'"
+              class="inline-flex h-11 w-14 items-center rounded-full border border-white/[0.08] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+              :class="preferences.good_conditions_alerts ? 'justify-end bg-[rgba(15,115,255,0.32)]' : 'justify-start bg-[rgba(255,255,255,0.05)]'"
               :disabled="isSkyPreferenceToggleDisabled"
               :aria-pressed="preferences.good_conditions_alerts"
               @click="toggleSkyPreference('good_conditions_alerts')"
             >
-              <span class="h-6 w-6 rounded-full bg-[var(--text-primary)]"></span>
+              <span class="h-6 w-6 rounded-full bg-white"></span>
             </button>
           </label>
 
           <label
-            class="flex items-center justify-between gap-4 bg-[color:rgb(var(--bg-surface-2-rgb)/0.32)] px-4 py-4"
+            class="flex items-center justify-between gap-4 bg-[rgba(28,39,54,0.32)] px-4 py-4"
           >
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-[var(--text-primary)]">Upozorniť ma na ISS prelet</p>
-              <p class="mt-1 text-xs text-[var(--text-secondary)]">Dostaneš upozornenie pred ďalším dobré viditeľným preletom ISS.</p>
+              <p class="text-sm font-semibold text-white">Upozorniť ma na ISS prelet</p>
+              <p class="mt-1 text-xs text-muted">Dostaneš upozornenie pred ďalším dobré viditeľným preletom ISS.</p>
             </div>
             <button
               type="button"
-              class="inline-flex h-11 w-14 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
-              :class="preferences.iss_alerts ? 'justify-end bg-[color:rgb(var(--primary-rgb)/0.32)]' : 'justify-start bg-[color:rgb(var(--text-primary-rgb)/0.05)]'"
+              class="inline-flex h-11 w-14 items-center rounded-full border border-white/[0.08] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+              :class="preferences.iss_alerts ? 'justify-end bg-[rgba(15,115,255,0.32)]' : 'justify-start bg-[rgba(255,255,255,0.05)]'"
               :disabled="isSkyPreferenceToggleDisabled"
               :aria-pressed="preferences.iss_alerts"
               @click="toggleSkyPreference('iss_alerts')"
             >
-              <span class="h-6 w-6 rounded-full bg-[var(--text-primary)]"></span>
+              <span class="h-6 w-6 rounded-full bg-white"></span>
             </button>
           </label>
         </div>
       </section>
 
-      <section class="overflow-hidden rounded-2xl bg-[color:rgb(var(--bg-surface-rgb)/0.32)]">
-        <div class="border-b border-[var(--divider-color)] px-4 py-3">
-          <p class="text-sm font-semibold text-[var(--text-primary)]">Pripomienky udalostí</p>
-          <p class="mt-1 text-xs text-[var(--text-secondary)]">Vyber si, pre aké typy udalostí chceš app notifikácie a e-maily.</p>
+      <section class="overflow-hidden rounded-2xl bg-[rgba(28,39,54,0.32)]">
+        <div class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3">
+          <p class="text-sm font-semibold text-white">Pripomienky udalostí</p>
+          <p class="mt-1 text-xs text-muted">Vyber si, pre aké typy udalostí chceš app notifikácie a e-maily.</p>
         </div>
 
-        <div class="border-b border-[var(--divider-color)] bg-[color:rgb(var(--bg-surface-2-rgb)/0.32)] px-4 py-4">
+        <div class="border-b border-[rgba(255,255,255,0.07)] bg-[rgba(28,39,54,0.32)] px-4 py-4">
           <div class="flex items-center justify-between gap-4">
             <div class="min-w-0">
-              <p class="text-sm font-semibold text-[var(--text-primary)]">Povoliť e-mailové upozornenia</p>
-              <p class="mt-1 text-xs text-[var(--text-secondary)]">E-mail sa odošle len pre riadky, ktoré máš zapnuté v stĺpci Email.</p>
+              <p class="text-sm font-semibold text-white">Povoliť e-mailové upozornenia</p>
+              <p class="mt-1 text-xs text-muted">E-mail sa odošle len pre riadky, ktoré máš zapnuté v stĺpci Email.</p>
             </div>
             <button
               type="button"
               data-testid="delivery-email-enabled-toggle"
-              class="inline-flex h-11 w-14 items-center rounded-full border border-[var(--border)] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
-              :class="deliveryPreferences.email_enabled ? 'justify-end bg-[color:rgb(var(--primary-rgb)/0.32)]' : 'justify-start bg-[color:rgb(var(--text-primary-rgb)/0.05)]'"
+              class="inline-flex h-11 w-14 items-center rounded-full border border-white/[0.08] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
+              :class="deliveryPreferences.email_enabled ? 'justify-end bg-[rgba(15,115,255,0.32)]' : 'justify-start bg-[rgba(255,255,255,0.05)]'"
               :disabled="deliveryPreferencesLoading"
               :aria-pressed="deliveryPreferences.email_enabled"
               @click="toggleDeliveryEmailEnabled"
             >
-              <span class="h-6 w-6 rounded-full bg-[var(--text-primary)]"></span>
+              <span class="h-6 w-6 rounded-full bg-white"></span>
             </button>
           </div>
         </div>
@@ -227,28 +228,28 @@
           <div
             v-for="index in 4"
             :key="`delivery-preference-skeleton-${index}`"
-            class="h-20 animate-pulse rounded-2xl bg-[color:rgb(var(--text-secondary-rgb)/0.15)]"
+            class="h-20 animate-pulse rounded-2xl bg-[rgba(171,184,201,0.15)]"
           ></div>
         </div>
 
         <div v-else>
           <p
             v-if="deliveryPreferencesError"
-            class="border-b border-[var(--divider-color)] px-4 py-3 text-sm text-[var(--text-primary)]"
+            class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3 text-sm text-white"
             role="status"
           >
             Event reminder nastavenia sú dočasne nedostupné. Skús znova.
           </p>
 
-          <div v-else class="divide-y divide-[var(--divider-color)]">
+          <div v-else class="divide-y divide-[rgba(255,255,255,0.07)]">
             <div
               v-for="row in eventReminderPreferenceRows"
               :key="row.key"
-              class="flex items-center justify-between gap-4 bg-[color:rgb(var(--bg-surface-2-rgb)/0.32)] px-4 py-4"
+              class="flex items-center justify-between gap-4 bg-[rgba(28,39,54,0.32)] px-4 py-4"
             >
               <div class="min-w-0">
-                <p class="text-sm font-semibold text-[var(--text-primary)]">{{ row.label }}</p>
-                <p class="mt-1 text-xs text-[var(--text-secondary)]">{{ row.description }}</p>
+                <p class="text-sm font-semibold text-white">{{ row.label }}</p>
+                <p class="mt-1 text-xs text-muted">{{ row.description }}</p>
               </div>
 
               <div class="flex shrink-0 items-center gap-2">
@@ -281,6 +282,7 @@
       </section>
     </div>
   </BaseModal>
+  </div>
 </template>
 
 <script setup>
@@ -319,8 +321,8 @@ const lastPage = computed(() => store.lastPage)
 const isSettingsModalOpen = ref(false)
 const isInitialLoading = computed(() => loading.value && items.value.length === 0)
 const isPaginating = computed(() => loadingMore.value || (loading.value && items.value.length > 0))
-const activePreferenceButtonClass = 'border-[color:rgb(var(--primary-rgb)/0.42)] bg-[color:rgb(var(--primary-rgb)/0.2)] text-[var(--text-primary)]'
-const inactivePreferenceButtonClass = 'border-[var(--border)] bg-[color:rgb(var(--text-primary-rgb)/0.04)] text-[var(--text-secondary)]'
+const activePreferenceButtonClass = 'border-[rgba(15,115,255,0.42)] bg-[rgba(15,115,255,0.2)] text-white'
+const inactivePreferenceButtonClass = 'border-white/[0.08] bg-[rgba(255,255,255,0.04)] text-muted'
 
 const {
   preferences,

@@ -272,7 +272,7 @@ export function useProfileContentTabs({
     if (!tab || !state) return
 
     if (!auth.user) {
-      state.err = 'Prihlas sa.'
+      state.err = 'Prihlás sa.'
       return
     }
 
@@ -352,7 +352,7 @@ export function useProfileContentTabs({
       state.loaded = true
     } catch (e) {
       const status = e?.response?.status
-      if (status === 401) state.err = 'Prihlas sa.'
+      if (status === 401) state.err = 'Prihlás sa.'
       else state.err = e?.response?.data?.message || 'Načítanie zlyhalo.'
     } finally {
       state.loading = false

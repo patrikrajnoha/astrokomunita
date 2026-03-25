@@ -51,7 +51,7 @@ export function useFeedListInteractions({
   async function toggleBookmark(post) {
     if (!post?.id || isBookmarkLoading(post)) return
     if (!auth.isAuthed) {
-      currentFeed.value.err = 'Prihlas sa pre zalozky.'
+      currentFeed.value.err = 'Prihlás sa pre záložky.'
       return
     }
 
@@ -73,15 +73,15 @@ export function useFeedListInteractions({
       post.is_bookmarked = prevBookmarked
       post.bookmarked_at = prevBookmarkedAt
       bookmarks.setBookmarked(post.id, prevBookmarked)
-      currentFeed.value.err = e?.response?.data?.message || 'Ulozenie zalozky zlyhalo.'
-      toastError('Ulozenie zalozky zlyhalo.')
+      currentFeed.value.err = e?.response?.data?.message || 'Uloženie záložky zlyhalo.'
+      toastError('Uloženie záložky zlyhalo.')
     }
   }
 
   async function toggleLike(post) {
     if (!post?.id || isLikeLoading(post)) return
     if (!auth.isAuthed) {
-      currentFeed.value.err = 'Prihlas sa pre lajkovanie.'
+      currentFeed.value.err = 'Prihlás sa pre lajkovanie.'
       return
     }
 
@@ -104,7 +104,7 @@ export function useFeedListInteractions({
       post.liked_by_me = prevLiked
       post.likes_count = prevCount
       const status = e?.response?.status
-      if (status === 401) currentFeed.value.err = 'Prihlas sa.'
+      if (status === 401) currentFeed.value.err = 'Prihlás sa.'
       else currentFeed.value.err = e?.response?.data?.message || 'Lajk zlyhal.'
     } finally {
       setLikeLoading(post.id, false)
@@ -125,8 +125,8 @@ export function useFeedListInteractions({
       toastSuccess('Príspevok bol zmazaný.')
     } catch (e) {
       const status = e?.response?.status
-      if (status === 401) currentFeed.value.err = 'Prihlas sa.'
-      else if (status === 403) currentFeed.value.err = 'Nemas opravnenie.'
+      if (status === 401) currentFeed.value.err = 'Prihlás sa.'
+      else if (status === 403) currentFeed.value.err = 'Nemáš oprávnenie.'
       else currentFeed.value.err = e?.response?.data?.message || 'Mazanie zlyhalo.'
     } finally {
       deleteLoadingId.value = null
@@ -190,7 +190,7 @@ export function useFeedListInteractions({
       toastSuccess(wasPinned ? 'Príspevok bol odopnutý.' : 'Príspevok bol pripnutý.')
     } catch (e) {
       const status = e?.response?.status
-      if (status === 401) currentFeed.value.err = 'Prihlas sa.'
+      if (status === 401) currentFeed.value.err = 'Prihlás sa.'
       else if (status === 403) currentFeed.value.err = 'Nemáš oprávnenie.'
       else currentFeed.value.err = e?.response?.data?.message || 'Zmena pripnutia zlyhala.'
     } finally {

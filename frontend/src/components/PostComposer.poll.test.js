@@ -67,11 +67,11 @@ describe('PostComposer poll mode', () => {
 
     await wrapper.find('button[aria-label="Pridat anketu"]').trigger('click')
 
-    await wrapper.find('#post-composer-textarea').setValue('Otazka ankety')
+    await wrapper.find('#post-composer-textarea').setValue('Otázka ankety')
 
     const optionInputs = wrapper.findAll('input.optionInput')
-    await optionInputs[0].setValue('Moznost A')
-    await optionInputs[1].setValue('Moznost B')
+    await optionInputs[0].setValue('Možnosť A')
+    await optionInputs[1].setValue('Možnosť B')
 
     const optionImageInput = wrapper.findAll('input.hiddenInput')[0]
     const imageFile = new File(['abc'], 'a.png', { type: 'image/png' })

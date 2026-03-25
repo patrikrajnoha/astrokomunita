@@ -108,10 +108,10 @@ export function toFriendlyError(_error, fallback) {
 
   const status = Number(_error?.response?.status || 0)
 
-  if (status === 422) return 'Poloha je neplatna. Skontroluj ju v profile.'
-  if (status === 429) return 'Prilis vela poziadaviek. Skus to znova o chvilu.'
-  if (status === 401) return 'Prihlas sa a skus to znova.'
-  if (status >= 500) return 'Server je dočasne nedostupny. Skus to neskor.'
+  if (status === 422) return 'Poloha je neplatná. Skontroluj ju v profile.'
+  if (status === 429) return 'Príliš veľa požiadaviek. Skús to znova o chvíľu.'
+  if (status === 401) return 'Prihlás sa a skús to znova.'
+  if (status >= 500) return 'Server je dočasne nedostupný. Skús to neskôr.'
 
   const message = sanitizeLabel(_error?.message)
   if (message) return message

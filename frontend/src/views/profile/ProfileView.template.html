@@ -3,7 +3,7 @@
       <button class="iconBtn" @click="goHome">&larr;</button>
       <div class="topmeta">
         <div class="topname">{{ displayName }}</div>
-        <div class="topsmall">{{ auth.user ? `${stats.posts} postov` : `@${handle}` }}</div>
+        <div class="topsmall">{{ auth.user ? `${stats.posts} príspevkov` : `@${handle}` }}</div>
       </div>
     </header>
 
@@ -27,7 +27,7 @@
         @action="goLogin"
       />
 
-      <section v-if="auth.user" class="profileShell ui-profile-shell">
+      <section v-if="auth.user" class="profileShell">
         <div class="cover" :class="{ uploading: coverUploading }">
           <img
             v-if="coverSrc && !coverLoadFailed"
@@ -87,12 +87,15 @@
           <div class="headActions">
             <button
               v-if="auth.user"
-              class="ui-btn ui-btn--secondary"
+              class="min-h-[34px] px-3.5 rounded-xl bg-secondary-btn text-muted text-[13px] font-semibold border-0 cursor-pointer"
               @click="goToProfileEdit"
             >
               Upraviť profil
             </button>
-            <button class="ui-btn ui-btn--ghost copyBtn" @click="copyProfileLink">{{ copyLabel }}</button>
+            <button
+              class="min-h-[34px] px-3.5 rounded-xl bg-transparent text-muted text-[13px] font-semibold border-0 cursor-pointer copyBtn"
+              @click="copyProfileLink"
+            >{{ copyLabel }}</button>
           </div>
         </div>
 
@@ -102,13 +105,13 @@
           :message="mediaErr"
         />
 
-        <div class="identity ui-profile-header ui-profile-identity">
+        <div class="identity">
           <div class="nameRow">
             <h1 class="name">{{ displayName }}</h1>
-            <span v-if="auth.user?.is_admin" class="badge">Admin</span>
+            <span v-if="auth.user?.is_admin" class="profileBadge">Admin</span>
             <span
               v-if="auth.user?.is_bot || String(auth.user?.role || '').toLowerCase() === 'bot'"
-              class="badge badgeBot"
+              class="profileBadge profileBadge--bot"
             >
               BOT
             </span>
@@ -120,17 +123,17 @@
           <p v-else class="bio muted">Zatiaľ bez popisu.</p>
         </div>
 
-        <div class="statsRow ui-profile-stats" aria-label="Profilove statistiky">
-          <div class="stat ui-profile-stat">
+        <div class="statsRow" aria-label="Profilové štatistiky">
+          <div class="stat">
             <strong>{{ stats.posts }}</strong>
             <span>Príspevky</span>
           </div>
-          <div class="stat ui-profile-stat">
+          <div class="stat">
             <strong v-if="tabState.observations.total !== null">{{ tabState.observations.total }}</strong>
             <strong v-else class="ui-skeleton" aria-hidden="true" style="width:2ch;display:inline-block;">&ZeroWidthSpace;</strong>
             <span>Pozorovania</span>
           </div>
-          <div class="stat ui-profile-stat">
+          <div class="stat">
             <strong v-if="tabState.events.total !== null">{{ tabState.events.total }}</strong>
             <strong v-else class="ui-skeleton" aria-hidden="true" style="width:2ch;display:inline-block;">&ZeroWidthSpace;</strong>
             <span>Sledované udalosti</span>
@@ -240,7 +243,7 @@
               <div class="avatarImageActions">
                 <button
                   type="button"
-                  class="ui-btn ui-btn--secondary"
+                  class="min-h-[34px] px-3.5 rounded-xl bg-secondary-btn text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   :disabled="avatarUploading || avatarRemoving"
                   @click="openPicker('avatar')"
                 >
@@ -248,7 +251,7 @@
                 </button>
                 <button
                   type="button"
-                  class="ui-btn ui-btn--ghost"
+                  class="min-h-[34px] px-3.5 rounded-xl bg-transparent text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   :disabled="avatarUploading || avatarRemoving"
                   @click="removeAvatarImage"
                 >
@@ -307,10 +310,20 @@
               </div>
 
               <div class="avatarActionRow">
-                <button type="button" class="ui-btn ui-btn--secondary" :disabled="avatarSaving" @click="randomizeAvatar">
+                <button
+                  type="button"
+                  class="min-h-[34px] px-3.5 rounded-xl bg-secondary-btn text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50"
+                  :disabled="avatarSaving"
+                  @click="randomizeAvatar"
+                >
                   Náhodne
                 </button>
-                <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="resetGeneratedAvatar">
+                <button
+                  type="button"
+                  class="min-h-[34px] px-3.5 rounded-xl bg-transparent text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50"
+                  :disabled="avatarSaving"
+                  @click="resetGeneratedAvatar"
+                >
                   Resetovať
                 </button>
               </div>
@@ -318,10 +331,20 @@
           </template>
 
           <div class="avatarActionRow avatarActionRowSave">
-            <button type="button" class="ui-btn ui-btn--ghost" :disabled="avatarSaving" @click="avatarModalOpen = false">
+            <button
+              type="button"
+              class="min-h-[34px] px-3.5 rounded-xl bg-transparent text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50"
+              :disabled="avatarSaving"
+              @click="avatarModalOpen = false"
+            >
               Zavrieť
             </button>
-            <button type="button" class="ui-btn ui-btn--primary" :disabled="avatarSaving" @click="saveAvatarPreferences">
+            <button
+              type="button"
+              class="min-h-[34px] px-3.5 rounded-xl bg-vivid text-white text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50"
+              :disabled="avatarSaving"
+              @click="saveAvatarPreferences"
+            >
               {{ avatarSaving ? 'Ukladám...' : 'Uložiť' }}
             </button>
           </div>
@@ -332,7 +355,7 @@
         <div class="pinHeader">
           <div class="pinTitle">Pripnutý príspevok</div>
           <button
-            class="ui-btn ui-btn--ghost"
+            class="min-h-[34px] px-3.5 rounded-xl bg-transparent text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50"
             :disabled="pinLoadingId === pinnedPost.id"
             @click="togglePin(pinnedPost)"
           >
@@ -349,7 +372,7 @@
               alt="attachment"
             />
             <a v-else class="attachmentFile" :href="pinnedPost.attachment_url" target="_blank" rel="noreferrer">
-              {{ pinnedPost.attachment_original_name || 'Priloha' }}
+              {{ pinnedPost.attachment_original_name || 'Príloha' }}
             </a>
           </div>
         </div>
@@ -414,7 +437,7 @@
           </div>
 
           <div v-else-if="activeTab === 'events'">
-            <div class="eventSegments" role="tablist" aria-label="Filter udalosti">
+            <div class="eventSegments" role="tablist" aria-label="Filter udalostí">
               <button
                 v-for="segment in eventSegments"
                 :key="segment.key"
@@ -448,8 +471,8 @@
             </div>
           </div>
 
-          <div v-else class="postList ui-stream">
-            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item" :class="{ pinned: isPinnedOnProfile(p) }">
+          <div v-else class="postList">
+            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem" :class="{ pinned: isPinnedOnProfile(p) }">
               <div class="avatar sm">
                 <UserAvatar
                   class="avatarImg"
@@ -459,7 +482,7 @@
               </div>
 
               <div class="postBody">
-                <div class="postMeta ui-stream-item__meta">
+                <div class="postMeta">
                   <div class="postName">{{ displayName }}</div>
                   <div class="dot">&middot;</div>
                   <div class="postTime">{{ formatPostTimestamp(p) }}</div>
@@ -470,17 +493,21 @@
                   <span class="replyText">{{ shorten(p.parent.content) }}</span>
                 </div>
 
-                <HashtagText class="postContent ui-stream-item__body" :content="p.content" />
+                <HashtagText class="postContent" :content="p.content" />
 
                 <div v-if="attachedEventForPost(p)" class="attachedEventCard">
                   <div class="attachedEventCopy">
-                    <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalost' }}</p>
+                    <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalosť' }}</p>
                     <p class="attachedEventDate">
                       {{ formatEventRange(attachedEventForPost(p).start_at, attachedEventForPost(p).end_at) }}
                     </p>
                   </div>
-                  <button type="button" class="ui-btn ui-btn--secondary" @click="openAttachedEvent(p)">
-                    Otvoriť udalost
+                  <button
+                    type="button"
+                    class="min-h-[32px] px-3 rounded-xl bg-secondary-btn text-muted text-[12px] font-semibold border-0 cursor-pointer whitespace-nowrap"
+                    @click="openAttachedEvent(p)"
+                  >
+                    Otvoriť udalosť
                   </button>
                 </div>
 
@@ -496,11 +523,11 @@
                     alt="attachment"
                   />
                   <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
-                    {{ p.attachment_original_name || 'Priloha' }}
+                    {{ p.attachment_original_name || 'Príloha' }}
                   </a>
                 </div>
 
-                <div class="postActions ui-stream-item__actions" @click.stop>
+                <div class="postActions" @click.stop>
                   <button
                     class="postActionIconBtn"
                     type="button"
@@ -537,7 +564,7 @@
         <div class="loadMore">
           <button
             v-if="tabState[activeTab].next"
-            class="ui-btn ui-btn--secondary"
+            class="min-h-[34px] px-4 rounded-xl bg-secondary-btn text-muted text-[13px] font-semibold border-0 cursor-pointer disabled:opacity-50"
             :disabled="tabState[activeTab].loading"
             @click="loadTab(activeTab, false)"
           >
@@ -547,4 +574,3 @@
       </section>
     </template>
   </div>
-

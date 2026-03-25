@@ -1,59 +1,93 @@
 <template>
   <teleport to="body">
-    <transition name="email-gate-fade">
-      <div v-if="open" class="emailGateBackdrop" data-testid="email-verification-gate">
+    <transition name="vgate">
+      <div
+        v-if="open"
+        class="fixed inset-0 z-[1400] flex items-center justify-center p-4"
+        style="background:rgba(1,6,15,0.78);backdrop-filter:blur(12px) saturate(180%)"
+        data-testid="email-verification-gate"
+      >
         <section
           ref="cardRef"
-          class="emailGateCard"
+          class="vgate-card w-full max-w-[420px] bg-app rounded-2xl px-6 pt-6 pb-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="email-gate-title"
           tabindex="-1"
         >
-          <p class="emailGateEyebrow">Povinne overenie</p>
-          <h2 id="email-gate-title" class="emailGateTitle">Over svoj e-mail pred pokracovanim</h2>
-          <p class="emailGateCopy">
-            Posleme overovaci kod na
-            <strong>{{ account.email || 'vas e-mail' }}</strong>
-            . Kym kod nepotvrdite, aplikaciu nie je mozne pouzivat.
+          <!-- Icon -->
+          <div class="w-10 h-10 rounded-full bg-vivid/10 flex items-center justify-center mb-5">
+            <svg class="w-[18px] h-[18px] text-vivid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="4" width="20" height="16" rx="2.5" />
+              <path d="m2 7 10 6.5L22 7" />
+            </svg>
+          </div>
+
+          <h2 id="email-gate-title" class="text-white text-[1.15rem] font-semibold leading-snug">
+            Over svoj e-mail
+          </h2>
+          <p class="mt-2 text-muted text-sm leading-relaxed">
+            Poslali sme overovací kód na
+            <strong class="text-vivid font-medium">{{ account.email || 'tvoj e-mail' }}</strong>.
+            Kým kód nepotvrdíš, aplikáciu nie je možné používať.
           </p>
 
-          <div v-if="state.success" class="emailGateAlert isSuccess" role="status">
-            {{ state.success }}
-          </div>
-          <div v-if="state.error" class="emailGateAlert isError" role="alert">
-            {{ state.error }}
+          <!-- Alerts -->
+          <transition name="vgate-alert">
+            <div
+              v-if="state.success"
+              class="mt-4 rounded-xl bg-green-500/10 text-green-400 px-4 py-2.5 text-sm"
+              role="status"
+            >
+              {{ state.success }}
+            </div>
+          </transition>
+          <transition name="vgate-alert">
+            <div
+              v-if="state.error"
+              class="mt-4 rounded-xl bg-danger/10 text-danger px-4 py-2.5 text-sm"
+              role="alert"
+            >
+              {{ state.error }}
+            </div>
+          </transition>
+
+          <!-- Input -->
+          <div class="mt-5">
+            <label class="block text-muted text-xs font-medium mb-1.5" for="email-gate-code">
+              Overovací kód
+            </label>
+            <input
+              id="email-gate-code"
+              v-model.trim="form.code"
+              class="vgate-input w-full bg-hover rounded-xl px-4 py-3 text-white text-base tracking-widest transition-shadow"
+              type="text"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              placeholder="12345-67890"
+              :disabled="state.loading || state.confirming"
+            />
+            <p v-if="state.fieldError" class="mt-1.5 text-danger text-xs">{{ state.fieldError }}</p>
           </div>
 
+          <!-- Confirm -->
           <button
             type="button"
-            class="emailGateBtn emailGateBtnPrimary"
+            class="mt-3 w-full rounded-2xl bg-vivid hover:bg-vivid-hover text-white font-medium py-3 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+            :disabled="state.loading || state.sending || state.confirming || !form.code"
+            @click="confirmCode"
+          >
+            {{ state.confirming ? 'Potvrdzujem…' : 'Potvrdiť kód' }}
+          </button>
+
+          <!-- Resend -->
+          <button
+            type="button"
+            class="mt-2 w-full rounded-2xl bg-secondary-btn hover:bg-secondary-btn-hover text-muted font-medium py-3 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
             :disabled="state.loading || state.sending || state.confirming || account.secondsToResend > 0"
             @click="sendCode"
           >
             {{ sendButtonLabel }}
-          </button>
-
-          <label class="emailGateLabel" for="email-gate-code">Overovaci kod</label>
-          <input
-            id="email-gate-code"
-            v-model.trim="form.code"
-            class="emailGateInput"
-            type="text"
-            inputmode="numeric"
-            autocomplete="one-time-code"
-            placeholder="12345-67890"
-            :disabled="state.loading || state.confirming"
-          />
-          <p v-if="state.fieldError" class="emailGateFieldError">{{ state.fieldError }}</p>
-
-          <button
-            type="button"
-            class="emailGateBtn emailGateBtnConfirm"
-            :disabled="state.loading || state.sending || state.confirming || !form.code"
-            @click="confirmCode"
-          >
-            {{ state.confirming ? 'Potvrdzujem...' : 'Potvrdit kod' }}
           </button>
         </section>
       </div>
@@ -104,10 +138,10 @@ let previousActiveElement = null
 let initialSendTriggered = false
 
 const sendButtonLabel = computed(() => {
-  if (state.loading) return 'Nacitavam...'
-  if (state.sending) return 'Odosielam...'
-  if (account.secondsToResend > 0) return `Opakovat o ${account.secondsToResend}s`
-  return 'Poslat overovaci email'
+  if (state.loading) return 'Načítavam…'
+  if (state.sending) return 'Odosielam…'
+  if (account.secondsToResend > 0) return `Opakovať za ${account.secondsToResend} s`
+  return 'Poslať overovací e-mail'
 })
 
 function extractFirstError(errorsObject, field) {
@@ -207,10 +241,10 @@ async function sendCode() {
     await auth.csrf()
     const response = await http.post('/account/email/verification/send', {})
     applyStatus(response?.data?.data || {})
-    state.success = response?.data?.message || 'Overovaci kod bol odoslany.'
+    state.success = response?.data?.message || 'Overovací kód bol odoslaný.'
     initialSendTriggered = true
   } catch (error) {
-    const resolved = resolveRequestError(error, 'Nepodarilo sa odoslat overovaci kod.')
+    const resolved = resolveRequestError(error, 'Nepodarilo sa odoslať overovací kód.')
     state.error = resolved.message
     state.fieldError = resolved.fieldError
   } finally {
@@ -224,7 +258,7 @@ async function confirmCode() {
   resetFeedback()
 
   if (!form.code) {
-    state.fieldError = 'Overovaci kod je povinny.'
+    state.fieldError = 'Overovací kód je povinný.'
     return
   }
 
@@ -238,13 +272,13 @@ async function confirmCode() {
 
     applyStatus(response?.data?.data || {})
     form.code = ''
-    state.success = response?.data?.message || 'E-mail bol uspesne overeny.'
+    state.success = response?.data?.message || 'E-mail bol úspešne overený.'
 
     if (account.verified || account.emailVerifiedAt) {
       emit('verified')
     }
   } catch (error) {
-    const resolved = resolveRequestError(error, 'Nepodarilo sa overit kod.')
+    const resolved = resolveRequestError(error, 'Nepodarilo sa overiť kód.')
     state.error = resolved.message
     state.fieldError = resolved.fieldError
   } finally {
@@ -353,142 +387,65 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.emailGateBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1400;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  background: rgb(1 6 15 / 0.82);
-  backdrop-filter: blur(3px);
+/* Backdrop fade */
+.vgate-enter-active,
+.vgate-leave-active {
+  transition: opacity 220ms ease;
 }
-
-.emailGateCard {
-  width: min(460px, 100%);
-  border-radius: 1rem;
-  border: 1px solid rgb(var(--border-rgb) / 0.58);
-  background:
-    linear-gradient(170deg, rgb(var(--bg-surface-rgb) / 0.98) 0%, rgb(var(--bg-surface-2-rgb) / 0.98) 100%);
-  box-shadow: 0 30px 80px rgb(2 10 24 / 0.52);
-  padding: 1rem;
-  color: var(--text-primary);
-}
-
-.emailGateEyebrow {
-  margin: 0;
-  font-size: 0.74rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgb(var(--color-primary-rgb) / 0.86);
-  font-weight: 700;
-}
-
-.emailGateTitle {
-  margin: 0.28rem 0 0;
-  font-size: 1.18rem;
-  line-height: 1.25;
-  font-weight: 780;
-  color: rgb(var(--text-primary-rgb));
-}
-
-.emailGateCopy {
-  margin: 0.7rem 0 0;
-  font-size: 0.93rem;
-  line-height: 1.5;
-  color: rgb(var(--text-primary-rgb) / 0.86);
-}
-
-.emailGateCopy strong {
-  color: rgb(var(--text-primary-rgb));
-  font-weight: 700;
-}
-
-.emailGateAlert {
-  margin-top: 0.75rem;
-  border-radius: 0.65rem;
-  border: 1px solid;
-  padding: 0.54rem 0.62rem;
-  font-size: 0.84rem;
-  line-height: 1.35;
-}
-
-.emailGateAlert.isSuccess {
-  border-color: rgb(var(--color-success-rgb) / 0.6);
-  background: rgb(var(--color-success-rgb) / 0.12);
-  color: rgb(var(--color-success-rgb));
-}
-
-.emailGateAlert.isError {
-  border-color: rgb(var(--color-danger-rgb) / 0.68);
-  background: rgb(var(--color-danger-rgb) / 0.13);
-  color: rgb(var(--color-danger-rgb));
-}
-
-.emailGateBtn {
-  width: 100%;
-  min-height: 2.45rem;
-  margin-top: 0.72rem;
-  border-radius: 0.7rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
-}
-
-.emailGateBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.emailGateBtn:disabled {
-  opacity: 0.68;
-  cursor: not-allowed;
-}
-
-.emailGateBtnPrimary,
-.emailGateBtnConfirm {
-  border: 1px solid transparent;
-  color: rgb(var(--bg-app-rgb));
-  background: linear-gradient(135deg, rgb(var(--primary-rgb)) 0%, rgb(var(--primary-hover-rgb)) 100%);
-  box-shadow: 0 14px 28px rgb(var(--primary-rgb) / 0.26);
-}
-
-.emailGateLabel {
-  display: block;
-  margin-top: 0.78rem;
-  font-size: 0.82rem;
-  font-weight: 620;
-  color: rgb(var(--color-text-muted-rgb));
-}
-
-.emailGateInput {
-  width: 100%;
-  margin-top: 0.4rem;
-  border-radius: 0.7rem;
-  border: 1px solid rgb(var(--border-rgb) / 0.72);
-  background: rgb(var(--bg-app-rgb) / 0.62);
-  color: rgb(var(--text-primary-rgb));
-  padding: 0.68rem 0.74rem;
-  font-size: 0.95rem;
-}
-
-.emailGateInput:focus-visible {
-  outline: 2px solid rgb(var(--primary-rgb) / 0.55);
-  outline-offset: 1px;
-}
-
-.emailGateFieldError {
-  margin: 0.36rem 0 0;
-  font-size: 0.8rem;
-  color: rgb(var(--color-danger-rgb));
-}
-
-.email-gate-fade-enter-active,
-.email-gate-fade-leave-active {
-  transition: opacity 180ms ease;
-}
-
-.email-gate-fade-enter-from,
-.email-gate-fade-leave-to {
+.vgate-enter-from,
+.vgate-leave-to {
   opacity: 0;
+}
+
+/* Card scale */
+.vgate-enter-active .vgate-card {
+  animation: vgateIn 300ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+.vgate-leave-active .vgate-card {
+  animation: vgateOut 180ms ease forwards;
+}
+
+@keyframes vgateIn {
+  from {
+    transform: scale(0.92) translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes vgateOut {
+  to {
+    transform: scale(0.95) translateY(6px);
+    opacity: 0;
+  }
+}
+
+/* Alert slide */
+.vgate-alert-enter-active,
+.vgate-alert-leave-active {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.vgate-alert-enter-from,
+.vgate-alert-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Input */
+.vgate-input {
+  border: none;
+  outline: none;
+}
+.vgate-input::placeholder {
+  color: rgba(171, 184, 201, 0.3);
+}
+.vgate-input:focus {
+  box-shadow: 0 0 0 2px rgba(15, 115, 255, 0.35);
+}
+.vgate-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

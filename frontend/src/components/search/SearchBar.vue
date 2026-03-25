@@ -89,7 +89,7 @@ const clearQuery = () => {
   display: inline-flex;
   align-items: center;
   margin: 0;
-  color: var(--color-text-secondary);
+  color: #ABB8C9;
   font-size: 0.74rem;
   font-weight: 600;
   line-height: 1.2;
@@ -105,37 +105,34 @@ const clearQuery = () => {
   left: 0.72rem;
   top: 50%;
   transform: translateY(-50%);
-  color: rgb(var(--color-text-secondary-rgb) / 0.84);
+  color: rgba(171, 184, 201, 0.84);
 }
 
 .searchBar__input {
   width: 100%;
   min-height: 42px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: rgb(var(--bg-app-rgb) / 0.48);
-  color: var(--color-text-primary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  background: rgba(21, 29, 40, 0.48);
+  color: #ffffff;
   padding: 0.6rem 4.3rem 0.6rem 2.2rem;
-  font-size: var(--font-size-sm);
+  font-size: 0.875rem;
   line-height: 1.4;
-  transition:
-    border-color var(--motion-base),
-    background-color var(--motion-base),
-    box-shadow var(--motion-base);
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
 }
 
 .searchBar__input::placeholder {
-  color: rgb(var(--color-text-secondary-rgb) / 0.74);
+  color: rgba(171, 184, 201, 0.74);
 }
 
 .searchBar__input:hover {
-  border-color: var(--color-border-strong);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .searchBar__input:focus-visible {
   outline: none;
-  border-color: rgb(var(--color-accent-rgb) / 0.84);
-  box-shadow: var(--focus-ring);
+  border-color: rgba(15, 115, 255, 0.84);
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .searchBar__actions {
@@ -154,33 +151,31 @@ const clearQuery = () => {
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
-  color: var(--color-text-secondary);
+  color: #ABB8C9;
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition:
-    color var(--motion-base),
-    background-color var(--motion-base),
-    border-color var(--motion-base);
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
 }
 
 .searchBar__clear:hover {
-  color: var(--color-text-primary);
-  border-color: var(--color-border);
-  background: rgb(var(--bg-app-rgb) / 0.72);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(21, 29, 40, 0.72);
 }
 
 .searchBar__clear:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px #0F73FF;
 }
 
 .searchBar__spinner {
   width: 14px;
   height: 14px;
   border-radius: 999px;
-  border: 2px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  border-top-color: var(--color-accent);
+  border: 2px solid rgba(171, 184, 201, 0.3);
+  border-top-color: #0F73FF;
   animation: search-spinner 0.7s linear infinite;
 }
 

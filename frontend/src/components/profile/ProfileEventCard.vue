@@ -24,7 +24,7 @@
             <path d="M15 4v4h4" />
             <path d="M8 12h8M8 16h8" />
           </svg>
-          Poznamka
+          Poznámka
         </span>
 
         <span v-if="hasReminder" class="eventCard__metaBadge">
@@ -32,7 +32,7 @@
             <path d="M12 3a4 4 0 0 1 4 4v1.5a7 7 0 0 0 2 5V16H6v-2.5a7 7 0 0 0 2-5V7a4 4 0 0 1 4-4z" />
             <path d="M10 18a2 2 0 0 0 4 0" />
           </svg>
-          Pripomienka nastavena
+          Pripomienka nastavená
         </span>
 
         <span v-if="recommendedPlanLabel" class="eventCard__metaBadge eventCard__metaBadge--highlight">

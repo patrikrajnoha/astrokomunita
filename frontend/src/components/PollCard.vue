@@ -157,17 +157,17 @@ function optionClasses(option) {
 
 function optionAriaLabel(option) {
   if (!showResults.value) {
-    return `Hlasovat za moznost: ${option?.text || ''}`
+    return `Hlasovať za možnosť: ${option?.text || ''}`
   }
 
-  return `Moznost ${option?.text || ''}, ${safePercent(option?.percent)} percent`
+  return `Možnosť ${option?.text || ''}, ${safePercent(option?.percent)} percent`
 }
 
 async function onOptionClick(option) {
   if (!option || optionDisabled.value) return
 
   if (!props.isAuthed) {
-    toast.warn('Prihlas sa pre hlasovanie.')
+    toast.warn('Prihlás sa pre hlasovanie.')
     emit('login-required')
     return
   }

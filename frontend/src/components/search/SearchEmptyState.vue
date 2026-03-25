@@ -61,9 +61,9 @@ const iconPaths = computed(() => {
 
 <style scoped>
 .searchEmptyState {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  background: #1c2736;
   padding: 1rem 0.9rem;
   display: grid;
   justify-items: center;
@@ -77,30 +77,30 @@ const iconPaths = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
-  color: rgb(var(--color-text-secondary-rgb) / 0.9);
-  background: rgb(var(--bg-app-rgb) / 0.5);
+  color: rgba(171, 184, 201, 0.9);
+  background: rgba(21, 29, 40, 0.5);
 }
 
 .searchEmptyState__title {
   margin: 0;
-  font-size: var(--font-size-base);
+  font-size: 1rem;
   font-weight: 650;
-  color: var(--color-text-primary);
+  color: #ffffff;
 }
 
 .searchEmptyState__message {
   margin: 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  color: #ABB8C9;
+  font-size: 0.875rem;
   line-height: 1.45;
   max-width: 52ch;
 }
 
 .searchEmptyState__hint {
   margin: 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+  color: rgba(171, 184, 201, 0.82);
   font-size: 0.74rem;
   line-height: 1.4;
 }
