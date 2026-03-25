@@ -1,0 +1,17 @@
+{
+    admin off
+}
+
+http://astrokomunita.sk {
+    encode gzip
+    reverse_proxy frontend:5174
+}
+
+http://api.astrokomunita.sk {
+    encode gzip
+    reverse_proxy backend:8001
+}
+
+http://ws.astrokomunita.sk {
+    reverse_proxy reverb:8080
+}

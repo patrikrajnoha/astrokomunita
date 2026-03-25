@@ -51,6 +51,18 @@ x-backend-service: &backend-service
   restart: unless-stopped
 
 services:
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: astrokomunita-caddy
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+
   sky:
     build:
       context: ./services/sky
