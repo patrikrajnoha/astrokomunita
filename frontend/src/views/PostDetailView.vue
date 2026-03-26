@@ -538,9 +538,9 @@ const repliesCount = computed(() => {
 
 const repliesCountLabel = computed(() => {
   const count = Number(repliesCount.value || 0)
-  if (count === 1) return '1 odpoved'
+  if (count === 1) return '1 odpoveď'
   if (count >= 2 && count <= 4) return `${count} odpovede`
-  return `${count} odpovedi`
+  return `${count} odpovedí`
 })
 </script>
 
