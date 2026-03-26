@@ -46,4 +46,12 @@ RUN mkdir -p \
     && chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
+# Entrypoint re-applies ownership/permissions at container start so that
+# named volumes (which preserve the ownership from their initial creation)
+# are always writable by www-data, even after a fresh docker compose build.
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php-fpm"]
+
 EXPOSE 9000
