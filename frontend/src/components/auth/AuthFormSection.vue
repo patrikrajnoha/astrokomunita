@@ -2,8 +2,12 @@
   <section class="authFormSection">
     <header v-if="kicker || title || description" class="authFormSection__header">
       <p v-if="kicker" class="authFormSection__kicker">{{ kicker }}</p>
-      <h2 v-if="title" class="authFormSection__title">{{ title }}</h2>
-      <p v-if="description" class="authFormSection__description">{{ description }}</p>
+      <h2 v-if="title || $slots.title" class="authFormSection__title">
+        <slot name="title">{{ title }}</slot>
+      </h2>
+      <p v-if="description || $slots.description" class="authFormSection__description">
+        <slot name="description">{{ description }}</slot>
+      </p>
     </header>
     <slot />
   </section>
