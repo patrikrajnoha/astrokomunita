@@ -3,7 +3,7 @@
     <header class="top">
       <button class="back" type="button" @click="goBack">
         <span aria-hidden="true">&larr;</span>
-        <span>Spat</span>
+        <span>Späť</span>
       </button>
     </header>
 
@@ -20,7 +20,7 @@
       <InlineStatus
         variant="error"
         :message="error"
-        action-label="Skusit znova"
+        action-label="Skúsiť znova"
         @action="loadPost"
       />
     </div>
@@ -38,7 +38,7 @@
             <div class="postIdentity">
               <div class="nameRow">
                 <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
-                  {{ root?.user?.name ?? 'Pouzivatel' }}
+                  {{ root?.user?.name ?? 'Používateľ' }}
                 </button>
                 <span v-if="root?.user?.username" class="userHandle">@{{ root.user.username }}</span>
                 <span class="nameTime">{{ fmt(root?.created_at) }}</span>
@@ -62,7 +62,7 @@
                   :disabled="editSavingId === root?.id"
                   @click="saveInlineEdit(root)"
                 >
-                  {{ editSavingId === root?.id ? 'Ukladám...' : 'Ulozit' }}
+                  {{ editSavingId === root?.id ? 'Ukladám...' : 'Uložiť' }}
                 </button>
                 <button
                   class="replyBtn"
@@ -70,7 +70,7 @@
                   :disabled="editSavingId === root?.id"
                   @click="cancelInlineEdit"
                 >
-                  Zrusit
+                  Zrušiť
                 </button>
               </div>
             </template>
@@ -88,13 +88,13 @@
 
           <div v-if="attachedEventForPost(root)" class="attachedEventCard">
             <div class="attachedEventCopy">
-              <p class="attachedEventTitle">{{ attachedEventForPost(root).title || 'Udalost' }}</p>
+              <p class="attachedEventTitle">{{ attachedEventForPost(root).title || 'Udalosť' }}</p>
               <p class="attachedEventDate">
                 {{ formatEventRange(attachedEventForPost(root).start_at, attachedEventForPost(root).end_at) }}
               </p>
             </div>
             <button class="replyBtn" type="button" @click="openAttachedEvent(root)">
-              Otvoriť udalost
+              Otvoriť udalosť
             </button>
           </div>
 
@@ -103,11 +103,11 @@
           </div>
 
           <div v-if="root?.attachment_url" class="mediaWrap">
-            <div v-if="isAttachmentBlocked(root)" class="removedMedia">Odstranene</div>
+            <div v-if="isAttachmentBlocked(root)" class="removedMedia">Odstránené</div>
             <PostMediaImage
               v-else-if="isImage(root)"
               :src="attachmentSrc(root)"
-              alt="Priloha prispevku"
+              alt="Príloha príspevku"
               :blurred="isAttachmentPending(root)"
               :status="root?.attachment_moderation_status"
               :post-id="root?.id"
@@ -124,9 +124,9 @@
             >
               <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
               <div class="fileInfo">
-                <div class="fileTitle">Priloha</div>
+                <div class="fileTitle">Príloha</div>
                 <div class="fileName">
-                  {{ root?.attachment_original_name || 'Subor' }}
+                  {{ root?.attachment_original_name || 'Súbor' }}
                 </div>
               </div>
               <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
@@ -193,7 +193,7 @@
                 <div class="replyHeadMain">
                   <div class="nameRow">
                     <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
-                      {{ r?.user?.name ?? 'Pouzivatel' }}
+                      {{ r?.user?.name ?? 'Používateľ' }}
                     </button>
                     <span v-if="r?.user?.username" class="userHandle">@{{ r.user.username }}</span>
                     <span class="nameTime">{{ fmt(r?.created_at) }}</span>
@@ -203,7 +203,7 @@
                   <DropdownMenu
                     v-if="menuItemsForPost(r).length"
                     :items="menuItemsForPost(r)"
-                    label="Dalsie akcie"
+                    label="Ďalšie akcie"
                     menu-label="Akcie odpovede"
                     @select="(item) => onMenuAction(item, r)"
                   />
@@ -225,7 +225,7 @@
                       :disabled="editSavingId === r.id"
                       @click="saveInlineEdit(r)"
                     >
-                      {{ editSavingId === r.id ? 'Ukladám...' : 'Ulozit' }}
+                      {{ editSavingId === r.id ? 'Ukladám...' : 'Uložiť' }}
                     </button>
                     <button
                       class="replyBtn"
@@ -233,7 +233,7 @@
                       :disabled="editSavingId === r.id"
                       @click="cancelInlineEdit"
                     >
-                      Zrusit
+                      Zrušiť
                     </button>
                   </div>
                 </template>
@@ -245,11 +245,11 @@
               </div>
 
               <div v-if="r.attachment_url" class="mediaWrapSm">
-                <div v-if="isAttachmentBlocked(r)" class="removedMedia">Odstranene</div>
+                <div v-if="isAttachmentBlocked(r)" class="removedMedia">Odstránené</div>
                 <PostMediaImage
                   v-else-if="isImage(r)"
                   :src="attachmentSrc(r)"
-                  alt="Priloha prispevku"
+                  alt="Príloha príspevku"
                   :blurred="isAttachmentPending(r)"
                   :status="r?.attachment_moderation_status"
                   :post-id="r?.id"
@@ -266,9 +266,9 @@
                 >
                   <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
                   <div class="fileInfo">
-                    <div class="fileTitle">Priloha</div>
+                    <div class="fileTitle">Príloha</div>
                     <div class="fileName">
-                      {{ r.attachment_original_name || 'Subor' }}
+                      {{ r.attachment_original_name || 'Súbor' }}
                     </div>
                   </div>
                   <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
@@ -282,7 +282,7 @@
                   type="button"
                   @click="toggleReplyComposer(r.id)"
                 >
-                  {{ activeReplyId === r.id ? 'Zavriet' : 'Odpovedat' }}
+                  {{ activeReplyId === r.id ? 'Zavrieť' : 'Odpovedať' }}
                 </button>
               </div>
 
@@ -309,7 +309,7 @@
                       <div class="replyHeadMain">
                         <div class="nameRow">
                           <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
-                            {{ c?.user?.name ?? 'Pouzivatel' }}
+                            {{ c?.user?.name ?? 'Používateľ' }}
                           </button>
                           <span v-if="c?.user?.username" class="userHandle">@{{ c.user.username }}</span>
                           <span class="nameTime">{{ fmt(c?.created_at) }}</span>
@@ -319,7 +319,7 @@
                         <DropdownMenu
                           v-if="menuItemsForPost(c).length"
                           :items="menuItemsForPost(c)"
-                          label="Dalsie akcie"
+                          label="Ďalšie akcie"
                           menu-label="Akcie odpovede"
                           @select="(item) => onMenuAction(item, c)"
                         />
@@ -341,7 +341,7 @@
                             :disabled="editSavingId === c.id"
                             @click="saveInlineEdit(c)"
                           >
-                            {{ editSavingId === c.id ? 'Ukladám...' : 'Ulozit' }}
+                            {{ editSavingId === c.id ? 'Ukladám...' : 'Uložiť' }}
                           </button>
                           <button
                             class="replyBtn"
@@ -349,7 +349,7 @@
                             :disabled="editSavingId === c.id"
                             @click="cancelInlineEdit"
                           >
-                            Zrusit
+                            Zrušiť
                           </button>
                         </div>
                       </template>
@@ -361,11 +361,11 @@
                     </div>
 
                     <div v-if="c.attachment_url" class="mediaWrapSm">
-                      <div v-if="isAttachmentBlocked(c)" class="removedMedia">Odstranene</div>
+                      <div v-if="isAttachmentBlocked(c)" class="removedMedia">Odstránené</div>
                       <PostMediaImage
                         v-else-if="isImage(c)"
                         :src="attachmentSrc(c)"
-                        alt="Priloha prispevku"
+                        alt="Príloha príspevku"
                         :blurred="isAttachmentPending(c)"
                         :status="c?.attachment_moderation_status"
                         :post-id="c?.id"
@@ -382,9 +382,9 @@
                       >
                         <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
                         <div class="fileInfo">
-                          <div class="fileTitle">Priloha</div>
+                          <div class="fileTitle">Príloha</div>
                           <div class="fileName">
-                            {{ c.attachment_original_name || 'Subor' }}
+                            {{ c.attachment_original_name || 'Súbor' }}
                           </div>
                         </div>
                         <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
