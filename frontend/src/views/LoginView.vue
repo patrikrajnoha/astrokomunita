@@ -1,15 +1,15 @@
 <template>
   <div class="loginView">
-    <main class="mx-auto flex min-h-dvh w-full max-w-[560px] items-start justify-center px-4 py-4 sm:py-8">
-      <section class="w-full rounded-[28px] bg-[#1c2736]/55 p-4 sm:p-6">
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#0F73FF]">Prihlasenie</p>
-        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-[#FFFFFF]">Vitaj spat</h1>
-        <p class="mt-1 text-sm text-[#ABB8C9]">Prihlas sa do Astrokomunity.</p>
+    <main class="mx-auto flex min-h-dvh w-full max-w-[480px] items-start justify-center px-3 py-3 sm:py-8">
+      <section class="w-full rounded-[24px] bg-[#1c2736]/55 p-3.5 sm:p-6">
+        <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#0F73FF]">Prihlásenie</p>
+        <h1 class="mt-1.5 text-xl font-semibold tracking-tight text-[#FFFFFF]">Vitaj späť</h1>
+        <p class="mt-0.5 text-xs text-[#ABB8C9]">Prihlás sa do Astrokomunity.</p>
 
-        <form class="mt-5 space-y-4" @submit.prevent="submit" @keydown.enter="handleEnterSubmit" novalidate>
+        <form class="mt-4 space-y-3" @submit.prevent="submit" @keydown.enter="handleEnterSubmit" novalidate>
           <label class="block">
-            <span class="mb-1.5 block text-sm font-medium text-[#ABB8C9]">E-mail</span>
-            <div class="flex min-h-[46px] items-center gap-2 rounded-[20px] bg-[#222E3F] px-3">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">E-mail</span>
+            <div class="flex min-h-[42px] items-center gap-2 rounded-[18px] bg-[#222E3F] px-3">
               <svg class="h-4 w-4 flex-none text-[#ABB8C9]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M3.5 7.5 12 13l8.5-5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                 <rect x="3.5" y="5.5" width="17" height="13" rx="2.8" stroke="currentColor" stroke-width="1.8" />
@@ -27,13 +27,13 @@
           </label>
 
           <label class="block">
-            <div class="mb-1.5 flex items-center justify-between gap-3">
-              <span class="block text-sm font-medium text-[#ABB8C9]">Heslo</span>
+            <div class="mb-1 flex items-center justify-between gap-3">
+              <span class="block text-xs font-medium text-[#ABB8C9]">Heslo</span>
               <RouterLink :to="forgotPasswordLink" class="text-xs font-medium text-[#0F73FF] hover:text-[#FFFFFF]">
-                Zabudli ste heslo?
+                Zabudnuté heslo?
               </RouterLink>
             </div>
-            <div class="flex min-h-[46px] items-center gap-2 rounded-[20px] bg-[#222E3F] px-3">
+            <div class="flex min-h-[42px] items-center gap-2 rounded-[18px] bg-[#222E3F] px-3">
               <svg class="h-4 w-4 flex-none text-[#ABB8C9]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M7.5 11V9.2A4.5 4.5 0 0 1 12 4.7a4.5 4.5 0 0 1 4.5 4.5V11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                 <rect x="5" y="11" width="14" height="9.5" rx="2.7" stroke="currentColor" stroke-width="1.8" />
@@ -50,35 +50,35 @@
             <p v-if="passwordError" class="mt-1 text-xs text-[#EB2452]">{{ passwordError }}</p>
           </label>
 
-          <div v-if="error" class="rounded-[18px] bg-[#EB2452]/15 px-3 py-2 text-sm text-[#EB2452]">
+          <div v-if="error" class="rounded-[14px] bg-[#EB2452]/15 px-3 py-2 text-xs text-[#EB2452]">
             {{ error }}
           </div>
 
-          <div v-else-if="isBannedState" class="rounded-[18px] bg-[#EB2452]/15 px-3 py-2 text-sm text-[#EB2452]">
+          <div v-else-if="isBannedState" class="rounded-[14px] bg-[#EB2452]/15 px-3 py-2 text-xs text-[#EB2452]">
             {{ bannedDetails }}
           </div>
 
           <p v-if="resetSuccessMessage" class="text-xs text-[#ABB8C9]">{{ resetSuccessMessage }}</p>
 
-          <div class="grid grid-cols-2 gap-2 pt-1">
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
             <RouterLink
               :to="{ name: 'home' }"
-              class="inline-flex min-h-[44px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
+              class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
             >
-              Spat
+              Späť
             </RouterLink>
             <button
               type="submit"
-              class="inline-flex min-h-[44px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6] disabled:cursor-not-allowed disabled:opacity-60"
+              class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6] disabled:cursor-not-allowed disabled:opacity-60"
               :disabled="authBusy"
             >
-              {{ authBusy ? 'Prihlasuje sa...' : 'Prihlasit sa' }}
+              {{ authBusy ? 'Prihlasujem...' : 'Prihlásiť sa' }}
             </button>
           </div>
 
-          <p class="pt-1 text-center text-sm text-[#ABB8C9]">
-            Potrebujete ucet?
-            <RouterLink class="font-medium text-[#0F73FF] hover:text-[#FFFFFF]" :to="registerLink">Vytvorit ucet</RouterLink>
+          <p class="pt-0.5 text-center text-xs text-[#ABB8C9]">
+            Nemáte účet?
+            <RouterLink class="font-medium text-[#0F73FF] hover:text-[#FFFFFF]" :to="registerLink">Vytvoriť účet</RouterLink>
           </p>
         </form>
       </section>
