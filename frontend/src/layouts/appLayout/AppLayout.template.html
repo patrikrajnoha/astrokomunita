@@ -235,20 +235,20 @@
           <MainNavbar :show-brand-logo="false" :show-create-button="false" />
         </div>
 
-        <div v-if="!auth.isAuthed" class="mt-5 flex flex-col gap-2 px-1">
-          <RouterLink
-            to="/login"
-            class="inline-flex min-h-[42px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6]"
-            @click="closeDrawer"
-          >
-            Prihlásiť sa
-          </RouterLink>
+        <div v-if="!auth.isAuthed" class="drawerGuestAuth">
           <RouterLink
             to="/register"
-            class="inline-flex min-h-[42px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
+            class="drawerGuestAuth__btn drawerGuestAuth__btn--primary"
             @click="closeDrawer"
           >
             Vytvoriť účet
+          </RouterLink>
+          <RouterLink
+            to="/login"
+            class="drawerGuestAuth__btn drawerGuestAuth__btn--secondary"
+            @click="closeDrawer"
+          >
+            Prihlásiť sa
           </RouterLink>
         </div>
       </aside>

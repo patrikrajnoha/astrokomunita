@@ -6,9 +6,35 @@ import { useRoute, useRouter } from 'vue-router'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
+function seededRandom(seed) {
+  const value = Math.sin(seed * 9999.91) * 10000
+  return value - Math.floor(value)
+}
+
+function createStars(count) {
+  const generatedStars = []
+  for (let i = 1; i <= count; i += 1) {
+    const x = seededRandom(i * 1.37)
+    const y = seededRandom(i * 2.17)
+    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
+    const delay = -(seededRandom(i * 4.13) * 4)
+    generatedStars.push({
+      id: i,
+      style: {
+        left: `${(x * 100).toFixed(2)}%`,
+        top: `${(y * 100).toFixed(2)}%`,
+        '--star-size': `${size}px`,
+        '--blink-delay': `${delay.toFixed(2)}s`,
+      },
+    })
+  }
+  return generatedStars
+}
+
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script'
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 let turnstileScriptPromise = null
+const stars = createStars(80)
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -490,3 +516,63 @@ function daysInMonth(year, month) {
 }
 
 </script>
+
+<style scoped>
+.registerView {
+  position: relative;
+  overflow-x: hidden;
+}
+
+.authMain {
+  position: relative;
+  z-index: 1;
+}
+
+.authStars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.authStar {
+  position: absolute;
+  z-index: 0;
+}
+
+.authStar::before,
+.authStar::after {
+  position: absolute;
+  content: '';
+  background-color: #fff;
+  border-radius: 10px;
+  animation: authStarBlink 1.5s infinite;
+  animation-delay: var(--blink-delay);
+}
+
+.authStar::before {
+  top: calc(var(--star-size) / 2);
+  left: calc(var(--star-size) / -2);
+  width: calc(3 * var(--star-size));
+  height: var(--star-size);
+}
+
+.authStar::after {
+  top: calc(var(--star-size) / -2);
+  left: calc(var(--star-size) / 2);
+  width: var(--star-size);
+  height: calc(3 * var(--star-size));
+}
+
+@keyframes authStarBlink {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.4);
+    opacity: 0.5;
+  }
+}
+</style>

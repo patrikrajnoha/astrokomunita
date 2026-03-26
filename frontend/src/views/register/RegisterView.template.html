@@ -1,5 +1,14 @@
 <div class="registerView min-h-dvh bg-[#151d28] text-[#FFFFFF] overflow-y-auto">
-  <main class="mx-auto flex min-h-dvh w-full max-w-[480px] items-start justify-center px-3 py-3 sm:px-4 sm:py-8">
+  <div class="authStars" aria-hidden="true">
+    <span
+      v-for="star in stars"
+      :key="star.id"
+      class="authStar"
+      :style="star.style"
+    ></span>
+  </div>
+
+  <main class="authMain mx-auto flex min-h-dvh w-full max-w-[480px] items-start justify-center px-3 py-3 sm:px-4 sm:py-8">
     <section class="w-full rounded-[24px] bg-[#1c2736]/55 p-3.5 sm:p-6">
       <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#0F73FF]">Registrácia</p>
       <h1 id="registerTitle" class="mt-1.5 text-xl font-semibold tracking-tight text-[#FFFFFF]">Vytvorenie účtu</h1>
