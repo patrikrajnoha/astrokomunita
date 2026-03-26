@@ -3,7 +3,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
@@ -41,7 +40,6 @@ const stepItems = [
   { id: 3, label: 'Overenie', subtitle: 'Finálne potvrdenie' },
 ]
 const currentStep = ref(1)
-const stars = createStars(80)
 
 const redirect = computed(() => {
   const r = route.query.redirect
@@ -54,7 +52,6 @@ const loginLink = computed(() => ({
 }))
 const currentStepMeta = computed(() => stepItems[currentStep.value - 1] || stepItems[0])
 const isLastStep = computed(() => currentStep.value === stepItems.length)
-const stepProgress = computed(() => (currentStep.value / stepItems.length) * 100)
 const turnstileEnabled = computed(() => turnstileSiteKey !== '')
 const turnstileHint = computed(() => {
   if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo načítať. Obnov stránku a skús to znova.'
@@ -123,11 +120,6 @@ const usernameHint = computed(() => {
   return ''
 })
 
-const usernameHintClass = computed(() => {
-  if (usernameCheckState.value === 'checking') return 'isMuted'
-  if (usernameReason.value === 'ok') return 'isSuccess'
-  return 'isError'
-})
 
 watch(
   () => username.value,
@@ -497,33 +489,4 @@ function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
 }
 
-function seededRandom(seed) {
-  const value = Math.sin(seed * 9999.91) * 10000
-  return value - Math.floor(value)
-}
-
-function createStars(count) {
-  const generatedStars = []
-
-  for (let i = 1; i <= count; i += 1) {
-    const x = seededRandom(i * 1.37)
-    const y = seededRandom(i * 2.17)
-    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
-    const delay = -(seededRandom(i * 4.13) * 4)
-
-    generatedStars.push({
-      id: i,
-      style: {
-        left: `${(x * 100).toFixed(2)}%`,
-        top: `${(y * 100).toFixed(2)}%`,
-        '--star-size': `${size}px`,
-        '--blink-delay': `${delay.toFixed(2)}s`,
-      },
-    })
-  }
-
-  return generatedStars
-}
 </script>
-
-<style scoped src="./register/RegisterView.css"></style>

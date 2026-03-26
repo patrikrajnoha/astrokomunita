@@ -85,6 +85,7 @@ services:
         VITE_APP_NAME: ${APP_NAME:-Astrokomunita}
         VITE_LEGAL_CONTROLLER_NAME: ${LEGAL_CONTROLLER_NAME:-Astrokomunita}
         VITE_LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL}
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
         VITE_SENTRY_ENV: ${VITE_SENTRY_ENV:-production}
         VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
@@ -119,7 +120,6 @@ services:
       sh -lc "
         php artisan storage:link --force 2>/dev/null || true &&
         php artisan migrate --force &&
-        php artisan app:seed-default-users --force --without-demo-posts &&
         php artisan bots:sources:sync --quiet-summary &&
         php-fpm -F
       "
@@ -242,7 +242,7 @@ services:
         mkdir -p /backups;
         while true; do
           ts=$$(date -u +%Y%m%dT%H%M%SZ);
-          mysqldump -h "$${MYSQL_HOST}" -P "$${MYSQL_PORT}" -u"$${MYSQL_USER}" -p"$${MYSQL_PASSWORD}" "$${MYSQL_DATABASE}" > "/backups/$${MYSQL_DATABASE}_$${ts}.sql";
+          mysqldump --no-tablespaces -h "$${MYSQL_HOST}" -P "$${MYSQL_PORT}" -u"$${MYSQL_USER}" -p"$${MYSQL_PASSWORD}" "$${MYSQL_DATABASE}" > "/backups/$${MYSQL_DATABASE}_$${ts}.sql";
           gzip -f "/backups/$${MYSQL_DATABASE}_$${ts}.sql";
           find /backups -type f -name "*.sql.gz" -mtime +"$${BACKUP_RETENTION_DAYS}" -delete;
           sleep "$${BACKUP_INTERVAL_SECONDS}";

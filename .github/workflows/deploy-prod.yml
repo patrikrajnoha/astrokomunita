@@ -21,6 +21,15 @@ jobs:
       moderation_image: ${{ steps.images.outputs.moderation_image }}
 
     steps:
+      - name: Validate required variables
+        run: |
+          fail=0
+          [[ -z "${{ vars.PROD_DOMAIN }}" ]] && echo "::error::PROD_DOMAIN variable is not set" && fail=1
+          [[ -z "${{ secrets.PROD_REVERB_APP_KEY }}" ]] && echo "::error::PROD_REVERB_APP_KEY secret is not set" && fail=1
+          [[ -z "${{ vars.PROD_VITE_TURNSTILE_SITE_KEY }}" ]] && echo "::error::PROD_VITE_TURNSTILE_SITE_KEY variable is not set" && fail=1
+          [[ $fail -eq 1 ]] && exit 1
+          echo "All required variables are present."
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -63,6 +72,7 @@ jobs:
             VITE_REVERB_HOST=ws.${{ vars.PROD_DOMAIN || 'example.com' }}
             VITE_REVERB_PORT=443
             VITE_REVERB_SCHEME=https
+            VITE_TURNSTILE_SITE_KEY=${{ vars.PROD_VITE_TURNSTILE_SITE_KEY }}
             VITE_APP_NAME=${{ vars.PROD_APP_NAME || 'Astrokomunita' }}
             VITE_LEGAL_CONTROLLER_NAME=${{ vars.PROD_LEGAL_CONTROLLER_NAME || 'Astrokomunita' }}
             VITE_LEGAL_CONTACT_EMAIL=${{ vars.PROD_LEGAL_CONTACT_EMAIL || 'info@example.com' }}
@@ -131,3 +141,13 @@ jobs:
             docker compose -f docker-compose.prod.yml pull backend frontend sky moderation queue-worker queue-worker-2 queue-worker-3 scheduler reverb
             docker compose -f docker-compose.prod.yml up -d --no-build
             docker compose -f docker-compose.prod.yml ps
+
+      - name: Smoke check (health endpoint)
+        if: ${{ env.DEPLOY_HOST != '' && env.DEPLOY_USER != '' && env.DEPLOY_SSH_KEY != '' }}
+        env:
+          DOMAIN: ${{ vars.PROD_DOMAIN || 'example.com' }}
+        run: |
+          url="https://api.${DOMAIN}/api/health"
+          echo "Checking ${url} ..."
+          curl --fail --silent --show-error --max-time 30 "${url}"
+          echo "Smoke check passed."

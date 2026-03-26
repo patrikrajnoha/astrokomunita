@@ -11,8 +11,8 @@ class DefaultUsersSeeder extends Seeder
 {
     public const DEFAULT_ADMIN_NAME = 'Astrokomunita';
     public const DEFAULT_ADMIN_USERNAME = 'astrokomunita';
-    public const DEFAULT_ADMIN_EMAIL = 'rajnohapatrik@gmail.com';
-    public const DEFAULT_ADMIN_PASSWORD = 'XLfYb;)@+\xz9%&';
+    public const DEFAULT_ADMIN_EMAIL = 'admin@example.com';
+    public const DEFAULT_ADMIN_PASSWORD = 'CHANGE_THIS_IN_ENV';
     public const KOZMOBOT_USERNAME = 'kozmobot';
     public const STELLARBOT_USERNAME = 'stellarbot';
 
@@ -46,8 +46,8 @@ class DefaultUsersSeeder extends Seeder
             [
                 'name' => self::DEFAULT_ADMIN_NAME,
                 'username' => self::DEFAULT_ADMIN_USERNAME,
-                'email' => self::DEFAULT_ADMIN_EMAIL,
-                'password' => self::DEFAULT_ADMIN_PASSWORD,
+                'email' => env('SEED_ADMIN_EMAIL', self::DEFAULT_ADMIN_EMAIL),
+                'password' => env('SEED_ADMIN_PASSWORD', self::DEFAULT_ADMIN_PASSWORD),
                 'is_admin' => true,
                 'is_bot' => false,
                 'role' => User::ROLE_ADMIN,

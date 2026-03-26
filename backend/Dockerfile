@@ -35,4 +35,15 @@ COPY docker/php/uploads.ini /usr/local/etc/php/conf.d/99-uploads.ini
 COPY --from=vendor /app/vendor /var/www/html/vendor
 COPY . /var/www/html
 
+# Ensure required runtime directories exist (excluded from .dockerignore or not tracked in git)
+RUN mkdir -p \
+        storage/framework/cache/data \
+        storage/framework/sessions \
+        storage/framework/testing \
+        storage/framework/views \
+        storage/logs \
+        bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
 EXPOSE 9000

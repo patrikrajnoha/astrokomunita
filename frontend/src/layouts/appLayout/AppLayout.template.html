@@ -161,8 +161,7 @@
 
     <MobileFab
       v-if="
-        auth.isAuthed
-          && !isDrawerOpen
+        !isDrawerOpen
           && !isComposerOpen
           && !isWidgetMenuOpen
           && !isWidgetSheetOpen
@@ -234,6 +233,23 @@
 
         <div class="mt-6">
           <MainNavbar :show-brand-logo="false" :show-create-button="false" />
+        </div>
+
+        <div v-if="!auth.isAuthed" class="mt-5 flex flex-col gap-2 px-1">
+          <RouterLink
+            to="/login"
+            class="inline-flex min-h-[42px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6]"
+            @click="closeDrawer"
+          >
+            Prihlásiť sa
+          </RouterLink>
+          <RouterLink
+            to="/register"
+            class="inline-flex min-h-[42px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
+            @click="closeDrawer"
+          >
+            Vytvoriť účet
+          </RouterLink>
         </div>
       </aside>
     </transition>
@@ -307,7 +323,18 @@
             </div>
           </template>
           <template v-else>
+            <RouterLink
+              v-if="!auth.isAuthed"
+              to="/login"
+              class="sheetGuestNote"
+              @click="closeWidgetMenu"
+            >
+              <span class="sheetGuestNoteText">Pre ďalšie widgety sa prihlás</span>
+              <span class="sheetGuestNoteBtn">Prihlásiť sa →</span>
+            </RouterLink>
+
             <button
+              v-if="auth.isAuthed"
               type="button"
               class="sheetAction ui-pill ui-pill--primary createAction"
               @click="openComposerFromWidgets"
