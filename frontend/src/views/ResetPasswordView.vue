@@ -1,21 +1,27 @@
 <template>
-  <div class="resetView">
-    <div class="resetStars" aria-hidden="true">
-      <span
-        v-for="star in stars"
-        :key="star.id"
-        class="resetStar"
-        :style="star.style"
-      ></span>
-    </div>
-
-  <AuthSplitLayout class="resetSplit">
+  <AuthSplitLayout>
     <template #hero>
       <AuthHeroPanel
         eyebrow="Obnova hesla"
-        title="Reset hesla"
-        subtitle="Zadajte obnovovací kód z e-mailu a nastavte nové heslo na dokončenie obnovy účtu."
-      />
+        title="Potvrďte kód a nastavte si nové heslo."
+        subtitle="Dokončite obnovu účtu zadaním kódu z e-mailu a nového hesla."
+      >
+        <template #top>
+          <div class="authHero__brand">
+            <img src="/logo.png" alt="Astrokomunita" class="authHero__brandLogo" />
+            <div class="authHero__brandText">
+              <span class="authHero__brandTitle">Astrokomunita</span>
+              <span class="authHero__brandMeta">Bezpečný reset hesla</span>
+            </div>
+          </div>
+        </template>
+
+        <div class="authHero__highlights">
+          <span class="authHero__chip">Kód z e-mailu</span>
+          <span class="authHero__chip">Nové heslo</span>
+          <span class="authHero__chip">Rýchly návrat do účtu</span>
+        </div>
+      </AuthHeroPanel>
     </template>
 
     <AuthFormSection
@@ -48,7 +54,7 @@
 
         <AuthField
           v-model="code"
-          label="Obnovovaci kod"
+          label="Obnovovací kód"
           placeholder="XXXXX-XXXXX"
           autocomplete="one-time-code"
           :error="codeError"
@@ -65,11 +71,11 @@
 
         <AuthField
           v-model="password"
-          label="Nove heslo"
+          label="Nové heslo"
           type="password"
           autocomplete="new-password"
-          placeholder="Vytvorte silne heslo"
-          helper="Pouzite aspon 8 znakov."
+          placeholder="Vytvorte silné heslo"
+          helper="Použite aspoň 8 znakov."
           :error="passwordError"
           required
         >
@@ -105,7 +111,6 @@
       </form>
     </AuthFormSection>
   </AuthSplitLayout>
-  </div>
 </template>
 
 <script setup>
@@ -123,33 +128,6 @@ import { useAuthStore } from '@/stores/auth'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-
-function seededRandom(seed) {
-  const value = Math.sin(seed * 9999.91) * 10000
-  return value - Math.floor(value)
-}
-
-function createStars(count) {
-  const generatedStars = []
-  for (let i = 1; i <= count; i += 1) {
-    const x = seededRandom(i * 1.37)
-    const y = seededRandom(i * 2.17)
-    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
-    const delay = -(seededRandom(i * 4.13) * 4)
-    generatedStars.push({
-      id: i,
-      style: {
-        left: `${(x * 100).toFixed(2)}%`,
-        top: `${(y * 100).toFixed(2)}%`,
-        '--star-size': `${size}px`,
-        '--blink-delay': `${delay.toFixed(2)}s`,
-      },
-    })
-  }
-  return generatedStars
-}
-
-const stars = createStars(80)
 
 const initialEmail = typeof route.query.email === 'string' ? route.query.email : ''
 const email = ref(initialEmail)
@@ -193,7 +171,7 @@ async function submit() {
   invalidCodeMessage.value = ''
 
   if (emailError.value || codeError.value || passwordError.value) {
-    if (codeError.value.toLowerCase().includes('format')) {
+    if (codeError.value.toLowerCase().includes('formát')) {
       invalidCodeMessage.value = 'Zadali ste neplatný kód. Mal by mať tvar XXXXX-XXXXX.'
     }
     return
@@ -237,75 +215,3 @@ async function submit() {
   }
 }
 </script>
-
-<style scoped>
-.resetView {
-  position: relative;
-  min-height: 100dvh;
-  overflow: hidden;
-  background:
-    linear-gradient(164deg, rgb(18 24 34 / 1) 0%, rgb(21 29 40 / 1) 56%, rgb(17 23 33 / 1) 100%);
-}
-
-.resetSplit {
-  position: relative;
-  z-index: 1;
-  background: transparent !important;
-}
-
-.resetView :deep(.authSplit__hero) {
-  justify-content: flex-end;
-}
-
-.resetView :deep(.authSplit__form) {
-  justify-content: flex-start;
-}
-
-.resetStars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.resetStar {
-  position: absolute;
-  z-index: 0;
-}
-
-.resetStar::before,
-.resetStar::after {
-  position: absolute;
-  content: '';
-  background-color: #fff;
-  border-radius: 10px;
-  animation: resetStarBlink 1.5s infinite;
-  animation-delay: var(--blink-delay);
-}
-
-.resetStar::before {
-  top: calc(var(--star-size) / 2);
-  left: calc(var(--star-size) / -2);
-  width: calc(3 * var(--star-size));
-  height: var(--star-size);
-}
-
-.resetStar::after {
-  top: calc(var(--star-size) / -2);
-  left: calc(var(--star-size) / 2);
-  width: var(--star-size);
-  height: calc(3 * var(--star-size));
-}
-
-@keyframes resetStarBlink {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(0.4);
-    opacity: 0.5;
-  }
-}
-</style>

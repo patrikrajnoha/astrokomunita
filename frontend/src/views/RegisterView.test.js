@@ -51,6 +51,10 @@ function mountRegisterView() {
   })
 }
 
+function findStepButton(wrapper, label) {
+  return wrapper.findAll('button[type="button"]').find((node) => node.text() === label)
+}
+
 async function completeRegisterWizard(wrapper, {
   name = 'Tester',
   username = 'valid_user',
@@ -62,8 +66,7 @@ async function completeRegisterWizard(wrapper, {
   await wait(450)
   await flush()
 
-  const stepOneNext = wrapper.find('button.btn.ui-pill.ui-pill--primary[type="button"]')
-  await stepOneNext.trigger('click')
+  await findStepButton(wrapper, 'Pokračovať').trigger('click')
   await flush()
 
   await wrapper.find('input[autocomplete="email"]').setValue(email)
@@ -71,8 +74,7 @@ async function completeRegisterWizard(wrapper, {
   await passwordInputs[0].setValue(password)
   await passwordInputs[1].setValue(password)
 
-  const stepTwoNext = wrapper.find('button.btn.ui-pill.ui-pill--primary[type="button"]')
-  await stepTwoNext.trigger('click')
+  await findStepButton(wrapper, 'Pokračovať').trigger('click')
   await flush()
 
   await wrapper.find('form').trigger('submit.prevent')

@@ -1,97 +1,98 @@
 <template>
-  <div class="loginView">
-    <div class="authStars" aria-hidden="true">
-      <span
-        v-for="star in stars"
-        :key="star.id"
-        class="authStar"
-        :style="star.style"
-      ></span>
-    </div>
+  <div>
+    <AuthSplitLayout>
+      <template #hero>
+        <AuthHeroPanel
+          eyebrow=""
+          title="Prihlásenie"
+          subtitle="Pokračujte do svojho Astrokomunita účtu bezpečným prihlásením."
+        >
+          <template #top>
+            <div class="authHero__brand">
+              <img src="/logo.png" alt="Astrokomunita" class="authHero__brandLogo" />
+            </div>
+          </template>
 
-    <main class="authMain mx-auto flex min-h-dvh w-full max-w-[480px] items-start justify-center px-3 py-3 sm:py-8">
-      <section class="w-full rounded-[24px] bg-[#1c2736]/55 p-3.5 sm:p-6">
-        <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#0F73FF]">Prihlásenie</p>
-        <h1 class="mt-1.5 text-xl font-semibold tracking-tight text-[#FFFFFF]">Vitaj späť</h1>
-        <p class="mt-0.5 text-xs text-[#ABB8C9]">Prihlás sa do Astrokomunity.</p>
+          <template #title>
+            <span class="authHero__titleAccent">Prihlásenie</span>
+          </template>
+        </AuthHeroPanel>
+      </template>
 
-        <form class="mt-4 space-y-3" @submit.prevent="submit" @keydown.enter="handleEnterSubmit" novalidate>
-          <label class="block">
-            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">E-mail</span>
-            <div class="flex min-h-[42px] items-center gap-2 rounded-[18px] bg-[#222E3F] px-3">
-              <svg class="h-4 w-4 flex-none text-[#ABB8C9]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <AuthFormSection
+        kicker="ÚČET"
+        title="Vitajte späť"
+        description="Použite e-mail a heslo pre prístup k profilu a komunitnému feedu."
+      >
+        <form class="authForm" @submit.prevent="submit" @keydown.enter="handleEnterSubmit" novalidate>
+          <AuthField
+            v-model="email"
+            label="E-mail"
+            type="email"
+            autocomplete="email"
+            placeholder="you@example.com"
+            :error="emailError"
+            required
+          >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none">
                 <path d="M3.5 7.5 12 13l8.5-5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                 <rect x="3.5" y="5.5" width="17" height="13" rx="2.8" stroke="currentColor" stroke-width="1.8" />
               </svg>
-              <input
-                v-model="email"
-                type="email"
-                autocomplete="email"
-                placeholder="you@example.com"
-                class="h-full w-full border-0 bg-transparent text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
-                required
-              />
-            </div>
-            <p v-if="emailError" class="mt-1 text-xs text-[#EB2452]">{{ emailError }}</p>
-          </label>
+            </template>
+          </AuthField>
 
-          <label class="block">
-            <div class="mb-1 flex items-center justify-between gap-3">
-              <span class="block text-xs font-medium text-[#ABB8C9]">Heslo</span>
-              <RouterLink :to="forgotPasswordLink" class="text-xs font-medium text-[#0F73FF] hover:text-[#FFFFFF]">
-                Zabudnuté heslo?
-              </RouterLink>
-            </div>
-            <div class="flex min-h-[42px] items-center gap-2 rounded-[18px] bg-[#222E3F] px-3">
-              <svg class="h-4 w-4 flex-none text-[#ABB8C9]" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <AuthField
+            v-model="password"
+            label="Heslo"
+            type="password"
+            autocomplete="current-password"
+            placeholder="Zadajte heslo"
+            :error="passwordError"
+            required
+          >
+            <template #icon>
+              <svg viewBox="0 0 24 24" fill="none">
                 <path d="M7.5 11V9.2A4.5 4.5 0 0 1 12 4.7a4.5 4.5 0 0 1 4.5 4.5V11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
                 <rect x="5" y="11" width="14" height="9.5" rx="2.7" stroke="currentColor" stroke-width="1.8" />
               </svg>
-              <input
-                v-model="password"
-                type="password"
-                autocomplete="current-password"
-                placeholder="Zadajte heslo"
-                class="h-full w-full border-0 bg-transparent text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
-                required
-              />
-            </div>
-            <p v-if="passwordError" class="mt-1 text-xs text-[#EB2452]">{{ passwordError }}</p>
-          </label>
+            </template>
+            <template #labelAction>
+              <RouterLink :to="forgotPasswordLink" class="authInlineLink">
+                Zabudli ste heslo?
+              </RouterLink>
+            </template>
+          </AuthField>
 
-          <div v-if="error" class="rounded-[14px] bg-[#EB2452]/15 px-3 py-2 text-xs text-[#EB2452]">
-            {{ error }}
-          </div>
+          <AuthAlert
+            v-if="error"
+            title="Prihlásenie zlyhalo"
+            :message="error"
+          />
 
-          <div v-else-if="isBannedState" class="rounded-[14px] bg-[#EB2452]/15 px-3 py-2 text-xs text-[#EB2452]">
-            {{ bannedDetails }}
-          </div>
+          <AuthAlert
+            v-else-if="isBannedState"
+            title="Účet je blokovaný"
+            :message="bannedDetails"
+          />
 
-          <p v-if="resetSuccessMessage" class="text-xs text-[#ABB8C9]">{{ resetSuccessMessage }}</p>
+          <p v-if="resetSuccessMessage" class="authField__meta">{{ resetSuccessMessage }}</p>
 
-          <div class="grid grid-cols-2 gap-2 pt-0.5">
-            <RouterLink
-              :to="{ name: 'home' }"
-              class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
-            >
-              Späť
-            </RouterLink>
-            <button
-              type="submit"
-              class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6] disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="authBusy"
-            >
-              {{ authBusy ? 'Prihlasujem...' : 'Prihlásiť sa' }}
-            </button>
-          </div>
+          <AuthActions
+            :back-to="{ name: 'home' }"
+            back-label="Späť"
+            submit-label="Prihlásiť sa"
+            loading-label="Prihlasujem..."
+            :loading="authBusy"
+          />
 
-          <p class="pt-0.5 text-center text-xs text-[#ABB8C9]">
-            Nemáte účet?
-            <RouterLink class="font-medium text-[#0F73FF] hover:text-[#FFFFFF]" :to="registerLink">Vytvoriť účet</RouterLink>
+          <p class="authFootnote">
+            Potrebujete účet?
+            <RouterLink class="authInlineLink" :to="registerLink">Vytvoriť účet</RouterLink>
           </p>
         </form>
-      </section>
-    </main>
+      </AuthFormSection>
+    </AuthSplitLayout>
 
     <Transition name="login-success-fade">
       <div
@@ -99,7 +100,7 @@
         class="loginSuccessOverlay"
         role="status"
         aria-live="polite"
-        aria-label="Prihlasenie uspesne, pripravujem presmerovanie"
+        aria-label="Prihlásenie úspešné, pripravujem presmerovanie"
       >
         <div ref="rocketCanvasRef" class="loginSuccessOverlay__canvas"></div>
       </div>
@@ -110,37 +111,16 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AuthActions from '@/components/auth/AuthActions.vue'
+import AuthAlert from '@/components/auth/AuthAlert.vue'
+import AuthField from '@/components/auth/AuthField.vue'
+import AuthFormSection from '@/components/auth/AuthFormSection.vue'
+import AuthHeroPanel from '@/components/auth/AuthHeroPanel.vue'
+import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
+import { useLoginAnimation } from '@/composables/useLoginAnimation'
 import api from '@/services/api'
 import { prefetchHomeFeed } from '@/services/feedPrefetch'
 import { useAuthStore } from '@/stores/auth'
-import { useLoginAnimation } from '@/composables/useLoginAnimation'
-
-function seededRandom(seed) {
-  const value = Math.sin(seed * 9999.91) * 10000
-  return value - Math.floor(value)
-}
-
-function createStars(count) {
-  const generatedStars = []
-  for (let i = 1; i <= count; i += 1) {
-    const x = seededRandom(i * 1.37)
-    const y = seededRandom(i * 2.17)
-    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
-    const delay = -(seededRandom(i * 4.13) * 4)
-    generatedStars.push({
-      id: i,
-      style: {
-        left: `${(x * 100).toFixed(2)}%`,
-        top: `${(y * 100).toFixed(2)}%`,
-        '--star-size': `${size}px`,
-        '--blink-delay': `${delay.toFixed(2)}s`,
-      },
-    })
-  }
-  return generatedStars
-}
-
-const stars = createStars(80)
 
 const route = useRoute()
 const router = useRouter()
@@ -168,10 +148,10 @@ const forgotPasswordLink = computed(() => ({
   query: email.value ? { email: email.value } : undefined,
 }))
 
-const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinny.' : ''))
-const passwordError = computed(() => (attempted.value && !password.value ? 'Heslo je povinne.' : ''))
+const emailError = computed(() => (attempted.value && !email.value.trim() ? 'E-mail je povinný.' : ''))
+const passwordError = computed(() => (attempted.value && !password.value ? 'Heslo je povinné.' : ''))
 const resetSuccessMessage = computed(() => (
-  route.query.reset === '1' ? 'Heslo bolo zmenene. Mozete sa prihlasit novym heslom.' : ''
+  route.query.reset === '1' ? 'Heslo bolo zmenené. Môžete sa prihlásiť novým heslom.' : ''
 ))
 const authBusy = computed(() => auth.loading || isAnimating.value)
 
@@ -188,10 +168,10 @@ const bannedDetails = computed(() => {
     bannedAt = Number.isNaN(parsed.getTime()) ? String(bannedAtRaw) : parsed.toLocaleString()
   }
 
-  if (reason && bannedAt) return `Dovod: ${reason}. Blokovane: ${bannedAt}.`
-  if (reason) return `Dovod: ${reason}.`
-  if (bannedAt) return `Blokovane: ${bannedAt}.`
-  return 'Tento ucet je blokovany.'
+  if (reason && bannedAt) return `Dôvod: ${reason}. Blokované: ${bannedAt}.`
+  if (reason) return `Dôvod: ${reason}.`
+  if (bannedAt) return `Blokované: ${bannedAt}.`
+  return 'Tento účet je blokovaný.'
 })
 
 function shouldPrefetchHomeFeed(destination) {
@@ -232,7 +212,7 @@ async function submit() {
     await router.push(destination)
   } catch (e) {
     cancelAnimation()
-    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlasenie zlyhalo.'
+    error.value = e?.response?.data?.message || e?.authError?.message || e?.message || 'Prihlásenie zlyhalo.'
   }
 }
 
@@ -248,66 +228,6 @@ function handleEnterSubmit(event) {
 </script>
 
 <style scoped>
-.loginView {
-  position: relative;
-  min-height: 100dvh;
-  background: #151d28;
-  overflow-x: hidden;
-}
-
-.authMain {
-  position: relative;
-  z-index: 1;
-}
-
-.authStars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.authStar {
-  position: absolute;
-  z-index: 0;
-}
-
-.authStar::before,
-.authStar::after {
-  position: absolute;
-  content: '';
-  background-color: #fff;
-  border-radius: 10px;
-  animation: authStarBlink 1.5s infinite;
-  animation-delay: var(--blink-delay);
-}
-
-.authStar::before {
-  top: calc(var(--star-size) / 2);
-  left: calc(var(--star-size) / -2);
-  width: calc(3 * var(--star-size));
-  height: var(--star-size);
-}
-
-.authStar::after {
-  top: calc(var(--star-size) / -2);
-  left: calc(var(--star-size) / 2);
-  width: var(--star-size);
-  height: calc(3 * var(--star-size));
-}
-
-@keyframes authStarBlink {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(0.4);
-    opacity: 0.5;
-  }
-}
-
 .login-success-fade-enter-active,
 .login-success-fade-leave-active {
   transition: opacity 240ms ease;

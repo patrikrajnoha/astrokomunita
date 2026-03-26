@@ -3,38 +3,15 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import AuthFormSection from '@/components/auth/AuthFormSection.vue'
+import AuthHeroPanel from '@/components/auth/AuthHeroPanel.vue'
+import AuthSplitLayout from '@/components/auth/AuthSplitLayout.vue'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
-
-function seededRandom(seed) {
-  const value = Math.sin(seed * 9999.91) * 10000
-  return value - Math.floor(value)
-}
-
-function createStars(count) {
-  const generatedStars = []
-  for (let i = 1; i <= count; i += 1) {
-    const x = seededRandom(i * 1.37)
-    const y = seededRandom(i * 2.17)
-    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
-    const delay = -(seededRandom(i * 4.13) * 4)
-    generatedStars.push({
-      id: i,
-      style: {
-        left: `${(x * 100).toFixed(2)}%`,
-        top: `${(y * 100).toFixed(2)}%`,
-        '--star-size': `${size}px`,
-        '--blink-delay': `${delay.toFixed(2)}s`,
-      },
-    })
-  }
-  return generatedStars
-}
 
 const TURNSTILE_SCRIPT_ID = 'cf-turnstile-script'
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 let turnstileScriptPromise = null
-const stars = createStars(80)
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -80,12 +57,12 @@ const currentStepMeta = computed(() => stepItems[currentStep.value - 1] || stepI
 const isLastStep = computed(() => currentStep.value === stepItems.length)
 const turnstileEnabled = computed(() => turnstileSiteKey !== '')
 const turnstileHint = computed(() => {
-  if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo načítať. Obnov stránku a skús to znova.'
-  if (turnstileState.value === 'expired') return 'Overenie proti botom vypršalo. Potvrd ho prosím znova.'
+  if (turnstileState.value === 'error') return 'Overenie proti botom sa nepodarilo načítať. Obnovte stránku a skúste to znova.'
+  if (turnstileState.value === 'expired') return 'Overenie proti botom vypršalo. Potvrďte ho prosím znova.'
   return ''
 })
 const submitTurnstileMessage = computed(() => {
-  if (!turnstileEnabled.value) return 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
+  if (!turnstileEnabled.value) return 'Bezpečnostné overenie nie je nastavené. Skúste to prosím neskôr.'
   if (turnstileToken.value) return ''
   if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Načítavam overenie...'
   return ''
@@ -145,7 +122,6 @@ const usernameHint = computed(() => {
 
   return ''
 })
-
 
 watch(
   () => username.value,
@@ -287,7 +263,7 @@ function validateStepOne() {
   }
 
   if (usernameCheckState.value === 'checking') {
-    return 'Počkaj, kontrolujem dostupnosť používateľského mena.'
+    return 'Počkajte, kontrolujem dostupnosť používateľského mena.'
   }
 
   if (usernameReason.value === 'taken' || usernameReason.value === 'reserved' || usernameReason.value === 'invalid') {
@@ -324,7 +300,7 @@ function validateStepTwo() {
 
 function validateStepThree() {
   if (!turnstileEnabled.value) {
-    return 'Bezpečnostné overenie nie je nastavené. Skús to prosím neskôr.'
+    return 'Bezpečnostné overenie nie je nastavené. Skúste to prosím neskôr.'
   }
 
   if (turnstileEnabled.value && !turnstileToken.value) {
@@ -363,7 +339,7 @@ const submit = async () => {
     const msg = e?.response?.data?.message
     const errors = e?.response?.data?.errors
     if (errors?.turnstile_token?.length) {
-      formError.value = 'Bezpečnostné overenie zlyhalo. Skús to prosím znova.'
+      formError.value = 'Bezpečnostné overenie zlyhalo. Skúste to prosím znova.'
     } else if (errors) {
       const firstKey = Object.keys(errors)[0]
       formError.value = errors[firstKey]?.[0] || msg || 'Registrácia zlyhala.'
@@ -420,7 +396,6 @@ async function mountTurnstileWidget() {
         turnstileState.value = 'expired'
       },
     })
-
   } catch {
     turnstileToken.value = ''
     turnstileState.value = 'error'
@@ -478,14 +453,14 @@ function validateUsername(value) {
   if (normalized.length < 3 || normalized.length > 20) return 'Používateľské meno musí mať 3 až 20 znakov.'
   if (!/^[a-z]/.test(normalized)) return 'Používateľské meno musí začínať písmenom.'
   if (!/^[a-z][a-z0-9_]*$/.test(normalized)) return 'Používateľské meno môže obsahovať iba malé písmená, čísla a podčiarknik.'
-  if (normalized.includes('__')) return 'Používateľské meno nemôže obsahovať dvojité podčiarknik.'
+  if (normalized.includes('__')) return 'Používateľské meno nemôže obsahovať dvojitý podčiarknik.'
 
   return ''
 }
 
 function validateDateOfBirth(value) {
   if (!value) return 'Dátum narodenia je povinný.'
-  if (value > maxDateOfBirth.value) return 'Musíš mať aspoň 13 rokov.'
+  if (value > maxDateOfBirth.value) return 'Musíte mať aspoň 13 rokov.'
   return ''
 }
 
@@ -514,65 +489,4 @@ function formatDateForInput(date) {
 function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
 }
-
 </script>
-
-<style scoped>
-.registerView {
-  position: relative;
-  overflow-x: hidden;
-}
-
-.authMain {
-  position: relative;
-  z-index: 1;
-}
-
-.authStars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.authStar {
-  position: absolute;
-  z-index: 0;
-}
-
-.authStar::before,
-.authStar::after {
-  position: absolute;
-  content: '';
-  background-color: #fff;
-  border-radius: 10px;
-  animation: authStarBlink 1.5s infinite;
-  animation-delay: var(--blink-delay);
-}
-
-.authStar::before {
-  top: calc(var(--star-size) / 2);
-  left: calc(var(--star-size) / -2);
-  width: calc(3 * var(--star-size));
-  height: var(--star-size);
-}
-
-.authStar::after {
-  top: calc(var(--star-size) / -2);
-  left: calc(var(--star-size) / 2);
-  width: var(--star-size);
-  height: calc(3 * var(--star-size));
-}
-
-@keyframes authStarBlink {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(0.4);
-    opacity: 0.5;
-  }
-}
-</style>
