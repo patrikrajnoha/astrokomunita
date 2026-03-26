@@ -121,12 +121,37 @@
 }
 
 .authHint {
-  border-radius: var(--radius-md);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.34);
-  background: rgb(var(--color-bg-rgb) / 0.22);
-  padding: 0.42rem 0.56rem;
-  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: rgba(15, 115, 255, 0.08);
+  padding: 0.38rem 0.5rem 0.38rem 0.9rem;
+}
+
+.authHintText {
+  color: #ABB8C9;
   font-size: 0.78rem;
+}
+
+.authHintBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.75rem;
+  border-radius: 999px;
+  background: #0F73FF;
+  color: #FFFFFF;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 160ms ease;
+}
+
+.authHintBtn:hover {
+  background: #0d65e6;
 }
 
 .mediaCard {

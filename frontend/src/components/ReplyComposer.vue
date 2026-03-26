@@ -2,6 +2,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'

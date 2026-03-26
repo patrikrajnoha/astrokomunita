@@ -1,6 +1,5 @@
 <template>
   <button
-    v-if="isAuthenticated"
     type="button"
     class="mobileFab"
     data-tour="conditions"
