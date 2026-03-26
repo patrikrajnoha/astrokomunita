@@ -935,6 +935,17 @@
     top: calc(var(--app-header-h, 56px) + 2px);
   }
 
+  .tab {
+    padding: 0.5rem 0.18rem 0.4rem;
+    font-size: 0.75rem;
+    gap: 0.2rem;
+  }
+
+  .tabCount {
+    font-size: 0.65rem;
+    padding: 0.08rem 0.3rem;
+  }
+
   .copyBtn {
     display: none;
   }

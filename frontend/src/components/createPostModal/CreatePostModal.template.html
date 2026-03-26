@@ -89,7 +89,7 @@
                 <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/></svg>
               </button>
 
-              <button type="button" class="iconBtn" :class="{ active: !!selectedGif }" :disabled="submitting || pollEnabled" aria-label="GIF" @click="openGifModal">
+              <button v-if="false" type="button" class="iconBtn" :class="{ active: !!selectedGif }" :disabled="submitting || pollEnabled" aria-label="GIF" @click="openGifModal">
                 <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="14" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M8 10.5h2.8M8 13.5h2.8M12 10.5h4.8M12 13.5h4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
               </button>
 

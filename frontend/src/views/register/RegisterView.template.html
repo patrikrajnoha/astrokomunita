@@ -1,202 +1,189 @@
+<div class="registerView min-h-dvh bg-[#151d28] text-[#FFFFFF] overflow-y-auto">
+  <main class="mx-auto flex min-h-dvh w-full max-w-[480px] items-start justify-center px-3 py-3 sm:px-4 sm:py-8">
+    <section class="w-full rounded-[24px] bg-[#1c2736]/55 p-3.5 sm:p-6">
+      <p class="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[#0F73FF]">Registrácia</p>
+      <h1 id="registerTitle" class="mt-1.5 text-xl font-semibold tracking-tight text-[#FFFFFF]">Vytvorenie účtu</h1>
+      <p class="mt-0.5 text-xs text-[#ABB8C9]">Krok {{ currentStep }} z {{ stepItems.length }}: {{ currentStepMeta.subtitle }}</p>
 
-<div class="registerView">
-  <div class="registerStars" aria-hidden="true">
-    <span
-      v-for="star in stars"
-      :key="star.id"
-      class="registerStar"
-      :style="star.style"
-    ></span>
-  </div>
+      <ol class="mt-3 grid grid-cols-3 gap-1.5" aria-label="Priebeh registrácie">
+        <li
+          v-for="step in stepItems"
+          :key="step.id"
+          class="flex min-h-[34px] items-center justify-center rounded-[999px] px-2 text-xs font-medium"
+          :class="currentStep === step.id
+            ? 'bg-[#0F73FF] text-white'
+            : currentStep > step.id
+              ? 'bg-[#222E3F] text-[#FFFFFF]'
+              : 'bg-[#222E3F]/70 text-[#ABB8C9]'"
+        >
+          {{ step.label }}
+        </li>
+      </ol>
 
-  <AuthSplitLayout class="registerSplit">
-    <template #hero>
-      <div class="registerHero">
-        <img src="/logo.png" alt="Astrokomunita" class="registerHeroLogo" />
-        <h1 class="registerHeroTitle">
-          Vitaj vo
-          <span class="registerHeroTitleAccent">vesmírnej</span>
-          komunite
-        </h1>
-        <p class="registerHeroSubtitle">
-          Sleduj udalosti, zapisuj pozorovania a buduj profil medzi nadšencami astronómie.
-        </p>
-      </div>
-    </template>
+      <form class="mt-3 space-y-3" @submit.prevent="submit" novalidate>
+        <div v-if="formError" class="rounded-[18px] bg-[#EB2452]/15 px-3 py-2 text-sm text-[#EB2452]">
+          {{ formError }}
+        </div>
 
-    <div class="registerPage">
-      <div class="registerGlow" aria-hidden="true"></div>
+        <section v-if="currentStep === 1" class="space-y-3" aria-label="Profil">
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Meno</span>
+            <input
+              v-model.trim="name"
+              type="text"
+              autocomplete="name"
+              placeholder="Ako sa mame volat?"
+              class="min-h-[42px] w-full rounded-[18px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
+            />
+          </label>
 
-      <section class="registerModal" role="dialog" aria-modal="true" aria-labelledby="registerTitle">
-        <header class="registerHeader">
-          <p class="registerEyebrow">Vytvorenie účtu</p>
-          <h2 id="registerTitle" class="registerTitle">Registrácia</h2>
-          <p class="registerSubtitle">
-            Krok {{ currentStep }} z {{ stepItems.length }}:
-            {{ currentStepMeta.subtitle }}
-          </p>
-
-          <ol class="stepList" aria-label="Priebeh registrácie">
-            <li
-              v-for="step in stepItems"
-              :key="step.id"
-              class="stepItem"
-              :class="{ isActive: currentStep === step.id, isDone: currentStep > step.id }"
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Pouzivatelske meno</span>
+            <input
+              v-model="username"
+              type="text"
+              autocomplete="username"
+              maxlength="20"
+              placeholder="napr. astro_nickname"
+              class="min-h-[42px] w-full rounded-[18px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
+            />
+            <span
+              v-if="usernameHint"
+              class="mt-1 block text-xs"
+              :class="{
+                'text-[#ABB8C9]': usernameCheckState === 'checking',
+                'text-[#0F73FF]': usernameReason === 'ok',
+                'text-[#EB2452]': usernameCheckState !== 'checking' && usernameReason !== 'ok',
+              }"
             >
-              <span class="stepBullet">{{ step.id }}</span>
-              <span class="stepLabel">{{ step.label }}</span>
-            </li>
-          </ol>
+              {{ usernameHint }}
+            </span>
+          </label>
 
-        </header>
-
-        <form class="card" @submit.prevent="submit" novalidate>
-          <div v-if="formError" class="alert">
-            {{ formError }}
-          </div>
-
-      <section v-if="currentStep === 1" class="stepPanel" aria-label="Profil">
-        <label class="field">
-          <span class="label">Meno</span>
-          <input v-model.trim="name" type="text" class="input" autocomplete="name" placeholder="Ako ťa máme volať?" />
-        </label>
-
-        <label class="field">
-          <span class="label">Používateľské meno</span>
-          <input
-            v-model="username"
-            type="text"
-            class="input"
-            autocomplete="username"
-            maxlength="20"
-            placeholder="napr. astro_nickname"
-          />
-          <span v-if="usernameHint" class="fieldHint" :class="usernameHintClass">{{ usernameHint }}</span>
-        </label>
-
-        <label class="field">
-          <span class="label">Dátum narodenia</span>
-          <div class="dobPicker">
-            <div class="dobPickerGrid">
-              <label class="dobPickerField">
-                <span>Deň</span>
-                <select v-model.number="dobDraftDay" class="dobSelect">
+          <div class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Datum narodenia</span>
+            <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <label class="block">
+                <span class="mb-1 block text-xs text-[#ABB8C9]">Den</span>
+                <select v-model.number="dobDraftDay" class="min-h-[40px] w-full rounded-[14px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none">
                   <option v-for="d in dayOptions" :key="d" :value="d">{{ d }}</option>
                 </select>
               </label>
-              <label class="dobPickerField">
-                <span>Mesiac</span>
-                <select v-model.number="dobDraftMonth" class="dobSelect">
+              <label class="block">
+                <span class="mb-1 block text-xs text-[#ABB8C9]">Mesiac</span>
+                <select v-model.number="dobDraftMonth" class="min-h-[40px] w-full rounded-[14px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none">
                   <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
                 </select>
               </label>
-              <label class="dobPickerField">
-                <span>Rok</span>
-                <select v-model.number="dobDraftYear" class="dobSelect">
+              <label class="block">
+                <span class="mb-1 block text-xs text-[#ABB8C9]">Rok</span>
+                <select v-model.number="dobDraftYear" class="min-h-[40px] w-full rounded-[14px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none">
                   <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
                 </select>
               </label>
             </div>
-            <p v-if="dobDraftTooYoung" class="fieldHint isError">Musíš mať aspoň 13 rokov.</p>
+            <p v-if="dobDraftTooYoung" class="mt-1 text-xs text-[#EB2452]">Musis mat aspon 13 rokov.</p>
+            <span v-if="!dobDraftTooYoung && dateOfBirthError" class="mt-1 block text-xs text-[#EB2452]">{{ dateOfBirthError }}</span>
           </div>
-          <span v-if="!dobDraftTooYoung && dateOfBirthError" class="fieldHint isError">{{ dateOfBirthError }}</span>
-        </label>
-      </section>
+        </section>
 
-      <section v-else-if="currentStep === 2" class="stepPanel" aria-label="Konto">
-        <label class="field">
-          <span class="label">Email</span>
-          <input
-            v-model.trim="email"
-            type="email"
-            class="input"
-            autocomplete="email"
-            placeholder="you@example.com"
-          />
-        </label>
+        <section v-else-if="currentStep === 2" class="space-y-3" aria-label="Konto">
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Email</span>
+            <input
+              v-model.trim="email"
+              type="email"
+              autocomplete="email"
+              placeholder="you@example.com"
+              class="min-h-[42px] w-full rounded-[18px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
+            />
+          </label>
 
-        <label class="field">
-          <span class="label">Heslo</span>
-          <input
-            v-model="password"
-            type="password"
-            class="input"
-            autocomplete="new-password"
-            placeholder="Min. 8 znakov"
-          />
-        </label>
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Heslo</span>
+            <input
+              v-model="password"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Min. 8 znakov"
+              class="min-h-[42px] w-full rounded-[18px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
+            />
+          </label>
 
-        <label class="field">
-          <span class="label">Potvrdenie hesla</span>
-          <input
-            v-model="passwordConfirmation"
-            type="password"
-            class="input"
-            autocomplete="new-password"
-            placeholder="Zopakuj heslo"
-          />
-        </label>
-      </section>
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Potvrdenie hesla</span>
+            <input
+              v-model="passwordConfirmation"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Zopakuj heslo"
+              class="min-h-[42px] w-full rounded-[18px] border-0 bg-[#222E3F] px-3 text-sm text-[#FFFFFF] outline-none placeholder:text-[#ABB8C9]/70"
+            />
+          </label>
+        </section>
 
-      <section v-else class="stepPanel" aria-label="Overenie">
-        <div class="summaryBox">
-          <p class="summaryTitle">Skontroluj údaje</p>
-          <p class="summaryLine"><span>Meno:</span> {{ name || '-' }}</p>
-          <p class="summaryLine"><span>Používateľ:</span> {{ username || '-' }}</p>
-          <p class="summaryLine"><span>Email:</span> {{ email || '-' }}</p>
-          <p class="summaryLine"><span>Dátum narodenia:</span> {{ dobDraftDay && dobDraftMonth && dobDraftYear ? `${dobDraftDay}. ${dobDraftMonth}. ${dobDraftYear}` : '-' }}</p>
+        <section v-else class="space-y-3" aria-label="Overenie">
+          <div class="rounded-[20px] bg-[#222E3F] p-3">
+            <p class="text-xs uppercase tracking-[0.12em] text-[#ABB8C9]">Kontrola udajov</p>
+            <p class="mt-2 text-sm text-[#FFFFFF]"><span class="text-[#ABB8C9]">Meno:</span> {{ name || '-' }}</p>
+            <p class="mt-1 text-sm text-[#FFFFFF]"><span class="text-[#ABB8C9]">Pouzivatel:</span> {{ username || '-' }}</p>
+            <p class="mt-1 text-sm text-[#FFFFFF]"><span class="text-[#ABB8C9]">Email:</span> {{ email || '-' }}</p>
+            <p class="mt-1 text-sm text-[#FFFFFF]"><span class="text-[#ABB8C9]">Datum narodenia:</span> {{ dobDraftDay && dobDraftMonth && dobDraftYear ? `${dobDraftDay}. ${dobDraftMonth}. ${dobDraftYear}` : '-' }}</p>
+          </div>
+
+          <div v-if="turnstileEnabled" class="block">
+            <span class="mb-1 block text-xs font-medium text-[#ABB8C9]">Overenie proti botom</span>
+            <div class="turnstileShell overflow-x-auto rounded-[20px] bg-[#222E3F] p-3" :class="{ 'ring-1 ring-[#EB2452]': turnstileState === 'error' || turnstileState === 'expired' }">
+              <div ref="turnstileContainer"></div>
+            </div>
+            <span v-if="turnstileHint" class="mt-1 block text-xs text-[#EB2452]">{{ turnstileHint }}</span>
+          </div>
+
+          <p
+            v-if="submitTurnstileMessage"
+            class="text-xs"
+            :class="{ 'text-[#EB2452]': !turnstileEnabled, 'text-[#ABB8C9]': turnstileEnabled }"
+          >
+            {{ submitTurnstileMessage }}
+          </p>
+        </section>
+
+        <div class="grid grid-cols-2 gap-2 pt-0.5">
+          <button
+            v-if="currentStep > 1"
+            type="button"
+            class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
+            @click="goToPreviousStep"
+          >
+            Spat
+          </button>
+          <router-link
+            v-else
+            class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#222E3F] px-4 text-sm font-medium text-[#ABB8C9] transition-colors hover:bg-[#1c2736] hover:text-[#FFFFFF]"
+            :to="loginLink"
+          >
+            Mam ucet
+          </router-link>
+
+          <button
+            v-if="!isLastStep"
+            type="button"
+            class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6] disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="auth.loading || usernameCheckState === 'checking'"
+            @click="goToNextStep"
+          >
+            Pokracovat
+          </button>
+          <button
+            v-else
+            class="inline-flex min-h-[40px] items-center justify-center rounded-[999px] bg-[#0F73FF] px-4 text-sm font-medium text-[#FFFFFF] transition-colors hover:bg-[#0d65e6] disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            :disabled="isSubmitDisabled"
+          >
+            {{ auth.loading ? 'Registrujem...' : 'Dokoncit registraciu' }}
+          </button>
         </div>
-
-        <div v-if="turnstileEnabled" class="field">
-          <span class="label">Overenie proti botom</span>
-          <div class="turnstileShell" :class="{ isError: turnstileState === 'error' || turnstileState === 'expired' }">
-            <div ref="turnstileContainer"></div>
-          </div>
-          <span v-if="turnstileHint" class="fieldHint isError">{{ turnstileHint }}</span>
-        </div>
-
-        <p
-          v-if="submitTurnstileMessage"
-          class="submitHint"
-          :class="{ isError: !turnstileEnabled, isMuted: turnstileEnabled }"
-        >
-          {{ submitTurnstileMessage }}
-        </p>
-      </section>
-
-          <div class="actionRow">
-            <button
-              v-if="currentStep > 1"
-              type="button"
-              class="btnSecondary"
-              @click="goToPreviousStep"
-            >
-              Späť
-            </button>
-            <router-link v-else class="btnSecondary btnSecondaryLink" :to="loginLink">
-              Mám účet
-            </router-link>
-
-            <button
-              v-if="!isLastStep"
-              type="button"
-              class="btn ui-pill ui-pill--primary"
-              :disabled="auth.loading || usernameCheckState === 'checking'"
-              @click="goToNextStep"
-            >
-              Pokračovať
-            </button>
-            <button
-              v-else
-              class="btn ui-pill ui-pill--primary"
-              type="submit"
-              :disabled="isSubmitDisabled"
-            >
-              {{ auth.loading ? 'Registrujem...' : 'Dokončiť registráciu' }}
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
-  </AuthSplitLayout>
+      </form>
+    </section>
+  </main>
 </div>

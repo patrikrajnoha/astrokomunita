@@ -24,7 +24,8 @@
         </div>
 
         <div v-if="!auth.isAuthed" class="authHint">
-          Pre odoslanie komentára sa prihlás.
+          <span class="authHintText">Pre komentovanie sa prihlás.</span>
+          <RouterLink to="/login" class="authHintBtn">Prihlásiť sa</RouterLink>
         </div>
 
         <div v-if="selectedGif" class="mediaCard mediaCard--gif">
@@ -87,6 +88,7 @@
             </button>
 
             <button
+              v-if="false"
               class="iconBtn"
               type="button"
               :class="{ active: !!selectedGif || isGifFile(file) }"
