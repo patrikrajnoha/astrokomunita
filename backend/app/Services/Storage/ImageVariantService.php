@@ -221,7 +221,7 @@ class ImageVariantService
             $width = (int) $image->getImageWidth();
             $height = (int) $image->getImageHeight();
             $image->clear();
-            $image->destroy();
+            unset($image);
 
             if ($blob === '') {
                 return null;
@@ -257,7 +257,7 @@ class ImageVariantService
         $sourceWidth = imagesx($source);
         $sourceHeight = imagesy($source);
         if ($sourceWidth < 1 || $sourceHeight < 1) {
-            imagedestroy($source);
+            unset($source);
             return null;
         }
 
@@ -267,7 +267,7 @@ class ImageVariantService
 
         $target = imagecreatetruecolor($targetWidth, $targetHeight);
         if (!$target) {
-            imagedestroy($source);
+            unset($source);
             return null;
         }
 
@@ -296,8 +296,7 @@ class ImageVariantService
         }
         $contents = (string) ob_get_clean();
 
-        imagedestroy($target);
-        imagedestroy($source);
+        unset($target, $source);
 
         if ($contents === '') {
             return null;
@@ -472,6 +471,14 @@ class ImageVariantService
 
         $privateDisk = Storage::disk($this->mediaStorage->privateDiskName());
         $publicDisk = Storage::disk($this->mediaStorage->publicDiskName());
+
+        if (!$publicDisk->exists($webPath)) {
+            throw new RuntimeException(sprintf(
+                'Image web variant was not persisted to storage after write (disk=%s, path=%s). Check storage directory ownership and permissions.',
+                $this->mediaStorage->publicDiskName(),
+                $webPath
+            ));
+        }
 
         $resolvedOriginalSize = $originalSize > 0
             ? $originalSize

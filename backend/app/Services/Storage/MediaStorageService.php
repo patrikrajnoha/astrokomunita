@@ -3,7 +3,9 @@
 namespace App\Services\Storage;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class MediaStorageService
 {
@@ -91,7 +93,9 @@ class MediaStorageService
             return $this->publicMediaApiUrl($path);
         }
 
-        $url = Storage::disk($resolvedDiskName)->url($path);
+        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
+        $disk = Storage::disk($resolvedDiskName);
+        $url = $disk->url($path);
         if (preg_match('#^https?://#i', $url)) {
             return $url;
         }
@@ -114,7 +118,19 @@ class MediaStorageService
 
     public function writePublic(string $path, string $contents): void
     {
-        Storage::disk($this->publicDiskName())->put($path, $contents, ['visibility' => 'public']);
+        $result = Storage::disk($this->publicDiskName())->put($path, $contents, ['visibility' => 'public']);
+        if ($result === false) {
+            Log::error('MediaStorageService: failed to write file to public storage.', [
+                'path' => $path,
+                'disk' => $this->publicDiskName(),
+                'contents_bytes' => strlen($contents),
+            ]);
+            throw new RuntimeException(sprintf(
+                'Failed to write file to public storage (disk=%s, path=%s). Check storage directory ownership and permissions.',
+                $this->publicDiskName(),
+                $path
+            ));
+        }
     }
 
     public function writePrivate(string $path, string $contents): void
