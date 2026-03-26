@@ -94,18 +94,22 @@
                 ({{ secondaryEventTimeTimezoneLabel }})
               </span>
             </p>
-            <button
-              v-if="viewingForecast.missingLocation"
-              type="button"
-              class="locationButton"
-              @click="goToLocationSettings"
-            >
-              Nastaviť polohu
-            </button>
+            <div v-if="viewingForecast.missingLocation" class="locationPrompt">
+              <p class="locationPrompt__text">
+                {{ auth.isAuthed ? 'Nastav polohu pre podmienky pozorovania.' : 'Prihlás sa a nastav polohu — zobrazíme podmienky priamo pre tvoje mesto.' }}
+              </p>
+              <button
+                type="button"
+                class="locationButton"
+                @click="goToLocationSettings"
+              >
+                {{ auth.isAuthed ? 'Nastaviť polohu' : 'Prihlásiť sa' }}
+              </button>
+            </div>
           </section>
 
           <section class="eventSection forecastSection">
-            <p class="eventSection__label">Podmienky</p>
+            <p class="eventSection__label">Podmienky pozorovania</p>
             <EventViewingWindowForecast
               :event="event"
               :user-location="resolvedLocation"

@@ -555,7 +555,11 @@ function handleViewingForecastState(nextState) {
 }
 
 function goToLocationSettings() {
-  router.push('/profile/edit')
+  if (!auth.isAuthed) {
+    router.push({ name: 'login', query: { redirect: route.fullPath } })
+  } else {
+    router.push('/profile/edit')
+  }
 }
 
 async function copyText(value) {

@@ -171,10 +171,32 @@
   color: rgb(255 255 255 / 0.48);
 }
 
+.locationPrompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.55rem 0.55rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(15, 115, 255, 0.08);
+}
+
+.locationPrompt__text {
+  font-size: 0.78rem;
+  color: #ABB8C9;
+  line-height: 1.4;
+}
+
 .locationButton {
   width: fit-content;
-  min-height: 2.3rem;
-  margin-top: 0.18rem;
+  min-height: 2.1rem;
+  flex-shrink: 0;
+  border: 0 !important;
+  background: #0F73FF !important;
+  color: #FFFFFF !important;
+  padding: 0 0.9rem !important;
+  font-size: 0.8rem !important;
 }
 
 .forecastSection {
