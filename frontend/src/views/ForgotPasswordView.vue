@@ -1,6 +1,15 @@
 <template>
   <div class="forgotView">
-    <main class="mx-auto flex min-h-dvh w-full max-w-[560px] items-start justify-center px-4 py-4 sm:py-8">
+    <div class="authStars" aria-hidden="true">
+      <span
+        v-for="star in stars"
+        :key="star.id"
+        class="authStar"
+        :style="star.style"
+      ></span>
+    </div>
+
+    <main class="authMain mx-auto flex min-h-dvh w-full max-w-[560px] items-start justify-center px-4 py-4 sm:py-8">
       <section class="w-full rounded-[28px] bg-[#1c2736]/55 p-4 sm:p-6">
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#0F73FF]">Zabudnute heslo</p>
         <h1 class="mt-2 text-2xl font-semibold tracking-tight text-[#FFFFFF]">Obnova hesla</h1>
@@ -63,6 +72,33 @@ import { useRoute, useRouter } from 'vue-router'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 
+function seededRandom(seed) {
+  const value = Math.sin(seed * 9999.91) * 10000
+  return value - Math.floor(value)
+}
+
+function createStars(count) {
+  const generatedStars = []
+  for (let i = 1; i <= count; i += 1) {
+    const x = seededRandom(i * 1.37)
+    const y = seededRandom(i * 2.17)
+    const size = [1, 2, 3, 4][Math.floor(seededRandom(i * 3.31) * 4)]
+    const delay = -(seededRandom(i * 4.13) * 4)
+    generatedStars.push({
+      id: i,
+      style: {
+        left: `${(x * 100).toFixed(2)}%`,
+        top: `${(y * 100).toFixed(2)}%`,
+        '--star-size': `${size}px`,
+        '--blink-delay': `${delay.toFixed(2)}s`,
+      },
+    })
+  }
+  return generatedStars
+}
+
+const stars = createStars(80)
+
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -115,8 +151,62 @@ async function submit() {
 
 <style scoped>
 .forgotView {
+  position: relative;
   min-height: 100dvh;
   background: #151d28;
   overflow-x: hidden;
+}
+
+.authMain {
+  position: relative;
+  z-index: 1;
+}
+
+.authStars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.authStar {
+  position: absolute;
+  z-index: 0;
+}
+
+.authStar::before,
+.authStar::after {
+  position: absolute;
+  content: '';
+  background-color: #fff;
+  border-radius: 10px;
+  animation: authStarBlink 1.5s infinite;
+  animation-delay: var(--blink-delay);
+}
+
+.authStar::before {
+  top: calc(var(--star-size) / 2);
+  left: calc(var(--star-size) / -2);
+  width: calc(3 * var(--star-size));
+  height: var(--star-size);
+}
+
+.authStar::after {
+  top: calc(var(--star-size) / -2);
+  left: calc(var(--star-size) / 2);
+  width: var(--star-size);
+  height: calc(3 * var(--star-size));
+}
+
+@keyframes authStarBlink {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(0.4);
+    opacity: 0.5;
+  }
 }
 </style>
