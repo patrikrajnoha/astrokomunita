@@ -18,7 +18,7 @@
     </div>
 
     <p v-else-if="showMissingLocation" class="forecastStrip__empty">
-      Predpoveď zobrazíme po uložení polohy.
+      Nastav polohu a zobrazíme predpoveď priamo pre tvoje miesto.
     </p>
 
     <div v-else-if="summary" class="forecastStrip__metrics" role="list">
