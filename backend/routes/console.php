@@ -98,12 +98,6 @@ Schedule::command('notifications:prune')
     ->dailyAt('00:20')
     ->withoutOverlapping();
 
-if (config('session.driver') === 'database') {
-    Schedule::command('session:prune')
-        ->dailyAt('00:25')
-        ->withoutOverlapping();
-}
-
 Schedule::command('newsletter:send-weekly')
     ->weeklyOn(1, '08:00')
     ->withoutOverlapping();
