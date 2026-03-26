@@ -30,7 +30,7 @@ describe('botAvatar helper', () => {
     })
 
     expect(botAvatar?.path).toBe('bots/kozmobot/kb_blue.png')
-    expect(botAvatar?.url).toContain('/api/bot-avatars/kozmobot/kb_blue.png')
+    expect(botAvatar?.url).toContain('/assets/bots/kozmobot/kb_blue.png')
   })
 
   it('keeps deterministic default blue file when bot has no avatar_path', () => {
@@ -44,7 +44,21 @@ describe('botAvatar helper', () => {
 
     expect(botAvatar?.file).toBe('sb_blue.png')
     expect(botAvatar?.path).toBe('bots/stellarbot/sb_blue.png')
-    expect(botAvatar?.url).toContain('/api/bot-avatars/stellarbot/sb_blue.png')
+    expect(botAvatar?.url).toContain('/assets/bots/stellarbot/sb_blue.png')
+  })
+
+  it('normalizes legacy bot avatar api urls to static asset urls', () => {
+    const botAvatar = getBotAvatar({
+      username: 'stellarbot',
+      role: 'bot',
+      is_bot: true,
+      avatar_path: null,
+      avatar_url: '/api/bot-avatars/stellarbot/sb_red.png',
+    })
+
+    expect(botAvatar?.file).toBe('sb_red.png')
+    expect(botAvatar?.path).toBe('bots/stellarbot/sb_red.png')
+    expect(botAvatar?.url).toContain('/assets/bots/stellarbot/sb_red.png')
   })
 
   it('keeps uploaded custom avatar for bot account', () => {

@@ -79,17 +79,6 @@ function botAvatarPath(username, file) {
   return `bots/${normalizedUsername}/${normalizedFile}`
 }
 
-function botAvatarApiUrlFromPath(path) {
-  const normalizedPath = String(path || '').trim().replace(/^\/+/, '')
-  if (!normalizedPath) return ''
-
-  const parts = normalizedPath.split('/').filter(Boolean)
-  if (parts.length !== 3 || parts[0] !== 'bots') return ''
-
-  const [, username, file] = parts
-  return `/api/bot-avatars/${encodeURIComponent(username)}/${encodeURIComponent(file)}`
-}
-
 function botAvatarLegacyUrlFromPath(path) {
   const normalizedPath = String(path || '').trim().replace(/^\/+/, '')
   if (!normalizedPath) return ''
@@ -99,6 +88,33 @@ function botAvatarLegacyUrlFromPath(path) {
 
   const [, username, file] = parts
   return `/assets/bots/${encodeURIComponent(username)}/${encodeURIComponent(file)}`
+}
+
+function resolveBotAssetPathFromUrl(url, username, config) {
+  const value = String(url || '').trim()
+  if (!value) return { matchesBotAsset: false, path: '' }
+
+  const normalizedUrl = value.replace(/^https?:\/\/[^/]+/i, '').replace(/^\/+/, '')
+  const parts = normalizedUrl.split('/').filter(Boolean)
+  if (parts.length !== 4) {
+    return { matchesBotAsset: false, path: '' }
+  }
+
+  const isApiBotAvatar = parts[0] === 'api' && parts[1] === 'bot-avatars'
+  const isStaticBotAvatar = parts[0] === 'assets' && parts[1] === 'bots'
+  if (!isApiBotAvatar && !isStaticBotAvatar) {
+    return { matchesBotAsset: false, path: '' }
+  }
+
+  if (parts[2] !== username) {
+    return { matchesBotAsset: false, path: '' }
+  }
+
+  const file = decodeURIComponent(parts[3] || '')
+  return {
+    matchesBotAsset: true,
+    path: config.files.includes(file) ? botAvatarPath(username, file) : '',
+  }
 }
 
 function resolveSelectedBotFile({ username, config, avatarPath }) {
@@ -142,7 +158,9 @@ export function getBotAvatar(user, overrides = {}) {
   const config = getBotConfig(username)
   if (!config) return null
   const normalizedPath = normalizeAvatarPath(overrides.avatarPath ?? user?.avatar_path ?? user?.avatarPath ?? '')
-  const explicitUrl = normalizeMediaUrl(overrides.avatarUrl ?? user?.avatar_url ?? user?.avatarUrl ?? '')
+  const rawExplicitUrl = overrides.avatarUrl ?? user?.avatar_url ?? user?.avatarUrl ?? ''
+  const explicitUrl = normalizeMediaUrl(rawExplicitUrl)
+  const explicitBotAsset = resolveBotAssetPathFromUrl(rawExplicitUrl, username, config)
 
   const isCustomUpload = normalizedPath !== '' && !isBotAssetPath(normalizedPath, username)
   if (isCustomUpload) {
@@ -172,16 +190,15 @@ export function getBotAvatar(user, overrides = {}) {
   const selectedFile = resolveSelectedBotFile({
     username,
     config,
-    avatarPath: normalizedPath,
+    avatarPath: normalizedPath || explicitBotAsset.path,
   })
 
   const path = botAvatarPath(username, selectedFile)
   const fallbackPath = botAvatarPath(username, config.defaultFile)
   const url =
-    botAvatarApiUrlFromPath(path) ||
-    explicitUrl ||
+    (explicitBotAsset.path ? botAvatarLegacyUrlFromPath(explicitBotAsset.path) : '') ||
     botAvatarLegacyUrlFromPath(path) ||
-    botAvatarApiUrlFromPath(fallbackPath) ||
+    (explicitBotAsset.matchesBotAsset ? '' : explicitUrl) ||
     botAvatarLegacyUrlFromPath(fallbackPath)
 
   return {

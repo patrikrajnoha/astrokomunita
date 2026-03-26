@@ -18,18 +18,18 @@ describe('UserAvatar', () => {
           avatar_mode: 'image',
           avatar_path: 'bots/stellarbot/sb_blue.png',
         },
-        avatarUrl: '/api/bot-avatars/stellarbot/missing.png',
+        avatarUrl: '/assets/bots/stellarbot/missing.png',
       },
     })
 
     const image = wrapper.get('img.user-avatar-media')
-    expect(image.attributes('src')).toContain('/api/bot-avatars/stellarbot/missing.png')
+    expect(image.attributes('src')).toContain('/assets/bots/stellarbot/missing.png')
 
     await image.trigger('error')
     await flush()
 
     const retried = wrapper.get('img.user-avatar-media')
-    expect(retried.attributes('src')).toContain('/api/bot-avatars/stellarbot/sb_blue.png')
+    expect(retried.attributes('src')).toContain('/assets/bots/stellarbot/sb_blue.png')
   })
 
   it('keeps generated fallback for non-bot when image fails', async () => {
@@ -42,7 +42,7 @@ describe('UserAvatar', () => {
           is_bot: false,
           avatar_mode: 'image',
         },
-        avatarUrl: '/api/bot-avatars/non-bot/missing.png',
+        avatarUrl: '/assets/bots/non-bot/missing.png',
       },
     })
 

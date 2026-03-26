@@ -67,7 +67,7 @@ describe('resolveAvatarState', () => {
 
     expect(botState.usesImage).toBe(true)
     expect(botState.mode).toBe('image')
-    expect(botState.imageUrl).toContain('/api/bot-avatars/kozmobot/kb_blue.png')
+    expect(botState.imageUrl).toContain('/assets/bots/kozmobot/kb_blue.png')
   })
 
   it('uses uploaded avatar for bot when image exists', () => {
@@ -92,13 +92,13 @@ describe('resolveAvatarState', () => {
       is_bot: true,
       avatar_mode: 'image',
       avatar_path: 'bots/kozmobot/kb_blue.png',
-      avatar_url: '/api/bot-avatars/kozmobot/kb_blue.png',
+      avatar_url: '/assets/bots/kozmobot/kb_blue.png',
     }, {
-      avatarUrl: '/api/bot-avatars/kozmobot/kb_red.png',
+      avatarUrl: '/assets/bots/kozmobot/kb_red.png',
     })
 
     expect(state.usesImage).toBe(true)
-    expect(state.imageUrl).toContain('/api/bot-avatars/kozmobot/kb_red.png')
+    expect(state.imageUrl).toContain('/assets/bots/kozmobot/kb_red.png')
   })
 
   it('keeps temporary blob preview for bot before save', () => {
@@ -109,7 +109,7 @@ describe('resolveAvatarState', () => {
       is_bot: true,
       avatar_mode: 'image',
       avatar_path: 'bots/kozmobot/kb_blue.png',
-      avatar_url: '/api/bot-avatars/kozmobot/kb_blue.png',
+      avatar_url: '/assets/bots/kozmobot/kb_blue.png',
     }, {
       avatarUrl: 'blob:bot-avatar-preview',
     })

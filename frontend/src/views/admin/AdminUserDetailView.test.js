@@ -338,7 +338,7 @@ describe('AdminUserDetailView', () => {
 
     const modalPreview = wrapper.find('.avatarPreviewWrap img.user-avatar-media')
     expect(modalPreview.exists()).toBe(true)
-    expect(modalPreview.attributes('src')).toContain('/api/bot-avatars/stellarbot/sb_blue.png')
+    expect(modalPreview.attributes('src')).toContain('/assets/bots/stellarbot/sb_blue.png')
     expect(modalPreview.attributes('src')).not.toContain('/api/media/file/avatars/42/missing.png')
   })
 
@@ -449,7 +449,7 @@ describe('AdminUserDetailView', () => {
 
     const modalPreview = wrapper.find('.avatarPreviewWrap img.user-avatar-media')
     expect(modalPreview.exists()).toBe(true)
-    expect(modalPreview.attributes('src')).toContain('/api/bot-avatars/kozmobot/kb_red.png')
+    expect(modalPreview.attributes('src')).toContain('/assets/bots/kozmobot/kb_red.png')
 
     await wrapper.get('[data-testid="admin-bot-avatar-save"]').trigger('click')
     await flush()
