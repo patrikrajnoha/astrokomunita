@@ -9,16 +9,7 @@
     :title="label"
     @click="$emit('widgets')"
   >
-    <svg
-      class="fabIcon"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path fill-rule="evenodd" clip-rule="evenodd" d="M14.338 3.038C15.865 1.772 17.98 1.25 19.98 1.25c.414 0 .77.336.77.75 0 2-.522 4.115-1.788 5.642-.677.817-1.563 1.42-2.587 1.726l.006.027c.238 1.042.104 2.122-.44 3.034l-2.633 4.39a.75.75 0 0 1-1.178.13l-1.33-1.451-3.189 3.19a.75.75 0 0 1-1.06-1.061l3.19-3.19-1.452-1.33a.75.75 0 0 1 .13-1.178l4.39-2.633c.912-.546 1.992-.679 3.034-.44l.027.005c.306-1.024.91-1.91 1.726-2.587-.677.817-1.563 1.42-2.587 1.726ZM4.97 14.97a.75.75 0 0 1 1.06 0l3 3a.75.75 0 0 1-1.06 1.06l-3-3a.75.75 0 0 1 0-1.06ZM3.22 13.22a.75.75 0 0 1 1.06 0l2.5 2.5a.75.75 0 0 1-1.06 1.06l-2.5-2.5a.75.75 0 0 1 0-1.06ZM6.72 16.72a.75.75 0 0 1 1.06 0l1.5 1.5a.75.75 0 0 1-1.06 1.06l-1.5-1.5a.75.75 0 0 1 0-1.06Z" />
-    </svg>
+    <span class="fabEmoji" aria-hidden="true">🚀</span>
   </button>
 </template>
 
@@ -64,6 +55,15 @@ const fabStyle = computed(() => ({
 }
 
 .fabIcon {
+  pointer-events: none;
+}
+
+.fabEmoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  line-height: 1;
   pointer-events: none;
 }
 
