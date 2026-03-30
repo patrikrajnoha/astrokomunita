@@ -89,7 +89,8 @@ class MediaStorageService
 
         $resolvedDiskName = $diskName ?: $this->diskName();
         $diskDriver = (string) config(sprintf('filesystems.disks.%s.driver', $resolvedDiskName), '');
-        if ($diskDriver === 'local') {
+
+        if ($diskDriver === 'local' || $resolvedDiskName === 'r2_public') {
             return $this->publicMediaApiUrl($path);
         }
 
