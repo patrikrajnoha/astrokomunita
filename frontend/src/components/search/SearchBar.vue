@@ -13,7 +13,7 @@
         :id="inputId"
         ref="inputRef"
         v-model="localQuery"
-        type="search"
+        type="text"
         :placeholder="placeholder"
         class="searchBar__input"
         autocomplete="off"

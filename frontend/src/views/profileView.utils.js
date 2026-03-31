@@ -20,8 +20,17 @@ export function shorten(text) {
 }
 
 export function isImage(post) {
-  const mime = post?.attachment_mime || ''
-  return mime.startsWith('image/')
+  const mime = post?.attachment_mime || post?.attachment_web_mime || ''
+  if (mime.startsWith('image/')) return true
+
+  const name = (post?.attachment_original_name || '').toLowerCase()
+  return (
+    name.endsWith('.jpg') ||
+    name.endsWith('.jpeg') ||
+    name.endsWith('.png') ||
+    name.endsWith('.gif') ||
+    name.endsWith('.webp')
+  )
 }
 
 export function absoluteUrl(url, baseApiUrl = '') {

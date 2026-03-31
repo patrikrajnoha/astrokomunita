@@ -764,7 +764,7 @@ async function save() {
 
     if (locationDirty) {
       try {
-        const locationResponse = await http.patch('/me/location', locationPayload)
+        const locationResponse = await http.patch('/me/location', locationPayload, { meta: { skipErrorToast: true } })
         userPayload = locationResponse?.data || userPayload
       } catch (locationError) {
         const fallback = profileDirty ? 'Uloženie polohy zlyhalo. Profil nebol uložený.' : 'Uloženie polohy zlyhalo.'
@@ -775,7 +775,7 @@ async function save() {
 
     if (profileDirty) {
       try {
-        const profileResponse = await http.patch('/profile', profilePayload)
+        const profileResponse = await http.patch('/profile', profilePayload, { meta: { skipErrorToast: true } })
         userPayload = profileResponse?.data || userPayload
       } catch (profileError) {
         const fallback = locationDirty ? 'Poloha bola uložená, ale profil sa nepodarilo uložiť.' : 'Uloženie profilu zlyhalo.'

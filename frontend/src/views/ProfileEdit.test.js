@@ -161,6 +161,7 @@ describe('ProfileEdit', () => {
         location_label: 'Nitra',
         location_source: 'manual',
       }),
+      expect.objectContaining({ meta: expect.objectContaining({ skipErrorToast: true }) }),
     )
   })
 
@@ -203,6 +204,7 @@ describe('ProfileEdit', () => {
         location_label: 'Ivanka pri Nitre, Nitriansky kraj, Slovakia',
         location_source: 'manual',
       }),
+      expect.objectContaining({ meta: expect.objectContaining({ skipErrorToast: true }) }),
     )
   })
 
@@ -239,6 +241,7 @@ describe('ProfileEdit', () => {
         location_label: 'Cierny Balog, Banskobystricky kraj, Slovakia',
         location_source: 'manual',
       }),
+      expect.objectContaining({ meta: expect.objectContaining({ skipErrorToast: true }) }),
     )
   })
 
@@ -324,6 +327,7 @@ describe('ProfileEdit', () => {
         location_label: 'Trencin',
         location_source: 'manual',
       }),
+      expect.objectContaining({ meta: expect.objectContaining({ skipErrorToast: true }) }),
     )
   })
 

@@ -1,5 +1,5 @@
 export function isImage(p) {
-  const mime = p?.attachment_mime || ''
+  const mime = p?.attachment_mime || p?.attachment_web_mime || ''
   if (typeof mime === 'string' && mime.startsWith('image/')) return true
 
   const name = (p?.attachment_original_name || p?.attachment_url || '').toLowerCase()

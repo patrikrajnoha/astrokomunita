@@ -76,7 +76,7 @@ export function attachmentDownloadSrc(post, baseURL = '') {
 }
 
 export function isImage(post) {
-  const mime = post?.attachment_mime || ''
+  const mime = post?.attachment_mime || post?.attachment_web_mime || ''
   if (typeof mime === 'string' && mime.startsWith('image/')) return true
 
   const name = (post?.attachment_original_name || post?.attachment_url || '').toLowerCase()
