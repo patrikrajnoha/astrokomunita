@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { nextTick } from 'vue'
 import ObservationDetailView from './ObservationDetailView.vue'
+import api from '@/services/api'
 
 const getObservationMock = vi.hoisted(() => vi.fn())
 const getEventsMock = vi.hoisted(() => vi.fn())
@@ -117,5 +118,30 @@ describe('ObservationDetailView event chip', () => {
 
     const wrapper = await mountView()
     expect(wrapper.find('.event-chip').exists()).toBe(false)
+  })
+
+  it('normalizes existing observation media preview src against API origin', async () => {
+    const originalBaseUrl = api.defaults.baseURL
+    api.defaults.baseURL = 'https://api.astrokomunita.test/api'
+
+    getObservationMock.mockResolvedValue({
+      data: baseObservation({
+        media: [{
+          id: 4,
+          path: 'observations/123/images/stacked-m31.jpg',
+          url: '/api/media/file/observations/123/images/stacked-m31.jpg',
+          mime_type: 'image/jpeg',
+        }],
+      }),
+    })
+
+    try {
+      const wrapper = await mountView()
+      await wrapper.findAll('.detail-actions button')[1].trigger('click')
+      const preview = wrapper.get('.existing-media img')
+      expect(preview.attributes('src')).toBe('https://api.astrokomunita.test/api/media/file/observations/123/images/stacked-m31.jpg')
+    } finally {
+      api.defaults.baseURL = originalBaseUrl
+    }
   })
 })

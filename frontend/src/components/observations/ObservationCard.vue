@@ -20,10 +20,10 @@
     <div v-if="images.length > 0" class="observation-media">
       <img
         v-for="mediaItem in images"
-        :key="mediaItem.id || mediaItem.url"
+        :key="mediaItem.id || mediaItem.resolvedUrl"
         class="observation-image"
-        :src="mediaItem.url"
-        alt="Observation image"
+        :src="mediaItem.resolvedUrl"
+        :alt="mediaItem.alt || 'Observation image'"
         loading="lazy"
       >
     </div>
@@ -47,6 +47,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
+import { normalizeObservationMediaItems } from '@/utils/observationMedia'
 
 const props = defineProps({
   observation: {
@@ -78,14 +79,7 @@ const descriptionLabel = computed(() => String(props.observation?.description ||
 const observedAtLabel = computed(() => formatDateTimeCompact(props.observation?.observed_at))
 
 const images = computed(() => {
-  const source = Array.isArray(props.observation?.media) ? props.observation.media : []
-
-  return source
-    .map((item) => ({
-      id: Number(item?.id || 0),
-      url: String(item?.url || '').trim(),
-    }))
-    .filter((item) => item.url !== '')
+  return normalizeObservationMediaItems(props.observation?.media)
 })
 
 const ratingLabel = computed(() => {

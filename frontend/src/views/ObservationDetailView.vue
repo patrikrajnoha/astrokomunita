@@ -110,15 +110,15 @@
           <span>Zobrazit vo verejnom feede</span>
         </label>
 
-        <div v-if="Array.isArray(observation.media) && observation.media.length > 0" class="existing-media">
+        <div v-if="existingMedia.length > 0" class="existing-media">
           <h3>Existujúce fotky</h3>
-          <label v-for="mediaItem in observation.media" :key="mediaItem.id" class="media-toggle">
+          <label v-for="mediaItem in existingMedia" :key="mediaItem.id" class="media-toggle">
             <input
               type="checkbox"
               :checked="removeMediaIds.has(mediaItem.id)"
               @change="toggleRemoveMedia(mediaItem.id)"
             >
-            <img :src="mediaItem.url" alt="Observation image" loading="lazy">
+            <img :src="mediaItem.resolvedUrl" :alt="mediaItem.alt || 'Observation image'" loading="lazy">
             <span>Odstrániť</span>
           </label>
         </div>
@@ -155,6 +155,7 @@ import ObservationCard from '@/components/observations/ObservationCard.vue'
 import { deleteObservation, getObservation, updateObservation } from '@/services/observations'
 import { getEvents } from '@/services/events'
 import { fromDateTimeLocal, toDateTimeLocal } from '@/utils/dateUtils'
+import { normalizeObservationMediaItems } from '@/utils/observationMedia'
 import { extractObservationError } from '@/utils/observationErrors'
 import { useToast } from '@/composables/useToast'
 import { useConfirm } from '@/composables/useConfirm'
@@ -202,6 +203,8 @@ const eventLinkLabel = computed(() => {
   const title = String(observation.value?.event?.title || '').trim()
   return title ? `Udalosť: ${title}` : 'Otvoriť udalosť'
 })
+
+const existingMedia = computed(() => normalizeObservationMediaItems(observation.value?.media))
 
 async function loadObservation() {
   loading.value = true

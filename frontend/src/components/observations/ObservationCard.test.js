@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ObservationCard from './ObservationCard.vue'
+import api from '@/services/api'
 
 function baseObservation(overrides = {}) {
   return {
@@ -68,5 +69,41 @@ describe('ObservationCard event chip', () => {
     }))
 
     expect(wrapper.find('.observation-event-link').exists()).toBe(false)
+  })
+
+  it('renders observation image from production-like relative media payload', async () => {
+    const originalBaseUrl = api.defaults.baseURL
+    api.defaults.baseURL = 'https://api.astrokomunita.test/api'
+
+    try {
+      const wrapper = await mountCard(baseObservation({
+        media: [{
+          id: 91,
+          path: 'observations/123/images/galaxy-shot.webp',
+          url: '/api/media/file/observations/123/images/galaxy-shot.webp',
+          mime_type: 'image/webp',
+        }],
+      }))
+
+      const image = wrapper.get('.observation-image')
+      expect(image.attributes('src')).toBe('https://api.astrokomunita.test/api/media/file/observations/123/images/galaxy-shot.webp')
+      expect(image.attributes('alt')).toBe('Observation image')
+    } finally {
+      api.defaults.baseURL = originalBaseUrl
+    }
+  })
+
+  it('does not render image grid when observation has no media source', async () => {
+    const wrapper = await mountCard(baseObservation({
+      media: [{
+        id: 17,
+        path: '',
+        url: '',
+        mime_type: 'image/jpeg',
+      }],
+    }))
+
+    expect(wrapper.find('.observation-media').exists()).toBe(false)
+    expect(wrapper.find('.observation-image').exists()).toBe(false)
   })
 })
