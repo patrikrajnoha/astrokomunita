@@ -160,21 +160,36 @@ class AdminStatsService
             'other' => 0,
         ];
 
-        $columns = ['location'];
+        $query = $this->applyHumanUsersOnly(DB::table('users'));
+        $columns = ['users.location'];
         if (Schema::hasColumn('users', 'location_label')) {
-            $columns[] = 'location_label';
+            $columns[] = 'users.location_label';
         }
         if (Schema::hasColumn('users', 'timezone')) {
-            $columns[] = 'timezone';
+            $columns[] = 'users.timezone';
         }
         if (Schema::hasColumn('users', 'latitude')) {
-            $columns[] = 'latitude';
+            $columns[] = 'users.latitude';
         }
         if (Schema::hasColumn('users', 'longitude')) {
-            $columns[] = 'longitude';
+            $columns[] = 'users.longitude';
         }
 
-        $rows = $this->applyHumanUsersOnly(DB::table('users'))
+        if (Schema::hasTable('user_preferences')) {
+            $query->leftJoin('user_preferences as preferences', 'preferences.user_id', '=', 'users.id');
+
+            if (Schema::hasColumn('user_preferences', 'location_label')) {
+                $columns[] = 'preferences.location_label as preference_location_label';
+            }
+            if (Schema::hasColumn('user_preferences', 'location_lat')) {
+                $columns[] = 'preferences.location_lat as preference_location_lat';
+            }
+            if (Schema::hasColumn('user_preferences', 'location_lon')) {
+                $columns[] = 'preferences.location_lon as preference_location_lon';
+            }
+        }
+
+        $rows = $query
             ->select($columns)
             ->get();
         foreach ($rows as $row) {
@@ -190,7 +205,13 @@ class AdminStatsService
         $locationLabel = trim((string) ($row->location_label ?? ''));
         $location = trim((string) ($row->location ?? ''));
         $timezone = trim((string) ($row->timezone ?? ''));
-        $hasAnySignal = $locationLabel !== '' || $location !== '' || $timezone !== '';
+        $preferenceLocationLabel = trim((string) ($row->preference_location_label ?? ''));
+        $hasAnySignal = $locationLabel !== ''
+            || $location !== ''
+            || $timezone !== ''
+            || $preferenceLocationLabel !== ''
+            || is_numeric($row->preference_location_lat ?? null)
+            || is_numeric($row->preference_location_lon ?? null);
 
         $bucket = $this->resolveCountryBucketFromText($locationLabel);
         if ($bucket !== null) {
@@ -202,12 +223,25 @@ class AdminStatsService
             return $bucket;
         }
 
+        $bucket = $this->resolveCountryBucketFromText($preferenceLocationLabel);
+        if ($bucket !== null) {
+            return $bucket;
+        }
+
         $bucket = $this->resolveTimezoneBucket($timezone);
         if ($bucket !== null) {
             return $bucket;
         }
 
         $bucket = $this->resolveCoordinatesBucket($row->latitude ?? null, $row->longitude ?? null);
+        if ($bucket !== null) {
+            return $bucket;
+        }
+
+        $bucket = $this->resolveCoordinatesBucket(
+            $row->preference_location_lat ?? null,
+            $row->preference_location_lon ?? null
+        );
         if ($bucket !== null) {
             return $bucket;
         }

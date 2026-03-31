@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Post;
 use App\Models\User;
+use App\Models\UserPreference;
 use App\Services\Location\IpLocationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -273,6 +274,45 @@ class AdminStatsEndpointTest extends TestCase
             'location' => 'Liptovska Luzna',
             'location_label' => 'Liptovska Luzna',
             'timezone' => 'Europe/Bratislava',
+        ]);
+
+        Sanctum::actingAs($admin);
+        Cache::flush();
+
+        $this->getJson('/api/admin/stats')
+            ->assertOk()
+            ->assertJsonPath('demographics.by_region.sk', 1)
+            ->assertJsonPath('demographics.by_region.unknown', 1);
+    }
+
+    public function test_profile_region_breakdown_falls_back_to_user_preferences_location(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'is_admin' => true,
+            'is_active' => true,
+            'location' => null,
+            'location_label' => null,
+            'timezone' => null,
+        ]);
+
+        $userWithPreferenceLocation = User::factory()->create([
+            'role' => 'user',
+            'is_admin' => false,
+            'is_active' => true,
+            'location' => null,
+            'location_label' => null,
+            'timezone' => null,
+            'latitude' => null,
+            'longitude' => null,
+        ]);
+
+        UserPreference::query()->create([
+            'user_id' => $userWithPreferenceLocation->id,
+            'region' => 'global',
+            'location_label' => 'Slovensko',
+            'location_lat' => 48.1486,
+            'location_lon' => 17.1077,
         ]);
 
         Sanctum::actingAs($admin);
