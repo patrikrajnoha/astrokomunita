@@ -51,6 +51,17 @@ class PasswordResetController extends Controller
             ]);
         }
 
+        $wasExistingVerification = $verification->exists;
+        $previousVerificationState = $wasExistingVerification
+            ? [
+                'code_hash' => $verification->code_hash,
+                'expires_at' => $verification->expires_at?->copy(),
+                'consumed_at' => $verification->consumed_at?->copy(),
+                'attempts' => (int) $verification->attempts,
+                'last_sent_at' => $verification->last_sent_at?->copy(),
+            ]
+            : null;
+
         $verification->forceFill([
             'code_hash' => Hash::make($normalizedCode),
             'expires_at' => now()->addMinutes($this->codeTtlMinutes()),
@@ -63,10 +74,22 @@ class PasswordResetController extends Controller
             Mail::to($email)->send(new PasswordResetCodeMail($formattedCode));
             RateLimiter::hit($this->sendRateKey($email, (string) $request->ip()), 3600);
         } catch (\Throwable $error) {
-            Log::warning('Password reset code email send failed.', [
+            $this->rollbackVerificationAfterMailFailure($verification, $previousVerificationState, $wasExistingVerification);
+
+            Log::error('Password reset code email send failed.', [
                 'user_id' => $user->id,
                 'message' => $error->getMessage(),
+                'mailer' => (string) config('mail.default'),
+                'mail_host' => (string) config('mail.mailers.smtp.host'),
+                'mail_port' => (int) config('mail.mailers.smtp.port'),
+                'mail_from' => (string) config('mail.verification_from.address'),
+                'delivery_mode' => 'sync',
             ]);
+
+            return response()->json([
+                'message' => 'Obnovovaci kod sa nepodarilo odoslat. Skuste to znova neskor.',
+                'error_code' => 'PASSWORD_RESET_DELIVERY_FAILED',
+            ], 503);
         }
 
         return response()->json(['message' => $genericMessage]);
@@ -281,5 +304,40 @@ class PasswordResetController extends Controller
     {
         return sprintf('password-reset:confirm:%s:%s', sha1($email), $ip);
     }
-}
 
+    /**
+     * @param array{code_hash:mixed,expires_at:mixed,consumed_at:mixed,attempts:int,last_sent_at:mixed}|null $previousVerificationState
+     */
+    private function rollbackVerificationAfterMailFailure(
+        EmailVerification $verification,
+        ?array $previousVerificationState,
+        bool $wasExistingVerification,
+    ): void {
+        try {
+            if (! $wasExistingVerification) {
+                if ($verification->exists) {
+                    $verification->delete();
+                }
+
+                return;
+            }
+
+            if ($previousVerificationState === null) {
+                return;
+            }
+
+            $verification->forceFill([
+                'code_hash' => $previousVerificationState['code_hash'],
+                'expires_at' => $previousVerificationState['expires_at'],
+                'consumed_at' => $previousVerificationState['consumed_at'],
+                'attempts' => $previousVerificationState['attempts'],
+                'last_sent_at' => $previousVerificationState['last_sent_at'],
+            ])->save();
+        } catch (\Throwable $rollbackError) {
+            Log::warning('Password reset verification rollback failed.', [
+                'verification_id' => $verification->id,
+                'message' => $rollbackError->getMessage(),
+            ]);
+        }
+    }
+}

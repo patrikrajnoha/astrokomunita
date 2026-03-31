@@ -116,7 +116,7 @@ return [
     ],
 
     'verification_from' => [
-        'address' => env('MAIL_VERIFICATION_FROM_ADDRESS', 'noreply@example.com'),
+        'address' => env('MAIL_VERIFICATION_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
         'name' => env('MAIL_FROM_NAME', 'Astrokomunita'),
     ],
 

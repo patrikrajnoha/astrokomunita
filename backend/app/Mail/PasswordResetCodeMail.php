@@ -21,7 +21,7 @@ class PasswordResetCodeMail extends Mailable
     public function envelope(): Envelope
     {
         $from = new Address(
-            (string) config('mail.verification_from.address', 'noreply@example.com'),
+            (string) (config('mail.verification_from.address') ?: config('mail.from.address', 'hello@example.com')),
             (string) config('mail.verification_from.name', config('app.name', 'Astrokomunita'))
         );
 

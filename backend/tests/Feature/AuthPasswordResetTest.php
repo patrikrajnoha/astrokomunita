@@ -59,6 +59,31 @@ class AuthPasswordResetTest extends TestCase
         $this->assertDatabaseCount('email_verifications', 0);
     }
 
+    public function test_forgot_password_returns_service_unavailable_when_mail_delivery_fails(): void
+    {
+        User::factory()->create([
+            'email' => 'delivery-fail@example.com',
+        ]);
+
+        Mail::shouldReceive('to')
+            ->once()
+            ->with('delivery-fail@example.com')
+            ->andReturnSelf();
+        Mail::shouldReceive('send')
+            ->once()
+            ->with(\Mockery::type(PasswordResetCodeMail::class))
+            ->andThrow(new \RuntimeException('SMTP connection failed'));
+
+        $this->postJson('/api/auth/password/forgot', [
+            'email' => 'delivery-fail@example.com',
+        ])
+            ->assertStatus(503)
+            ->assertJsonPath('error_code', 'PASSWORD_RESET_DELIVERY_FAILED')
+            ->assertJsonPath('message', 'Obnovovaci kod sa nepodarilo odoslat. Skuste to znova neskor.');
+
+        $this->assertDatabaseCount('email_verifications', 0);
+    }
+
     public function test_password_reset_updates_password_when_code_is_valid(): void
     {
         Mail::fake();
@@ -126,5 +151,21 @@ class AuthPasswordResetTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'PASSWORD_RESET_CODE_INVALID')
             ->assertJsonPath('message', 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.');
+    }
+
+    public function test_password_reset_mail_falls_back_to_global_from_address_when_verification_sender_is_missing(): void
+    {
+        config([
+            'mail.from.address' => 'noreply@astrokomunita.sk',
+            'mail.from.name' => 'Astrokomunita',
+            'mail.verification_from.address' => null,
+            'mail.verification_from.name' => 'Astrokomunita',
+        ]);
+
+        $mail = new PasswordResetCodeMail('12345-67890');
+        $envelope = $mail->envelope();
+
+        $this->assertSame('noreply@astrokomunita.sk', $envelope->from->address);
+        $this->assertSame('Astrokomunita', $envelope->from->name);
     }
 }
