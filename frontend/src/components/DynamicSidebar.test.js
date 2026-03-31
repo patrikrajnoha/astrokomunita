@@ -88,7 +88,14 @@ describe('DynamicSidebar', () => {
     expect(fetchScopeMock).toHaveBeenCalledWith('home')
   })
 
-  it('passes null preferredSectionKeys on home scope so admin-configured widgets are shown', async () => {
+  it('passes saved home preferredSectionKeys when the user has an explicit override', async () => {
+    authStore.isAuthed = true
+    preferencesStore.loaded = true
+    preferencesStore.sidebarWidgetKeysForScope.mockImplementation((scope) => (
+      scope === 'home' ? ['search', 'nasa_apod'] : []
+    ))
+    preferencesStore.hasSidebarWidgetOverrideForScope.mockImplementation((scope) => scope === 'home')
+
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -111,7 +118,8 @@ describe('DynamicSidebar', () => {
     expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        preferredSectionKeys: null,
+        preferredSectionKeys: ['search', 'nasa_apod'],
+        allowUserPreferenceOverride: true,
       }),
     )
   })
@@ -227,7 +235,7 @@ describe('DynamicSidebar', () => {
     )
   })
 
-  it('ignores home-scope user overrides and keeps admin-driven widget selection', async () => {
+  it('preserves an explicit empty home override on non-home scopes', async () => {
     authStore.isAuthed = true
     preferencesStore.loaded = true
     preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
@@ -260,12 +268,9 @@ describe('DynamicSidebar', () => {
     expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        preferredSectionKeys: null,
+        preferredSectionKeys: [],
+        allowUserPreferenceOverride: true,
       }),
-    )
-    expect(getSidebarWidgetBundleMock).toHaveBeenCalledWith(
-      ['observing_conditions', 'observing_weather'],
-      {},
     )
   })
 })

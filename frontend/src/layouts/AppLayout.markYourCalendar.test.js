@@ -702,7 +702,8 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
       expect.any(Array),
       expect.objectContaining({
-        preferredSectionKeys: null,
+        preferredSectionKeys: [],
+        allowUserPreferenceOverride: true,
       }),
     )
   })

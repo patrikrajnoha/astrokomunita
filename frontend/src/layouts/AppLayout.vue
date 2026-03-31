@@ -110,11 +110,22 @@ const preferredSidebarWidgetKeys = computed(() => {
     scope: currentSidebarScope.value || DEFAULT_SIDEBAR_SCOPE,
   })
 })
+const hasUserPreferenceSidebarOverride = computed(() => {
+  if (!auth.isAuthed || !preferences.loaded) return false
+  if (typeof preferences.hasSidebarWidgetOverrideForScope !== 'function') return false
+
+  const scope = currentSidebarScope.value || DEFAULT_SIDEBAR_SCOPE
+  return (
+    preferences.hasSidebarWidgetOverrideForScope(scope)
+    || preferences.hasSidebarWidgetOverrideForScope(DEFAULT_SIDEBAR_SCOPE)
+  )
+})
 const enabledMobileSections = computed(() => (
   getEnabledSidebarSections(mobileSidebarSections.value, {
     isGuest: !auth.isAuthed,
     collapseObservingForMissingLocation: auth.isAuthed && !hasObservingLocation.value,
     preferredSectionKeys: preferredSidebarWidgetKeys.value,
+    allowUserPreferenceOverride: hasUserPreferenceSidebarOverride.value,
   })
 ))
 const mobilePreloadableSectionKeys = computed(() => (
