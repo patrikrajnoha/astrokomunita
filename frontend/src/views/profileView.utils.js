@@ -94,6 +94,22 @@ export function attachedEventForPost(post) {
   }
 }
 
+export function observationForPost(post) {
+  const observation = post?.attached_observation
+  if (observation && typeof observation === 'object') return observation
+
+  const fallbackId = Number(post?.meta?.observation?.observation_id || 0)
+  if (!Number.isInteger(fallbackId) || fallbackId <= 0) {
+    return null
+  }
+
+  return {
+    id: fallbackId,
+    title: `Pozorovanie #${fallbackId}`,
+    media: [],
+  }
+}
+
 export function mergeUniqueById(existingItems, incomingItems) {
   const seen = new Set()
   const merged = []

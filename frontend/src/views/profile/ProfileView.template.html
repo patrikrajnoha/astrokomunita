@@ -363,8 +363,15 @@
           </button>
         </div>
         <div class="pinBody">
-          <div class="pinContent">{{ pinnedPost.content }}</div>
-          <div v-if="pinnedPost.attachment_url" class="attachment">
+          <ObservationCard
+            v-if="observationForPost(pinnedPost)"
+            :observation="observationForPost(pinnedPost)"
+            :clickable="true"
+            :show-author="false"
+            @open="openObservation"
+          />
+          <div v-else class="pinContent">{{ pinnedPost.content }}</div>
+          <div v-if="!observationForPost(pinnedPost) && pinnedPost.attachment_url" class="attachment">
             <img
               v-if="isImage(pinnedPost)"
               class="attachmentImg"
@@ -493,9 +500,16 @@
                   <span class="replyText">{{ shorten(p.parent.content) }}</span>
                 </div>
 
-                <HashtagText class="postContent" :content="p.content" />
+                <ObservationCard
+                  v-if="observationForPost(p)"
+                  :observation="observationForPost(p)"
+                  :clickable="true"
+                  :show-author="false"
+                  @open="openObservation"
+                />
+                <HashtagText v-else class="postContent" :content="p.content" />
 
-                <div v-if="attachedEventForPost(p)" class="attachedEventCard">
+                <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attachedEventCard">
                   <div class="attachedEventCopy">
                     <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalosť' }}</p>
                     <p class="attachedEventDate">
@@ -511,11 +525,11 @@
                   </button>
                 </div>
 
-                <div v-if="postGifUrl(p)" class="attachment">
+                <div v-if="!observationForPost(p) && postGifUrl(p)" class="attachment">
                   <img class="attachmentImg" :src="postGifUrl(p)" :alt="postGifTitle(p)" />
                 </div>
 
-                <div v-if="p.attachment_url" class="attachment">
+                <div v-if="!observationForPost(p) && p.attachment_url" class="attachment">
                   <img
                     v-if="isImage(p)"
                     class="attachmentImg"

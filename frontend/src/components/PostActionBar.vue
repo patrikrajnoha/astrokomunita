@@ -158,7 +158,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.38rem;
+  gap: 0.48rem;
   padding-top: 0.14rem;
   border-top: 0;
   min-width: 0;
@@ -174,7 +174,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 .post-actions-right {
   display: flex;
   align-items: center;
-  gap: 0.24rem;
+  gap: 0.42rem;
   min-width: 0;
 }
 
@@ -187,8 +187,8 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.22rem;
-  padding: 3px 5px;
+  gap: 0.3rem;
+  padding: 3px 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--color-text-secondary);
@@ -282,7 +282,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   justify-content: center;
   min-height: 26px;
   min-width: 26px;
-  padding: 3px 5px;
+  padding: 3px 6px;
   border-radius: 999px;
   color: var(--color-text-secondary);
   transition: all var(--motion-fast);
@@ -318,11 +318,16 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
 
 @media (max-width: 640px) {
   .post-actions {
-    gap: 0.26rem;
+    gap: 0.34rem;
+  }
+
+  .post-actions-left,
+  .post-actions-right {
+    gap: 0.34rem;
   }
 
   .action-btn {
-    padding: 2px 4px;
+    padding: 2px 5px;
     min-height: 24px;
     min-width: 24px;
   }
@@ -339,7 +344,7 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   .post-actions-more :deep(.dropdownTrigger) {
     min-height: 24px;
     min-width: 24px;
-    padding: 2px 4px;
+    padding: 2px 5px;
   }
 }
 

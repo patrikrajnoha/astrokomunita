@@ -85,7 +85,7 @@ function makeRouter() {
   })
 }
 
-async function mountProfile() {
+async function mountProfile(options = {}) {
   const router = makeRouter()
   await router.push('/profile')
   await router.isReady()
@@ -97,6 +97,7 @@ async function mountProfile() {
         ProfileEventCard: { template: '<div></div>' },
         ProfileEdit: { template: '<div data-testid="profile-edit-stub"></div>' },
         teleport: true,
+        ...(options.stubs || {}),
       },
     },
   })
@@ -268,6 +269,84 @@ describe('ProfileView avatar panel', () => {
     const { wrapper } = await mountProfile()
 
     expect(wrapper.text()).toContain('BOT')
+
+    wrapper.unmount()
+  })
+
+  it('renders attached observation cards in the profile post branch', async () => {
+    apiMock.get.mockImplementation((url, config = {}) => {
+      if (url === '/posts') {
+        const kind = String(config?.params?.kind || '')
+        const perPage = Number(config?.params?.per_page || 0)
+
+        if (kind === 'roots' && perPage === 10) {
+          return Promise.resolve({
+            data: {
+              data: [
+                {
+                  id: 301,
+                  content: 'Observation mirror post',
+                  created_at: '2026-03-20T18:00:00Z',
+                  attached_observation: {
+                    id: 901,
+                    title: 'M42',
+                    media: [
+                      {
+                        id: 1,
+                        url: '/media/m42.jpg',
+                        mime_type: 'image/jpeg',
+                      },
+                    ],
+                  },
+                },
+              ],
+              total: 1,
+              next_page_url: null,
+            },
+          })
+        }
+
+        return Promise.resolve({
+          data: {
+            data: [],
+            total: 0,
+            next_page_url: null,
+          },
+        })
+      }
+
+      if (url === '/observations' || url === '/me/followed-events') {
+        return Promise.resolve({
+          data: {
+            data: [],
+            total: 0,
+            current_page: 1,
+            last_page: 1,
+            next_page_url: null,
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: [],
+          total: 0,
+          next_page_url: null,
+        },
+      })
+    })
+
+    const { wrapper } = await mountProfile({
+      stubs: {
+        ObservationCard: {
+          props: ['observation'],
+          template: '<div class="profile-observation-stub">{{ observation.title }}</div>',
+        },
+      },
+    })
+
+    expect(wrapper.find('.profile-observation-stub').exists()).toBe(true)
+    expect(wrapper.text()).toContain('M42')
 
     wrapper.unmount()
   })

@@ -28,6 +28,7 @@ import {
   attachmentSrc as resolveAttachmentSrc,
   isImage,
   looksLikeEmail,
+  observationForPost,
   parentHandle,
   postGifTitle,
   postGifUrl as resolvePostGifUrl,
