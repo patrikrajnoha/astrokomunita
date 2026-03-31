@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\EventType;
+use App\Models\EventCandidate;
 use App\Models\Event;
 use App\Models\User;
 use Carbon\CarbonImmutable;
@@ -105,6 +106,71 @@ class AdminEventIndexFilterTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', $dec30->id);
+    }
+
+    public function test_index_with_published_scope_excludes_hidden_and_unapproved_events(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Sanctum::actingAs($admin);
+
+        $manualVisible = $this->createEvent([
+            'title' => 'Manual visible',
+            'visibility' => 1,
+            'source_name' => 'manual',
+            'source_uid' => 'manual-visible',
+        ]);
+
+        $this->createEvent([
+            'title' => 'Manual hidden',
+            'visibility' => 0,
+            'source_name' => 'manual',
+            'source_uid' => 'manual-hidden',
+        ]);
+
+        $approvedCrawled = $this->createEvent([
+            'title' => 'Approved crawled',
+            'visibility' => 1,
+            'source_name' => 'astropixels',
+            'source_uid' => 'approved-crawled',
+        ]);
+        EventCandidate::query()->create([
+            'source_name' => 'astropixels',
+            'source_uid' => 'approved-crawled',
+            'source_hash' => sha1('approved-crawled'),
+            'title' => 'Approved candidate',
+            'type' => EventType::Other->value,
+            'max_at' => now()->utc(),
+            'start_at' => now()->utc(),
+            'status' => EventCandidate::STATUS_APPROVED,
+            'published_event_id' => $approvedCrawled->id,
+        ]);
+
+        $this->createEvent([
+            'title' => 'Pending crawled',
+            'visibility' => 1,
+            'source_name' => 'astropixels',
+            'source_uid' => 'pending-crawled',
+        ]);
+        EventCandidate::query()->create([
+            'source_name' => 'astropixels',
+            'source_uid' => 'pending-crawled',
+            'source_hash' => sha1('pending-crawled'),
+            'title' => 'Pending candidate',
+            'type' => EventType::Other->value,
+            'max_at' => now()->utc(),
+            'start_at' => now()->utc(),
+            'status' => EventCandidate::STATUS_PENDING,
+            'published_event_id' => null,
+        ]);
+
+        $response = $this->getJson('/api/admin/events?scope=published');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2);
+
+        $ids = collect($response->json('data'))->pluck('id')->all();
+        $this->assertEqualsCanonicalizing([$manualVisible->id, $approvedCrawled->id], $ids);
     }
 
     private function createEvent(array $overrides = []): Event

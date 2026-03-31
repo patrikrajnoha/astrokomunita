@@ -102,7 +102,12 @@ const {
     const response = await http.get('/admin/events', { params })
     return response
   },
-  { defaultPerPage: 20 }
+  {
+    defaultPerPage: 20,
+    defaultFilters: {
+      scope: 'published',
+    },
+  }
 )
 
 const isEdit = computed(() => mode.value === 'edit' && Boolean(editingEvent.value))

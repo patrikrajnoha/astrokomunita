@@ -12,6 +12,7 @@ use App\Support\EventTime;
 use App\Services\Events\EventFeedRealtimePublisher;
 use App\Services\Events\EventDescriptionOriginRecorder;
 use App\Services\Events\EventDescriptionReviewGateService;
+use App\Services\Events\PublishedEventQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class AdminEventController extends Controller
         private readonly EventFeedRealtimePublisher $eventFeedRealtimePublisher,
         private readonly EventDescriptionOriginRecorder $originRecorder,
         private readonly EventDescriptionReviewGateService $reviewGate,
+        private readonly PublishedEventQuery $publishedEventQuery,
     ) {
     }
 
@@ -40,7 +42,10 @@ class AdminEventController extends Controller
             $perPage = 50;
         }
 
-        $eventsQuery = Event::query();
+        $scope = strtolower(trim((string) $request->query('scope', '')));
+        $eventsQuery = $scope === 'published'
+            ? $this->publishedEventQuery->base()
+            : Event::query();
         $this->applyEventFilters($eventsQuery, [
             'search' => $request->query('search'),
             'type' => $request->query('type'),
