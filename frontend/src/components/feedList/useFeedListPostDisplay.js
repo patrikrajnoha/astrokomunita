@@ -18,6 +18,11 @@ import {
   postGifUrl as postGifUrlUtil,
   sourceLink as sourceLinkUtil,
 } from './feedListMedia.utils'
+import {
+  buildBasePostMenuItems,
+  buildPinPostMenuItem,
+  handleCommonPostMenuAction,
+} from '@/utils/postMenu'
 
 export function useFeedListPostDisplay({
   auth,
@@ -161,34 +166,18 @@ export function useFeedListPostDisplay({
       })
     }
 
-    if (hasOriginalDownload(post)) {
-      items.push({
-        key: 'download_original',
-        label: 'Stiahnu\u0165 v plnej kvalite',
-        danger: false,
-        icon: 'download',
-      })
-    }
-
-    if (canReport(post)) {
-      items.push({ key: 'report', label: 'Nahlásiť', danger: false, icon: 'report' })
-    }
-
-    if (canDelete(post)) {
-      items.push({ key: 'delete', label: 'Zmazať', danger: true, icon: 'trash' })
-    }
+    items.push(...buildBasePostMenuItems({
+      hasOriginalDownload: hasOriginalDownload(post),
+      canReport: canReport(post),
+      canDelete: canDelete(post),
+    }))
 
     if (canEditTranslatedVariant(post)) {
       items.push({ key: 'edit', label: 'Upraviť', danger: false, icon: 'edit' })
     }
 
     if (auth.user?.is_admin && !isBotPost(post)) {
-      items.push({
-        key: 'pin',
-        label: post?.pinned_at ? 'Odopnúť' : 'Pripnúť',
-        danger: false,
-        icon: post?.pinned_at ? 'unpin' : 'pin',
-      })
+      items.push(buildPinPostMenuItem(post))
     }
 
     return items
@@ -207,28 +196,17 @@ export function useFeedListPostDisplay({
       return
     }
 
-    if (item.key === 'download_original') {
-      downloadOriginalAttachment(post)
-      return
-    }
-
-    if (item.key === 'report') {
-      openReport(post)
-      return
-    }
-
-    if (item.key === 'delete') {
-      void confirmDelete(post)
+    if (handleCommonPostMenuAction(item, post, {
+      downloadOriginalAttachment,
+      openReport,
+      confirmDelete: (nextPost) => void confirmDelete(nextPost),
+      togglePin,
+    })) {
       return
     }
 
     if (item.key === 'edit') {
       startInlineEdit(post)
-      return
-    }
-
-    if (item.key === 'pin') {
-      togglePin(post)
     }
   }
 

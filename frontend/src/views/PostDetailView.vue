@@ -13,8 +13,10 @@ import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
+import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
-import { canReportPost } from '@/utils/postPermissions'
+import { canDeletePost, canReportPost } from '@/utils/postPermissions'
+import { buildBasePostMenuItems, buildPinPostMenuItem, handleCommonPostMenuAction } from '@/utils/postMenu'
 import { formatRelativeShort } from '@/utils/dateUtils'
 import {
   attachmentDownloadSrc as resolveAttachmentDownloadSrc,
@@ -38,7 +40,8 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const bookmarks = useBookmarksStore()
-const { info: toastInfo, error: toastError } = useToast()
+const { confirm } = useConfirm()
+const { info: toastInfo, error: toastError, success: toastSuccess } = useToast()
 
 const post = ref(null)
 const root = ref(null)
@@ -55,17 +58,20 @@ const reportMessage = ref('')
 const reportNotice = ref('')
 
 const reportOptions = [
-  { value: 'spam',       icon: '🚫', label: 'Spam' },
-  { value: 'abuse',      icon: '⚠️',  label: 'Nevhodný obsah' },
-  { value: 'misinfo',    icon: '📢', label: 'Dezinformácie' },
+  { value: 'spam', icon: '🚫', label: 'Spam' },
+  { value: 'abuse', icon: '⚠️', label: 'Nevhodný obsah' },
+  { value: 'misinfo', icon: '📢', label: 'Dezinformácie' },
   { value: 'harassment', icon: '😤', label: 'Obťažovanie' },
-  { value: 'other',      icon: '💬', label: 'Iné' },
+  { value: 'other', icon: '💬', label: 'Iné' },
 ]
+
 const editingPostId = ref(null)
 const editContentDraft = ref('')
 const editSavingId = ref(null)
+const deleteLoadingId = ref(null)
 const likeLoadingIds = ref(new Set())
 const likeBumpId = ref(null)
+const pinLoadingId = ref(null)
 const shareTarget = ref(null)
 let highlightReplyTimer = null
 
@@ -94,8 +100,8 @@ function fmt(iso) {
   return formatRelativeShort(iso)
 }
 
-function openAttachedEvent(post) {
-  const eventId = Number(attachedEventForPost(post)?.id || 0)
+function openAttachedEvent(item) {
+  const eventId = Number(attachedEventForPost(item)?.id || 0)
   if (!Number.isInteger(eventId) || eventId <= 0) return
   router.push(`/events/${eventId}`)
 }
@@ -138,7 +144,7 @@ function onReplyCreated(newReply) {
     next.sort((a, b) => new Date(a?.created_at || 0) - new Date(b?.created_at || 0))
     replies.value = next
   } else {
-    const parent = replies.value.find((r) => Number(r.id) === Number(newReply.parent_id))
+    const parent = replies.value.find((row) => Number(row.id) === Number(newReply.parent_id))
     if (parent) {
       const children = Array.isArray(parent.replies) ? [...parent.replies, newReply] : [newReply]
       children.sort((a, b) => new Date(a?.created_at || 0) - new Date(b?.created_at || 0))
@@ -147,10 +153,9 @@ function onReplyCreated(newReply) {
     }
   }
 
-  // keep local counter (if exists)
   if (root.value && typeof root.value === 'object') {
-    const curr = Number(root.value.replies_count ?? replies.value.length - 1)
-    root.value.replies_count = Number.isFinite(curr) ? curr + 1 : replies.value.length
+    const current = Number(root.value.replies_count ?? replies.value.length - 1)
+    root.value.replies_count = Number.isFinite(current) ? current + 1 : replies.value.length
   }
 
   highlightReply(newReply.id)
@@ -173,9 +178,9 @@ function isLikeLoading(item) {
   return likeLoadingIds.value.has(item?.id)
 }
 
-function setLikeLoading(id, on) {
+function setLikeLoading(id, enabled) {
   const next = new Set(likeLoadingIds.value)
-  if (on) next.add(id)
+  if (enabled) next.add(id)
   else next.delete(id)
   likeLoadingIds.value = next
 }
@@ -199,7 +204,7 @@ async function toggleLike(item) {
   }
 
   reportNotice.value = ''
-  const prevLiked = !!item.liked_by_me
+  const prevLiked = Boolean(item.liked_by_me)
   const prevCount = Number(item.likes_count ?? 0) || 0
 
   item.liked_by_me = !prevLiked
@@ -209,17 +214,17 @@ async function toggleLike(item) {
 
   try {
     await auth.csrf()
-    const res = prevLiked
+    const response = prevLiked
       ? await api.delete(`/posts/${item.id}/like`)
       : await api.post(`/posts/${item.id}/like`)
 
-    const data = res?.data
+    const data = response?.data
     if (data?.likes_count !== undefined) item.likes_count = data.likes_count
     if (data?.liked_by_me !== undefined) item.liked_by_me = data.liked_by_me
-  } catch (e) {
+  } catch (fetchError) {
     item.liked_by_me = prevLiked
     item.likes_count = prevCount
-    reportNotice.value = e?.response?.data?.message || 'Lajk zlyhal.'
+    reportNotice.value = fetchError?.response?.data?.message || 'Lajk zlyhal.'
   } finally {
     setLikeLoading(item.id, false)
   }
@@ -233,7 +238,7 @@ async function toggleBookmark(item) {
   }
 
   reportNotice.value = ''
-  const prevBookmarked = !!item.is_bookmarked
+  const prevBookmarked = Boolean(item.is_bookmarked)
   const prevBookmarkedAt = item.bookmarked_at || null
   const nextBookmarked = !prevBookmarked
 
@@ -246,11 +251,11 @@ async function toggleBookmark(item) {
     const state = await bookmarks.toggleBookmark(item.id, prevBookmarked)
     item.is_bookmarked = state
     item.bookmarked_at = state ? item.bookmarked_at || new Date().toISOString() : null
-  } catch (e) {
+  } catch (fetchError) {
     item.is_bookmarked = prevBookmarked
     item.bookmarked_at = prevBookmarkedAt
     bookmarks.setBookmarked(item.id, prevBookmarked)
-    reportNotice.value = e?.response?.data?.message || 'Uloženie záložky zlyhalo.'
+    reportNotice.value = fetchError?.response?.data?.message || 'Uloženie záložky zlyhalo.'
   }
 }
 
@@ -263,60 +268,151 @@ function closeShareModal() {
   shareTarget.value = null
 }
 
-function openReport(post) {
-  if (!post?.id) return
-  if (!canReportPost(post, auth.user)) return
-  reportTarget.value = post
+function canDelete(item) {
+  return canDeletePost(item, auth.user)
+}
+
+function canPin(item) {
+  return Boolean(
+    auth.user?.is_admin &&
+    item?.id &&
+    !isBotPost(item) &&
+    Number(item?.parent_id || 0) === 0,
+  )
+}
+
+function openReport(item) {
+  if (!item?.id) return
+  if (!canReportPost(item, auth.user)) return
+  reportTarget.value = item
   reportNotice.value = ''
 }
 
-function menuItemsForPost(post) {
-  const items = []
+async function deletePost(item) {
+  if (!item?.id || deleteLoadingId.value) return
+  if (!canDelete(item)) return
 
-  if (hasOriginalDownload(post)) {
-    items.push({
-      key: 'download_original',
-      label: 'Stiahnu\u0165 v plnej kvalite',
-      danger: false,
-      icon: 'download',
-    })
+  reportNotice.value = ''
+  deleteLoadingId.value = item.id
+
+  try {
+    await auth.csrf()
+    await api.delete(`/posts/${item.id}`)
+
+    if (Number(root.value?.id) === Number(item.id)) {
+      toastSuccess('Príspevok bol zmazaný.')
+      goBack()
+      return
+    }
+
+    await loadPost()
+    toastSuccess('Príspevok bol zmazaný.')
+  } catch (fetchError) {
+    const status = Number(fetchError?.response?.status || 0)
+    reportNotice.value =
+      status === 401
+        ? 'Prihlás sa.'
+        : status === 403
+          ? 'Nemáš oprávnenie.'
+          : fetchError?.response?.data?.message || 'Mazanie zlyhalo.'
+  } finally {
+    deleteLoadingId.value = null
+  }
+}
+
+async function confirmDelete(item) {
+  if (!item?.id || !canDelete(item) || deleteLoadingId.value === item.id) return
+
+  const approved = await confirm({
+    title: 'Zmazať príspevok?',
+    message: 'Túto akciu už nie je možné vrátiť.',
+    confirmText: 'Zmazať',
+    cancelText: 'Zrušiť',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+  await deletePost(item)
+}
+
+async function togglePin(item) {
+  if (!item?.id || pinLoadingId.value) return
+  if (!canPin(item)) {
+    reportNotice.value = 'Akcia je dostupná len pre admina.'
+    return
   }
 
-  if (canReportPost(post, auth.user)) {
-    items.push({ key: 'report', label: 'Nahlásiť', danger: false, icon: 'report' })
-  }
+  reportNotice.value = ''
+  pinLoadingId.value = item.id
+  const wasPinned = Boolean(item?.pinned_at)
 
-  if (canAdminEditBotPost(post)) {
+  try {
+    await auth.csrf()
+    if (wasPinned) {
+      await api.patch(`/admin/posts/${item.id}/unpin`)
+    } else {
+      await api.patch(`/admin/posts/${item.id}/pin`)
+    }
+
+    await loadPost()
+    toastSuccess(wasPinned ? 'Príspevok bol odopnutý.' : 'Príspevok bol pripnutý.')
+  } catch (fetchError) {
+    const status = Number(fetchError?.response?.status || 0)
+    reportNotice.value =
+      status === 401
+        ? 'Prihlás sa.'
+        : status === 403
+          ? 'Nemáš oprávnenie.'
+          : fetchError?.response?.data?.message || 'Zmena pripnutia zlyhala.'
+  } finally {
+    pinLoadingId.value = null
+  }
+}
+
+function menuItemsForPost(item) {
+  const items = buildBasePostMenuItems({
+    hasOriginalDownload: hasOriginalDownload(item),
+    canReport: canReportPost(item, auth.user),
+    canDelete: canDelete(item),
+  })
+
+  if (canAdminEditBotPost(item)) {
     items.push({ key: 'edit', label: 'Upraviť', danger: false })
+  }
+
+  if (canPin(item)) {
+    items.push(buildPinPostMenuItem(item))
   }
 
   return items
 }
 
-function onMenuAction(item, post) {
-  if (!item?.key || !post?.id) return
-  if (item.key === 'download_original') {
-    downloadOriginalAttachment(post)
+function onMenuAction(menuItem, item) {
+  if (!menuItem?.key || !item?.id) return
+
+  if (handleCommonPostMenuAction(menuItem, item, {
+    downloadOriginalAttachment,
+    openReport,
+    confirmDelete: (nextItem) => void confirmDelete(nextItem),
+    togglePin: (nextItem) => void togglePin(nextItem),
+  })) {
     return
   }
-  if (item.key === 'report') {
-    openReport(post)
-    return
-  }
-  if (item.key === 'edit') {
-    startInlineEdit(post)
+
+  if (menuItem.key === 'edit') {
+    startInlineEdit(item)
   }
 }
 
-function isEditingPost(post) {
-  return Number(editingPostId.value) === Number(post?.id)
+function isEditingPost(item) {
+  return Number(editingPostId.value) === Number(item?.id)
 }
 
-function startInlineEdit(post) {
-  if (!post?.id || !canAdminEditBotPost(post)) return
+function startInlineEdit(item) {
+  if (!item?.id || !canAdminEditBotPost(item)) return
 
-  editingPostId.value = Number(post.id)
-  editContentDraft.value = String(post?.content || '')
+  editingPostId.value = Number(item.id)
+  editContentDraft.value = String(item?.content || '')
 }
 
 function cancelInlineEdit() {
@@ -324,11 +420,11 @@ function cancelInlineEdit() {
   editContentDraft.value = ''
 }
 
-async function saveInlineEdit(post) {
-  if (!post?.id || !isEditingPost(post) || editSavingId.value) return
-  if (!canAdminEditBotPost(post)) return
+async function saveInlineEdit(item) {
+  if (!item?.id || !isEditingPost(item) || editSavingId.value) return
+  if (!canAdminEditBotPost(item)) return
 
-  const currentContent = String(post?.content || '')
+  const currentContent = String(item?.content || '')
   const trimmed = editContentDraft.value.trim()
   if (!trimmed || trimmed === currentContent) {
     cancelInlineEdit()
@@ -336,46 +432,48 @@ async function saveInlineEdit(post) {
   }
 
   try {
-    editSavingId.value = post.id
-    let res = null
+    editSavingId.value = item.id
+    let response = null
+
     try {
       await auth.csrf()
-      res = await api.patch(
-        `/posts/${post.id}`,
+      response = await api.patch(
+        `/posts/${item.id}`,
         { content: trimmed, edit_variant: 'translated' },
         { meta: { skipErrorToast: true } },
       )
-    } catch (e) {
-      const status = Number(e?.response?.status || 0)
-      if (status !== 401 && status !== 419) throw e
+    } catch (fetchError) {
+      const status = Number(fetchError?.response?.status || 0)
+      if (status !== 401 && status !== 419) throw fetchError
       await auth.fetchUser({ source: 'inline-post-edit', retry: false, markBootstrap: true })
       await auth.csrf()
-      res = await api.patch(
-        `/posts/${post.id}`,
+      response = await api.patch(
+        `/posts/${item.id}`,
         { content: trimmed, edit_variant: 'translated' },
         { meta: { skipErrorToast: true } },
       )
     }
 
-    const updated = res?.data
+    const updated = response?.data
     if (updated && typeof updated === 'object') {
-      Object.assign(post, updated)
+      Object.assign(item, updated)
     }
 
-    post.content = trimmed
-    if (post?.meta && typeof post.meta === 'object') {
-      const nextMeta = { ...post.meta }
+    item.content = trimmed
+    if (item?.meta && typeof item.meta === 'object') {
+      const nextMeta = { ...item.meta }
       nextMeta.translated_content = trimmed
       nextMeta.used_translation = true
-      post.meta = nextMeta
+      item.meta = nextMeta
     }
+
     cancelInlineEdit()
-  } catch (e) {
-    const status = Number(e?.response?.status || 0)
+  } catch (fetchError) {
+    const status = Number(fetchError?.response?.status || 0)
     const message =
       status === 401 || status === 419
         ? 'Relácia vypršala. Prihlás sa znova.'
-        : e?.response?.data?.message || 'Úprava príspevku zlyhala.'
+        : fetchError?.response?.data?.message || 'Úprava príspevku zlyhala.'
     reportNotice.value = message
     toastError(message)
   } finally {
@@ -383,17 +481,17 @@ async function saveInlineEdit(post) {
   }
 }
 
-function hasOriginalDownload(post) {
-  if (!isImage(post)) return false
-  if (isAttachmentPending(post) || isAttachmentBlocked(post)) return false
-  return Boolean(post?.attachment_download_url)
+function hasOriginalDownload(item) {
+  if (!isImage(item)) return false
+  if (isAttachmentPending(item) || isAttachmentBlocked(item)) return false
+  return Boolean(item?.attachment_download_url)
 }
 
-function downloadOriginalAttachment(post) {
-  const url = attachmentDownloadSrc(post)
+function downloadOriginalAttachment(item) {
+  const url = attachmentDownloadSrc(item)
   if (!url) return
 
-  toastInfo('S\u0165ahujem...')
+  toastInfo('Sťahujem...')
   try {
     window.open(url, '_blank', 'noopener')
   } catch {
@@ -424,11 +522,10 @@ function onAttachmentUnblurred(item, { isBlurred, status }) {
   }
 }
 
-
 async function submitReport() {
-  const post = reportTarget.value
-  if (!post?.id) return
-  if (!canReportPost(post, auth.user)) {
+  const item = reportTarget.value
+  if (!item?.id) return
+  if (!canReportPost(item, auth.user)) {
     closeReport()
     return
   }
@@ -436,16 +533,16 @@ async function submitReport() {
   try {
     await auth.csrf()
     await api.post('/reports', {
-      target_id: post.id,
+      target_id: item.id,
       reason: reportReason.value,
       message: reportMessage.value || null,
     })
     reportNotice.value = 'Ďakujeme, nahlásenie sme prijali.'
-  } catch (e) {
-    const status = e?.response?.status
+  } catch (fetchError) {
+    const status = fetchError?.response?.status
     if (status === 401) reportNotice.value = 'Prihlás sa.'
     else if (status === 409) reportNotice.value = 'Už si reportoval tento post.'
-    else reportNotice.value = e?.response?.data?.message || 'Nahlásenie zlyhalo.'
+    else reportNotice.value = fetchError?.response?.data?.message || 'Nahlásenie zlyhalo.'
   } finally {
     closeReport()
   }
@@ -455,18 +552,20 @@ async function loadPost() {
   const hasSeed = root.value !== null
   if (!hasSeed) loading.value = true
   error.value = ''
+
   if (!hasSeed) {
     post.value = null
     root.value = null
     replies.value = []
   }
+
   activeReplyId.value = null
   highlightReplyId.value = null
   clearReplyHighlightTimer()
 
   try {
-    const res = await api.get(`/posts/${route.params.id}`)
-    const payload = res.data || {}
+    const response = await api.get(`/posts/${route.params.id}`)
+    const payload = response.data || {}
 
     post.value = payload.post ?? null
     root.value = payload.root ?? payload.post ?? null
@@ -479,25 +578,22 @@ async function loadPost() {
     } else {
       const thread = Array.isArray(payload.thread) ? payload.thread : []
       const rootId = root.value?.id
-      const byParent = thread.reduce((acc, p) => {
-        const key = p?.parent_id ?? null
+      const byParent = thread.reduce((acc, row) => {
+        const key = row?.parent_id ?? null
         if (!acc[key]) acc[key] = []
-        acc[key].push(p)
+        acc[key].push(row)
         return acc
       }, {})
 
-      const rootReplies = (byParent[rootId] || []).map((p) => ({
-        ...p,
-        replies: (byParent[p.id] || []).slice(),
+      replies.value = (byParent[rootId] || []).map((row) => ({
+        ...row,
+        replies: (byParent[row.id] || []).slice(),
       }))
-
-      replies.value = rootReplies
     }
-
-  } catch (e) {
+  } catch (fetchError) {
     error.value =
-      e?.response?.data?.message ||
-      e?.message ||
+      fetchError?.response?.data?.message ||
+      fetchError?.message ||
       'Príspevok sa nepodarilo načítať.'
   } finally {
     loading.value = false
@@ -512,6 +608,7 @@ onMounted(() => {
     loading.value = false
     if (seed.id) bookmarks.hydrateFromPosts([seed])
   }
+
   loadPost()
 })
 
@@ -526,15 +623,15 @@ watch(
     root.value = null
     replies.value = []
     loadPost()
-  }
+  },
 )
 
-const repliesCount = computed(() => {
-  return replies.value.reduce((acc, r) => {
-    const childCount = Array.isArray(r.replies) ? r.replies.length : 0
+const repliesCount = computed(() => (
+  replies.value.reduce((acc, row) => {
+    const childCount = Array.isArray(row.replies) ? row.replies.length : 0
     return acc + 1 + childCount
   }, 0)
-})
+))
 
 const repliesCountLabel = computed(() => {
   const count = Number(repliesCount.value || 0)
