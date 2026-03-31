@@ -155,10 +155,10 @@
                 <img
                   v-if="isImage(p)"
                   class="attachmentImg"
-                  :src="p.attachment_url"
+                  :src="attachmentSrc(p)"
                   alt="attachment"
                 />
-                <a v-else class="attachmentFile" :href="p.attachment_url" target="_blank" rel="noreferrer">
+                <a v-else class="attachmentFile" :href="attachmentSrc(p)" target="_blank" rel="noreferrer">
                   {{ p.attachment_original_name || 'Priloha' }}
                 </a>
               </div>

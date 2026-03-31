@@ -12,6 +12,7 @@ import http from '@/services/api'
 import { listObservations } from '@/services/observations'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { resolveUserProfileMedia } from '@/utils/profileMedia'
+import { attachmentSrc as resolveAttachmentSrc, isImage as isProfileImage } from './profileView.utils'
 
 const router = useRouter()
 const route = useRoute()
@@ -113,17 +114,11 @@ function shorten(text) {
 }
 
 function isImage(post) {
-  const mime = post?.attachment_mime || post?.attachment_web_mime || ''
-  if (mime.startsWith('image/')) return true
+  return isProfileImage(post)
+}
 
-  const name = (post?.attachment_original_name || '').toLowerCase()
-  return (
-    name.endsWith('.jpg') ||
-    name.endsWith('.jpeg') ||
-    name.endsWith('.png') ||
-    name.endsWith('.gif') ||
-    name.endsWith('.webp')
-  )
+function attachmentSrc(post) {
+  return resolveAttachmentSrc(post, http?.defaults?.baseURL || '')
 }
 
 function parentHandle(post) {
@@ -312,4 +307,3 @@ onMounted(async () => {
 </script>
 
 <style scoped src="./publicProfile/PublicProfileView.css"></style>
-

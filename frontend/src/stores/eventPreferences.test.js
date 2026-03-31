@@ -3,11 +3,19 @@ import { createPinia, setActivePinia } from 'pinia'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 
 const getMyPreferencesMock = vi.hoisted(() => vi.fn())
+const updateMyPreferencesMock = vi.hoisted(() => vi.fn())
+const authStoreMock = vi.hoisted(() => ({
+  fetchUser: vi.fn(async () => null),
+}))
 
 vi.mock('@/services/events', () => ({
   getMyPreferences: getMyPreferencesMock,
-  updateMyPreferences: vi.fn(),
+  updateMyPreferences: updateMyPreferencesMock,
   getOnboardingInterests: vi.fn(),
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authStoreMock,
 }))
 
 describe('eventPreferences sidebar widget getters', () => {
@@ -78,5 +86,37 @@ describe('eventPreferences sidebar widget getters', () => {
     expect(store.loaded).toBe(true)
     expect(store.sidebarWidgetKeys).toEqual(['neo_watchlist'])
     expect(store.supportedSidebarScopes).toEqual(['home', 'events'])
+  })
+
+  it('refreshes auth user after saving location preferences', async () => {
+    const store = useEventPreferencesStore()
+    updateMyPreferencesMock.mockResolvedValue({
+      data: {
+        data: {
+          location_label: 'Bratislava',
+          location_place_id: 'sk:bratislava',
+          location_lat: 48.1486,
+          location_lon: 17.1077,
+          sidebar_widget_keys: [],
+          sidebar_widget_overrides: {},
+          has_preferences: true,
+        },
+        meta: {},
+      },
+    })
+
+    await store.savePreferences({
+      location_label: 'Bratislava',
+      location_place_id: 'sk:bratislava',
+      location_lat: 48.1486,
+      location_lon: 17.1077,
+    })
+
+    expect(authStoreMock.fetchUser).toHaveBeenCalledWith({
+      source: 'preferences-save',
+      retry: false,
+      markBootstrap: false,
+      preserveStateOnError: true,
+    })
   })
 })

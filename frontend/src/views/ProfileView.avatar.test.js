@@ -181,6 +181,16 @@ describe('ProfileView avatar panel', () => {
     wrapper.unmount()
   })
 
+  it('loads followed-events total during initial profile bootstrap', async () => {
+    const { wrapper } = await mountProfile()
+
+    expect(apiMock.get).toHaveBeenCalledWith('/me/followed-events', {
+      params: { per_page: 1 },
+    })
+
+    wrapper.unmount()
+  })
+
   it('saves avatar preferences via PATCH /me/avatar', async () => {
     const { wrapper } = await mountProfile()
 
@@ -200,7 +210,7 @@ describe('ProfileView avatar panel', () => {
     await iconChoices[2].trigger('click')
     await colorChoices[4].trigger('click')
 
-    const saveButton = wrapper.findAll('.avatarActionRowSave .ui-btn')[1]
+    const saveButton = wrapper.findAll('.avatarActionRowSave button')[1]
     await saveButton.trigger('click')
     await flush()
     await flush()
@@ -223,7 +233,7 @@ describe('ProfileView avatar panel', () => {
     expect(wrapper.find('input[maxlength="60"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="profile-edit-modal"]').exists()).toBe(false)
 
-    const editButton = wrapper.find('.headActions .ui-btn.ui-btn--secondary')
+    const editButton = wrapper.findAll('.headActions button')[0]
     expect(editButton.exists()).toBe(true)
     await editButton.trigger('click')
     await flush()

@@ -264,6 +264,16 @@ export function useProfileContentTabs({
     } catch {
       tabState.observations.total = '--'
     }
+
+    try {
+      const { data } = await http.get('/me/followed-events', {
+        params: { per_page: 1 },
+      })
+      const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
+      tabState.events.total = String(total)
+    } catch {
+      tabState.events.total = '--'
+    }
   }
 
   async function loadTab(key, reset = true) {

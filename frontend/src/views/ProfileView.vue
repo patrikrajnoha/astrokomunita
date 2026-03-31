@@ -24,8 +24,8 @@ import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { useProfileAvatarEditor } from './profile/useProfileAvatarEditor'
 import { useProfileContentTabs } from './profile/useProfileContentTabs'
 import {
-  absoluteUrl,
   attachedEventForPost,
+  attachmentSrc as resolveAttachmentSrc,
   isImage,
   looksLikeEmail,
   parentHandle,
@@ -217,6 +217,10 @@ function postGifUrl(post) {
   return resolvePostGifUrl(post, api?.defaults?.baseURL || '')
 }
 
+function attachmentSrc(post) {
+  return resolveAttachmentSrc(post, api?.defaults?.baseURL || '')
+}
+
 function openAttachedEvent(post) {
   const eventId = Number(attachedEventForPost(post)?.id || 0)
   if (!Number.isInteger(eventId) || eventId <= 0) return
@@ -281,4 +285,3 @@ onMounted(async () => {
 </script>
 
 <style scoped src="./profile/ProfileView.css"></style>
-

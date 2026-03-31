@@ -7,6 +7,7 @@ use App\Enums\RegionScope;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateUserPreferencesRequest;
 use App\Models\UserPreference;
+use App\Services\Location\UserLocationService;
 use App\Support\SidebarSectionRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
@@ -33,7 +34,7 @@ class UserPreferenceController extends Controller
         ]);
     }
 
-    public function update(UpdateUserPreferencesRequest $request): JsonResponse
+    public function update(UpdateUserPreferencesRequest $request, UserLocationService $userLocationService): JsonResponse
     {
         $user = $request->user();
         abort_unless($user !== null, 401);
@@ -128,6 +129,7 @@ class UserPreferenceController extends Controller
         }
 
         $preferences->save();
+        $this->syncProfileLocationFromPreferences($user, $validated, $userLocationService);
 
         return response()->json([
             'data' => $this->preferencesPayload($preferences),
@@ -178,5 +180,19 @@ class UserPreferenceController extends Controller
             'has_preferences' => (bool) $preferences,
             'updated_at' => optional($preferences?->updated_at)?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     */
+    private function syncProfileLocationFromPreferences($user, array $validated, UserLocationService $userLocationService): void
+    {
+        if (! array_key_exists('location_label', $validated)) {
+            return;
+        }
+
+        $userLocationService->update($user, [
+            'location_label' => $validated['location_label'],
+        ], true);
     }
 }

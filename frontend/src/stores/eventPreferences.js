@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { getMyPreferences, updateMyPreferences, getOnboardingInterests } from '@/services/events'
+import { useAuthStore } from '@/stores/auth'
 
 const DEFAULT_REGION = 'global'
 const DEFAULT_INTERESTS = []
@@ -241,6 +242,20 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
           ? normalizeSupportedSidebarScopes(meta.supported_sidebar_scopes)
           : this.supportedSidebarScopes
         this.loaded = true
+
+        if (Object.prototype.hasOwnProperty.call(payload || {}, 'location_label')) {
+          const auth = useAuthStore()
+          try {
+            await auth.fetchUser({
+              source: 'preferences-save',
+              retry: false,
+              markBootstrap: false,
+              preserveStateOnError: true,
+            })
+          } catch {
+            // Preference save should stay successful even if auth refresh fails.
+          }
+        }
 
         return response
       } catch (error) {

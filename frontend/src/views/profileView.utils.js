@@ -20,17 +20,36 @@ export function shorten(text) {
 }
 
 export function isImage(post) {
-  const mime = post?.attachment_mime || post?.attachment_web_mime || ''
-  if (mime.startsWith('image/')) return true
+  const mimeCandidates = [
+    post?.attachment_mime,
+    post?.attachment_web_mime,
+  ]
 
-  const name = (post?.attachment_original_name || '').toLowerCase()
-  return (
+  if (mimeCandidates.some((value) => String(value || '').trim().toLowerCase().startsWith('image/'))) {
+    return true
+  }
+
+  const nameCandidates = [
+    post?.attachment_original_name,
+    post?.attachment_web_path,
+    post?.attachment_path,
+    post?.attachment_url,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+
+  return nameCandidates.some((name) => (
     name.endsWith('.jpg') ||
     name.endsWith('.jpeg') ||
     name.endsWith('.png') ||
     name.endsWith('.gif') ||
-    name.endsWith('.webp')
-  )
+    name.endsWith('.webp') ||
+    name.endsWith('.avif')
+  ))
+}
+
+export function attachmentSrc(post, baseApiUrl = '') {
+  return absoluteUrl(post?.attachment_url, baseApiUrl)
 }
 
 export function absoluteUrl(url, baseApiUrl = '') {

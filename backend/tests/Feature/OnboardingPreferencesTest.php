@@ -50,6 +50,32 @@ class OnboardingPreferencesTest extends TestCase
             ->assertJsonPath('data.sidebar_widget_overrides', []);
     }
 
+    public function test_preferences_location_update_is_reflected_in_profile_payload(): void
+    {
+        $user = User::factory()->create([
+            'location' => null,
+            'location_label' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/me/preferences', [
+            'location_label' => 'Nitra',
+            'location_place_id' => 'sk:nitra',
+            'location_lat' => 48.3064,
+            'location_lon' => 18.0764,
+        ])->assertOk()
+            ->assertJsonPath('data.location_label', 'Nitra');
+
+        $user->refresh();
+        $this->assertSame('Nitra', $user->location);
+        $this->assertSame('Nitra', $user->location_label);
+
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('location', 'Nitra')
+            ->assertJsonPath('location_label', 'Nitra');
+    }
+
     public function test_admin_user_preferences_can_be_saved_and_read(): void
     {
         $admin = User::factory()->create([
