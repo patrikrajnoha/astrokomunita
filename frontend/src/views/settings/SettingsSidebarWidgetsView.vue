@@ -291,7 +291,9 @@ const loadScope = async (scope) => {
       const disabled = normalizedItems.filter((item) => !keySet.has(item.section_key)).map((item) => ({ ...item, is_enabled: false }))
       sections.value = enforceMaxEnabled([...enabledByOrder, ...disabled].map((s, i) => ({ ...s, order: i })))
     } else {
-      sections.value = enforceMaxEnabled(normalizedItems)
+      // User has no override — start from a clean slate with all widgets disabled.
+      // Admin defaults are for the runtime sidebar only and must not pre-fill this editor.
+      sections.value = normalizedItems.map((item, i) => ({ ...item, is_enabled: false, order: i }))
     }
   } catch (err) {
     state.scopeError = err?.response?.data?.message || 'Nepodarilo sa načítať konfiguráciu sidebaru.'

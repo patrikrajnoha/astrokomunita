@@ -137,6 +137,37 @@ class UserPreferenceSidebarWidgetsApiTest extends TestCase
             ->assertJsonPath('data.sidebar_widget_overrides.home', ['search', 'nasa_apod']);
     }
 
+    public function test_user_with_override_sees_own_override_independent_of_admin_default(): void
+    {
+        // Set up admin defaults.
+        SidebarSectionConfig::query()->create([
+            'scope' => SidebarSectionRegistry::SCOPE_HOME,
+            'kind' => 'builtin',
+            'section_key' => 'latest_articles',
+            'order' => 0,
+            'is_enabled' => true,
+        ]);
+
+        // Create a user with a different override.
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/me/preferences', [
+            'sidebar_widget_overrides' => ['home' => ['search', 'moon_phases']],
+        ])->assertOk();
+
+        // User's preference endpoint must return the user's own override, not admin defaults.
+        $this->getJson('/api/me/preferences')
+            ->assertOk()
+            ->assertJsonPath('data.sidebar_widget_overrides.home', ['search', 'moon_phases'])
+            ->assertJsonPath('data.sidebar_widget_keys', ['search', 'moon_phases']);
+
+        // The public sidebar-config endpoint must still return admin defaults (not user override).
+        $this->getJson('/api/sidebar-config?scope=home')
+            ->assertOk()
+            ->assertJsonFragment(['section_key' => 'latest_articles', 'is_enabled' => true]);
+    }
+
     public function test_user_sidebar_override_does_not_mutate_admin_default_sidebar_config(): void
     {
         SidebarSectionConfig::query()->create([

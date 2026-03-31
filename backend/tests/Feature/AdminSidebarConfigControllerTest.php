@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SidebarSectionConfig;
 use App\Models\User;
+use App\Models\UserPreference;
 use App\Support\SidebarSectionRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -102,5 +103,44 @@ class AdminSidebarConfigControllerTest extends TestCase
             'is_enabled' => true,
             'order' => 0,
         ]);
+    }
+
+    public function test_admin_sidebar_config_update_does_not_overwrite_existing_user_overrides(): void
+    {
+        // Create a regular user with an existing sidebar widget override.
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/me/preferences', [
+            'sidebar_widget_overrides' => [
+                'home' => ['search', 'nasa_apod'],
+            ],
+        ])->assertOk();
+
+        // Switch to admin and save a completely different admin default config.
+        Sanctum::actingAs(User::factory()->admin()->create([
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]));
+
+        $sections = collect(SidebarSectionRegistry::sections())
+            ->values()
+            ->map(static fn (array $section, int $index): array => [
+                'section_key' => $section['section_key'],
+                'is_enabled' => $index < 3,
+                'order' => $index,
+            ])
+            ->all();
+
+        $this->putJson('/api/admin/sidebar-config', ['sections' => $sections])->assertOk();
+
+        // The user's sidebar widget override must remain unchanged.
+        $preference = $user->fresh()->eventPreference;
+        $this->assertNotNull($preference);
+        $this->assertSame(['search', 'nasa_apod'], $preference->normalizedSidebarWidgetKeys());
+        $this->assertSame(
+            ['home' => ['search', 'nasa_apod']],
+            $preference->normalizedSidebarWidgetOverrides(),
+        );
     }
 }
