@@ -102,8 +102,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import SettingsDetailShell from '@/components/settings/SettingsDetailShell.vue'
-import api from '@/services/api'
-import { useAuthStore } from '@/stores/auth'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useSidebarConfigStore } from '@/stores/sidebarConfig'
 import { DEFAULT_SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
@@ -111,7 +109,6 @@ import { MAX_ENABLED_SIDEBAR_WIDGETS, normalizeSidebarSections } from '@/sidebar
 
 const MAX_ENABLED = MAX_ENABLED_SIDEBAR_WIDGETS
 
-const auth = useAuthStore()
 const preferences = useEventPreferencesStore()
 const sidebarConfigStore = useSidebarConfigStore()
 
@@ -133,12 +130,7 @@ const state = reactive({
 })
 
 let saveQueued = false
-const isAdmin = computed(() => Boolean(auth.isAdmin))
-const settingsSubtitle = computed(() => (
-  isAdmin.value
-    ? 'Vyber max 3 widgety, ktoré sa zobrazia všetkým používateľom v home scope.'
-    : 'Vyber max 3 widgety, ktoré sa ti zobrazia v sidebari.'
-))
+const settingsSubtitle = 'Vyber max 3 widgety, ktoré sa ti zobrazia v sidebari.'
 
 const saveStateLabel = computed(() => {
   if (state.saving) return 'Ukladám...'
@@ -280,9 +272,7 @@ const loadScope = async (scope) => {
   state.scopeError = ''
 
   try {
-    const items = isAdmin.value
-      ? (await api.get('/admin/sidebar-config', { meta: { requiresAuth: true } }))?.data?.data || []
-      : await sidebarConfigStore.fetchScope(scope, { force: true })
+    const items = await sidebarConfigStore.fetchScope(scope, { force: true })
     const normalizedItems = normalizeSidebarSections(items)
       .filter((item) => item.kind === 'builtin')
       .map((item) => ({
@@ -358,50 +348,12 @@ const persistOverrides = async () => {
   }
 }
 
-const persistAdminConfig = async () => {
-  if (state.saving) {
-    saveQueued = true
-    return
-  }
-
-  state.saving = true
-  state.saveError = ''
-
-  try {
-    const sanitizedSections = enforceMaxEnabled(sections.value)
-    sections.value = sanitizedSections
-
-    const payload = sanitizedSections.map((section, index) => ({
-      section_key: section.section_key,
-      is_enabled: Boolean(section.is_enabled),
-      order: index,
-    }))
-
-    await api.put('/admin/sidebar-config', { sections: payload }, { meta: { requiresAuth: true } })
-    delete sidebarConfigStore.byScope[DEFAULT_SIDEBAR_SCOPE]
-    state.lastSavedAt = new Date().toISOString()
-  } catch (err) {
-    state.saveError = err?.response?.data?.message || 'Uloženie konfigurácie zlyhalo.'
-  } finally {
-    state.saving = false
-    if (saveQueued) {
-      saveQueued = false
-      await persistAdminConfig()
-    }
-  }
-}
-
 const persistScopeConfig = async () => {
-  if (isAdmin.value) {
-    await persistAdminConfig()
-    return
-  }
-
   await persistOverrides()
 }
 
 onMounted(async () => {
-  if (!isAdmin.value && !preferences.loaded) {
+  if (!preferences.loaded) {
     try {
       await preferences.fetchPreferences(true)
       state.preferencesError = ''

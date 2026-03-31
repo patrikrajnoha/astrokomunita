@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\SidebarSectionConfig;
 use App\Models\User;
+use App\Support\SidebarSectionRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -133,5 +135,35 @@ class UserPreferenceSidebarWidgetsApiTest extends TestCase
         $this->getJson('/api/me/preferences')
             ->assertOk()
             ->assertJsonPath('data.sidebar_widget_overrides.home', ['search', 'nasa_apod']);
+    }
+
+    public function test_user_sidebar_override_does_not_mutate_admin_default_sidebar_config(): void
+    {
+        SidebarSectionConfig::query()->create([
+            'scope' => SidebarSectionRegistry::SCOPE_HOME,
+            'kind' => 'builtin',
+            'section_key' => 'latest_articles',
+            'order' => 0,
+            'is_enabled' => true,
+        ]);
+
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/me/preferences', [
+            'sidebar_widget_overrides' => [
+                'home' => ['search', 'nasa_apod'],
+            ],
+        ])->assertOk()
+            ->assertJsonPath('data.sidebar_widget_overrides.home', ['search', 'nasa_apod']);
+
+        $this->assertSame(1, SidebarSectionConfig::query()->count());
+        $this->assertDatabaseHas('sidebar_section_configs', [
+            'scope' => SidebarSectionRegistry::SCOPE_HOME,
+            'kind' => 'builtin',
+            'section_key' => 'latest_articles',
+            'is_enabled' => true,
+            'order' => 0,
+        ]);
     }
 }

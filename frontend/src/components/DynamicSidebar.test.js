@@ -124,6 +124,40 @@ describe('DynamicSidebar', () => {
     )
   })
 
+  it('uses admin defaults when the user has no explicit sidebar override', async () => {
+    authStore.isAuthed = true
+    preferencesStore.loaded = true
+    preferencesStore.sidebarWidgetKeysForScope.mockReturnValue([])
+    preferencesStore.hasSidebarWidgetOverrideForScope.mockReturnValue(false)
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: DynamicSidebar },
+      ],
+    })
+
+    await router.push('/')
+    await router.isReady()
+
+    mount(DynamicSidebar, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(getEnabledSidebarSectionsMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({
+        preferredSectionKeys: null,
+        allowUserPreferenceOverride: false,
+      }),
+    )
+  })
+
   it('requests bundled sidebar data for preloadable builtin widgets', async () => {
     fetchScopeMock.mockResolvedValue([
       { kind: 'builtin', section_key: 'nasa_apod', title: 'NASA', order: 0, is_enabled: true },

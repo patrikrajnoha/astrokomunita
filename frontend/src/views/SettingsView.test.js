@@ -26,6 +26,7 @@ const authMock = vi.hoisted(() => ({
   csrf: vi.fn(async () => {}),
   fetchUser: vi.fn(async () => {}),
   logout: vi.fn(async () => {}),
+  isAdmin: false,
 }))
 
 const httpMock = vi.hoisted(() => ({
@@ -123,6 +124,7 @@ describe('SettingsView', () => {
       email: 'tester@example.com',
       newsletter_subscribed: false,
     }
+    authMock.isAdmin = false
     authMock.initialized = true
 
     httpMock.patch.mockResolvedValue({
@@ -637,6 +639,66 @@ describe('SettingsView', () => {
     expect(activeNames.slice(0, 2)).toEqual(['Astrofoto dňa', 'Hľadaj'])
   })
 
+  it('keeps admin user settings sidebar page isolated from admin default endpoints', async () => {
+    authMock.isAdmin = true
+
+    httpMock.put.mockImplementation((url, payload) => {
+      if (url === '/me/preferences') {
+        return Promise.resolve({
+          data: {
+            data: {
+              sidebar_widget_keys: payload.sidebar_widget_overrides?.home ?? [],
+              sidebar_widget_overrides: payload.sidebar_widget_overrides ?? {},
+              has_preferences: true,
+            },
+            meta: {
+              supported_sidebar_widgets: [
+                { section_key: 'search', title: 'Hľadaj' },
+                { section_key: 'nasa_apod', title: 'Astrofoto dňa' },
+                { section_key: 'next_event', title: 'Najbližšia udalosť' },
+                { section_key: 'latest_articles', title: 'Astro čítanie' },
+              ],
+              supported_sidebar_scopes: ['home', 'events', 'search'],
+            },
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: {},
+          meta: {},
+        },
+      })
+    })
+
+    const { wrapper } = await mountAt('/settings/sidebar-widgets')
+
+    const zones = wrapper.findAll('.widgetZone')
+    const activeDropZone = zones[0].get('.widgetZone__list--active')
+    const availableCards = zones[1].findAll('.widgetCard')
+
+    await availableCards[0].trigger('dragstart', { dataTransfer: makeDataTransfer() })
+    await activeDropZone.trigger('drop')
+    await flush()
+    await flush()
+
+    expect(httpMock.get).not.toHaveBeenCalledWith('/admin/sidebar-config', expect.anything())
+    expect(httpMock.put).toHaveBeenCalledWith(
+      '/me/preferences',
+      {
+        sidebar_widget_overrides: {
+          home: ['search', 'nasa_apod', 'next_event'],
+        },
+        sidebar_widget_keys: ['search', 'nasa_apod', 'next_event'],
+      },
+      {
+        meta: { requiresAuth: true },
+      },
+    )
+    expect(httpMock.put).not.toHaveBeenCalledWith('/admin/sidebar-config', expect.anything(), expect.anything())
+  })
+
   it('keeps sidebar widget settings usable when preferences request times out', async () => {
     httpMock.get.mockImplementation((url) => {
       if (url === '/me/preferences') {
@@ -742,4 +804,3 @@ describe('SettingsView', () => {
     expect(authMock.logout).not.toHaveBeenCalled()
   })
 })
-

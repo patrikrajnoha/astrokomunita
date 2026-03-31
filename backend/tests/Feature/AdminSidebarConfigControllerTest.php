@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\SidebarSectionConfig;
 use App\Models\User;
 use App\Support\SidebarSectionRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -86,6 +87,20 @@ class AdminSidebarConfigControllerTest extends TestCase
             ->count();
 
         $this->assertSame(3, $enabledCount);
+        $this->assertDatabaseCount('sidebar_section_configs', count(SidebarSectionRegistry::sections()));
+        $this->assertSame(
+            count(SidebarSectionRegistry::sections()),
+            SidebarSectionConfig::query()
+                ->where('scope', SidebarSectionRegistry::SCOPE_HOME)
+                ->where('kind', 'builtin')
+                ->count()
+        );
+        $this->assertDatabaseHas('sidebar_section_configs', [
+            'scope' => SidebarSectionRegistry::SCOPE_HOME,
+            'kind' => 'builtin',
+            'section_key' => $sections[0]['section_key'],
+            'is_enabled' => true,
+            'order' => 0,
+        ]);
     }
 }
-

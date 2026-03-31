@@ -43,12 +43,7 @@ class SidebarConfigController extends Controller
             ->get()
             ->sortBy('order')
             ->values();
-
-        // Home scope is fully admin-driven. If admin has not saved any config yet,
-        // return an empty sidebar instead of built-in defaults.
-        if ($scope === SidebarSectionRegistry::SCOPE_HOME && $dbRows->isEmpty()) {
-            return [];
-        }
+        $useSystemHomeFallback = $scope === SidebarSectionRegistry::SCOPE_HOME && $dbRows->isEmpty();
 
         $items = [];
         $builtinRows = $dbRows->where('kind', 'builtin')->keyBy('section_key');
@@ -63,8 +58,10 @@ class SidebarConfigController extends Controller
                 'custom_component_id' => null,
                 'custom_component' => null,
                 'order' => $dbRow ? (int) $dbRow->order : (int) $section['default_order'],
-                // When a scope is partially configured, unspecified sections stay disabled.
-                'is_enabled' => $dbRow ? (bool) $dbRow->is_enabled : false,
+                // Home scope falls back to the built-in defaults until the admin saves an explicit config.
+                'is_enabled' => $dbRow
+                    ? (bool) $dbRow->is_enabled
+                    : ($useSystemHomeFallback ? (bool) $section['default_enabled'] : false),
             ];
         }
 
