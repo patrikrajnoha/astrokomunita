@@ -41,31 +41,35 @@ class EventCalendarExportTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-02-10 10:00:00', 'UTC'));
 
-        $eventA = $this->createEvent('Event A', '2026-02-15 20:00:00');
-        $eventB = $this->createEvent('Event B', '2026-02-20 20:00:00');
+        try {
+            $eventA = $this->createEvent('Event A', '2026-02-15 20:00:00');
+            $eventB = $this->createEvent('Event B', '2026-02-20 20:00:00');
 
-        MonthlyFeaturedEvent::query()->create([
-            'event_id' => $eventA->id,
-            'month_key' => '2026-02',
-            'position' => 0,
-            'is_active' => true,
-        ]);
-        MonthlyFeaturedEvent::query()->create([
-            'event_id' => $eventB->id,
-            'month_key' => '2026-02',
-            'position' => 1,
-            'is_active' => true,
-        ]);
+            MonthlyFeaturedEvent::query()->create([
+                'event_id' => $eventA->id,
+                'month_key' => '2026-02',
+                'position' => 0,
+                'is_active' => true,
+            ]);
+            MonthlyFeaturedEvent::query()->create([
+                'event_id' => $eventB->id,
+                'month_key' => '2026-02',
+                'position' => 1,
+                'is_active' => true,
+            ]);
 
-        $response = $this->get('/api/featured-events/2026-02/calendar.ics');
+            $response = $this->get('/api/featured-events/2026-02/calendar.ics');
 
-        $response->assertOk();
-        $response->assertHeader('Content-Type', 'text/calendar; charset=utf-8');
+            $response->assertOk();
+            $response->assertHeader('Content-Type', 'text/calendar; charset=utf-8');
 
-        $content = (string) $response->getContent();
-        $this->assertSame(2, substr_count($content, 'BEGIN:VEVENT'));
-        $this->assertStringContainsString('SUMMARY:Event A', $content);
-        $this->assertStringContainsString('SUMMARY:Event B', $content);
+            $content = (string) $response->getContent();
+            $this->assertSame(2, substr_count($content, 'BEGIN:VEVENT'));
+            $this->assertStringContainsString('SUMMARY:Event A', $content);
+            $this->assertStringContainsString('SUMMARY:Event B', $content);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function createEvent(string $title, string $startAt): Event
