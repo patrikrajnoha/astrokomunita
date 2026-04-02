@@ -306,8 +306,13 @@ class EventSourceController extends Controller
 
             if ($candidateIds !== []) {
                 foreach (array_chunk($candidateIds, 200) as $chunk) {
-                    $pattern = '"candidateId";i:(' . implode('|', $chunk) . ');';
-                    DB::table('jobs')->whereRaw('payload REGEXP ?', [$pattern])->delete();
+                    DB::table('jobs')
+                        ->where(function ($query) use ($chunk): void {
+                            foreach ($chunk as $candidateId) {
+                                $query->orWhere('payload', 'like', '%"candidateId";i:' . (int) $candidateId . ';%');
+                            }
+                        })
+                        ->delete();
                 }
             }
         }

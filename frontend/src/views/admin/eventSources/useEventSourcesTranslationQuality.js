@@ -4,7 +4,6 @@ import {
   getTranslationArtifactsReport,
   repairTranslationArtifacts,
 } from '@/services/api/admin/eventSources'
-import { eventCandidates } from '@/services/eventCandidates'
 
 export function useEventSourcesTranslationQuality({
   t,
