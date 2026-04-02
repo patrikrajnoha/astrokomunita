@@ -29,7 +29,11 @@ class EventCalendarExportTest extends TestCase
         $this->assertStringContainsString('BEGIN:VCALENDAR', $content);
         $this->assertStringContainsString('DTSTART:', $content);
         $this->assertStringContainsString('SUMMARY:Lunar Eclipse', $content);
-        $this->assertStringContainsString('UID:event-' . $event->id . '@astrokomunita', $content);
+        $uidHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+        if (!is_string($uidHost) || $uidHost === '' || $uidHost === 'localhost') {
+            $uidHost = 'astrokomunita';
+        }
+        $this->assertStringContainsString('UID:event-' . $event->id . '@' . $uidHost, $content);
         $this->assertStringContainsString('LOCATION:Slovensko', $content);
     }
 
