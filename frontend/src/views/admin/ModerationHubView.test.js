@@ -31,6 +31,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
@@ -244,8 +251,16 @@ describe('ModerationHubView', () => {
     await flush()
     await flush()
 
-    const buttons = wrapper.findAll('button').filter((node) => node.text().includes('Skontrolovat'))
-    await buttons[1].trigger('click')
+    const queueCard = wrapper
+      .findAll('article')
+      .find((node) => normalizeText(node.text()).includes('prispevok #22'))
+    expect(queueCard).toBeTruthy()
+
+    const inspectButton = queueCard
+      .findAll('button')
+      .find((node) => normalizeText(node.text()).includes('skontrolovat'))
+    expect(inspectButton).toBeTruthy()
+    await inspectButton.trigger('click')
     await flush()
     await flush()
 

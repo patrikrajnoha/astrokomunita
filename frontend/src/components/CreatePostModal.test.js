@@ -67,7 +67,7 @@ describe('CreatePostModal GIF selection', () => {
     vi.useRealTimers()
   })
 
-  it('keeps parent modal open when selecting a gif from picker', async () => {
+  it('does not render GIF picker trigger in current toolbar', async () => {
     const wrapper = mount(CreatePostModal, {
       props: { open: true },
       attachTo: document.body,
@@ -80,22 +80,9 @@ describe('CreatePostModal GIF selection', () => {
       },
     })
 
-    await wrapper.find('button[aria-label="GIF"]').trigger('click')
-
-    const searchInput = wrapper.find('input[placeholder="Hladaj GIF..."]')
-    expect(searchInput.exists()).toBe(true)
-    await searchInput.setValue('spa')
-    await vi.advanceTimersByTimeAsync(500)
-    await flushPromises()
-
-    const gifTile = wrapper.find('button.gifTile')
-    expect(gifTile.exists()).toBe(true)
-    await gifTile.trigger('click')
-    await flushPromises()
-
+    expect(wrapper.find('button[aria-label="GIF"]').exists()).toBe(false)
     expect(wrapper.emitted('close')).toBeFalsy()
     expect(wrapper.find('.subBackdrop').exists()).toBe(false)
-    expect(wrapper.find('.contentCol .mediaCard .mediaImg').exists()).toBe(true)
 
     wrapper.unmount()
   })

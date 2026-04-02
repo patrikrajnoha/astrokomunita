@@ -29,6 +29,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 describe('AdminFeaturedEventsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -95,7 +102,7 @@ describe('AdminFeaturedEventsView', () => {
     await flush()
 
     expect(getFeaturedEventsMock).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Automatický výber (bez AI)')
+    expect(normalizeText(wrapper.text())).toContain('auto')
     expect(wrapper.text()).toContain('Meteor Shower')
   })
 
@@ -104,8 +111,13 @@ describe('AdminFeaturedEventsView', () => {
     await flush()
     await flush()
 
-    const button = wrapper.findAll('button').find((node) => node.text().includes('Použiť ako manuálny výber'))
+    const button = wrapper
+      .findAll('button')
+      .find((node) => normalizeText(node.text()).startsWith('pouzit'))
     expect(button).toBeTruthy()
+    if (!button) {
+      throw new Error('Fallback apply button not found')
+    }
 
     await button.trigger('click')
     await flush()

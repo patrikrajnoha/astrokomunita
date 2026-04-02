@@ -7,6 +7,18 @@ vi.mock('@/services/events', () => ({
   searchOnboardingLocations: vi.fn(async () => ({ data: { data: [] } })),
 }))
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function findButtonByLabel(wrapper, label) {
+  const normalizedLabel = normalizeText(label)
+  return wrapper.findAll('button').find((button) => normalizeText(button.text()) === normalizedLabel)
+}
+
 function mountModal(props = {}) {
   return mount(OnboardingModal, {
     props: {
@@ -31,12 +43,18 @@ describe('OnboardingModal', () => {
     })
 
     expect(wrapper.find('.widgetPreview').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Zaujmy menia to, co ti aplikacia prioritne ukazuje.')
+    expect(normalizeText(wrapper.text())).toContain('zaujmy menia to, co ti aplikacia prioritne ukazuje.')
 
-    await wrapper.get('.btnPrimary').trigger('click')
+    const nextButton = findButtonByLabel(wrapper, 'Ďalej')
+    expect(nextButton).toBeTruthy()
+    if (!nextButton) {
+      throw new Error('Next button not found')
+    }
+
+    await nextButton.trigger('click')
     await nextTick()
 
-    expect(wrapper.text()).toContain('Lokalita spravi widgety skutocne uzitocne.')
+    expect(normalizeText(wrapper.text())).toContain('lokalita spravi widgety skutocne uzitocne.')
     expect(wrapper.find('.widgetPreview').exists()).toBe(true)
   })
 
@@ -51,9 +69,22 @@ describe('OnboardingModal', () => {
       },
     })
 
-    await wrapper.get('.btnPrimary').trigger('click')
+    const nextButton = findButtonByLabel(wrapper, 'Ďalej')
+    expect(nextButton).toBeTruthy()
+    if (!nextButton) {
+      throw new Error('Next button not found')
+    }
+
+    await nextButton.trigger('click')
     await nextTick()
-    await wrapper.get('.btnPrimary').trigger('click')
+
+    const finishButton = findButtonByLabel(wrapper, 'Dokončiť')
+    expect(finishButton).toBeTruthy()
+    if (!finishButton) {
+      throw new Error('Finish button not found')
+    }
+
+    await finishButton.trigger('click')
 
     expect(wrapper.emitted('finish')).toHaveLength(1)
     expect(wrapper.emitted('finish')[0][0]).toEqual({

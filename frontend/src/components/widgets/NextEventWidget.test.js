@@ -16,6 +16,13 @@ const flushPromises = async () => {
   await Promise.resolve()
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 describe('NextEventWidget', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -60,7 +67,7 @@ describe('NextEventWidget', () => {
     expect(getMock).toHaveBeenCalledWith('/events/next')
 
     // Type label is the primary identifier (no verbose DB title)
-    expect(wrapper.text()).toContain('Meteory')
+    expect(normalizeText(wrapper.text())).toContain('meteoricky roj')
 
     // Countdown
     expect(wrapper.text()).toContain('Za 2 dni')

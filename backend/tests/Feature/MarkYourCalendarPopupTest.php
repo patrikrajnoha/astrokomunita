@@ -17,7 +17,7 @@ class MarkYourCalendarPopupTest extends TestCase
 
     public function test_monthly_cadence_shows_when_last_seen_is_previous_month(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-17 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create([
             'last_calendar_popup_at' => Carbon::parse('2026-01-31 22:59:00', 'UTC'),
             'calendar_popup_last_force_version' => 0,
@@ -27,6 +27,7 @@ class MarkYourCalendarPopupTest extends TestCase
         $event = $this->createEvent('Alpha');
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $event->id,
+            'month_key' => '2026-03',
             'position' => 0,
             'is_active' => true,
         ]);
@@ -40,7 +41,7 @@ class MarkYourCalendarPopupTest extends TestCase
 
     public function test_monthly_cadence_hides_when_already_seen_this_month(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-17 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create([
             'last_calendar_popup_at' => Carbon::parse('2026-02-01 08:00:00', 'UTC'),
             'calendar_popup_last_force_version' => 0,
@@ -50,6 +51,7 @@ class MarkYourCalendarPopupTest extends TestCase
         $event = $this->createEvent('Alpha');
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $event->id,
+            'month_key' => '2026-03',
             'position' => 0,
             'is_active' => true,
         ]);
@@ -62,7 +64,7 @@ class MarkYourCalendarPopupTest extends TestCase
 
     public function test_forced_cadence_shows_once_until_seen_then_waits_for_next_force(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-17 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         AppSetting::put('calendar_popup_force_version', 3);
 
         $user = User::factory()->create([
@@ -74,6 +76,7 @@ class MarkYourCalendarPopupTest extends TestCase
         $event = $this->createEvent('Alpha');
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $event->id,
+            'month_key' => '2026-03',
             'position' => 0,
             'is_active' => true,
         ]);
@@ -98,7 +101,7 @@ class MarkYourCalendarPopupTest extends TestCase
 
     public function test_payload_includes_only_curated_events_ordered_by_position(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-17 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create([
             'last_calendar_popup_at' => null,
             'calendar_popup_last_force_version' => 0,
@@ -112,21 +115,25 @@ class MarkYourCalendarPopupTest extends TestCase
 
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $eventA->id,
+            'month_key' => '2026-03',
             'position' => 2,
             'is_active' => true,
         ]);
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $eventB->id,
+            'month_key' => '2026-03',
             'position' => 0,
             'is_active' => true,
         ]);
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $eventC->id,
+            'month_key' => '2026-03',
             'position' => 1,
             'is_active' => true,
         ]);
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $eventHidden->id,
+            'month_key' => '2026-03',
             'position' => 3,
             'is_active' => false,
         ]);
@@ -139,7 +146,7 @@ class MarkYourCalendarPopupTest extends TestCase
             ->assertJsonPath('items.1.id', $eventC->id)
             ->assertJsonPath('items.2.id', $eventA->id)
             ->assertJsonMissingPath('items.3.id')
-            ->assertJsonPath('meta.max_items', 10)
+            ->assertJsonPath('meta.max_items', 6)
             ->assertJsonPath('meta.max_rows', 2);
 
         $this->assertStringEndsWith(
@@ -200,11 +207,13 @@ class MarkYourCalendarPopupTest extends TestCase
 
     private function createEvent(string $title): Event
     {
+        $startAt = now()->copy()->addMonth()->endOfMonth()->setTime(18, 0, 0);
+
         return Event::query()->create([
             'title' => $title,
             'type' => 'other',
-            'start_at' => now()->addDays(2),
-            'end_at' => now()->addDays(3),
+            'start_at' => $startAt,
+            'end_at' => $startAt->copy()->addHour(),
             'visibility' => 1,
             'source_name' => 'manual',
             'source_uid' => uniqid('manual-', true),

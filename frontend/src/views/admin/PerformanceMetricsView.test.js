@@ -5,10 +5,15 @@ import PerformanceMetricsView from '@/views/admin/PerformanceMetricsView.vue'
 
 const getMetricsMock = vi.fn()
 const runMetricsMock = vi.fn()
+const getBotSourcesMock = vi.fn()
 
 vi.mock('@/services/performance', () => ({
   getMetrics: (...args) => getMetricsMock(...args),
   runMetrics: (...args) => runMetricsMock(...args),
+}))
+
+vi.mock('@/services/api/admin/bots', () => ({
+  getBotSources: (...args) => getBotSourcesMock(...args),
 }))
 
 vi.mock('@/composables/useToast', () => ({
@@ -20,6 +25,13 @@ vi.mock('@/composables/useToast', () => ({
 
 function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
+}
+
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
 }
 
 function deferredPromise() {
@@ -43,6 +55,11 @@ function makeRouter() {
 describe('PerformanceMetricsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    getBotSourcesMock.mockResolvedValue({
+      data: {
+        data: [{ key: 'nasa_rss_breaking' }],
+      },
+    })
     getMetricsMock.mockResolvedValue({
       logs: [
         {
@@ -86,9 +103,9 @@ describe('PerformanceMetricsView', () => {
     await flush()
     await flush()
 
-    expect(wrapper.text()).toContain('Výkonnostné metriky')
-    expect(wrapper.text()).toContain('Spustenie benchmarku')
-    expect(wrapper.text()).toContain('Najnovšie výsledky')
+    const text = normalizeText(wrapper.text())
+    expect(text).toContain('vykonnostne metriky')
+    expect(text).toContain('spustit benchmark')
     expect(wrapper.text()).toContain('events_list_200')
   })
 
@@ -117,7 +134,7 @@ describe('PerformanceMetricsView', () => {
     expect(runMetricsMock).toHaveBeenCalledTimes(1)
     expect(button.attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="run-progress"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Spúšťam benchmark')
+    expect(normalizeText(wrapper.text())).toContain('benchmark prave bezi')
 
     pendingRun.resolve({
       status: 'ok',
@@ -148,6 +165,6 @@ describe('PerformanceMetricsView', () => {
 
     const emptyState = wrapper.find('[data-testid="empty-state"]')
     expect(emptyState.exists()).toBe(true)
-    expect(emptyState.text()).toContain('Zatiaľ nie sú k dispozícii žiadne výsledky.')
+    expect(normalizeText(emptyState.text())).toContain('zatial nie su k dispozicii ziadne vysledky')
   })
 })

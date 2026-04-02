@@ -28,6 +28,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 describe('EmailVerificationGateModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -117,7 +124,13 @@ describe('EmailVerificationGateModal', () => {
     httpMock.post.mockClear()
 
     await wrapper.get('#email-gate-code').setValue('12345-67890')
-    await wrapper.get('.emailGateBtnConfirm').trigger('click')
+    const confirmButton = wrapper.findAll('button').find((node) => normalizeText(node.text()).includes('potvrdit kod'))
+    expect(confirmButton).toBeTruthy()
+    if (!confirmButton) {
+      throw new Error('Confirm button not found')
+    }
+
+    await confirmButton.trigger('click')
     await flush()
 
     expect(httpMock.post).toHaveBeenCalledWith('/account/email/verification/confirm', {

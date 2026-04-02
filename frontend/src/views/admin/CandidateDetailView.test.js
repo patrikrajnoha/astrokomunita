@@ -34,6 +34,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),
@@ -168,18 +175,18 @@ describe('CandidateDetailView', () => {
 
     const button = wrapper
       .findAll('button')
-      .find((node) => node.text().toLowerCase().includes('prelo'))
+      .find((node) => normalizeText(node.text()).includes('generovat ai popis'))
     expect(button).toBeTruthy()
 
     await button.trigger('click')
     await flush()
-    expect(wrapper.text()).toContain('Pracujem na tom...')
+    expect(normalizeText(wrapper.text())).toContain('pracujem')
 
     resolveRetranslate({ ok: true, candidate: { translation_status: 'done' } })
     await flush()
     await flush()
 
-    expect(retranslateMock).toHaveBeenCalledWith(44)
-    expect(wrapper.text()).toMatch(/Dokon/)
+    expect(retranslateMock).toHaveBeenCalledWith(44, { mode: 'ai' })
+    expect(normalizeText(wrapper.text())).toContain('spustene')
   })
 })

@@ -15,7 +15,7 @@ class AdminFeaturedEventsTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_cannot_exceed_ten_active_featured_events(): void
+    public function test_admin_cannot_exceed_six_active_featured_events(): void
     {
         $admin = User::factory()->create([
             'is_admin' => true,
@@ -24,7 +24,7 @@ class AdminFeaturedEventsTest extends TestCase
         ]);
         Sanctum::actingAs($admin);
 
-        foreach (range(1, 10) as $index) {
+        foreach (range(1, 6) as $index) {
             $event = $this->createEvent("Event {$index}");
             MonthlyFeaturedEvent::query()->create([
                 'event_id' => $event->id,
@@ -34,12 +34,12 @@ class AdminFeaturedEventsTest extends TestCase
             ]);
         }
 
-        $eleventh = $this->createEvent('Eleventh');
+        $seventh = $this->createEvent('Seventh');
 
         $this->postJson('/api/admin/featured-events', [
-            'event_id' => $eleventh->id,
+            'event_id' => $seventh->id,
         ])->assertStatus(422)
-            ->assertJsonPath('errors.event_id.0', 'Maximum 10 active featured events are allowed.');
+            ->assertJsonPath('errors.event_id.0', 'Maximum 6 active featured events are allowed.');
     }
 
     public function test_force_endpoint_increments_global_version(): void
@@ -76,4 +76,3 @@ class AdminFeaturedEventsTest extends TestCase
         ]);
     }
 }
-

@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import StatsChart from '@/components/admin/dashboard/StatsChart.vue'
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 describe('StatsChart', () => {
   it('renders an svg trend line and points for chart data', () => {
     const wrapper = mount(StatsChart, {
@@ -31,7 +38,7 @@ describe('StatsChart', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Trend nie je dostupny.')
+    expect(normalizeText(wrapper.text())).toContain('trend nie je dostupny')
     expect(wrapper.find('svg.chartSvg').exists()).toBe(false)
   })
 })

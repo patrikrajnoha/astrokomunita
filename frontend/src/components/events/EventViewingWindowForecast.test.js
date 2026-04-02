@@ -82,7 +82,7 @@ describe('EventViewingWindowForecast', () => {
     expect(apiGetMock).not.toHaveBeenCalled()
     const text = normalizeText(wrapper.text())
     expect(text).toContain('predpove')
-    expect(text).toContain('polohy')
+    expect(text).toContain('polohu')
 
     const states = wrapper.emitted('state') || []
     expect(states.at(-1)?.[0]).toMatchObject({

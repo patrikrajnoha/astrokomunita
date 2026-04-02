@@ -730,7 +730,8 @@ describe('SettingsView', () => {
     const { wrapper } = await mountAt('/settings/sidebar-widgets')
 
     expect(wrapper.text()).toContain('Nepodarilo sa nacitat preferencie.')
-    expect(wrapper.findAll('.widgetZone__list--active .widgetCard').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('.widgetZone__list--active .widgetCard')).toHaveLength(0)
+    expect(wrapper.findAll('.widgetZone .widgetCard').length).toBeGreaterThan(0)
   })
 
   it('logs out from settings navigation session section', async () => {

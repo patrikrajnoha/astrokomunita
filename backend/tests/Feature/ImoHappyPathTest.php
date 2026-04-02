@@ -78,7 +78,7 @@ class ImoHappyPathTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertNotNull($candidate->translated_description);
-        $this->assertStringContainsString('Meteoricky roj', (string) $candidate->translated_description);
+        $this->assertStringContainsString('meteorický roj', (string) $candidate->translated_description);
 
         $approveResponse = $this->postJson("/api/admin/event-candidates/{$candidate->id}/approve");
         $approveResponse->assertOk();

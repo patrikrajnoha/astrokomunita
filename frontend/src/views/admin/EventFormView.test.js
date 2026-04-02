@@ -35,6 +35,13 @@ function flush() {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 describe('EventFormView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -100,7 +107,7 @@ describe('EventFormView', () => {
 
     const aiDescriptionButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Pouzit navrh'))
+      .find((button) => normalizeText(button.text()).includes('pouzit navrh'))
 
     expect(aiDescriptionButton).toBeTruthy()
     await aiDescriptionButton.trigger('click')
@@ -122,7 +129,7 @@ describe('EventFormView', () => {
 
     const previewButton = wrapper
       .findAll('button')
-      .find((button) => button.text().includes('Otestovat navrh'))
+      .find((button) => normalizeText(button.text()).includes('otestovat navrh'))
 
     expect(previewButton).toBeTruthy()
     await previewButton.trigger('click')

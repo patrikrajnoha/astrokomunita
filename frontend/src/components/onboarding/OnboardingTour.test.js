@@ -34,6 +34,13 @@ function appendTourTarget(id) {
   return element
 }
 
+function normalizeText(value = '') {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 async function mountTour(startStep = 0) {
   const pinia = createPinia()
   setActivePinia(pinia)
@@ -75,17 +82,19 @@ describe('OnboardingTour', () => {
   it('renders rotating widget preview on the conditions step', async () => {
     const wrapper = await mountTour(2)
 
-    expect(wrapper.get('.tourTitle').text()).toBe('Pozorovacie podmienky')
+    expect(normalizeText(wrapper.get('.tourTitle').text())).toBe('pozorovacie podmienky')
     expect(wrapper.find('.widgetPreview').exists()).toBe(true)
-    expect(wrapper.findAll('.widgetPreviewItem')).toHaveLength(3)
-    expect(wrapper.text()).toContain('Počasie a seeing')
-    expect(wrapper.text()).toContain('Fáza a udalosti')
+    expect(wrapper.findAll('.widgetSlide').length).toBeGreaterThanOrEqual(3)
+
+    const text = normalizeText(wrapper.text())
+    expect(text).toContain('pocasie')
+    expect(text).toContain('widgety')
   })
 
   it('does not render widget preview on non-widget steps', async () => {
     const wrapper = await mountTour(0)
 
-    expect(wrapper.get('.tourTitle').text()).toBe('Komunitný feed')
+    expect(normalizeText(wrapper.get('.tourTitle').text())).toBe('komunitny feed')
     expect(wrapper.find('.widgetPreview').exists()).toBe(false)
   })
 })

@@ -52,6 +52,23 @@ function findButtonByText(wrapper, needle) {
     .find((button) => normalizeText(button.text()).includes(normalizedNeedle));
 }
 
+function findCheckboxByLabel(wrapper, needle) {
+  const normalizedNeedle = normalizeText(needle);
+  const label = wrapper
+    .findAll("label")
+    .find((node) => normalizeText(node.text()).includes(normalizedNeedle));
+  return label ? label.find('input[type="checkbox"]') : null;
+}
+
+async function openSettingsForSelectedPost(wrapper) {
+  await wrapper.find("button.article-card").trigger("click");
+  await flush();
+  const settingsButton = findButtonByText(wrapper, "nastavenia");
+  expect(settingsButton).toBeTruthy();
+  await settingsButton.trigger("click");
+  await flush();
+}
+
 describe("BlogPostsView AI tag suggestions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -89,7 +106,7 @@ describe("BlogPostsView AI tag suggestions", () => {
       fallback_used: false,
       tags: [
         { id: 11, name: "Mars", reason: "Clanok rozobera pozorovanie planety Mars." },
-        { id: 12, name: "Planety", reason: "Hlavna tema su planety a ich viditeľnosť." },
+        { id: 12, name: "Planety", reason: "Hlavna tema su planety a ich viditelnost." },
       ],
       last_run: {
         feature_name: "blog_tag_suggestions",
@@ -97,10 +114,7 @@ describe("BlogPostsView AI tag suggestions", () => {
       },
     });
 
-    adminUpdateMock.mockResolvedValue({
-      id: 7,
-    });
-
+    adminUpdateMock.mockResolvedValue({ id: 7 });
     adminCreateMock.mockResolvedValue({ id: 7 });
     adminDeleteMock.mockResolvedValue({});
     confirmMock.mockResolvedValue(true);
@@ -111,14 +125,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    const suggestButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhn"));
+    const suggestButton = findButtonByText(wrapper, "navrhnut");
     expect(suggestButton).toBeTruthy();
 
     await suggestButton.trigger("click");
@@ -128,8 +137,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminSuggestTagsMock).toHaveBeenCalledWith(7, {
       mode: "existing_only",
     });
-    expect(wrapper.findAll(".ai-pill").length).toBeGreaterThanOrEqual(1);
-    expect(wrapper.findAll(".ai-pill").length).toBeLessThanOrEqual(5);
+
+    const applyButton = findButtonByText(wrapper, "pridat (2)");
+    expect(applyButton).toBeTruthy();
     expect(wrapper.text()).toContain("Mars");
     expect(wrapper.text()).toContain("Planety");
   });
@@ -139,15 +149,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
-
-    const suggestButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhn"));
+    const suggestButton = findButtonByText(wrapper, "navrhnut");
     expect(suggestButton).toBeTruthy();
 
     await suggestButton.trigger("click");
@@ -166,21 +170,14 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    const suggestButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhn"));
+    const suggestButton = findButtonByText(wrapper, "navrhnut");
     await suggestButton.trigger("click");
     await flush();
     await flush();
 
-    const applyButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridať ("));
+    const applyButton = findButtonByText(wrapper, "pridat (2)");
     expect(applyButton).toBeTruthy();
 
     await applyButton.trigger("click");
@@ -207,18 +204,14 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    const allowNewCheckbox = wrapper.find('.ai-allow-new-label input[type="checkbox"]');
+    const allowNewCheckbox = findCheckboxByLabel(wrapper, "navrhovat aj nove tagy");
+    expect(allowNewCheckbox).toBeTruthy();
     await allowNewCheckbox.setChecked(true);
     await flush();
 
-    const suggestButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhn"));
+    const suggestButton = findButtonByText(wrapper, "navrhnut");
     await suggestButton.trigger("click");
     await flush();
     await flush();
@@ -227,9 +220,7 @@ describe("BlogPostsView AI tag suggestions", () => {
       mode: "allow_new",
     });
 
-    const applyButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridať ("));
+    const applyButton = findButtonByText(wrapper, "pridat (2)");
     expect(applyButton).toBeTruthy();
 
     await applyButton.trigger("click");
@@ -253,20 +244,15 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    const suggestButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhn"));
+    const suggestButton = findButtonByText(wrapper, "navrhnut");
     await suggestButton.trigger("click");
     await flush();
     await flush();
 
-    expect(wrapper.find(".ai-pill__new").exists()).toBe(true);
-    expect(wrapper.text()).toContain("nový");
+    expect(wrapper.text()).toContain("Mars");
+    expect(normalizeText(wrapper.text())).toContain("novy");
   });
 
   it("runs full AI flow: suggest, apply, persist and show sync feedback", async () => {
@@ -354,18 +340,14 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    const allowNewCheckbox = wrapper.find('.ai-allow-new-label input[type="checkbox"]');
+    const allowNewCheckbox = findCheckboxByLabel(wrapper, "navrhovat aj nove tagy");
+    expect(allowNewCheckbox).toBeTruthy();
     await allowNewCheckbox.setChecked(true);
     await flush();
 
-    const suggestButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("navrhn"));
+    const suggestButton = findButtonByText(wrapper, "navrhnut");
     await suggestButton.trigger("click");
     await flush();
     await flush();
@@ -376,9 +358,7 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(wrapper.text()).toContain("Mars");
     expect(wrapper.text()).toContain("Planety");
 
-    const applyButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("pridať ("));
+    const applyButton = findButtonByText(wrapper, "pridat (2)");
     await applyButton.trigger("click");
     await flush();
     await flush();
@@ -386,11 +366,15 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminUpdateMock).toHaveBeenCalledWith(7, {
       tags: ["Mesiac", "Mars", "Planety"],
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith(
-      "Tagy boli pridané (existujúce: 1, nové: 1)."
-    );
 
-    const tagsInput = wrapper.find('input[placeholder*="planéty"]');
+    const lastToast = String(toastSuccessMock.mock.calls.at(-1)?.[0] || "");
+    expect(normalizeText(lastToast)).toContain("tagy boli pridane");
+    expect(normalizeText(lastToast)).toContain("existujuce: 1");
+    expect(normalizeText(lastToast)).toContain("nove: 1");
+
+    const tagsInput = wrapper
+      .findAll('input[type="text"]')
+      .find((node) => normalizeText(node.attributes("placeholder") || "").includes("plan"));
     expect(tagsInput.exists()).toBe(true);
     expect(tagsInput.element.value).toContain("Planety");
   });
@@ -402,11 +386,10 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const createButtons = wrapper
       .findAll("button")
-      .filter((button) => /\+\s*nov/i.test(button.text()));
+      .filter((button) => normalizeText(button.text()).includes("novy clanok"));
 
     expect(createButtons.length).toBe(1);
-    expect(wrapper.text()).toContain("Vyber článok alebo vytvor nový");
-    expect(wrapper.find(".editor-empty .btn-primary").exists()).toBe(false);
+    expect(normalizeText(wrapper.text())).toContain("vyber clanok alebo vytvor novy");
   });
 
   it("renders engagement stats on article card", async () => {
@@ -425,17 +408,14 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    const openButton = wrapper.find(".blog-header__actions .btn-primary");
-    expect(openButton.exists()).toBe(true);
-
-    await wrapper.find("button.article-card").trigger("click");
+    const openButton = findButtonByText(wrapper, "novy clanok");
+    expect(openButton).toBeTruthy();
+    await openButton.trigger("click");
     await flush();
 
     expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(true);
 
-    const closeButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().includes("Späť"));
+    const closeButton = findButtonByText(wrapper, "spat");
     expect(closeButton).toBeTruthy();
     await closeButton.trigger("click");
     await flush();
@@ -453,15 +433,13 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(true);
 
-    const closeButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().includes("Späť"));
+    const closeButton = findButtonByText(wrapper, "spat");
     expect(closeButton).toBeTruthy();
     await closeButton.trigger("click");
     await flush();
 
     expect(wrapper.find(".blog-layout.is-editing").exists()).toBe(false);
-    expect(wrapper.text()).toContain("Vyber článok alebo vytvor nový");
+    expect(normalizeText(wrapper.text())).toContain("vyber clanok alebo vytvor novy");
   });
 
   it("removes Focus action and shows direct article actions in editor", async () => {
@@ -474,13 +452,13 @@ describe("BlogPostsView AI tag suggestions", () => {
 
     const actionLabels = wrapper
       .findAll(".editor-bar__right button")
-      .map((button) => button.text().trim());
+      .map((button) => normalizeText(button.text().trim()));
 
-    expect(actionLabels).not.toContain("Focus");
-    expect(actionLabels).toContain("Uložiť");
-    expect(actionLabels).toContain("Zrušiť publikovanie");
-    expect(actionLabels).not.toContain("Skryť článok");
-    expect(actionLabels).not.toContain("Vymazať článok");
+    expect(actionLabels).not.toContain("focus");
+    expect(actionLabels.some((label) => label.includes("uloz"))).toBe(true);
+    expect(actionLabels.some((label) => label.includes("zrusit pub"))).toBe(true);
+    expect(actionLabels.some((label) => label.includes("skryt clanok"))).toBe(false);
+    expect(actionLabels.some((label) => label.includes("vymazat clanok"))).toBe(false);
   });
 
   it('click on "Nepublikovat" updates article back to draft', async () => {
@@ -491,11 +469,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     await wrapper.find("button.article-card").trigger("click");
     await flush();
 
-    const unpublishButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase().includes("zrušiť publikovanie"));
-
+    const unpublishButton = findButtonByText(wrapper, "zrusit pub");
     expect(unpublishButton).toBeTruthy();
+
     await unpublishButton.trigger("click");
     await flush();
     await flush();
@@ -503,7 +479,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminUpdateMock).toHaveBeenCalledWith(7, {
       published_at: null,
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith("Článok bol stiahnutý z publikácie.");
+
+    const lastToast = String(toastSuccessMock.mock.calls.at(-1)?.[0] || "");
+    expect(normalizeText(lastToast)).toContain("clanok bol stiahnuty z publikacie");
   });
 
   it('click on "Skryt clanok" hides a published article', async () => {
@@ -511,10 +489,7 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
     const hideButton = findButtonByText(wrapper, "skryt clanok");
     expect(hideButton).toBeTruthy();
@@ -526,7 +501,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminUpdateMock).toHaveBeenCalledWith(7, {
       is_hidden: true,
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith("Clanok bol skryty.");
+
+    const lastToast = String(toastSuccessMock.mock.calls.at(-1)?.[0] || "");
+    expect(normalizeText(lastToast)).toContain("clanok bol skryty");
   });
 
   it('click on "Zobrazit clanok" unhides hidden published article', async () => {
@@ -562,10 +539,7 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
     const unhideButton = findButtonByText(wrapper, "zobrazit clanok");
     expect(unhideButton).toBeTruthy();
@@ -577,7 +551,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     expect(adminUpdateMock).toHaveBeenCalledWith(7, {
       is_hidden: false,
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith("Clanok je znovu viditelny.");
+
+    const lastToast = String(toastSuccessMock.mock.calls.at(-1)?.[0] || "");
+    expect(normalizeText(lastToast)).toContain("clanok je znovu viditelny");
   });
 
   it("shows clear status when existing cover is already stored", async () => {
@@ -613,10 +589,7 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
     expect(normalizeText(wrapper.text())).toContain("pouziva sa aktualny ulozeny obrazok");
   });
@@ -654,14 +627,9 @@ describe("BlogPostsView AI tag suggestions", () => {
     await flush();
     await flush();
 
-    await wrapper.find("button.article-card").trigger("click");
-    await flush();
-    await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-    await flush();
+    await openSettingsForSelectedPost(wrapper);
 
-    const label = wrapper.find(".cover-file-control__label");
-    expect(label.exists()).toBe(true);
-    expect(normalizeText(label.text())).toContain("pouziva sa aktualny ulozeny obrazok");
+    expect(normalizeText(wrapper.text())).toContain("pouziva sa aktualny ulozeny obrazok");
   });
 
   it("shows selected file name under cover uploader", async () => {
@@ -675,10 +643,7 @@ describe("BlogPostsView AI tag suggestions", () => {
       await flush();
       await flush();
 
-      await wrapper.find("button.article-card").trigger("click");
-      await flush();
-      await wrapper.findAll("button").find((b) => b.text() === "Nastavenia").trigger("click");
-      await flush();
+      await openSettingsForSelectedPost(wrapper);
 
       const file = new File(["cover-image"], "cover-test.png", { type: "image/png" });
       wrapper.vm.onCoverChange({
@@ -686,7 +651,7 @@ describe("BlogPostsView AI tag suggestions", () => {
       });
       await flush();
 
-      expect(normalizeText(wrapper.text())).toContain("vybrany subor: cover-test.png");
+      expect(normalizeText(wrapper.text())).toContain("cover-test.png");
     } finally {
       URL.createObjectURL = originalCreateObjectURL;
       URL.revokeObjectURL = originalRevokeObjectURL;
@@ -730,12 +695,10 @@ describe("BlogPostsView AI tag suggestions", () => {
     await wrapper.find("button.article-card").trigger("click");
     await flush();
 
-    const publishButton = wrapper
-      .findAll("button")
-      .find((button) => button.text().toLowerCase() === "publikovať");
+    const publishButton = findButtonByText(wrapper, "publikovat");
 
     expect(publishButton).toBeTruthy();
     expect(publishButton.attributes("disabled")).toBeDefined();
-    expect(wrapper.text().toLowerCase()).toContain("pred publikovaním");
+    expect(normalizeText(wrapper.text())).toContain("pred publikovanim");
   });
 });

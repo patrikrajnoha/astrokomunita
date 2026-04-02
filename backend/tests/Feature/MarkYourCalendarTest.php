@@ -17,14 +17,14 @@ class MarkYourCalendarTest extends TestCase
 
     public function test_returns_admin_mode_when_featured_exists(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-21 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $event = $this->createEvent('Admin Event', '2026-02-24 18:00:00');
+        $event = $this->createEvent('Admin Event', '2026-03-29 18:00:00');
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $event->id,
-            'month_key' => '2026-02',
+            'month_key' => '2026-03',
             'position' => 0,
             'is_active' => true,
         ]);
@@ -38,28 +38,29 @@ class MarkYourCalendarTest extends TestCase
 
     public function test_returns_fallback_mode_when_none_featured(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-21 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $first = $this->createEvent('Fallback 1', '2026-02-22 18:00:00');
-        $second = $this->createEvent('Fallback 2', '2026-02-23 18:00:00');
-        $third = $this->createEvent('Fallback 3', '2026-02-24 18:00:00');
-        $this->createEvent('Fallback 4', '2026-02-25 18:00:00');
+        $first = $this->createEvent('Fallback 1', '2026-03-29 18:00:00');
+        $second = $this->createEvent('Fallback 2', '2026-03-30 18:00:00');
+        $third = $this->createEvent('Fallback 3', '2026-03-31 18:00:00');
+        $fourth = $this->createEvent('Fallback 4', '2026-03-31 19:00:00');
 
         $response = $this->getJson('/api/popup/mark-your-calendar');
 
         $response->assertOk()
             ->assertJsonPath('mode', 'fallback')
-            ->assertJsonCount(3, 'events')
+            ->assertJsonCount(4, 'events')
             ->assertJsonPath('events.0.id', $first->id)
             ->assertJsonPath('events.1.id', $second->id)
-            ->assertJsonPath('events.2.id', $third->id);
+            ->assertJsonPath('events.2.id', $third->id)
+            ->assertJsonPath('events.3.id', $fourth->id);
     }
 
     public function test_never_returns_500_when_repository_fails(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-21 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
@@ -81,14 +82,14 @@ class MarkYourCalendarTest extends TestCase
 
     public function test_response_structure_is_correct(): void
     {
-        Carbon::setTestNow(Carbon::parse('2026-02-21 10:00:00', 'UTC'));
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
         $user = User::factory()->create();
         Sanctum::actingAs($user);
 
-        $event = $this->createEvent('Structured Event', '2026-02-24 18:00:00');
+        $event = $this->createEvent('Structured Event', '2026-03-29 18:00:00');
         MonthlyFeaturedEvent::query()->create([
             'event_id' => $event->id,
-            'month_key' => '2026-02',
+            'month_key' => '2026-03',
             'position' => 0,
             'is_active' => true,
         ]);
