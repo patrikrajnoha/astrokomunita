@@ -699,6 +699,54 @@ describe('SettingsView', () => {
     expect(httpMock.put).not.toHaveBeenCalledWith('/admin/sidebar-config', expect.anything(), expect.anything())
   })
 
+  it('shows effective admin/default widgets when the user has no explicit override', async () => {
+    httpMock.get.mockImplementation((url) => {
+      if (url === '/me/preferences') {
+        return Promise.resolve({
+          data: {
+            data: {
+              sidebar_widget_keys: [],
+              sidebar_widget_overrides: {},
+              has_preferences: true,
+            },
+            meta: {
+              supported_sidebar_widgets: [
+                { section_key: 'search', title: 'HÄľadaj' },
+                { section_key: 'nasa_apod', title: 'Astrofoto dĹa' },
+                { section_key: 'next_event', title: 'NajbliĹľĹˇia udalosĹĄ' },
+                { section_key: 'latest_articles', title: 'Astro ÄŤĂ­tanie' },
+              ],
+              supported_sidebar_scopes: ['home', 'events', 'search'],
+            },
+          },
+        })
+      }
+
+      if (url === '/sidebar-config') {
+        return Promise.resolve({
+          data: {
+            data: [
+              { kind: 'builtin', section_key: 'search', title: 'HÄľadaj', order: 0, is_enabled: true },
+              { kind: 'builtin', section_key: 'nasa_apod', title: 'Astrofoto dĹa', order: 1, is_enabled: true },
+              { kind: 'builtin', section_key: 'next_event', title: 'NajbliĹľĹˇia udalosĹĄ', order: 2, is_enabled: true },
+              { kind: 'builtin', section_key: 'latest_articles', title: 'Astro ÄŤĂ­tanie', order: 3, is_enabled: false },
+            ],
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {},
+        headers: {},
+      })
+    })
+
+    const { wrapper } = await mountAt('/settings/sidebar-widgets')
+
+    expect(wrapper.get('.widgetZone__count').text()).toContain('3/3')
+    expect(wrapper.findAll('.widgetZone__list--active .widgetCard')).toHaveLength(3)
+  })
+
   it('keeps sidebar widget settings usable when preferences request times out', async () => {
     httpMock.get.mockImplementation((url) => {
       if (url === '/me/preferences') {
@@ -730,7 +778,7 @@ describe('SettingsView', () => {
     const { wrapper } = await mountAt('/settings/sidebar-widgets')
 
     expect(wrapper.text()).toContain('Nepodarilo sa nacitat preferencie.')
-    expect(wrapper.findAll('.widgetZone__list--active .widgetCard')).toHaveLength(0)
+    expect(wrapper.findAll('.widgetZone__list--active .widgetCard')).toHaveLength(3)
     expect(wrapper.findAll('.widgetZone .widgetCard').length).toBeGreaterThan(0)
   })
 

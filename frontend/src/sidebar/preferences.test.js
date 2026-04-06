@@ -48,6 +48,20 @@ describe('resolvePreferredSidebarWidgetKeys', () => {
     })).toEqual([])
   })
 
+  it('returns null for an empty selection when there is no explicit override', () => {
+    const preferences = {
+      loaded: true,
+      sidebarWidgetKeysForScope: vi.fn(() => []),
+      hasSidebarWidgetOverrideForScope: vi.fn(() => false),
+    }
+
+    expect(resolvePreferredSidebarWidgetKeys({
+      isAuthed: true,
+      preferences,
+      scope: 'home',
+    })).toBeNull()
+  })
+
   it('returns a scoped selection when one exists', () => {
     const preferences = {
       loaded: true,

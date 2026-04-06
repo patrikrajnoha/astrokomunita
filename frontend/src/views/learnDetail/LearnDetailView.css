@@ -2,6 +2,7 @@
 .detailPage {
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .backLink {
@@ -29,12 +30,15 @@
   gap: 0.72rem;
   padding-bottom: 0.95rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  min-width: 0;
 }
 
 .header h1 {
   margin: 0;
   font-size: clamp(1.35rem, 3.4vw, 2.05rem);
   line-height: 1.2;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .headerMeta {
@@ -80,6 +84,8 @@
   font-size: 0.72rem;
   color: #ABB8C9;
   background: rgba(21, 29, 40, 0.44);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .shareBtn,
@@ -123,6 +129,7 @@
 
 .articleCard {
   overflow: hidden;
+  min-width: 0;
 }
 
 .cover {
@@ -139,6 +146,7 @@
 
 .articleBody {
   padding: clamp(0.85rem, 2vw, 1.25rem);
+  min-width: 0;
 }
 
 .detailPage--reading .header {
@@ -155,6 +163,7 @@
   margin: 0 auto 1.05rem;
   padding-left: 0.8rem;
   border-left: 2px solid rgba(171, 184, 201, 0.32);
+  min-width: 0;
 }
 
 .toc__title {
@@ -186,6 +195,8 @@
   font-size: 0.84rem;
   text-decoration: none;
   transition: color 150ms ease;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .toc a:hover {
@@ -197,6 +208,8 @@
   margin: 0 auto;
   line-height: 1.78;
   color: rgba(255, 255, 255, 0.94);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .detailPage--reading .toc,
@@ -208,24 +221,32 @@
   line-height: 1.9;
 }
 
-.content h2,
-.content h3 {
+.content :deep(h1),
+.content :deep(h2),
+.content :deep(h3),
+.content :deep(h4),
+.content :deep(h5),
+.content :deep(h6) {
   margin: 1.2rem 0 0.5rem;
   line-height: 1.34;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.content h2 {
+.content :deep(h2) {
   font-size: 1.18rem;
 }
 
-.content h3 {
+.content :deep(h3) {
   font-size: 1.04rem;
   color: rgba(171, 184, 201, 0.95);
 }
 
-.content p {
+.content :deep(p) {
   margin: 0 0 0.82rem;
   font-size: 0.98rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .detailPage--reading .content p {
@@ -233,33 +254,80 @@
   font-size: 1.02rem;
 }
 
-.content ul {
+.content :deep(ul),
+.content :deep(ol) {
   margin: 0 0 0.85rem;
   padding-left: 1.1rem;
 }
 
-.content li {
+.content :deep(li) {
   margin: 0.3rem 0;
   font-size: 0.94rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.content a {
+.content :deep(a) {
   color: #0F73FF;
   text-decoration: underline;
   text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.content code {
+.content :deep(pre) {
+  margin: 0 0 0.9rem;
+  padding: 0.62rem 0.72rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(21, 29, 40, 0.72);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.content :deep(code) {
   padding: 0.08rem 0.34rem;
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(21, 29, 40, 0.72);
   font-size: 0.86em;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.content :deep(pre code) {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.content :deep(img),
+.content :deep(video),
+.content :deep(iframe),
+.content :deep(canvas) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.content :deep(figure) {
+  margin: 0 0 0.9rem;
+}
+
+.content :deep(table) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .section,
 .state {
   padding: 0.9rem;
+  min-width: 0;
 }
 
 .state {
@@ -348,6 +416,7 @@
   border-radius: 0.5rem;
   background: rgba(21, 29, 40, 0.58);
   padding: 0.62rem;
+  min-width: 0;
 }
 
 .commentItem__meta {
@@ -366,6 +435,8 @@
   color: rgba(255, 255, 255, 0.94);
   line-height: 1.56;
   font-size: 0.88rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .commentItem__remove {
@@ -409,6 +480,7 @@
   flex-direction: column;
   gap: 0.2rem;
   transition: border-color 150ms ease, background-color 150ms ease;
+  min-width: 0;
 }
 
 .related__item:hover {
@@ -419,6 +491,8 @@
 .related__item strong {
   font-size: 0.89rem;
   line-height: 1.33;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .related__item span,
