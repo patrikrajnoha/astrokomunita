@@ -1,3 +1,5 @@
+import { normalizeMediaUrl } from "@/utils/profileMedia";
+
 const FONT_SIZE_MIN_PX = 10;
 const FONT_SIZE_MAX_PX = 72;
 const ELEMENT_NODE = 1;
@@ -134,6 +136,18 @@ function sanitizeHref(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
 
+  if (/^\/\//.test(raw)) {
+    return `https:${raw}`;
+  }
+
+  if (/^www\./i.test(raw)) {
+    try {
+      return new URL(`https://${raw}`).href;
+    } catch {
+      return "";
+    }
+  }
+
   if (raw.startsWith("#")) {
     return raw.slice(0, 200);
   }
@@ -156,6 +170,17 @@ function sanitizeHref(value) {
   }
 
   return "";
+}
+
+function normalizeImageSrc(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  if (raw.startsWith("/api/media/file/") || raw.startsWith("/storage/")) {
+    return normalizeMediaUrl(raw) || raw;
+  }
+
+  return raw;
 }
 
 function parseSpanStyle(styleValue) {
@@ -256,7 +281,7 @@ function sanitizeNode(node, context) {
   }
 
   if (tag === "img") {
-    const src = sanitizeHref(node.getAttribute("src"));
+    const src = normalizeImageSrc(sanitizeHref(node.getAttribute("src")));
     if (!src) return "";
     const alt = escapeAttribute(node.getAttribute("alt") || "");
     return `<img src="${escapeAttribute(src)}" alt="${alt}" />`;
@@ -278,7 +303,7 @@ function sanitizeNode(node, context) {
     return `<${tag} id="${escapeAttribute(id)}">${inner}</${tag}>`;
   }
 
-  if ((tag === "p" || tag === "li") && !stripHtml(inner)) {
+  if ((tag === "p" || tag === "li") && !stripHtml(inner) && !/<img\b/i.test(inner)) {
     return "";
   }
 

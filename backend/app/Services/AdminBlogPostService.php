@@ -157,7 +157,7 @@ class AdminBlogPostService
 
     public function publicMediaUrl(?string $path): ?string
     {
-        return $this->mediaStorage->absoluteUrl($path);
+        return $this->mediaStorage->publicMediaUrl($path);
     }
 
     private function uniqueSlug(string $title): string

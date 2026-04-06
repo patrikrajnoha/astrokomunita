@@ -144,7 +144,7 @@ class PollService
                 return [
                     'id' => (int) $option->id,
                     'text' => $option->text,
-                    'image_url' => $this->mediaStorage->absoluteUrl($option->image_path),
+                    'image_url' => $this->mediaStorage->publicMediaUrl($option->image_path),
                     'votes_count' => $votesCount,
                     'percent' => $percent,
                     'is_winner' => $isClosed && $winnerVoteCount !== null && $votesCount === $winnerVoteCount,

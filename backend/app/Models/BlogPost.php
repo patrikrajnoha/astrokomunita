@@ -68,6 +68,6 @@ class BlogPost extends Model
             return null;
         }
 
-        return app(MediaStorageService::class)->absoluteUrl($this->cover_image_path);
+        return app(MediaStorageService::class)->publicMediaUrl($this->cover_image_path);
     }
 }

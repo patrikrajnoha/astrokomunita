@@ -85,6 +85,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import { formatPollRemainingSk } from '@/utils/pollTime'
 import { useToast } from '@/composables/useToast'
+import { normalizeMediaUrl } from '@/utils/profileMedia'
 
 const props = defineProps({
   poll: { type: Object, required: true },
@@ -232,7 +233,12 @@ function clonePoll(value) {
 
   return {
     ...value,
-    options: Array.isArray(value.options) ? value.options.map((x) => ({ ...x })) : [],
+    options: Array.isArray(value.options)
+      ? value.options.map((option) => ({
+          ...option,
+          image_url: normalizeMediaUrl(option?.image_url || '') || null,
+        }))
+      : [],
   }
 }
 </script>

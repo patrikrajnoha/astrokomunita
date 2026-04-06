@@ -28,13 +28,15 @@ describe('PostMediaImage', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows spinner while attachment moderation is pending', () => {
+  it('shows blurred pending overlay label while attachment moderation is pending', () => {
     const wrapper = renderComponent({
       blurred: true,
       status: 'pending',
     })
 
-    expect(wrapper.find('.media-spinner').exists()).toBe(true)
+    expect(wrapper.find('.media-state-overlay').exists()).toBe(true)
+    expect(wrapper.find('.media-spinner').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Overuje sa obsah…')
   })
 
   it('emits unblurred when polling detects approved attachment state', async () => {

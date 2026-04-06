@@ -160,8 +160,8 @@ async function bootstrap() {
 
     echo.channel('posts')
       .listen('.PostUpdated', (event) => {
-        window.dispatchEvent(new CustomEvent('post:created', { detail: event?.post ?? event }));
-      });
+        window.dispatchEvent(new CustomEvent('post:updated', { detail: event?.post ?? event }))
+      })
   }, 1000);
 
 } catch (error) {

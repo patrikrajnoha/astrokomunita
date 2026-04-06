@@ -168,6 +168,37 @@ describe('FeedList tabs', () => {
     expect(wrapper.find('.action-btn--bookmark').classes()).toContain('action-btn--bookmarked')
   })
 
+  it('upserts realtime post updates without creating duplicates', async () => {
+    api.get.mockImplementationOnce(() =>
+      Promise.resolve({
+        data: {
+          data: [
+            { id: 701, content: 'Original post', user: { username: 'user', name: 'User Name' } },
+          ],
+          next_page_url: null,
+        },
+      }),
+    )
+
+    const wrapper = mountFeed()
+    await flushPromises()
+
+    wrapper.vm.upsert(
+      { id: 701, content: 'Updated once', user: { username: 'user', name: 'User Name' } },
+      { highlight: false },
+    )
+    await nextTick()
+    wrapper.vm.upsert(
+      { id: 701, content: 'Updated twice', user: { username: 'user', name: 'User Name' } },
+      { highlight: false },
+    )
+    await nextTick()
+
+    const items = wrapper.vm.feedState.for_you.items
+    expect(items).toHaveLength(1)
+    expect(items[0].content).toBe('Updated twice')
+  })
+
   it('reuses an in-flight home feed prefetch instead of issuing a second request', async () => {
     const payload = {
       data: [

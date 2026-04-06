@@ -152,6 +152,7 @@ import {
   sanitizeArticleHtml,
   stripHtml,
 } from "@/utils/articleContent";
+import { normalizeMediaUrl } from "@/utils/profileMedia";
 
 const FONT_SIZE_OPTIONS = [14, 16, 18, 20, 24, 30, 36];
 const BLOCK_FORMAT_OPTIONS = [
@@ -214,6 +215,19 @@ function escapeAttributeValue(value) {
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+function normalizeInsertedImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const withProtocol = raw.startsWith("//")
+    ? `https:${raw}`
+    : /^www\./i.test(raw)
+      ? `https://${raw}`
+      : raw;
+
+  return normalizeMediaUrl(withProtocol) || withProtocol;
 }
 
 function extractImageFile(dataTransfer) {
@@ -569,8 +583,9 @@ async function uploadImageFromFile(file) {
 
   try {
     const response = await props.imageUploadHandler(file);
-    const uploadedUrl =
+    const uploadedUrlRaw =
       typeof response === "string" ? response.trim() : String(response?.url || "").trim();
+    const uploadedUrl = normalizeInsertedImageUrl(uploadedUrlRaw);
 
     if (!uploadedUrl) {
       throw new Error("Server nevrátil URL obrázka.");
@@ -605,7 +620,7 @@ async function handleImageFileChange(event) {
 }
 
 function confirmImageInsert() {
-  const url = imageDialogUrl.value.trim();
+  const url = normalizeInsertedImageUrl(imageDialogUrl.value);
   imageDialogVisible.value = false;
   if (!url) return;
 
@@ -963,4 +978,3 @@ onBeforeUnmount(() => {
   }
 }
 </style>
-

@@ -91,4 +91,27 @@ describe('PollCard responsive layout', () => {
     expect(wrapper.findAll('.mPollFill')).toHaveLength(2)
     expect(wrapper.text()).toContain('70%')
   })
+
+  it('normalizes relative poll image urls to absolute media urls for rendering', () => {
+    const wrapper = mount(PollCard, {
+      props: {
+        isAuthed: true,
+        poll: {
+          id: 4,
+          is_closed: false,
+          total_votes: 2,
+          ends_in_seconds: 600,
+          my_vote_option_id: null,
+          options: [
+            { id: 41, text: 'Nebula', image_url: '/api/media/file/polls/4/options/41/nebula.png', percent: 50, votes_count: 1, is_winner: false },
+            { id: 42, text: 'Galaxy', image_url: null, percent: 50, votes_count: 1, is_winner: false },
+          ],
+        },
+      },
+    })
+
+    const thumb = wrapper.get('.pollThumb')
+    expect(thumb.attributes('src')).toContain('/api/media/file/polls/4/options/41/nebula.png')
+    expect(thumb.attributes('src')).toMatch(/^https?:\/\//)
+  })
 })

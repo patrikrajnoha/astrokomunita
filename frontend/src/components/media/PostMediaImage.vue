@@ -36,9 +36,6 @@
       </div>
       <div v-if="effectiveBlurred" class="media-state-overlay" :class="{ 'media-state-overlay--animated': isPendingStatus }">
         <span>
-          <svg v-if="isPendingStatus" class="media-spinner" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="44 14" />
-          </svg>
           {{ resolvedPendingLabel }}
         </span>
       </div>
@@ -64,7 +61,7 @@ const props = defineProps({
   maxHeightMobile: { type: Number, default: 300 },
   blurred: { type: Boolean, default: false },
   status: { type: String, default: '' },
-  pendingLabel: { type: String, default: 'Kontroluje sa...' },
+  pendingLabel: { type: String, default: 'Overuje sa obsah…' },
   fit: {
     type: String,
     default: 'contain',
@@ -106,11 +103,7 @@ const isPendingStatus = computed(() => {
   )
 })
 const resolvedPendingLabel = computed(() => {
-  if (normalizedStatus.value === 'processing') return 'Publikuje sa...'
-  if (normalizedStatus.value === 'queued') return 'Caka sa na kontrolu...'
-  if (normalizedStatus.value === 'pending_moderation') return 'Kontroluje sa...'
-  if (normalizedStatus.value === 'pending') return 'Kontroluje sa...'
-  return props.pendingLabel || 'Kontroluje sa...'
+  return props.pendingLabel || 'Overuje sa obsah…'
 })
 const hasFixedAspectRatio = computed(() => String(props.frameAspectRatio || '').trim() !== '')
 const frameStyle = computed(() => {

@@ -87,6 +87,10 @@ class MediaStorageService
             return null;
         }
 
+        if (preg_match('#^https?://#i', $path) === 1) {
+            return $path;
+        }
+
         $resolvedDiskName = $diskName ?: $this->diskName();
         $diskDriver = (string) config(sprintf('filesystems.disks.%s.driver', $resolvedDiskName), '');
 
@@ -103,6 +107,19 @@ class MediaStorageService
 
         $base = rtrim((string) config('app.url'), '/');
         return $base . '/' . ltrim($url, '/');
+    }
+
+    public function publicMediaUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        if (preg_match('#^https?://#i', $path) === 1) {
+            return $path;
+        }
+
+        return $this->publicMediaApiUrl($path);
     }
 
     private function publicMediaApiUrl(string $path): string

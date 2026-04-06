@@ -52,7 +52,22 @@ export default {
     onGlobalPostCreated(event) {
       const createdPost = event?.detail
       if (!createdPost?.id) return
-      this.$refs.feed?.prepend?.(createdPost)
+      const feed = this.$refs.feed
+      if (typeof feed?.upsert === 'function') {
+        feed.upsert(createdPost, { insertWhenMissing: true, highlight: true })
+        return
+      }
+      feed?.prepend?.(createdPost)
+    },
+    onGlobalPostUpdated(event) {
+      const updatedPost = event?.detail
+      if (!updatedPost?.id) return
+      const feed = this.$refs.feed
+      if (typeof feed?.upsert === 'function') {
+        feed.upsert(updatedPost, { insertWhenMissing: true, highlight: true })
+        return
+      }
+      feed?.prepend?.(updatedPost)
     },
     openComposer() {
       if (typeof window === 'undefined') return
@@ -92,11 +107,13 @@ export default {
   mounted() {
     if (typeof window !== 'undefined') {
       window.addEventListener('post:created', this.onGlobalPostCreated)
+      window.addEventListener('post:updated', this.onGlobalPostUpdated)
     }
   },
   beforeUnmount() {
     if (typeof window !== 'undefined') {
       window.removeEventListener('post:created', this.onGlobalPostCreated)
+      window.removeEventListener('post:updated', this.onGlobalPostUpdated)
     }
   },
 }

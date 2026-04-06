@@ -56,7 +56,7 @@ class ArticlesWidgetService
                 'id' => $post->id,
                 'title' => $post->title,
                 'slug' => $post->slug,
-                'thumbnail_url' => $this->mediaStorageService->absoluteUrl($post->cover_image_path),
+                'thumbnail_url' => $this->mediaStorageService->publicMediaUrl($post->cover_image_path),
                 'views' => (int) $post->views,
                 'created_at' => optional($post->created_at)?->toIso8601String(),
             ])

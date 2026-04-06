@@ -343,31 +343,63 @@ function attachmentSrc(p) {
   return attachmentSrcUtil(p, api?.defaults?.baseURL || '')
 }
 
-function prepend(post) {
-  if (!post?.id) return
-  const state = feedState.for_you
-  const existingIndex = state.items.findIndex((item) => Number(item?.id || 0) === Number(post.id))
+function highlightPost(postId) {
+  highlightedPostId.value = postId
 
+  if (highlightTimer) {
+    clearTimeout(highlightTimer)
+  }
+  highlightTimer = setTimeout(() => {
+    if (highlightedPostId.value === postId) highlightedPostId.value = null
+    highlightTimer = null
+  }, 1800)
+}
+
+function mergePostIntoState(state, post, { insertWhenMissing = false } = {}) {
+  if (!state || !post?.id) return false
+
+  const postId = Number(post.id)
+  const existingIndex = state.items.findIndex((item) => Number(item?.id || 0) === postId)
   if (existingIndex >= 0) {
     state.items = [
       ...state.items.slice(0, existingIndex),
       { ...state.items[existingIndex], ...post },
       ...state.items.slice(existingIndex + 1),
     ]
-  } else {
-    state.items = [post, ...state.items]
+    state.loaded = true
+    return true
   }
 
+  if (!insertWhenMissing) {
+    return false
+  }
+
+  state.items = [post, ...state.items]
   state.loaded = true
-  highlightedPostId.value = post.id
+  return true
+}
 
-  if (highlightTimer) {
-    clearTimeout(highlightTimer)
+function upsert(post, { insertWhenMissing = true, highlight = true } = {}) {
+  if (!post?.id) return
+
+  let mergedExisting = false
+  Object.values(feedState).forEach((state) => {
+    if (mergePostIntoState(state, post, { insertWhenMissing: false })) {
+      mergedExisting = true
+    }
+  })
+
+  if (!mergedExisting && insertWhenMissing) {
+    mergePostIntoState(feedState.for_you, post, { insertWhenMissing: true })
   }
-  highlightTimer = setTimeout(() => {
-    if (highlightedPostId.value === post.id) highlightedPostId.value = null
-    highlightTimer = null
-  }, 1800)
+
+  if (highlight) {
+    highlightPost(Number(post.id))
+  }
+}
+
+function prepend(post) {
+  upsert(post, { insertWhenMissing: true, highlight: true })
 }
 
 function onPostUnblurred(post, { isBlurred, status }) {
@@ -382,9 +414,8 @@ onBeforeUnmount(() => {
   }
 })
 
-defineExpose({ load, prepend })
+defineExpose({ load, prepend, upsert })
 </script>
 
 <style scoped src="./feedList/FeedList.css"></style>
-
 
