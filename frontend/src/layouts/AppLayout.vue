@@ -453,7 +453,7 @@ watch(
 
     cancelNotificationsRealtimeBootstrap()
     notifications.stopRealtime({
-      disconnect: true,
+      disconnect: false,
       clearState: true,
     })
   },

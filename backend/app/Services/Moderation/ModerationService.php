@@ -274,6 +274,7 @@ class ModerationService
         }
 
         $post->forceFill($updates)->save();
+        event(new \App\Events\PostUpdated($post));
     }
 
     private function writeLog(

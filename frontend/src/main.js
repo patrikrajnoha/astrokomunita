@@ -145,13 +145,32 @@ async function bootstrap() {
   try {
     app.mount('#app')
     setMounted(true)
-    console.info('[APP INIT] mounted')
-  } catch (error) {
-    setInitError(formatError(error))
-    setInitializing(false)
-    ensureFatalOverlay(error, 'mount')
-    throw error
-  }
+    console.info('[APP INIT] mounted');
+
+  // 1. Dynamic import and initialization
+  const { initEcho, getEcho } = await import('@/realtime/echo');
+  await initEcho();
+
+  // 2. Setup Echo listener
+  // Using a small delay if the library needs internal "handshake" time, 
+  // though usually initEcho should resolve when ready.
+  setTimeout(() => {
+    const echo = getEcho();
+    if (!echo) return;
+
+    echo.channel('posts')
+      .listen('.PostUpdated', (event) => {
+        window.dispatchEvent(new CustomEvent('post:created', { detail: event?.post ?? event }));
+      });
+  }, 1000);
+
+} catch (error) {
+  // Handle initialization or import failures
+  setInitError(formatError(error));
+  setInitializing(false);
+  ensureFatalOverlay(error, 'mount');
+  throw error;
+}
 
   const auth = useAuthStore(pinia)
 

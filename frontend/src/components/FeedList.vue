@@ -346,7 +346,18 @@ function attachmentSrc(p) {
 function prepend(post) {
   if (!post?.id) return
   const state = feedState.for_you
-  state.items = [post, ...state.items]
+  const existingIndex = state.items.findIndex((item) => Number(item?.id || 0) === Number(post.id))
+
+  if (existingIndex >= 0) {
+    state.items = [
+      ...state.items.slice(0, existingIndex),
+      { ...state.items[existingIndex], ...post },
+      ...state.items.slice(existingIndex + 1),
+    ]
+  } else {
+    state.items = [post, ...state.items]
+  }
+
   state.loaded = true
   highlightedPostId.value = post.id
 
