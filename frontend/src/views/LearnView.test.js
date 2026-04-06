@@ -43,10 +43,19 @@ describe('LearnView', () => {
           content: `<p>${longWord}</p>`,
           published_at: '2026-03-20T10:00:00Z',
           user: { name: 'Redakcia' },
+          cover_image_url: '/images/card-cover.jpg',
+        },
+        {
+          id: 3,
+          slug: 'long-card-no-thumb',
+          title: `No thumb ${longWord}`,
+          content: `<p>${longWord}</p>`,
+          published_at: '2026-03-20T10:00:00Z',
+          user: { name: 'Redakcia' },
           cover_image_url: null,
         },
       ],
-      total: 2,
+      total: 3,
       current_page: 1,
       last_page: 1,
     })
@@ -69,7 +78,11 @@ describe('LearnView', () => {
     await flush()
 
     expect(wrapper.find('.featured').exists()).toBe(true)
-    expect(wrapper.find('.postItem').exists()).toBe(true)
+    expect(wrapper.findAll('.postItem')).toHaveLength(2)
+    expect(wrapper.find('.postItem .postItem__thumb').exists()).toBe(true)
+    expect(wrapper.find('.postItem .postItem__content').exists()).toBe(true)
+    expect(wrapper.find('.postItem .postItem__footer .postItem__open').exists()).toBe(true)
+    expect(wrapper.find('.postItem--noThumb').exists()).toBe(true)
     expect(wrapper.get('.postItem h3').text()).toContain('Card astro')
     expect(wrapper.get('.postItem__excerpt').text()).toContain('...')
   })
@@ -78,9 +91,12 @@ describe('LearnView', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/views/learn/LearnView.css'), 'utf8')
 
     expect(css).toContain('overflow-wrap: anywhere;')
-    expect(css).toContain('.postItem__body')
+    expect(css).toContain('grid-template-columns: minmax(0, 84px) minmax(0, 1fr);')
+    expect(css).toContain('.postItem__content')
+    expect(css).toContain('.postItem__footer')
+    expect(css).toContain('.postItem--noThumb')
     expect(css).toContain('min-width: 0;')
-    expect(css).toContain('.featured h2')
-    expect(css).toContain('word-break: break-word;')
+    expect(css).toContain('.postItem__thumb')
+    expect(css).toContain('display: block;')
   })
 })

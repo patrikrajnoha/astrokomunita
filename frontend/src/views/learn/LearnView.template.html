@@ -101,22 +101,35 @@
         </article>
 
         <div v-if="listPosts.length" class="postList">
-          <article v-for="post in listPosts" :key="post.id" class="postItem" role="link" tabindex="0" @click="$router.push(postLink(post))" @keydown.enter="$router.push(postLink(post))">
+          <article
+            v-for="post in listPosts"
+            :key="post.id"
+            class="postItem"
+            :class="{ 'postItem--noThumb': !post.cover_image_url }"
+            role="link"
+            tabindex="0"
+            @click="$router.push(postLink(post))"
+            @keydown.enter="$router.push(postLink(post))"
+          >
             <router-link v-if="post.cover_image_url" class="postItem__thumb" :to="postLink(post)">
               <img :src="post.cover_image_url" :alt="post.title" loading="lazy" />
             </router-link>
-            <div class="postItem__body">
-              <h3>
-                <router-link :to="postLink(post)">{{ post.title }}</router-link>
-              </h3>
-              <p class="postItem__excerpt" v-html="highlight(excerpt(post.content, 170))"></p>
-              <div class="postItem__meta">
-                <span>{{ formatDate(post.published_at) }}</span>
-                <span>·</span>
-                <span>{{ readTime(post.content) }}</span>
+            <div class="postItem__content">
+              <div class="postItem__body">
+                <h3>
+                  <router-link :to="postLink(post)">{{ post.title }}</router-link>
+                </h3>
+                <p class="postItem__excerpt" v-html="highlight(excerpt(post.content, 170))"></p>
+              </div>
+              <div class="postItem__footer">
+                <div class="postItem__meta">
+                  <span>{{ formatDate(post.published_at) }}</span>
+                  <span>·</span>
+                  <span>{{ readTime(post.content) }}</span>
+                </div>
+                <router-link class="postItem__open" :to="postLink(post)">Čítať</router-link>
               </div>
             </div>
-            <router-link class="postItem__open" :to="postLink(post)">Čítať</router-link>
           </article>
         </div>
 
