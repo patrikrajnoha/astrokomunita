@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LearnView from '@/views/LearnView.vue'
@@ -88,7 +87,7 @@ describe('LearnView', () => {
   })
 
   it('defines overflow-safe typography guards for article cards', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/views/learn/LearnView.css'), 'utf8')
+    const css = readFileSync('src/views/learn/LearnView.css', 'utf8')
 
     expect(css).toContain('overflow-wrap: anywhere;')
     expect(css).toContain('grid-template-columns: minmax(0, 84px) minmax(0, 1fr);')

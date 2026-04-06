@@ -1,5 +1,4 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -100,7 +99,7 @@ describe('LearnDetailView', () => {
   })
 
   it('defines overflow-safe deep typography rules for rendered article HTML', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/views/learnDetail/LearnDetailView.css'), 'utf8')
+    const css = readFileSync('src/views/learnDetail/LearnDetailView.css', 'utf8')
 
     expect(css).toContain('.content :deep(p)')
     expect(css).toContain('.content :deep(pre)')
