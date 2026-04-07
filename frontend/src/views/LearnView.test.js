@@ -77,6 +77,8 @@ describe('LearnView', () => {
     await flush()
 
     expect(wrapper.find('.featured').exists()).toBe(true)
+    expect(wrapper.find('.featured .featured__media').exists()).toBe(true)
+    expect(wrapper.find('.featured .featured__body').exists()).toBe(true)
     expect(wrapper.findAll('.postItem')).toHaveLength(2)
     expect(wrapper.find('.postItem .postItem__thumb').exists()).toBe(true)
     expect(wrapper.find('.postItem .postItem__content').exists()).toBe(true)
@@ -88,6 +90,7 @@ describe('LearnView', () => {
 
   it('defines overflow-safe typography guards for article cards', () => {
     const css = readFileSync('src/views/learn/LearnView.css', 'utf8')
+    const featuredMediaBlock = css.match(/\.featured__media\s*{[^}]+}/)?.[0] || ''
 
     expect(css).toContain('overflow-wrap: anywhere;')
     expect(css).toContain('grid-template-columns: minmax(0, 84px) minmax(0, 1fr);')
@@ -97,5 +100,8 @@ describe('LearnView', () => {
     expect(css).toContain('min-width: 0;')
     expect(css).toContain('.postItem__thumb')
     expect(css).toContain('display: block;')
+    expect(featuredMediaBlock).toContain('width: 100%;')
+    expect(featuredMediaBlock).toContain('max-width: 100%;')
+    expect(featuredMediaBlock).not.toContain('min-height: 100%;')
   })
 })
