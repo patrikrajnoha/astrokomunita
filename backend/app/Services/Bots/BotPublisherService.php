@@ -93,7 +93,6 @@ class BotPublisherService
 
         $sourceName = $this->sourceNameForPost($source->key);
         $sourceUid = $this->sourceUidForPost($source->key, $item->stable_key);
-        $postMeta = $this->buildPostMeta($source, $item, $publishPayload, $normalizedRunContext);
 
         $existingPost = Post::query()
             ->where('source_name', $sourceName)
@@ -125,18 +124,32 @@ class BotPublisherService
 
         $attachment = null;
         $temporaryAttachmentPath = null;
+        $attachmentFallbackReason = null;
         if ($this->isStelaIdentity($botIdentity) && $this->shouldDownloadStelaAttachment($item)) {
             $downloaded = $this->downloadStelaAttachment($item);
             if (($downloaded['error'] ?? null) !== null) {
                 $reason = (string) $downloaded['error'];
-                $this->markSkipped($item, $reason, $publishPayload['used_translation'], $normalizedRunContext);
-                $this->logPublishActivity($item, 'skipped', $reason, $normalizedRunContext);
-                return PublishResult::skipped($reason);
+                if ($this->stelaMediaType($item) === 'video') {
+                    $attachmentFallbackReason = $reason;
+                } else {
+                    $this->markSkipped($item, $reason, $publishPayload['used_translation'], $normalizedRunContext);
+                    $this->logPublishActivity($item, 'skipped', $reason, $normalizedRunContext);
+                    return PublishResult::skipped($reason);
+                }
             }
 
             $attachment = $downloaded['attachment'];
             $temporaryAttachmentPath = $downloaded['temporary_path'];
         }
+
+        $postMeta = $this->buildPostMeta(
+            $source,
+            $item,
+            $publishPayload,
+            $normalizedRunContext,
+            $attachmentFallbackReason,
+            $attachment !== null
+        );
 
         $botUser = $this->botIdentityUserSyncService->ensureBotUser($botIdentity);
         $content = $this->buildPostContent(
@@ -207,16 +220,43 @@ class BotPublisherService
 
         $this->syncPostTranslationAudit($post, $item, $postMeta);
 
+        $itemMeta = $this->withPublishAudit(
+            $item->meta,
+            $post->id,
+            null,
+            $publishPayload['used_translation'],
+            $normalizedRunContext
+        );
+        if ($this->isStelaIdentity($botIdentity)) {
+            $itemMeta['attachment_mode'] = $attachment !== null
+                ? 'uploaded'
+                : ($this->stelaMediaType($item) === 'video' ? 'external' : 'none');
+        }
+        if ($attachmentFallbackReason !== null) {
+            $itemMeta['attachment_fallback_reason'] = $attachmentFallbackReason;
+        } else {
+            unset($itemMeta['attachment_fallback_reason']);
+        }
+
         $item->forceFill([
             'post_id' => $post->id,
             'publish_status' => BotPublishStatus::PUBLISHED->value,
-            'meta' => $this->withPublishAudit($item->meta, $post->id, null, $publishPayload['used_translation'], $normalizedRunContext),
+            'meta' => $itemMeta,
         ])->save();
 
         $this->rateLimiterService->consume($publishRateLimit);
 
-        $this->logPublishActivity($item, 'published', null, $normalizedRunContext, $post->id, [
+        $publishLogMeta = [
             'source_key' => strtolower(trim((string) $source->key)),
+        ];
+        if ($attachmentFallbackReason !== null) {
+            $publishLogMeta['attachment_fallback_reason'] = $attachmentFallbackReason;
+            $publishLogMeta['attachment_mode'] = 'external';
+            $publishLogMeta['media_type'] = 'video';
+        }
+
+        $this->logPublishActivity($item, 'published', null, $normalizedRunContext, $post->id, [
+            ...$publishLogMeta,
         ]);
 
         return PublishResult::published($post);
@@ -238,7 +278,14 @@ class BotPublisherService
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         $publishPayload = $this->resolvePublishPayload($item);
         $currentMeta = is_array($post->meta) ? $post->meta : [];
-        $postMeta = $this->buildPostMeta($source, $item, $publishPayload, $this->normalizeRunContext($runContext));
+        $postMeta = $this->buildPostMeta(
+            $source,
+            $item,
+            $publishPayload,
+            $this->normalizeRunContext($runContext),
+            null,
+            (bool) ($post->attachment_path || $post->attachment_web_path)
+        );
         $currentPublishedAt = $this->nullableString(data_get($currentMeta, 'published_at_utc'));
         if ($currentPublishedAt !== null) {
             $postMeta['published_at_utc'] = $currentPublishedAt;
@@ -434,7 +481,14 @@ class BotPublisherService
      * @param array{title:string,body:string,used_translation:bool} $publishPayload
      * @return array<string,mixed>
      */
-    private function buildPostMeta(BotSource $source, BotItem $item, array $publishPayload, string $runContext): array
+    private function buildPostMeta(
+        BotSource $source,
+        BotItem $item,
+        array $publishPayload,
+        string $runContext,
+        ?string $stelaAttachmentFallbackReason = null,
+        bool $hasAttachment = false
+    ): array
     {
         $botIdentity = strtolower(trim((string) ($item->bot_identity?->value ?? $item->bot_identity)));
         $sourceKey = strtolower(trim((string) $source->key));
@@ -442,7 +496,7 @@ class BotPublisherService
         $translationAudit = $this->translationAuditForItem($item);
         $translationProvider = trim((string) ($translationAudit['provider'] ?? ''));
 
-        return [
+        $meta = [
             'bot_identity' => $botIdentity !== '' ? $botIdentity : null,
             'bot_source_key' => $sourceKey !== '' ? $sourceKey : null,
             'bot_source_label' => $this->sourceLabelForPostMeta($sourceKey),
@@ -461,5 +515,59 @@ class BotPublisherService
             'translation_provider' => $translationProvider !== '' ? $translationProvider : null,
             'translation' => $translationAudit,
         ];
+
+        if ($this->isStelaIdentity($botIdentity) && $sourceKey === 'nasa_apod_daily') {
+            $mediaMeta = $this->buildStelaApodMediaMeta($source, $item, $stelaAttachmentFallbackReason, $hasAttachment);
+            if ($mediaMeta !== []) {
+                $meta = array_replace($meta, $mediaMeta);
+            }
+        }
+
+        return $meta;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function buildStelaApodMediaMeta(
+        BotSource $source,
+        BotItem $item,
+        ?string $attachmentFallbackReason,
+        bool $hasAttachment
+    ): array {
+        $mediaType = $this->stelaMediaType($item) === 'video' ? 'video' : 'image';
+        $itemMeta = is_array($item->meta) ? $item->meta : [];
+
+        $sourceUrl = $this->nullableString($this->canonicalSourceUrl($source, $item));
+        $imageUrl = $this->nullableString((string) data_get($itemMeta, 'image_url', ''));
+        $hdurl = $this->nullableString((string) data_get($itemMeta, 'hdurl', ''));
+        $thumbnailUrl = $this->nullableString((string) data_get($itemMeta, 'thumbnail_url', ''));
+        $videoUrl = $this->nullableString((string) data_get($itemMeta, 'video_url', ''));
+
+        if ($mediaType === 'video' && $videoUrl === null) {
+            $videoUrl = $sourceUrl;
+        }
+
+        $attachmentMode = $hasAttachment
+            ? 'uploaded'
+            : ($mediaType === 'video' ? 'external' : 'none');
+
+        $mediaContract = array_filter([
+            'type' => $mediaType,
+            'source_url' => $sourceUrl,
+            'image_url' => $imageUrl,
+            'hdurl' => $hdurl,
+            'thumbnail_url' => $thumbnailUrl,
+            'video_url' => $videoUrl,
+            'attachment_mode' => $attachmentMode,
+            'fallback_reason' => $attachmentFallbackReason,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
+        return array_filter([
+            'media_type' => $mediaType,
+            'external_video_url' => $videoUrl,
+            'media' => $mediaContract,
+            'attachment_fallback_reason' => $attachmentFallbackReason,
+        ], static fn (mixed $value): bool => $value !== null && $value !== '');
     }
 }

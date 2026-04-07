@@ -246,6 +246,7 @@ class NasaApodFetchService
         }
 
         $mediaType = $imageUrl !== '' ? 'image' : 'video';
+        $videoUrl = $mediaType === 'video' && $canonicalUrl !== '' ? $canonicalUrl : null;
         $publishedAt = $this->parseDate(
             $apodDate !== '' ? $apodDate : trim((string) ($item->pubDate ?? ''))
         );
@@ -265,6 +266,8 @@ class NasaApodFetchService
                     'image_url' => $imageUrl !== '' ? $imageUrl : null,
                     'hdurl' => $imageUrl !== '' ? $imageUrl : null,
                     'media_type' => $mediaType,
+                    'video_url' => $videoUrl,
+                    'thumbnail_url' => $imageUrl !== '' ? $imageUrl : null,
                     'copyright' => null,
                     'fallback_source' => 'apod_rss',
                     'fallback_reason' => $failureReason,
@@ -538,9 +541,13 @@ class NasaApodFetchService
         $content = $this->normalizeText((string) ($payload['explanation'] ?? ''));
         $imageUrl = trim((string) ($payload['url'] ?? ''));
         $hdurl = trim((string) ($payload['hdurl'] ?? ''));
+        $thumbnailUrl = trim((string) ($payload['thumbnail_url'] ?? ''));
         $mediaType = strtolower(trim((string) ($payload['media_type'] ?? '')));
         $copyright = $this->normalizeText((string) ($payload['copyright'] ?? ''));
         $canonicalUrl = $hdurl !== '' ? $hdurl : $imageUrl;
+        $videoUrl = $mediaType === 'video'
+            ? ($canonicalUrl !== '' ? $canonicalUrl : null)
+            : null;
 
         if ($date === '' && $canonicalUrl === '' && $title === null && $content === null) {
             return null;
@@ -561,6 +568,8 @@ class NasaApodFetchService
                     'image_url' => $imageUrl !== '' ? $imageUrl : null,
                     'hdurl' => $hdurl !== '' ? $hdurl : null,
                     'media_type' => $mediaType !== '' ? $mediaType : null,
+                    'video_url' => $videoUrl,
+                    'thumbnail_url' => $thumbnailUrl !== '' ? $thumbnailUrl : null,
                     'copyright' => $copyright,
                 ],
             ],

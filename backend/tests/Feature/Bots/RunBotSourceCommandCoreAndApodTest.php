@@ -484,6 +484,58 @@ class RunBotSourceCommandCoreAndApodTest extends RunBotSourceCommandTestCase
         $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
     }
 
+    public function test_apod_mp4_video_download_failure_falls_back_to_external_video_post(): void
+    {
+        $source = $this->createApodSource();
+        Http::fake([
+            $source->url . '*' => Http::response($this->apodPayload([
+                'media_type' => 'video',
+                'url' => 'https://apod.nasa.gov/apod/video/test-video.mp4',
+                'hdurl' => null,
+            ]), 200, ['Content-Type' => 'application/json']),
+            'https://apod.nasa.gov/apod/video/test-video.mp4*' => Http::response(
+                'upstream unavailable',
+                503,
+                ['Content-Type' => 'text/plain']
+            ),
+        ]);
+
+        $exitCode = Artisan::call('bots:run', ['sourceKey' => $source->key]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertDatabaseCount('bot_items', 1);
+        $this->assertDatabaseCount('posts', 1);
+
+        $item = BotItem::query()->firstOrFail();
+        $this->assertSame('published', (string) $item->publish_status->value);
+        $this->assertNotNull($item->post_id);
+        $this->assertNull(data_get($item->meta, 'skip_reason'));
+        $this->assertSame('video_download_failed', (string) data_get($item->meta, 'attachment_fallback_reason'));
+        $this->assertSame('external', (string) data_get($item->meta, 'attachment_mode'));
+
+        $post = Post::query()->firstOrFail();
+        $this->assertNull($post->attachment_path);
+        $this->assertStringContainsString('https://apod.nasa.gov/apod/video/test-video.mp4', (string) $post->content);
+        $this->assertSame('video', (string) data_get($post->meta, 'media_type'));
+        $this->assertSame('https://apod.nasa.gov/apod/video/test-video.mp4', (string) data_get($post->meta, 'media.video_url'));
+        $this->assertSame('external', (string) data_get($post->meta, 'media.attachment_mode'));
+        $this->assertSame('video_download_failed', (string) data_get($post->meta, 'media.fallback_reason'));
+
+        $this->assertSame(
+            0,
+            BotActivityLog::query()
+                ->where('action', 'publish')
+                ->where('outcome', 'skipped')
+                ->where('reason', 'image_download_failed')
+                ->count()
+        );
+
+        $run = BotRun::query()->latest('id')->firstOrFail();
+        $this->assertSame(1, (int) ($run->stats['published_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['skipped_count'] ?? 0));
+        $this->assertSame(0, (int) ($run->stats['failed_count'] ?? 0));
+    }
+
     public function test_apod_video_item_with_legacy_non_image_skip_reason_is_retried_and_published(): void
     {
         $source = $this->createApodSource();

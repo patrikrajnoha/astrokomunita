@@ -177,8 +177,13 @@ trait ManagesBotPublisherInternals
     {
         $botIdentity = $item->bot_identity?->value ?? (string) $item->bot_identity;
         if ($this->isStelaIdentity($botIdentity)) {
-            if ($this->resolveStelaAttachmentUrl($item) === '') {
+            $mediaType = $this->stelaMediaType($item);
+            if ($mediaType === 'image' && $this->resolveStelaAttachmentUrl($item) === '') {
                 return 'missing_image_url';
+            }
+
+            if ($mediaType === 'video' && trim($resolvedSourceUrl) === '') {
+                return 'missing_video_url';
             }
         }
 
@@ -257,13 +262,17 @@ trait ManagesBotPublisherInternals
      */
     private function downloadStelaAttachment(BotItem $item): array
     {
+        $mediaType = $this->stelaMediaType($item);
+        $downloadFailureReason = $mediaType === 'video' ? 'video_download_failed' : 'image_download_failed';
+        $policyFailureReason = $mediaType === 'video' ? 'video_policy_violation' : 'image_policy_violation';
+
         $attachmentUrl = $this->resolveStelaAttachmentUrl($item);
         if ($attachmentUrl === '') {
-            return $this->downloadFailure('image_download_failed');
+            return $this->downloadFailure($downloadFailureReason);
         }
 
         if (!$this->isAllowedDownloadScheme($attachmentUrl)) {
-            return $this->downloadFailure('image_policy_violation');
+            return $this->downloadFailure($policyFailureReason);
         }
 
         $timeoutSeconds = max(1, (int) config('bots.rss_timeout_seconds', 10));
@@ -286,37 +295,37 @@ trait ManagesBotPublisherInternals
                 ->retry($attempts, $retrySleepMs, null, false)
                 ->get($attachmentUrl);
         } catch (\Throwable) {
-            return $this->downloadFailure('image_download_failed');
+            return $this->downloadFailure($downloadFailureReason);
         }
 
         if (!$response->successful()) {
-            return $this->downloadFailure('image_download_failed');
+            return $this->downloadFailure($downloadFailureReason);
         }
 
         $contentLengthHeader = (int) ($response->header('Content-Length') ?? 0);
         if ($contentLengthHeader > 0 && $contentLengthHeader > $maxBytes) {
-            return $this->downloadFailure('image_policy_violation');
+            return $this->downloadFailure($policyFailureReason);
         }
 
         $body = (string) $response->body();
         if ($body === '') {
-            return $this->downloadFailure('image_download_failed');
+            return $this->downloadFailure($downloadFailureReason);
         }
 
         if (strlen($body) > $maxBytes) {
-            return $this->downloadFailure('image_policy_violation');
+            return $this->downloadFailure($policyFailureReason);
         }
 
         $contentType = (string) ($response->header('Content-Type') ?? '');
         $mime = $this->detectStelaAttachmentMime($contentType, $body, $attachmentUrl);
         if ($mime === null || !$this->isAllowedStelaAttachmentMime($mime)) {
-            return $this->downloadFailure('image_policy_violation');
+            return $this->downloadFailure($policyFailureReason);
         }
 
         $extension = $this->extensionForStelaAttachmentMime($mime);
         $tempPath = tempnam(sys_get_temp_dir(), 'apod_');
         if ($tempPath === false) {
-            return $this->downloadFailure('image_download_failed');
+            return $this->downloadFailure($downloadFailureReason);
         }
 
         if ($extension !== 'tmp') {
@@ -329,7 +338,7 @@ trait ManagesBotPublisherInternals
         $written = @file_put_contents($tempPath, $body);
         if (!is_int($written) || $written <= 0) {
             $this->cleanupTemporaryFile($tempPath);
-            return $this->downloadFailure('image_download_failed');
+            return $this->downloadFailure($downloadFailureReason);
         }
 
         $datePart = preg_replace('/[^0-9]/', '', (string) data_get($item->meta, 'apod_date', '')) ?? '';
@@ -360,7 +369,7 @@ trait ManagesBotPublisherInternals
 
     private function shouldDownloadStelaAttachment(BotItem $item): bool
     {
-        $mediaType = strtolower(trim((string) data_get($item->meta, 'media_type', '')));
+        $mediaType = $this->stelaMediaType($item);
         $attachmentUrl = $this->resolveStelaAttachmentUrl($item);
         if ($attachmentUrl === '') {
             return false;
@@ -396,9 +405,22 @@ trait ManagesBotPublisherInternals
             'non_image_media',
             'image_download_failed',
             'missing_image_url',
+            'video_download_failed',
+            'missing_video_url',
             'missing_title_or_url',
             'publish_rate_limited',
         ], true);
+    }
+
+    private function stelaMediaType(BotItem $item): string
+    {
+        $mediaType = strtolower(trim((string) data_get($item->meta, 'media_type', '')));
+
+        if ($mediaType === '') {
+            return 'image';
+        }
+
+        return $mediaType;
     }
 
     private function isAllowedStelaAttachmentMime(string $mime): bool
