@@ -11,7 +11,7 @@ class AuthLoginTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_last_login_updates_on_login_event(): void
+    public function test_login_does_not_update_last_login_at(): void
     {
         $user = User::factory()->create([
             'email' => 'fresh-login@example.com',
@@ -27,8 +27,7 @@ class AuthLoginTest extends TestCase
 
         $user->refresh();
 
-        $this->assertNotNull($user->last_login_at);
-        $this->assertTrue($user->last_login_at->greaterThan(now()->subMinute()));
+        $this->assertNull($user->last_login_at);
     }
 
     public function test_login_rejects_legacy_plaintext_password_when_fallback_disabled(): void
@@ -51,7 +50,7 @@ class AuthLoginTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_login_accepts_legacy_plaintext_password_and_rehashes(): void
+    public function test_login_accepts_legacy_plaintext_password_without_updating_user_record(): void
     {
         config()->set('auth.legacy_plaintext_enabled', true);
         config()->set('auth.legacy_plaintext_allow_non_local', true);
@@ -59,6 +58,7 @@ class AuthLoginTest extends TestCase
         $user = User::factory()->create([
             'email' => 'legacy@example.com',
             'password' => 'temporary-plain-password',
+            'remember_token' => null,
             'is_active' => true,
         ]);
 
@@ -69,17 +69,19 @@ class AuthLoginTest extends TestCase
         $response = $this->postJson('/api/auth/login', [
             'email' => 'LEGACY@example.com',
             'password' => 'legacy-secret',
+            'remember' => true,
         ]);
 
         $response->assertOk();
         $this->assertAuthenticated();
 
         $user->refresh();
-        $this->assertNotSame('legacy-secret', $user->password);
-        $this->assertTrue(password_verify('legacy-secret', $user->password));
+        $this->assertSame('legacy-secret', $user->password);
+        $this->assertNull($user->remember_token);
+        $this->assertNull($user->last_login_at);
     }
 
-    public function test_login_accepts_legacy_non_bcrypt_hash_and_rehashes(): void
+    public function test_login_accepts_supported_hash_without_rehash_side_effect(): void
     {
         if (! defined('PASSWORD_ARGON2ID')) {
             $this->markTestSkipped('Argon2id is not available in this PHP build.');
@@ -91,6 +93,7 @@ class AuthLoginTest extends TestCase
         $user = User::factory()->create([
             'email' => 'legacy-hash@example.com',
             'password' => 'temporary-plain-password',
+            'remember_token' => null,
             'is_active' => true,
         ]);
 
@@ -102,14 +105,16 @@ class AuthLoginTest extends TestCase
         $response = $this->postJson('/api/auth/login', [
             'email' => 'legacy-hash@example.com',
             'password' => 'legacy-hash-secret',
+            'remember' => true,
         ]);
 
         $response->assertOk();
         $this->assertAuthenticated();
 
         $user->refresh();
-        $this->assertNotSame($argonHash, $user->password);
-        $this->assertTrue(password_verify('legacy-hash-secret', $user->password));
+        $this->assertSame($argonHash, $user->password);
+        $this->assertNull($user->remember_token);
+        $this->assertNull($user->last_login_at);
     }
 
     public function test_login_does_not_persist_remember_token_by_default(): void
@@ -130,7 +135,7 @@ class AuthLoginTest extends TestCase
         $this->assertNull($user->remember_token);
     }
 
-    public function test_login_persists_remember_token_when_requested(): void
+    public function test_login_does_not_persist_remember_token_when_requested(): void
     {
         $user = User::factory()->create([
             'email' => 'remember-enabled@example.com',
@@ -146,7 +151,7 @@ class AuthLoginTest extends TestCase
         ])->assertOk();
 
         $user->refresh();
-        $this->assertNotNull($user->remember_token);
+        $this->assertNull($user->remember_token);
     }
 
     public function test_login_has_no_default_user_seed_side_effect_even_in_local_environment(): void
