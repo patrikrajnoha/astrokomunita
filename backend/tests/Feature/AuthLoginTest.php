@@ -148,4 +148,23 @@ class AuthLoginTest extends TestCase
         $user->refresh();
         $this->assertNotNull($user->remember_token);
     }
+
+    public function test_login_has_no_default_user_seed_side_effect_even_in_local_environment(): void
+    {
+        $this->app->detectEnvironment(fn () => 'local');
+        $this->withoutMiddleware();
+
+        $this->assertTrue(app()->environment('local'));
+        $this->assertSame(0, User::query()->count());
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'missing-user@example.com',
+            'password' => 'missing-password',
+        ])->assertStatus(422);
+
+        $this->assertSame(0, User::query()->count());
+        $this->assertDatabaseMissing('users', ['username' => 'astrokomunita']);
+        $this->assertDatabaseMissing('users', ['username' => 'kozmobot']);
+        $this->assertDatabaseMissing('users', ['username' => 'stellarbot']);
+    }
 }

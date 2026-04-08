@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use LogicException;
 
 class DefaultUsersSeeder extends Seeder
 {
@@ -31,8 +32,10 @@ class DefaultUsersSeeder extends Seeder
     /**
      * @return array{created:array<int,string>,updated:array<int,string>,deleted:array<int,string>}
      */
-    public function seed(?bool $purgeNonCoreUsers = null): array
+    public function seed(?bool $purgeNonCoreUsers = null, bool $allowProduction = false): array
     {
+        $this->guardAgainstProductionExecution($allowProduction);
+
         if ($purgeNonCoreUsers === null) {
             $purgeNonCoreUsers = app()->environment(['local', 'testing']);
         }
@@ -140,6 +143,19 @@ class DefaultUsersSeeder extends Seeder
     public function run(): void
     {
         $this->seed();
+    }
+
+    private function guardAgainstProductionExecution(bool $allowProduction): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if ($allowProduction) {
+            return;
+        }
+
+        throw new LogicException('DefaultUsersSeeder refuses to run in production without explicit opt-in.');
     }
 
     private function normalizeLegacyBotAlias(): void

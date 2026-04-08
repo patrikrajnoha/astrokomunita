@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use Database\Seeders\DefaultUsersSeeder;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
@@ -120,8 +119,6 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $this->ensureDefaultUsersForLocal();
-
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
@@ -176,37 +173,6 @@ class AuthController extends Controller
         }
 
         return response()->json($loggedInUser);
-    }
-
-    private function ensureDefaultUsersForLocal(): void
-    {
-        if (! app()->environment('local')) {
-            return;
-        }
-
-        $coreUsernames = DefaultUsersSeeder::coreUsernames();
-        $coreUserCount = count($coreUsernames);
-        $hasExactCoreSet = User::query()->count() === $coreUserCount
-            && User::query()
-                ->whereIn('username', $coreUsernames)
-                ->count() === $coreUserCount;
-
-        $hasDefaultAdmin = User::query()
-            ->whereRaw('LOWER(email) = ?', [mb_strtolower(DefaultUsersSeeder::DEFAULT_ADMIN_EMAIL)])
-            ->orWhere('username', DefaultUsersSeeder::DEFAULT_ADMIN_USERNAME)
-            ->exists();
-
-        if ($hasExactCoreSet && $hasDefaultAdmin) {
-            return;
-        }
-
-        try {
-            app(DefaultUsersSeeder::class)->seed();
-        } catch (\Throwable $error) {
-            Log::warning('Failed to auto-seed default users before login.', [
-                'message' => $error->getMessage(),
-            ]);
-        }
     }
 
     private function attemptLegacyPlaintextLogin(string $email, string $password, bool $remember): bool
