@@ -4,6 +4,7 @@
       <div
         v-if="open"
         class="modalRoot"
+        :class="{ 'modalRoot--eventPlan': isEventPlanModal }"
         :data-testid="testId"
         @mousedown="onBackdropMouseDown"
         @click="onBackdropClick"
@@ -13,7 +14,10 @@
             v-if="open"
             ref="dialogRef"
             class="modalCard"
-            :class="{ 'modalCard--compact': compact }"
+            :class="{
+              'modalCard--compact': compact,
+              'modalCard--eventPlan': isEventPlanModal,
+            }"
             role="dialog"
             aria-modal="true"
             :aria-labelledby="titleId"
@@ -29,6 +33,7 @@
                 ref="closeButtonRef"
                 type="button"
                 class="ui-pill ui-pill--secondary ui-pill--icon modalClose"
+                :class="{ 'modalClose--eventPlan': isEventPlanModal }"
                 :data-testid="closeTestId"
                 aria-label="Close"
                 @click="emitClose"
@@ -48,7 +53,7 @@
 </template>
 
 <script setup>
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 const props = defineProps({
   open: {
@@ -89,6 +94,7 @@ const pressedBackdrop = ref(false)
 let previousActive = null
 
 const titleId = `base-modal-title-${Math.random().toString(36).slice(2, 9)}`
+const isEventPlanModal = computed(() => props.testId === 'event-plan-modal')
 
 watch(
   () => props.open,
@@ -258,6 +264,44 @@ function getFocusableElements(root) {
 
 .modalBody {
   padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.modalRoot.modalRoot--eventPlan {
+  background: rgb(6 10 16 / 0.8);
+}
+
+.modalCard.modalCard--eventPlan {
+  width: min(40rem, 100%);
+  max-height: min(90vh, 44rem);
+  border: 1px solid rgb(var(--color-btn-secondary-bg-rgb) / 0.9);
+  border-radius: 24px;
+  background: #151d28;
+  box-shadow: none;
+}
+
+.modalCard.modalCard--eventPlan .modalHead {
+  padding: 24px 24px 14px;
+  border-bottom: 1px solid rgb(var(--color-btn-secondary-bg-rgb) / 0.9);
+}
+
+.modalCard.modalCard--eventPlan .modalTitle {
+  color: #ffffff;
+  font-size: 1.125rem;
+  letter-spacing: -0.01em;
+}
+
+.modalCard.modalCard--eventPlan .modalBody {
+  padding: 18px 24px 24px;
+}
+
+.modalClose.modalClose--eventPlan {
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+.modalClose.modalClose--eventPlan:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .modal-fade-enter-active,

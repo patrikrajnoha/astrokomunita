@@ -6,7 +6,7 @@
       </div>
 
       <div class="composerBody">
-        <label for="post-composer-textarea" class="srOnly">Text prispevku</label>
+        <label for="post-composer-textarea" class="srOnly">Text príspevku</label>
         <textarea
           id="post-composer-textarea"
           ref="textareaRef"
@@ -42,7 +42,7 @@
 
         <div v-if="imagePreviewUrl" class="mediaCard">
           <img class="mediaImg" :src="imagePreviewUrl" alt="Preview" />
-          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstranit prilohu" @click="removeFile">
+          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstrániť prílohu" @click="removeFile">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
             </svg>
@@ -61,7 +61,7 @@
           </div>
 
           <button class="fileRemove" type="button" :disabled="posting" @click="removeFile">
-            Odstranit
+            Odstrániť
           </button>
         </div>
 
@@ -77,7 +77,7 @@
 
         <div v-if="selectedGif" class="mediaCard mediaCard--gif">
           <img class="mediaImg" :src="selectedGif.preview_url || selectedGif.original_url" :alt="selectedGif.title || 'GIF preview'" />
-          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstranit GIF" @click="removeGif">
+          <button class="removeMedia" type="button" :disabled="posting" aria-label="Odstrániť GIF" @click="removeGif">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
             </svg>
@@ -86,7 +86,7 @@
 
         <div v-if="selectedEvent" class="eventAttachCard">
           <div>
-            <p class="eventAttachTitle">{{ selectedEvent.title || 'Vybrana udalost' }}</p>
+            <p class="eventAttachTitle">{{ selectedEvent.title || 'Vybraná udalosť' }}</p>
             <p class="eventAttachDate">{{ formatEventRange(selectedEvent.start_at, selectedEvent.end_at) }}</p>
           </div>
           <div class="eventAttachActions">
@@ -98,7 +98,7 @@
             >
               {{ eventFollowed ? 'Sleduješ' : (eventFollowLoading ? 'Ukladám...' : 'Mark your calendar') }}
             </button>
-            <button class="eventRemoveBtn" type="button" :disabled="posting" @click="removeEvent">Odstranit</button>
+            <button class="eventRemoveBtn" type="button" :disabled="posting" @click="removeEvent">Odstrániť</button>
           </div>
         </div>
 
@@ -116,8 +116,8 @@
               :class="{ 'actionIconBtn--active': !!file }"
               type="button"
               :disabled="posting || isAttachmentDisabled"
-              :title="isAttachmentDisabled ? pollAttachmentDisabledHint : 'Obrazok'"
-              aria-label="Pridat prilohu"
+              :title="isAttachmentDisabled ? pollAttachmentDisabledHint : 'Obrázok'"
+              aria-label="Pridať prílohu"
               @click="pickFile"
             >
               <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -133,7 +133,7 @@
               :class="{ 'actionIconBtn--active': !!selectedGif }"
               type="button"
               :disabled="posting || pollEnabled"
-              aria-label="Vybrat GIF"
+              aria-label="Vybrať GIF"
               :title="pollEnabled ? pollAttachmentDisabledHint : 'GIF'"
               @click="openGifModal"
             >
@@ -148,7 +148,7 @@
               class="actionIconBtn"
               type="button"
               :disabled="posting"
-              aria-label="Pridat anketu"
+              aria-label="Pridať anketu"
               @click="enablePoll"
             >
               <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -164,7 +164,7 @@
               class="actionIconBtn actionIconBtn--active"
               type="button"
               :disabled="posting"
-              aria-label="Odstranit anketu"
+              aria-label="Odstrániť anketu"
               @click="disablePoll"
             >
               <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -177,7 +177,7 @@
               :class="{ 'actionIconBtn--active': !!selectedEvent }"
               type="button"
               :disabled="posting"
-              aria-label="Pridat udalost"
+              aria-label="Pridať udalosť"
               @click="openEventModal"
             >
               <svg class="actionIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -192,7 +192,7 @@
               {{ content.length }}/2000
             </div>
 
-            <button class="publishBtn" type="button" :disabled="isSubmitDisabled" aria-label="Publikovat" @click="submit">
+            <button class="publishBtn" type="button" :disabled="isSubmitDisabled" aria-label="Publikovať" @click="submit">
               <span>{{ posting ? 'Publikujem...' : 'Post' }}</span>
             </button>
           </div>
@@ -207,7 +207,7 @@
     <div v-if="showGifModal" class="modalBackdrop" @click.self="closeGifModal">
       <section class="modalCard" role="dialog" aria-modal="true" aria-labelledby="gif-modal-title">
         <header class="modalHead">
-          <h3 id="gif-modal-title">Vybrat GIF</h3>
+          <h3 id="gif-modal-title">Vybrať GIF</h3>
           <button class="modalClose" type="button" @click="closeGifModal">x</button>
         </header>
         <input
@@ -215,15 +215,15 @@
           v-model="gifQuery"
           class="modalInput"
           type="text"
-          placeholder="Hladaj GIF..."
+          placeholder="Hľadaj GIF..."
           @input="onGifQueryChange"
         />
         <div v-if="gifLoading" class="gifGrid">
           <div v-for="i in 6" :key="`gif-sk-${i}`" class="gifSkeleton"></div>
         </div>
         <p v-else-if="gifError" class="modalError">{{ gifError }}</p>
-        <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="modalHint">Zadaj aspon 2 znaky.</p>
-        <p v-else-if="gifResults.length === 0" class="modalHint">Ziadne GIFy.</p>
+        <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="modalHint">Zadaj aspoň 2 znaky.</p>
+        <p v-else-if="gifResults.length === 0" class="modalHint">Žiadne GIFy.</p>
         <div v-else class="gifGrid">
           <button v-for="gif in gifResults" :key="gif.id" type="button" class="gifTile" @click="selectGif(gif)">
             <img :src="gif.preview_url" :alt="gif.title || 'GIF'" loading="lazy" />
@@ -235,18 +235,18 @@
     <div v-if="showEventModal" class="modalBackdrop" @click.self="closeEventModal">
       <section class="modalCard" role="dialog" aria-modal="true" aria-labelledby="event-modal-title">
         <header class="modalHead">
-          <h3 id="event-modal-title">Pridat udalost</h3>
+          <h3 id="event-modal-title">Pridať udalosť</h3>
           <button class="modalClose" type="button" @click="closeEventModal">x</button>
         </header>
         <input
           v-model="eventQuery"
           class="modalInput"
           type="text"
-          placeholder="Hladaj udalost..."
+          placeholder="Hľadaj udalosť..."
           @input="onEventQueryChange"
         />
         <p v-if="eventError" class="modalError">{{ eventError }}</p>
-        <p v-else-if="eventLoading" class="modalHint">Nacitavam...</p>
+        <p v-else-if="eventLoading" class="modalHint">Načítavam...</p>
         <div v-else class="eventList">
           <button
             v-for="eventItem in eventResults"

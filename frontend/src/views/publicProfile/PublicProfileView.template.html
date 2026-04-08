@@ -42,7 +42,12 @@
           </div>
 
           <div class="headActions">
-            <button class="ui-btn ui-btn--ghost" @click="copyProfileLink">{{ copyLabel }}</button>
+            <button type="button" class="ui-btn ui-btn--ghost shareProfileBtn" aria-label="Zdieľať profil" @click="copyProfileLink">
+              <svg class="shareProfileBtn__icon" viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true">
+                <path d="M15 8l-6 3.5L15 15M20 7a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM10 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm10 5a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="shareProfileBtn__label">{{ copyLabel }}</span>
+            </button>
           </div>
         </div>
 
@@ -61,7 +66,7 @@
           <p v-else class="bio muted">Zatiaľ bez popisu.</p>
 
           <div class="meta">
-            <span v-if="user?.location" class="metaItem">Lokalita: {{ user.location }}</span>
+            <span v-if="isOwnProfile && user?.location" class="metaItem">Lokalita: {{ user.location }}</span>
           </div>
         </div>
 

@@ -41,9 +41,9 @@ describe('PostComposer poll mode', () => {
   it('disables post attachments when poll is enabled', async () => {
     const wrapper = mount(PostComposer)
 
-    await wrapper.find('button[aria-label="Pridat anketu"]').trigger('click')
+    await wrapper.find('button[aria-label="Pridať anketu"]').trigger('click')
 
-    const attachButton = wrapper.find('button[aria-label="Pridat prilohu"]')
+    const attachButton = wrapper.find('button[aria-label="Pridať prílohu"]')
     expect(attachButton.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('Pri ankete sa obrázky pridávajú iba ku konkrétnym možnostiam.')
   })
@@ -51,7 +51,7 @@ describe('PostComposer poll mode', () => {
   it('adds options up to 4', async () => {
     const wrapper = mount(PostComposer)
 
-    await wrapper.find('button[aria-label="Pridat anketu"]').trigger('click')
+    await wrapper.find('button[aria-label="Pridať anketu"]').trigger('click')
 
     const addButton = () => wrapper.find('button[aria-label="Pridať možnosť"]')
 
@@ -65,7 +65,7 @@ describe('PostComposer poll mode', () => {
   it('submits option image in poll fields, not as post attachment', async () => {
     const wrapper = mount(PostComposer)
 
-    await wrapper.find('button[aria-label="Pridat anketu"]').trigger('click')
+    await wrapper.find('button[aria-label="Pridať anketu"]').trigger('click')
 
     await wrapper.find('#post-composer-textarea').setValue('Otázka ankety')
 
@@ -81,7 +81,7 @@ describe('PostComposer poll mode', () => {
     })
     await optionImageInput.trigger('change')
 
-    await wrapper.find('button[aria-label="Publikovat"]').trigger('click')
+    await wrapper.find('button[aria-label="Publikovať"]').trigger('click')
 
     expect(postMock).toHaveBeenCalledTimes(1)
     const [, formData] = postMock.mock.calls[0]
@@ -96,4 +96,3 @@ describe('PostComposer poll mode', () => {
     expect(keys).not.toContain('attachment')
   })
 })
-

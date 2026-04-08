@@ -115,6 +115,19 @@
   align-items: center;
 }
 
+.shareProfileBtn {
+  gap: 0.45rem;
+  min-height: 2.25rem;
+}
+
+.shareProfileBtn__icon {
+  flex: 0 0 auto;
+}
+
+.shareProfileBtn__label {
+  white-space: nowrap;
+}
+
 .identity {
   padding: 0 var(--space-4) var(--space-4);
   margin-top: -18px;

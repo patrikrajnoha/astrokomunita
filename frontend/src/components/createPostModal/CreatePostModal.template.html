@@ -4,7 +4,7 @@
       <div v-if="open" class="overlay" role="presentation" @click.self="onOverlayClick">
         <section class="dialog" :class="{ 'dialog--observation': isObservationMode }" role="dialog" aria-modal="true" aria-labelledby="composer-title" @click.stop>
           <header class="head">
-            <button type="button" class="ghost" :disabled="submitting" @click="cancelAndClose">Zrusit</button>
+            <button type="button" class="ghost" :disabled="submitting" @click="cancelAndClose">Zrušiť</button>
             <div class="headRight">
               <template v-if="isObservationMode">
                 <button type="button" class="ghost" :disabled="submitting" @click="switchToPostComposer">
@@ -38,7 +38,7 @@
               </div>
 
               <div class="contentCol">
-                <label class="srOnly" for="composer-textarea">Text prispevku</label>
+                <label class="srOnly" for="composer-textarea">Text príspevku</label>
                 <textarea
                   id="composer-textarea"
                   ref="textareaRef"
@@ -51,7 +51,7 @@
                 />
 
                 <div v-if="imagePreviewUrl" class="mediaCard">
-                  <img class="mediaImg" :src="imagePreviewUrl" alt="Nahlad" />
+                  <img class="mediaImg" :src="imagePreviewUrl" alt="Náhľad" />
                   <button class="mediaRemove" type="button" :disabled="submitting" @click="removeFile">x</button>
                 </div>
 
@@ -72,10 +72,10 @@
 
                 <div v-if="selectedEvent" class="eventCard">
                   <div>
-                    <p class="eventTitle">{{ selectedEvent.title || 'Vybrana udalost' }}</p>
+                    <p class="eventTitle">{{ selectedEvent.title || 'Vybraná udalosť' }}</p>
                     <p class="eventDate">{{ formatEventRange(selectedEvent.start_at, selectedEvent.end_at) }}</p>
                   </div>
-                  <button class="eventRemove" type="button" :disabled="submitting" @click="removeEvent">Odstranit</button>
+                  <button class="eventRemove" type="button" :disabled="submitting" @click="removeEvent">Odstrániť</button>
                 </div>
               </div>
             </template>
@@ -145,7 +145,7 @@
                       <rect x="3.5" y="5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7"/>
                       <path d="M8 3.5v3M16 3.5v3M3.5 9.5h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
                     </svg>
-                    <span>{{ selectedEvent ? 'Zmenit udalost' : 'Pridat udalost' }}</span>
+                    <span>{{ selectedEvent ? 'Zmeniť udalosť' : 'Pridať udalosť' }}</span>
                   </button>
                   <button type="button" class="menuBtn" :disabled="submitting" @click="togglePollFromMenu">
                     <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -154,7 +154,7 @@
                       <circle cx="16" cy="12" r="1.2" fill="currentColor"/>
                       <circle cx="11" cy="17" r="1.2" fill="currentColor"/>
                     </svg>
-                    <span>{{ pollEnabled ? 'Odstranit anketu' : 'Pridat anketu' }}</span>
+                    <span>{{ pollEnabled ? 'Odstrániť anketu' : 'Pridať anketu' }}</span>
                   </button>
                   <button type="button" class="menuBtn" :disabled="submitting" @click="openObservationCreate">
                     <svg class="menuBtnIcon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -178,14 +178,14 @@
         <div v-if="showGifModal" class="subBackdrop" @click.self="closeGifModal">
           <section class="subCard" role="dialog" aria-modal="true" aria-labelledby="gif-title">
             <header class="subHead">
-              <h3 id="gif-title">Vybrat GIF</h3>
+              <h3 id="gif-title">Vybrať GIF</h3>
               <button type="button" class="subClose" @click="closeGifModal">x</button>
             </header>
-            <input ref="gifInputRef" v-model="gifQuery" class="subInput" type="text" placeholder="Hladaj GIF..." @input="onGifQueryChange" />
+            <input ref="gifInputRef" v-model="gifQuery" class="subInput" type="text" placeholder="Hľadaj GIF..." @input="onGifQueryChange" />
             <div v-if="gifLoading" class="gifGrid"><div v-for="i in 6" :key="`gif-${i}`" class="gifSkel"></div></div>
             <p v-else-if="gifError" class="subError">{{ gifError }}</p>
-            <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="subHint">Zadaj aspon 2 znaky.</p>
-            <p v-else-if="gifResults.length === 0" class="subHint">Ziadne GIFy.</p>
+            <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="subHint">Zadaj aspoň 2 znaky.</p>
+            <p v-else-if="gifResults.length === 0" class="subHint">Žiadne GIFy.</p>
             <div v-else class="gifGrid">
               <button v-for="gif in gifResults" :key="gif.id" type="button" class="gifTile" @click="selectGif(gif)">
                 <img :src="gif.preview_url" :alt="gif.title || 'GIF'" loading="lazy" />
@@ -197,13 +197,13 @@
         <div v-if="showEventModal" class="subBackdrop" @click.self="closeEventModal">
           <section class="subCard" role="dialog" aria-modal="true" aria-labelledby="event-title">
             <header class="subHead">
-              <h3 id="event-title">Pridat udalost</h3>
+              <h3 id="event-title">Pridať udalosť</h3>
               <button type="button" class="subClose" @click="closeEventModal">x</button>
             </header>
-            <input v-model="eventQuery" class="subInput" type="text" placeholder="Hladaj udalost..." @input="onEventQueryChange" />
+            <input v-model="eventQuery" class="subInput" type="text" placeholder="Hľadaj udalosť..." @input="onEventQueryChange" />
             <p v-if="eventError" class="subError">{{ eventError }}</p>
-            <p v-else-if="eventLoading" class="subHint">Nacitavam...</p>
-            <p v-else-if="eventResults.length === 0" class="subHint">Nenasli sa ziadne udalosti.</p>
+            <p v-else-if="eventLoading" class="subHint">Načítavam...</p>
+            <p v-else-if="eventResults.length === 0" class="subHint">Nenašli sa žiadne udalosti.</p>
             <div v-else class="eventList">
               <button v-for="eventItem in eventResults" :key="eventItem.id" class="eventItem" type="button" @click="selectEvent(eventItem)">
                 <span class="eventItemTitle">{{ eventItem.title }}</span>

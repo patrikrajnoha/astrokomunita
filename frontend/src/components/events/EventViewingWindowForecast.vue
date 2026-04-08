@@ -280,20 +280,23 @@ function formatMeasure(value, unit) {
 <style scoped>
 .forecastStrip {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
+  gap: 0.62rem;
+  padding: 0.78rem 0.88rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgb(34 46 63 / 0.9);
+  background: rgb(28 39 54 / 0.58);
 }
 
 .forecastStrip__top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.42rem 0.58rem;
+  gap: 0.45rem 0.6rem;
 }
 
 .forecastStrip__title {
   margin: 0;
-  color: rgb(255 255 255 / 0.56);
+  color: #abb8c9;
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -301,45 +304,42 @@ function formatMeasure(value, unit) {
 }
 
 .forecastStrip__window {
-  color: rgb(255 255 255 / 0.94);
-  font-size: 0.96rem;
-  font-weight: 650;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .forecastStrip__badge {
   display: inline-flex;
   align-items: center;
-  min-height: 1.45rem;
-  padding: 0 0.58rem;
+  min-height: 1.5rem;
+  padding: 0 0.6rem;
   border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 0.72rem;
+  border: none;
+  font-size: 0.71rem;
   font-weight: 700;
 }
 
 .forecastStrip__badge--good {
-  border-color: rgb(52 211 153 / 0.24);
-  background: rgb(52 211 153 / 0.14);
+  background: rgb(34 197 94 / 0.2);
   color: rgb(209 250 229 / 0.96);
 }
 
 .forecastStrip__badge--avg {
-  border-color: rgb(251 191 36 / 0.24);
-  background: rgb(251 191 36 / 0.14);
-  color: rgb(254 243 199 / 0.96);
+  background: rgb(15 115 255 / 0.2);
+  color: rgb(225 238 255 / 0.98);
 }
 
 .forecastStrip__badge--bad {
-  border-color: rgb(248 113 113 / 0.24);
-  background: rgb(248 113 113 / 0.14);
-  color: rgb(254 226 226 / 0.96);
+  background: rgb(235 36 82 / 0.18);
+  color: rgb(255 218 228 / 0.98);
 }
 
 .forecastStrip__metrics {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem 0.9rem;
-  color: rgb(255 255 255 / 0.8);
+  gap: 0.5rem 0.88rem;
+  color: #ffffff;
   font-size: 0.88rem;
   line-height: 1.4;
 }
@@ -352,19 +352,19 @@ function formatMeasure(value, unit) {
 }
 
 .forecastMetric__icon {
-  opacity: 0.78;
+  opacity: 0.84;
 }
 
 .forecastStrip__empty {
   margin: 0;
-  color: rgb(255 255 255 / 0.54);
-  font-size: 0.88rem;
+  color: #abb8c9;
+  font-size: 0.86rem;
   line-height: 1.5;
 }
 
 .forecastStrip__reason {
-  margin: -0.2rem 0 0;
-  color: rgb(255 255 255 / 0.66);
+  margin: -0.1rem 0 0;
+  color: #abb8c9;
   font-size: 0.8rem;
   line-height: 1.45;
 }
@@ -380,9 +380,9 @@ function formatMeasure(value, unit) {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgb(255 255 255 / 0.06),
-    rgb(255 255 255 / 0.14),
-    rgb(255 255 255 / 0.06)
+    rgb(34 46 63 / 0.62),
+    rgb(45 62 86 / 0.84),
+    rgb(34 46 63 / 0.62)
   );
   background-size: 200% 100%;
   animation: forecastStripShimmer 1.2s linear infinite;
@@ -409,4 +409,3 @@ function formatMeasure(value, unit) {
   }
 }
 </style>
-

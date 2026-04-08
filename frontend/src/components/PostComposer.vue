@@ -58,7 +58,7 @@ const pollAttachmentDisabledHint = 'Pri ankete sa obrázky pridávajú iba ku ko
 const isAttachmentDisabled = computed(() => pollEnabled.value)
 
 const isExpanded = computed(() => isFocused.value || content.value.trim().length > 0 || !!file.value || !!selectedGif.value || !!selectedEvent.value)
-const composerPlaceholder = computed(() => (pollEnabled.value ? 'Napis otazku ankety...' : 'Co sa deje na oblohe?'))
+const composerPlaceholder = computed(() => (pollEnabled.value ? 'Napíš otázku ankety...' : 'Čo sa deje na oblohe?'))
 
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
@@ -80,7 +80,7 @@ const isPollValid = computed(() => {
 
 const submitBlockReason = computed(() => {
   if (!pollEnabled.value) return ''
-  if (!content.value.trim()) return 'Dopln otazku ankety do textu prispevku.'
+  if (!content.value.trim()) return 'Doplň otázku ankety do textu príspevku.'
   if (!isPollValid.value) return 'Skontroluj možnosti ankety (2-4, max 25 znakov).'
   return ''
 })
@@ -172,9 +172,9 @@ function pickFile() {
 
 function enablePoll() {
   if (file.value || selectedGif.value) {
-    toast.warn('Anketa sa neda kombinovat s prilohami.', {
+    toast.warn('Anketa sa nedá kombinovať s prílohami.', {
       action: {
-        label: 'Odstranit prilohy a pokracovat',
+        label: 'Odstrániť prílohy a pokračovať',
         onClick: async () => {
           removeFile()
           removeGif()
@@ -259,7 +259,7 @@ function onFileChange(e) {
   removeFile()
 
   if (f.size > props.maxBytes) {
-    err.value = `Subor je prilis velky. Max ${prettySize(props.maxBytes)}.`
+    err.value = `Súbor je príliš veľký. Max ${prettySize(props.maxBytes)}.`
     return
   }
 
@@ -319,7 +319,7 @@ async function submit() {
     if (textareaRef.value) textareaRef.value.style.height = ''
   } catch (e) {
     const status = e?.response?.status
-    if (status === 401) err.value = 'Pre publikovanie sa prihlas.'
+    if (status === 401) err.value = 'Pre publikovanie sa prihlás.'
     else if (status === 422) err.value = firstValidationError(e, 'Skontroluj text, prílohu a poll možnosti.')
     else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
   } finally {

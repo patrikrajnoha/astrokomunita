@@ -712,8 +712,8 @@ describe('SettingsView', () => {
             meta: {
               supported_sidebar_widgets: [
                 { section_key: 'search', title: 'H\u013Eadaj' },
-                { section_key: 'nasa_apod', title: 'Astrofoto dĹa' },
-                { section_key: 'next_event', title: 'NajbliĹľĹˇia udalosĹĄ' },
+                { section_key: 'nasa_apod', title: 'Astrofoto dňa' },
+                { section_key: 'next_event', title: 'Najbližšia udalosť' },
                 { section_key: 'latest_articles', title: 'Astro \u010D\u00EDtanie' },
               ],
               supported_sidebar_scopes: ['home', 'events', 'search'],
@@ -727,8 +727,8 @@ describe('SettingsView', () => {
           data: {
             data: [
               { kind: 'builtin', section_key: 'search', title: 'H\u013Eadaj', order: 0, is_enabled: true },
-              { kind: 'builtin', section_key: 'nasa_apod', title: 'Astrofoto dĹa', order: 1, is_enabled: true },
-              { kind: 'builtin', section_key: 'next_event', title: 'NajbliĹľĹˇia udalosĹĄ', order: 2, is_enabled: true },
+              { kind: 'builtin', section_key: 'nasa_apod', title: 'Astrofoto dňa', order: 1, is_enabled: true },
+              { kind: 'builtin', section_key: 'next_event', title: 'Najbližšia udalosť', order: 2, is_enabled: true },
               { kind: 'builtin', section_key: 'latest_articles', title: 'Astro \u010D\u00EDtanie', order: 3, is_enabled: false },
             ],
           },

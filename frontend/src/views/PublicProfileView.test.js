@@ -3,6 +3,9 @@ import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import PublicProfileView from './PublicProfileView.vue'
 
+const authStoreMock = vi.hoisted(() => ({
+  user: null,
+}))
 const apiGetMock = vi.fn()
 const listObservationsMock = vi.fn()
 
@@ -15,6 +18,10 @@ vi.mock('@/services/api', () => ({
 
 vi.mock('@/services/observations', () => ({
   listObservations: (...args) => listObservationsMock(...args),
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authStoreMock,
 }))
 
 function makeRouter() {
@@ -62,6 +69,7 @@ function makePostsResponse(rows = [], total = rows.length) {
 describe('PublicProfileView media fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authStoreMock.user = null
 
     listObservationsMock.mockResolvedValue({
       data: {
@@ -232,5 +240,148 @@ describe('PublicProfileView media fallback', () => {
 
     expect(wrapper.text()).not.toContain('astro@example.com')
     expect(wrapper.text()).toContain('@astro')
+  })
+
+  it('hides location on foreign public profile', async () => {
+    authStoreMock.user = {
+      id: 777,
+      username: 'viewer',
+    }
+
+    apiGetMock.mockImplementation((url, config = {}) => {
+      if (url === '/users/astro') {
+        return Promise.resolve({
+          data: {
+            id: 10,
+            username: 'astro',
+            name: 'Astro User',
+            location: 'Bratislava',
+            bio: null,
+          },
+        })
+      }
+
+      if (url === '/users/astro/posts') {
+        const kind = String(config?.params?.kind || 'roots')
+        if (kind === 'roots') return Promise.resolve({ data: makePostsResponse([], 0) })
+        return Promise.resolve({ data: makePostsResponse([], 0) })
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
+    })
+
+    const router = makeRouter()
+    await router.push('/u/astro')
+    await router.isReady()
+
+    const wrapper = mount(PublicProfileView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ObservationCard: { template: '<div class="obs-stub"></div>' },
+          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('.meta .metaItem').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Lokalita:')
+  })
+
+  it('shows location on own public profile', async () => {
+    authStoreMock.user = {
+      id: 10,
+      username: 'astro',
+    }
+
+    apiGetMock.mockImplementation((url, config = {}) => {
+      if (url === '/users/astro') {
+        return Promise.resolve({
+          data: {
+            id: 10,
+            username: 'astro',
+            name: 'Astro User',
+            location: 'Bratislava',
+            bio: null,
+          },
+        })
+      }
+
+      if (url === '/users/astro/posts') {
+        const kind = String(config?.params?.kind || 'roots')
+        if (kind === 'roots') return Promise.resolve({ data: makePostsResponse([], 0) })
+        return Promise.resolve({ data: makePostsResponse([], 0) })
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
+    })
+
+    const router = makeRouter()
+    await router.push('/u/astro')
+    await router.isReady()
+
+    const wrapper = mount(PublicProfileView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ObservationCard: { template: '<div class="obs-stub"></div>' },
+          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('.meta .metaItem').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Lokalita: Bratislava')
+  })
+
+  it('renders share action label and icon in profile header', async () => {
+    apiGetMock.mockImplementation((url, config = {}) => {
+      if (url === '/users/astro') {
+        return Promise.resolve({
+          data: {
+            id: 10,
+            username: 'astro',
+            name: 'Astro User',
+            bio: null,
+          },
+        })
+      }
+
+      if (url === '/users/astro/posts') {
+        const kind = String(config?.params?.kind || 'roots')
+        if (kind === 'roots') return Promise.resolve({ data: makePostsResponse([], 0) })
+        return Promise.resolve({ data: makePostsResponse([], 0) })
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
+    })
+
+    const router = makeRouter()
+    await router.push('/u/astro')
+    await router.isReady()
+
+    const wrapper = mount(PublicProfileView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ObservationCard: { template: '<div class="obs-stub"></div>' },
+          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    const shareButton = wrapper.find('.shareProfileBtn')
+    expect(shareButton.exists()).toBe(true)
+    expect(shareButton.text()).toContain('Zdieľať')
+    expect(shareButton.find('.shareProfileBtn__icon').exists()).toBe(true)
   })
 })

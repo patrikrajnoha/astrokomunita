@@ -161,4 +161,44 @@ describe('auth store login resilience', () => {
     expect(store.isAuthed).toBe(true)
     expect(store.user).toEqual(expect.objectContaining({ id: 42 }))
   })
+
+  it('ignores stale bootstrap failure after a successful login', async () => {
+    const store = useAuthStore()
+    let rejectBootstrapRequest
+
+    http.get.mockImplementationOnce(() => new Promise((_, reject) => {
+      rejectBootstrapRequest = reject
+    }))
+
+    http.post.mockResolvedValueOnce({
+      data: { id: 11, name: 'Sky User' },
+    })
+
+    http.get.mockResolvedValueOnce({
+      data: { id: 11, name: 'Sky User' },
+    })
+
+    const bootstrapPromise = store.bootstrapAuth()
+    await flushPromises()
+
+    await store.login({
+      email: 'sky@example.com',
+      password: 'secret',
+    })
+
+    rejectBootstrapRequest({
+      response: {
+        status: 401,
+        data: { message: 'Unauthenticated.' },
+      },
+    })
+
+    await expect(bootstrapPromise).resolves.toEqual(expect.objectContaining({ id: 11 }))
+    await flushPromises()
+
+    expect(store.isAuthed).toBe(true)
+    expect(store.user).toEqual(expect.objectContaining({ id: 11 }))
+    expect(store.status).toBe('authenticated')
+    expect(store.error).toBeNull()
+  })
 })

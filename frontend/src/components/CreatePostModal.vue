@@ -237,7 +237,7 @@ onBeforeUnmount(() => {
 })
 
 function onDraftsClick() {
-  toast.info('Koncepty este nie su implementovane.')
+  toast.info('Koncepty ešte nie sú implementované.')
 }
 
 function onOverlayClick() {
@@ -315,7 +315,7 @@ function setSelectedImageFile(pickedFile) {
     return false
   }
   if (pickedFile.size > MAX_BYTES) {
-    errorMessage.value = `Subor je prilis velky. Max ${prettySize(MAX_BYTES)}.`
+    errorMessage.value = `Súbor je príliš veľký. Max ${prettySize(MAX_BYTES)}.`
     return false
   }
 
@@ -643,9 +643,9 @@ async function submit() {
   } catch (error) {
     const status = Number(error?.response?.status || 0)
     if (status === 401) {
-      errorMessage.value = 'Pre publikovanie sa prihlas.'
+      errorMessage.value = 'Pre publikovanie sa prihlás.'
     } else if (status === 422) {
-      errorMessage.value = firstValidationError(error, 'Skontroluj text, prilohy a anketu.')
+      errorMessage.value = firstValidationError(error, 'Skontroluj text, prílohy a anketu.')
     } else {
       errorMessage.value = error?.response?.data?.message || 'Odoslanie zlyhalo.'
     }

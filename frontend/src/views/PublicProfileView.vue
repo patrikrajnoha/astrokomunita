@@ -10,12 +10,14 @@ import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import http from '@/services/api'
 import { listObservations } from '@/services/observations'
+import { useAuthStore } from '@/stores/auth'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { resolveUserProfileMedia } from '@/utils/profileMedia'
 import { attachmentSrc as resolveAttachmentSrc, isImage as isProfileImage } from './profileView.utils'
 
 const router = useRouter()
 const route = useRoute()
+const auth = useAuthStore()
 
 const user = ref(null)
 const loading = ref(true)
@@ -38,11 +40,25 @@ const tabState = reactive({
   media: { items: [], next: null, loading: false, err: '', total: null, loaded: false },
 })
 
-const copyLabel = ref('Kopírovať link')
+const copyLabel = ref('Zdieľať')
 
 const username = computed(() => String(route.params.username || '').trim())
 const encodedUsername = computed(() => encodeURIComponent(username.value))
 const hasUsername = computed(() => username.value.length > 0)
+const isOwnProfile = computed(() => {
+  const authUser = auth.user
+  if (!authUser || typeof authUser !== 'object') return false
+
+  const authUsername = String(authUser.username || '').trim().toLowerCase()
+  const routeUsername = username.value.toLowerCase()
+  if (authUsername !== '' && routeUsername !== '' && authUsername === routeUsername) {
+    return true
+  }
+
+  const authId = Number(authUser.id || 0)
+  const profileId = Number(user.value?.id || 0)
+  return Number.isInteger(authId) && authId > 0 && Number.isInteger(profileId) && profileId > 0 && authId === profileId
+})
 const displayName = computed(() => {
   const name = toNonEmptyText(user.value?.name)
   if (name && !looksLikeEmail(name)) return name
@@ -133,13 +149,23 @@ async function copyProfileLink() {
   if (!hasUsername.value) return
   const url = `${window.location.origin}/u/${encodedUsername.value}`
   try {
-    await navigator.clipboard.writeText(url)
-    copyLabel.value = 'Skopírované'
-  } catch {
-    copyLabel.value = 'Nepodarilo sa kopírovať'
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      await navigator.share({
+        title: displayName.value,
+        text: `Profil @${handle.value} na Astrokomunita`,
+        url,
+      })
+      copyLabel.value = 'Zdieľané'
+    } else {
+      await navigator.clipboard.writeText(url)
+      copyLabel.value = 'Skopírované'
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') return
+    copyLabel.value = 'Nepodarilo sa zdieľať'
   }
   setTimeout(() => {
-    copyLabel.value = 'Kopírovať link'
+    copyLabel.value = 'Zdieľať'
   }, 1500)
 }
 

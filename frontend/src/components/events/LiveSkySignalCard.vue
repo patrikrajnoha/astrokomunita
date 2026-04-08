@@ -131,26 +131,23 @@ function formatTime(value, timeZone) {
 <style scoped>
 .liveSignalCard {
   display: grid;
-  gap: 0.48rem;
-  border: 1px solid rgb(var(--color-bg-light-rgb) / 0.68);
+  gap: 0.58rem;
+  border: 0;
   border-radius: 1rem;
-  background: rgb(var(--color-bg-main-rgb) / 0.58);
-  padding: 0.9rem 0.95rem;
+  background: #1c2736;
+  padding: 0.98rem 1rem;
 }
 
 .liveSignalCard.is-high {
-  border-color: rgb(16 185 129 / 0.35);
-  box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.1);
+  background: #1c2736;
 }
 
 .liveSignalCard.is-medium {
-  border-color: rgb(56 189 248 / 0.35);
-  box-shadow: inset 0 0 0 1px rgb(56 189 248 / 0.1);
+  background: #1c2736;
 }
 
 .liveSignalCard.is-low {
-  border-color: rgb(var(--color-primary-rgb) / 0.26);
-  box-shadow: inset 0 0 0 1px rgb(var(--color-primary-rgb) / 0.08);
+  background: #1c2736;
 }
 
 .liveSignalTop {
@@ -165,14 +162,23 @@ function formatTime(value, timeZone) {
 .liveSignalScore {
   display: inline-flex;
   align-items: center;
-  min-height: 1.8rem;
+  min-height: 1.86rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.24);
-  background: rgb(var(--color-primary-rgb) / 0.1);
-  color: var(--color-text-primary);
+  border: 0;
+  box-shadow: none;
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 0.24rem 0.62rem;
+  padding: 0.28rem 0.64rem;
+}
+
+.liveSignalBadge {
+  background: #0f73ff;
+  color: #ffffff;
+}
+
+.liveSignalScore {
+  background: #222e3f;
+  color: #abb8c9;
 }
 
 .liveSignalTitle,
@@ -183,27 +189,36 @@ function formatTime(value, timeZone) {
 }
 
 .liveSignalTitle {
-  font-size: 1rem;
-  line-height: 1.15;
+  font-size: 1.02rem;
+  line-height: 1.2;
+  color: #ffffff;
 }
 
 .liveSignalStatus {
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: #ffffff;
+}
+
+.liveSignalCard.is-high .liveSignalStatus {
+  color: #0f73ff;
+}
+
+.liveSignalCard.is-low .liveSignalStatus {
+  color: #abb8c9;
 }
 
 .liveSignalSummary {
-  font-size: 0.84rem;
+  font-size: 0.88rem;
   line-height: 1.45;
-  color: rgb(var(--color-text-secondary-rgb) / 0.96);
+  color: #abb8c9;
 }
 
 .liveSignalDetail,
 .liveSignalMeta {
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   line-height: 1.5;
-  color: var(--color-text-muted);
+  color: #abb8c9;
 }
 
 .liveSignalMeta {
@@ -220,12 +235,13 @@ function formatTime(value, timeZone) {
 }
 
 .liveSignalLink {
-  color: var(--color-primary);
+  color: #0f73ff;
   text-decoration: none;
 }
 
 .liveSignalLink:hover,
 .liveSignalLink:focus-visible {
-  text-decoration: underline;
+  color: #ffffff;
+  text-decoration: none;
 }
 </style>

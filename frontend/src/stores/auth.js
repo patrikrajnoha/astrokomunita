@@ -102,6 +102,7 @@ export const useAuthStore = defineStore('auth', {
       this.initialized = true
       this.status = 'guest'
       this.bootstrapDone = true
+      this.loginSequence += 1
       this.error = null
     },
 
@@ -139,6 +140,7 @@ export const useAuthStore = defineStore('auth', {
       const markBootstrap = options.markBootstrap !== false
       const preserveStateOnError = options.preserveStateOnError === true
       const maxAttempts = shouldRetry ? 2 : 1
+      const authSequenceAtStart = this.loginSequence
       const requestKey = JSON.stringify({
         shouldRetry,
         markBootstrap,
@@ -150,6 +152,14 @@ export const useAuthStore = defineStore('auth', {
       }
 
       const requestPromise = (async () => {
+        const isStaleAuthSnapshot = () => this.loginSequence !== authSequenceAtStart
+        const applyBootstrapFlags = () => {
+          if (markBootstrap) {
+            this.bootstrapDone = true
+            this.initialized = true
+          }
+        }
+
         this.loading = true
         this.status = 'loading'
         this.error = null
@@ -172,6 +182,24 @@ export const useAuthStore = defineStore('auth', {
                 meta: { skipErrorToast: true },
               })
 
+              if (isStaleAuthSnapshot()) {
+                if (authDebugEnabled) {
+                  console.info('[AUTH] fetchUser stale success ignored', {
+                    source,
+                    attempt,
+                    type: 'stale',
+                  })
+                }
+
+                if (this.user) {
+                  this.status = 'authenticated'
+                  this.error = null
+                }
+
+                applyBootstrapFlags()
+                return this.user
+              }
+
               const payload = data && typeof data === 'object' ? data : null
               const hasAuthenticatedUser = Number(payload?.id || 0) > 0
 
@@ -180,10 +208,7 @@ export const useAuthStore = defineStore('auth', {
                 this.status = 'guest'
                 this.error = null
 
-                if (markBootstrap) {
-                  this.bootstrapDone = true
-                  this.initialized = true
-                }
+                applyBootstrapFlags()
 
                 return null
               }
@@ -192,14 +217,31 @@ export const useAuthStore = defineStore('auth', {
               this.status = 'authenticated'
               this.error = null
 
-              if (markBootstrap) {
-                this.bootstrapDone = true
-                this.initialized = true
-              }
+              applyBootstrapFlags()
 
               return payload
             } catch (error) {
               const classified = classifyFetchUserError(error)
+
+              if (isStaleAuthSnapshot()) {
+                if (authDebugEnabled) {
+                  console.info('[AUTH] fetchUser stale failure ignored', {
+                    source,
+                    attempt,
+                    type: 'stale',
+                    status: classified.status,
+                    code: classified.code,
+                  })
+                }
+
+                if (this.user) {
+                  this.status = 'authenticated'
+                  this.error = null
+                }
+
+                applyBootstrapFlags()
+                return this.user
+              }
 
               if (authDebugEnabled) {
                 if (classified.type === 'unauthorized') {
@@ -277,10 +319,7 @@ export const useAuthStore = defineStore('auth', {
                 bannedAt: classified.bannedAt || null,
               }
 
-              if (markBootstrap) {
-                this.bootstrapDone = true
-                this.initialized = true
-              }
+              applyBootstrapFlags()
 
               return null
             }
@@ -298,10 +337,7 @@ export const useAuthStore = defineStore('auth', {
             bannedAt: null,
           }
 
-          if (markBootstrap) {
-            this.bootstrapDone = true
-            this.initialized = true
-          }
+          applyBootstrapFlags()
 
           return null
         } finally {
@@ -410,6 +446,7 @@ export const useAuthStore = defineStore('auth', {
         this.initialized = true
         this.status = 'guest'
         this.bootstrapDone = true
+        this.loginSequence += 1
         this.error = null
       }
     },
