@@ -125,4 +125,72 @@ class SeedDefaultUsersCommandTest extends TestCase
             $this->app->detectEnvironment(fn () => $originalEnvironment);
         }
     }
+
+    public function test_seeder_refuses_production_purge_even_with_explicit_opt_in(): void
+    {
+        $originalEnvironment = $this->app->environment();
+        $originalAdminEmail = getenv('SEED_ADMIN_EMAIL');
+        $originalAdminPassword = getenv('SEED_ADMIN_PASSWORD');
+
+        try {
+            putenv('SEED_ADMIN_EMAIL=admin@astrokomunita.sk');
+            putenv('SEED_ADMIN_PASSWORD=very-strong-production-password');
+            $this->app->detectEnvironment(fn () => 'production');
+
+            $this->assertTrue(app()->environment('production'));
+
+            $this->expectException(LogicException::class);
+            $this->expectExceptionMessage('DefaultUsersSeeder refuses to purge non-core users in production.');
+
+            app(DefaultUsersSeeder::class)->seed(true, true);
+        } finally {
+            if ($originalAdminEmail === false) {
+                putenv('SEED_ADMIN_EMAIL=');
+            } else {
+                putenv('SEED_ADMIN_EMAIL='.$originalAdminEmail);
+            }
+
+            if ($originalAdminPassword === false) {
+                putenv('SEED_ADMIN_PASSWORD=');
+            } else {
+                putenv('SEED_ADMIN_PASSWORD='.$originalAdminPassword);
+            }
+
+            $this->app->detectEnvironment(fn () => $originalEnvironment);
+        }
+    }
+
+    public function test_seeder_refuses_production_seed_with_placeholder_admin_credentials(): void
+    {
+        $originalEnvironment = $this->app->environment();
+        $originalAdminEmail = getenv('SEED_ADMIN_EMAIL');
+        $originalAdminPassword = getenv('SEED_ADMIN_PASSWORD');
+
+        try {
+            putenv('SEED_ADMIN_EMAIL=');
+            putenv('SEED_ADMIN_PASSWORD=');
+            $this->app->detectEnvironment(fn () => 'production');
+
+            $this->assertTrue(app()->environment('production'));
+
+            $this->expectException(LogicException::class);
+            $this->expectExceptionMessage('DefaultUsersSeeder refuses to run in production with placeholder admin email.');
+
+            app(DefaultUsersSeeder::class)->seed(false, true);
+        } finally {
+            if ($originalAdminEmail === false) {
+                putenv('SEED_ADMIN_EMAIL=');
+            } else {
+                putenv('SEED_ADMIN_EMAIL='.$originalAdminEmail);
+            }
+
+            if ($originalAdminPassword === false) {
+                putenv('SEED_ADMIN_PASSWORD=');
+            } else {
+                putenv('SEED_ADMIN_PASSWORD='.$originalAdminPassword);
+            }
+
+            $this->app->detectEnvironment(fn () => $originalEnvironment);
+        }
+    }
 }

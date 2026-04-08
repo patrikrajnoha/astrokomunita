@@ -40,6 +40,12 @@ class DefaultUsersSeeder extends Seeder
             $purgeNonCoreUsers = app()->environment(['local', 'testing']);
         }
 
+        $adminEmail = trim((string) env('SEED_ADMIN_EMAIL', self::DEFAULT_ADMIN_EMAIL));
+        $adminPassword = (string) env('SEED_ADMIN_PASSWORD', self::DEFAULT_ADMIN_PASSWORD);
+
+        $this->guardAgainstProductionPurge($purgeNonCoreUsers);
+        $this->guardAgainstUnsafeProductionAdminCredentials($adminEmail, $adminPassword);
+
         $this->normalizeLegacyBotAlias();
 
         $created = [];
@@ -49,8 +55,8 @@ class DefaultUsersSeeder extends Seeder
             [
                 'name' => self::DEFAULT_ADMIN_NAME,
                 'username' => self::DEFAULT_ADMIN_USERNAME,
-                'email' => env('SEED_ADMIN_EMAIL', self::DEFAULT_ADMIN_EMAIL),
-                'password' => env('SEED_ADMIN_PASSWORD', self::DEFAULT_ADMIN_PASSWORD),
+                'email' => $adminEmail,
+                'password' => $adminPassword,
                 'is_admin' => true,
                 'is_bot' => false,
                 'role' => User::ROLE_ADMIN,
@@ -156,6 +162,40 @@ class DefaultUsersSeeder extends Seeder
         }
 
         throw new LogicException('DefaultUsersSeeder refuses to run in production without explicit opt-in.');
+    }
+
+    private function guardAgainstProductionPurge(bool $purgeNonCoreUsers): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        if (! $purgeNonCoreUsers) {
+            return;
+        }
+
+        throw new LogicException('DefaultUsersSeeder refuses to purge non-core users in production.');
+    }
+
+    private function guardAgainstUnsafeProductionAdminCredentials(string $adminEmail, string $adminPassword): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        $normalizedEmail = mb_strtolower($adminEmail);
+
+        if (
+            $normalizedEmail === ''
+            || $normalizedEmail === mb_strtolower(self::DEFAULT_ADMIN_EMAIL)
+            || str_contains($adminEmail, 'CHANGE_THIS')
+        ) {
+            throw new LogicException('DefaultUsersSeeder refuses to run in production with placeholder admin email.');
+        }
+
+        if ($adminPassword === '' || $adminPassword === self::DEFAULT_ADMIN_PASSWORD || str_contains($adminPassword, 'CHANGE_THIS')) {
+            throw new LogicException('DefaultUsersSeeder refuses to run in production with placeholder admin password.');
+        }
     }
 
     private function normalizeLegacyBotAlias(): void
