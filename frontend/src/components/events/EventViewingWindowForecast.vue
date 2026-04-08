@@ -280,20 +280,19 @@ function formatMeasure(value, unit) {
 <style scoped>
 .forecastStrip {
   display: grid;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
+  gap: 0.9rem;
 }
 
 .forecastStrip__top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.42rem 0.58rem;
+  gap: 0.5rem 0.65rem;
 }
 
 .forecastStrip__title {
   margin: 0;
-  color: rgb(255 255 255 / 0.56);
+  color: #ABB8C9;
   font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -301,95 +300,98 @@ function formatMeasure(value, unit) {
 }
 
 .forecastStrip__window {
-  color: rgb(255 255 255 / 0.94);
-  font-size: 0.96rem;
+  color: #FFFFFF;
+  font-size: 1.05rem;
   font-weight: 650;
+  line-height: 1.35;
 }
 
 .forecastStrip__badge {
   display: inline-flex;
   align-items: center;
-  min-height: 1.45rem;
-  padding: 0 0.58rem;
+  min-height: 1.9rem;
+  padding: 0 0.8rem;
   border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 0.72rem;
+  background: #1c2736;
+  color: #FFFFFF;
+  font-size: 0.74rem;
   font-weight: 700;
 }
 
 .forecastStrip__badge--good {
-  border-color: rgb(52 211 153 / 0.24);
-  background: rgb(52 211 153 / 0.14);
-  color: rgb(209 250 229 / 0.96);
+  background: rgb(15 115 255 / 0.18);
 }
 
 .forecastStrip__badge--avg {
-  border-color: rgb(251 191 36 / 0.24);
-  background: rgb(251 191 36 / 0.14);
-  color: rgb(254 243 199 / 0.96);
+  background: rgb(15 115 255 / 0.14);
 }
 
 .forecastStrip__badge--bad {
-  border-color: rgb(248 113 113 / 0.24);
-  background: rgb(248 113 113 / 0.14);
-  color: rgb(254 226 226 / 0.96);
+  background: rgb(235 36 82 / 0.18);
 }
 
 .forecastStrip__metrics {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem 0.9rem;
-  color: rgb(255 255 255 / 0.8);
-  font-size: 0.88rem;
+  gap: 0.7rem;
+  color: #FFFFFF;
+  font-size: 0.9rem;
   line-height: 1.4;
 }
 
 .forecastMetric {
   display: inline-flex;
   align-items: center;
-  gap: 0.34rem;
+  gap: 0.42rem;
   white-space: nowrap;
+  min-height: 2.5rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: #1c2736;
 }
 
 .forecastMetric__icon {
-  opacity: 0.78;
+  opacity: 0.9;
 }
 
 .forecastStrip__empty {
   margin: 0;
-  color: rgb(255 255 255 / 0.54);
-  font-size: 0.88rem;
-  line-height: 1.5;
+  border-radius: 1.1rem;
+  background: #1c2736;
+  color: #ABB8C9;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  padding: 0.9rem 1rem;
 }
 
 .forecastStrip__reason {
-  margin: -0.2rem 0 0;
-  color: rgb(255 255 255 / 0.66);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  margin: 0;
+  color: #ABB8C9;
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .forecastStrip__loading {
   display: grid;
-  gap: 0.42rem;
+  gap: 0.55rem;
 }
 
 .forecastStrip__loadingLine {
   display: block;
-  height: 0.78rem;
+  height: 0.86rem;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgb(255 255 255 / 0.06),
-    rgb(255 255 255 / 0.14),
-    rgb(255 255 255 / 0.06)
+    rgb(255 255 255 / 0.05),
+    rgb(255 255 255 / 0.12),
+    rgb(255 255 255 / 0.05)
   );
   background-size: 200% 100%;
   animation: forecastStripShimmer 1.2s linear infinite;
 }
 
 .forecastStrip__loadingLine--wide {
-  width: 68%;
+  width: 62%;
 }
 
 @keyframes forecastStripShimmer {
@@ -404,9 +406,13 @@ function formatMeasure(value, unit) {
 
 @media (max-width: 767px) {
   .forecastStrip__metrics {
-    gap: 0.45rem 0.75rem;
+    gap: 0.55rem;
     font-size: 0.84rem;
+  }
+
+  .forecastMetric {
+    min-height: 2.35rem;
+    padding-inline: 0.8rem;
   }
 }
 </style>
-

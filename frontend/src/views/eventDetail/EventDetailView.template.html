@@ -1,8 +1,8 @@
-  <main class="eventDetailPage">
-    <header class="eventDetailTopbar">
-      <button type="button" class="backButton" @click="goBack">&larr; Späť</button>
-      <p class="topbarTitle">{{ pageHeaderTitle }}</p>
-    </header>
+<main class="eventDetailPage">
+  <header class="eventDetailTopbar">
+    <button type="button" class="backButton" @click="goBack">&larr; Späť</button>
+    <p class="topbarTitle">{{ pageHeaderTitle }}</p>
+  </header>
 
     <section v-if="loading" class="loadingState" aria-label="Načítavam detail udalosti">
       <div class="loadingCard">
@@ -18,12 +18,6 @@
 
     <section v-else-if="missingEvent" class="missingEventState" aria-live="polite">
       <article class="missingEventCard">
-        <div class="missingEventStarfield" aria-hidden="true">
-          <span class="missingEventStar"></span>
-          <span class="missingEventStar"></span>
-          <span class="missingEventStar"></span>
-        </div>
-
         <div class="missingEventBadge">Udalosť nenájdená</div>
         <h1 class="missingEventTitle">Táto udalosť už neexistuje.</h1>
         <p class="missingEventText">
@@ -63,126 +57,197 @@
         @touchend.passive="onCardTouchEnd"
         @touchcancel.passive="onCardTouchCancel"
       >
-        <div class="eventCard__glow" aria-hidden="true"></div>
-
         <div class="eventCard__content">
-          <div class="eventChipRow">
-            <span class="eventChip">{{ typeLabel }}</span>
-            <span class="eventChip eventChip--status">{{ statusLabel }}</span>
-          </div>
+          <section class="eventHero">
+            <div class="eventHero__main eventPanel">
+              <div class="eventChipRow">
+                <span class="eventChip">{{ typeLabel }}</span>
+                <span class="eventChip eventChip--status">{{ statusLabel }}</span>
+              </div>
 
-          <div class="eventHeading">
-            <h1 class="eventTitle">{{ title }}</h1>
-            <p class="eventMeta">{{ metaLine }}</p>
-          </div>
+              <div class="eventHeading">
+                <p class="eventEyebrow">Detail udalosti</p>
+                <h1 class="eventTitle">{{ title }}</h1>
+                <p class="eventMeta">{{ metaLine }}</p>
+              </div>
 
-          <div v-if="verdictLine" class="eventVerdict" :class="`eventVerdict--${viewingForecast.summary?.rating || 'avg'}`">
-            {{ verdictLine }}
-          </div>
-
-          <section class="eventSection eventTimeBlock" aria-label="Čas udalosti">
-            <p class="eventSection__label">{{ observationTimeLabel }}</p>
-            <p class="eventTimeBlock__primary">{{ primaryObservationLine }}</p>
-            <p
-              v-if="secondaryEventTimeLabel"
-              class="eventTimeBlock__secondary"
-              :title="secondaryEventTimeAriaLabel"
-              :aria-label="secondaryEventTimeAriaLabel"
-            >
-              {{ secondaryEventTimeLabel }}
-              <span v-if="secondaryEventTimeTimezoneLabel" class="eventTimeBlock__timezone">
-                ({{ secondaryEventTimeTimezoneLabel }})
-              </span>
-            </p>
-            <div v-if="viewingForecast.missingLocation" class="locationPrompt">
-              <p class="locationPrompt__text">
-                {{ auth.isAuthed ? 'Nastav polohu pre podmienky pozorovania.' : 'Prihlás sa a nastav polohu — zobrazíme podmienky priamo pre tvoje mesto.' }}
-              </p>
-              <button
-                type="button"
-                class="locationButton"
-                @click="goToLocationSettings"
-              >
-                {{ auth.isAuthed ? 'Nastaviť polohu' : 'Prihlásiť sa' }}
-              </button>
+              <div class="eventOverviewGrid">
+                <article
+                  v-for="item in overviewCards"
+                  :key="item.key"
+                  class="overviewCard"
+                >
+                  <p class="overviewCard__label">{{ item.label }}</p>
+                  <p class="overviewCard__value">{{ item.value }}</p>
+                  <p class="overviewCard__hint">{{ item.hint }}</p>
+                </article>
+              </div>
             </div>
+
+            <aside class="eventHero__aside">
+              <section class="eventPanel eventActionPanel">
+                <div class="eventSectionHeader eventSectionHeader--compact">
+                  <div>
+                    <p class="eventSection__label">Akcie</p>
+                    <h2 class="eventSection__title">Správa udalosti</h2>
+                  </div>
+                  <div
+                    v-if="verdictLine"
+                    class="eventVerdict"
+                    :class="`eventVerdict--${viewingForecast.summary?.rating || 'avg'}`"
+                  >
+                    {{ verdictLine }}
+                  </div>
+                </div>
+
+                <div class="eventCtaRow">
+                  <button
+                    type="button"
+                    class="planButton planButton--primary"
+                    :disabled="planSaving"
+                    @click="openPlanModal"
+                  >
+                    {{ planButtonLabel }}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="planButton followButton"
+                    :class="{ 'followButton--active': isFollowed }"
+                    @click="handleFollowToggle"
+                  >
+                    {{ followActionLabel }}
+                  </button>
+                </div>
+
+                <div class="eventSecondaryActions">
+                  <button
+                    v-if="auth.isAuthed"
+                    type="button"
+                    class="secondaryAction"
+                    @click="handleInvite"
+                  >
+                    Pozvať
+                  </button>
+                  <button
+                    type="button"
+                    class="secondaryAction"
+                    @click="handleMenuSelect({ key: 'calendar' })"
+                  >
+                    Pridať do kalendára
+                  </button>
+                  <button
+                    type="button"
+                    class="secondaryAction"
+                    @click="handleMenuSelect({ key: 'share' })"
+                  >
+                    Zdieľať odkaz
+                  </button>
+                </div>
+
+                <div class="eventSwipeRow">
+                  <button
+                    type="button"
+                    class="swipeNavLink"
+                    :disabled="!canGoPrev || swipeNavigating"
+                    @click="goToAdjacentEvent('prev')"
+                  >
+                    &larr; Predošlá
+                  </button>
+                  <button
+                    type="button"
+                    class="swipeNavLink"
+                    :disabled="!canGoNext || swipeNavigating"
+                    @click="goToAdjacentEvent('next')"
+                  >
+                    Ďalšia &rarr;
+                  </button>
+                </div>
+
+                <p class="swipeHint">
+                  {{ swipeHint }}
+                </p>
+              </section>
+            </aside>
           </section>
 
-          <section class="eventSection forecastSection">
-            <p class="eventSection__label">Podmienky pozorovania</p>
-            <EventViewingWindowForecast
-              :event="event"
-              :user-location="resolvedLocation"
-              @state="handleViewingForecastState"
-            />
-          </section>
+          <div class="eventContentGrid">
+            <section class="eventSection eventPanel eventTimeBlock" aria-label="Čas udalosti">
+              <div class="eventSectionHeader">
+                <div>
+                  <p class="eventSection__label">Čas udalosti</p>
+                  <h2 class="eventSection__title">{{ observationTimeLabel }}</h2>
+                </div>
+              </div>
 
-          <section class="eventSection eventDescriptionBlock">
-            <p class="eventSection__label">Popis</p>
-            <p
-              class="eventDescription"
-              :class="{
-                'eventDescription--collapsed': shouldCollapseDescription && !descriptionExpanded,
-              }"
-            >
-              {{ description }}
-            </p>
-            <button
-              v-if="shouldCollapseDescription"
-              type="button"
-              class="descriptionToggle"
-              @click="descriptionExpanded = !descriptionExpanded"
-            >
-              {{ descriptionExpanded ? 'Zobraziť menej' : 'Zobraziť viac' }}
-            </button>
-          </section>
+              <p class="eventTimeBlock__primary">{{ primaryObservationLine }}</p>
+              <p
+                v-if="secondaryEventTimeLabel"
+                class="eventTimeBlock__secondary"
+                :title="secondaryEventTimeAriaLabel"
+                :aria-label="secondaryEventTimeAriaLabel"
+              >
+                {{ secondaryEventTimeLabel }}
+                <span v-if="secondaryEventTimeTimezoneLabel" class="eventTimeBlock__timezone">
+                  ({{ secondaryEventTimeTimezoneLabel }})
+                </span>
+              </p>
 
-          <div class="eventCtaRow">
-            <button
-              type="button"
-              class="planButton planButton--primary"
-              :disabled="planSaving"
-              @click="openPlanModal"
-            >
-              {{ planButtonLabel }}
-            </button>
+              <div v-if="viewingForecast.missingLocation" class="locationPrompt">
+                <p class="locationPrompt__text">
+                  {{ auth.isAuthed ? 'Nastav polohu pre podmienky pozorovania.' : 'Prihlás sa a nastav polohu, zobrazíme podmienky priamo pre tvoje mesto.' }}
+                </p>
+                <button
+                  type="button"
+                  class="locationButton"
+                  @click="goToLocationSettings"
+                >
+                  {{ auth.isAuthed ? 'Nastaviť polohu' : 'Prihlásiť sa' }}
+                </button>
+              </div>
+            </section>
 
-            <button
-              type="button"
-              class="planButton followButton"
-              :class="{ 'followButton--active': isFollowed }"
-              @click="handleFollowToggle"
-            >
-              {{ followActionLabel }}
-            </button>
-          </div>
+            <section class="eventSection eventPanel forecastSection">
+              <div class="eventSectionHeader">
+                <div>
+                  <p class="eventSection__label">Podmienky pozorovania</p>
+                  <h2 class="eventSection__title">Predpoveď pre tvoju lokalitu</h2>
+                </div>
+              </div>
 
-          <div class="eventSecondaryActions">
-            <button v-if="auth.isAuthed" type="button" class="secondaryAction" @click="handleInvite">Pozvať</button>
-            <button type="button" class="secondaryAction" @click="handleMenuSelect({ key: 'calendar' })">Pridať do kalendára</button>
-            <button type="button" class="secondaryAction" @click="handleMenuSelect({ key: 'share' })">Zdieľať odkaz</button>
-          </div>
+              <EventViewingWindowForecast
+                :event="event"
+                :user-location="resolvedLocation"
+                @state="handleViewingForecastState"
+              />
+            </section>
 
-          <div class="eventSwipeRow">
-            <button
-              type="button"
-              class="swipeNavLink"
-              :disabled="!canGoPrev || swipeNavigating"
-              @click="goToAdjacentEvent('prev')"
-            >
-              &larr; Predošlá
-            </button>
-            <p class="swipeHint">
-              {{ swipeHint }}
-            </p>
-            <button
-              type="button"
-              class="swipeNavLink"
-              :disabled="!canGoNext || swipeNavigating"
-              @click="goToAdjacentEvent('next')"
-            >
-              Ďalšia &rarr;
-            </button>
+            <section class="eventSection eventPanel eventDescriptionBlock eventDescriptionBlock--full">
+              <div class="eventSectionHeader">
+                <div>
+                  <p class="eventSection__label">Popis</p>
+                  <h2 class="eventSection__title">O udalosti</h2>
+                </div>
+
+                <button
+                  v-if="shouldCollapseDescription"
+                  type="button"
+                  class="descriptionToggle"
+                  @click="descriptionExpanded = !descriptionExpanded"
+                >
+                  {{ descriptionExpanded ? 'Zobraziť menej' : 'Zobraziť viac' }}
+                </button>
+              </div>
+
+              <p
+                class="eventDescription"
+                :class="{
+                  'eventDescription--collapsed': shouldCollapseDescription && !descriptionExpanded,
+                }"
+              >
+                {{ description }}
+              </p>
+            </section>
           </div>
         </div>
       </article>

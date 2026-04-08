@@ -149,18 +149,18 @@ const recommendedPlanHint = computed(() => {
 const eventTimeContext = computed(() => resolveEventTimeContext(event.value, EVENT_TIMEZONE))
 const primaryObservationLine = computed(() => {
   if (viewingForecast.value.loading && !viewingWindowLabel.value) {
-    return 'načítavam...'
+    return 'Načítavame...'
   }
 
   if (viewingForecast.value.missingLocation) {
-    return 'nastav polohu'
+    return 'Nastav polohu'
   }
 
   if (viewingWindowLabel.value) {
     return viewingWindowLabel.value
   }
 
-  return 'upresníme'
+  return 'Upresníme'
 })
 const observationTimeLabel = computed(() => {
   if (viewingForecast.value.summary?.rating === 'bad') {
@@ -207,6 +207,72 @@ const secondaryEventTimeAriaLabel = computed(() => {
 
   return `${secondaryEventTimeLabel.value} (${eventTimeContext.value.timezoneLabelShort}), čas v ${eventTimeContext.value.timezoneLabelLong}`
 })
+const observationPlaceLabel = computed(() => {
+  const plannedLocation = sanitizeLocationText(event.value?.plan?.planned_location_label)
+  if (plannedLocation) return plannedLocation
+
+  const recommendedLocation = sanitizeLocationText(event.value?.recommended_viewing_label)
+  if (recommendedLocation) return recommendedLocation
+
+  const userLocationLabel = sanitizeLocationText(resolvedLocation.value?.label)
+  if (userLocationLabel) return userLocationLabel
+
+  return 'Miesto upresníme'
+})
+const observationPlaceHint = computed(() => {
+  const userLocationLabel = sanitizeLocationText(resolvedLocation.value?.label)
+  if (userLocationLabel) {
+    return `Podľa tvojej polohy: ${userLocationLabel}`
+  }
+
+  return visibilityLabel.value || 'Miesto pozorovania spresníme.'
+})
+const eventTimeSupportLabel = computed(() => {
+  if (!secondaryEventTimeLabel.value) {
+    return 'Čas udalosti spresníme.'
+  }
+
+  if (!secondaryEventTimeTimezoneLabel.value) {
+    return secondaryEventTimeLabel.value
+  }
+
+  return `${secondaryEventTimeLabel.value} (${secondaryEventTimeTimezoneLabel.value})`
+})
+const observationSummaryLabel = computed(() => {
+  if (verdictLine.value) {
+    return verdictLine.value
+  }
+
+  if (viewingForecast.value.loading) {
+    return 'Podmienky pozorovania načítavame.'
+  }
+
+  if (viewingForecast.value.missingLocation) {
+    return 'Nastav polohu a spresníme podmienky.'
+  }
+
+  return 'Podmienky pozorovania priebežne spresňujeme.'
+})
+const overviewCards = computed(() => [
+  {
+    key: 'date',
+    label: 'Dátum',
+    value: metaDateLabel.value,
+    hint: eventTimeSupportLabel.value,
+  },
+  {
+    key: 'place',
+    label: 'Miesto',
+    value: observationPlaceLabel.value,
+    hint: observationPlaceHint.value,
+  },
+  {
+    key: 'viewing',
+    label: 'Pozorovanie',
+    value: primaryObservationLine.value,
+    hint: observationSummaryLabel.value,
+  },
+])
 const showViewingWindowMicrocopy = computed(() => {
   const phenomenonAt = resolvePhenomenonDate(event.value)
   const startAt = viewingWindowStart.value

@@ -1,8 +1,10 @@
 .eventDetailPage {
   min-height: calc(100vh - 3rem);
-  width: min(100%, 50rem);
+  width: min(100%, 74rem);
   margin: 0 auto;
-  padding: 1rem 0.95rem 3rem;
+  padding: 1.25rem 1rem 4rem;
+  background: #151d28;
+  color: #ffffff;
 }
 
 .eventDetailTopbar {
@@ -10,291 +12,361 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.1rem;
 }
 
-.backButton,
-.locationButton {
-  min-height: 2.5rem;
+.backButton {
+  min-height: 2.75rem;
+  border: none;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(245 248 255 / 0.92);
-  padding: 0 0.95rem;
-  font-size: 0.84rem;
+  background: #222E3F;
+  color: #ABB8C9;
+  padding: 0 1rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast, 140ms ease);
+}
+
+.backButton:hover {
+  background: #1c2736;
 }
 
 .topbarTitle {
   margin: 0;
-  color: rgb(255 255 255 / 0.48);
+  color: #ABB8C9;
   font-size: 0.78rem;
   line-height: 1.4;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .eventDetailShell,
-.loadingState {
+.loadingState,
+.missingEventState,
+.errorState {
   display: grid;
 }
 
-.eventCard,
-.loadingCard {
+.eventCard {
   position: relative;
-  overflow: hidden;
-  border-radius: 1.65rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.11);
-  background:
-    linear-gradient(180deg, rgb(20 29 41 / 0.98), rgb(13 20 30 / 0.98)),
-    rgb(21 29 40 / 0.98);
-  box-shadow: 0 22px 48px rgb(0 0 0 / 0.2);
+  overflow: visible;
+  border-radius: 2rem;
 }
 
 .eventCard--swipeReady {
   touch-action: pan-y;
 }
 
-.eventCard__glow {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at top left, rgb(var(--color-primary-rgb) / 0.12), transparent 42%),
-    radial-gradient(circle at 85% 10%, rgb(255 255 255 / 0.04), transparent 24%);
-  pointer-events: none;
-}
-
-.eventCard__content,
-.loadingCard {
-  position: relative;
-  z-index: 1;
+.eventCard__content {
   display: grid;
   gap: 1rem;
-  padding: 1.2rem;
+}
+
+.eventHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 0.95fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.eventHero__main,
+.eventActionPanel,
+.eventSection,
+.loadingCard,
+.missingEventCard {
+  border-radius: 1.75rem;
+  background: #222E3F;
+}
+
+.eventHero__main,
+.eventActionPanel,
+.eventSection,
+.loadingCard,
+.missingEventCard {
+  padding: 1.5rem;
+}
+
+.eventHero__main {
+  display: grid;
+  gap: 1.25rem;
+  min-height: 100%;
+}
+
+.eventHero__aside {
+  display: grid;
+}
+
+.eventActionPanel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
 }
 
 .eventChipRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.55rem;
 }
 
 .eventChip {
   display: inline-flex;
   align-items: center;
-  min-height: 1.7rem;
-  padding: 0 0.7rem;
+  min-height: 1.9rem;
+  padding: 0 0.85rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(255 255 255 / 0.76);
-  font-size: 0.73rem;
+  background: #1c2736;
+  color: #ABB8C9;
+  font-size: 0.75rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .eventChip--status {
-  border-color: rgb(var(--color-primary-rgb) / 0.2);
-  background: rgb(var(--color-primary-rgb) / 0.1);
-  color: rgb(244 248 255 / 0.95);
+  background: rgb(15 115 255 / 0.18);
+  color: #ffffff;
 }
 
 .eventHeading {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.5rem;
+}
+
+.eventEyebrow {
+  margin: 0;
+  color: #ABB8C9;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .eventTitle {
   margin: 0;
-  color: rgb(255 255 255 / 0.98);
-  font-size: clamp(1.95rem, 7.3vw, 2.9rem);
+  color: #FFFFFF;
+  font-size: clamp(2.35rem, 5vw, 4rem);
   line-height: 0.98;
   font-weight: 650;
   letter-spacing: -0.04em;
+  text-wrap: balance;
 }
 
 .eventMeta {
   margin: 0;
-  color: rgb(255 255 255 / 0.62);
-  font-size: 0.9rem;
-  line-height: 1.5;
+  max-width: 44rem;
+  color: #ABB8C9;
+  font-size: 1rem;
+  line-height: 1.6;
 }
 
-.eventSection {
+.eventOverviewGrid {
   display: grid;
-  gap: 0.45rem;
-  padding: 0.95rem 0;
-  border-top: 1px solid var(--divider-color);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
 }
 
-.eventSection__label {
+.overviewCard {
+  display: grid;
+  gap: 0.42rem;
+  padding: 1rem;
+  border-radius: 1.35rem;
+  background: #1c2736;
+}
+
+.overviewCard__label {
   margin: 0;
-  color: rgb(255 255 255 / 0.62);
-  font-size: 0.77rem;
+  color: #ABB8C9;
+  font-size: 0.74rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.eventSection__text {
+.overviewCard__value {
   margin: 0;
-  color: rgb(255 255 255 / 0.72);
-  font-size: 0.92rem;
-  line-height: 1.55;
+  color: #FFFFFF;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.overviewCard__hint {
+  margin: 0;
+  color: #ABB8C9;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.eventContentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.eventDescriptionBlock--full {
+  grid-column: 1 / -1;
+}
+
+.eventSection {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.eventSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.eventSectionHeader--compact {
+  align-items: center;
+}
+
+.eventSection__label {
+  margin: 0;
+  color: #ABB8C9;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eventSection__title {
+  margin: 0.3rem 0 0;
+  color: #FFFFFF;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  font-weight: 600;
 }
 
 .eventTimeBlock {
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .eventTimeBlock__primary {
   margin: 0;
-  color: rgb(250 252 255 / 0.98);
-  font-size: clamp(1.2rem, 4.9vw, 1.52rem);
+  color: #FFFFFF;
+  font-size: clamp(1.35rem, 2.3vw, 1.8rem);
   line-height: 1.24;
   font-weight: 650;
-  letter-spacing: -0.017em;
+  letter-spacing: -0.02em;
 }
 
-.eventTimeBlock__secondary,
-.eventTimeBlock__microcopy {
+.eventTimeBlock__secondary {
   margin: 0;
-  color: rgb(255 255 255 / 0.62);
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.eventTimeBlock__microcopy {
-  color: rgb(220 229 242 / 0.72);
+  color: #ABB8C9;
+  font-size: 0.96rem;
+  line-height: 1.6;
 }
 
 .eventTimeBlock__timezone {
-  color: rgb(255 255 255 / 0.48);
+  color: #ABB8C9;
 }
 
 .locationPrompt {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-  padding: 0.55rem 0.55rem 0.55rem 0.85rem;
-  border-radius: 999px;
-  background: rgba(15, 115, 255, 0.08);
+  gap: 0.9rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1.25rem;
+  background: #1c2736;
 }
 
 .locationPrompt__text {
-  font-size: 0.78rem;
+  margin: 0;
   color: #ABB8C9;
-  line-height: 1.4;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .locationButton {
-  width: fit-content;
-  min-height: 2.1rem;
+  min-height: 2.6rem;
   flex-shrink: 0;
-  border: 0 !important;
-  background: #0F73FF !important;
-  color: #FFFFFF !important;
-  padding: 0 0.9rem !important;
-  font-size: 0.8rem !important;
+  border: none;
+  border-radius: 999px;
+  background: #0F73FF;
+  color: #FFFFFF;
+  padding: 0 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast, 140ms ease);
 }
 
-.forecastSection {
-  padding-bottom: 0.85rem;
+.locationButton:hover {
+  background: #0d67e1;
 }
 
-.forecastSection :deep(.forecastWrap) {
-  margin-top: 0.1rem;
+.forecastSection :deep(.forecastStrip) {
+  margin: 0;
 }
 
 .eventDescriptionBlock {
-  gap: 0.7rem;
-  max-width: 43.75rem;
+  gap: 1rem;
 }
 
 .eventDescription {
   margin: 0;
-  max-width: 43.75rem;
-  color: rgb(255 255 255 / 0.84);
+  max-width: 46rem;
+  color: #FFFFFF;
   font-size: 1rem;
-  line-height: 1.6;
+  line-height: 1.8;
   white-space: pre-wrap;
 }
 
 .eventDescription--collapsed {
   display: -webkit-box;
-  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
   overflow: hidden;
 }
 
 .descriptionToggle {
-  width: fit-content;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.18);
+  min-height: 2.5rem;
+  border: none;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(214 231 255 / 0.9);
-  font-size: 0.82rem;
+  background: #222E3F;
+  color: #ABB8C9;
+  padding: 0 0.95rem;
+  font-size: 0.86rem;
   font-weight: 600;
-  padding: 0.34rem 0.78rem;
+  cursor: pointer;
+  transition: background var(--motion-fast, 140ms ease);
+}
+
+.descriptionToggle:hover {
+  background: #1c2736;
 }
 
 .eventVerdict {
-  font-size: 0.92rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  max-width: 100%;
+  border-radius: 999px;
+  background: #1c2736;
+  color: #FFFFFF;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.84rem;
   font-weight: 600;
-  line-height: 1.4;
-  padding: 0.52rem 0.72rem;
-  border-radius: 0.72rem;
-  background: rgb(255 255 255 / 0.04);
-  border: 1px solid rgb(255 255 255 / 0.06);
+  line-height: 1.35;
 }
 
-.eventVerdict--good {
-  background: rgb(52 211 153 / 0.1);
-  border-color: rgb(52 211 153 / 0.18);
-  color: rgb(209 250 229 / 0.96);
-}
-
+.eventVerdict--good,
 .eventVerdict--avg {
-  background: rgb(251 191 36 / 0.1);
-  border-color: rgb(251 191 36 / 0.18);
-  color: rgb(254 243 199 / 0.96);
+  background: rgb(15 115 255 / 0.18);
 }
 
 .eventVerdict--bad {
-  background: rgb(248 113 113 / 0.1);
-  border-color: rgb(248 113 113 / 0.18);
-  color: rgb(254 226 226 / 0.96);
+  background: rgb(235 36 82 / 0.18);
 }
 
 .eventCtaRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.7rem;
-  padding-top: 0.2rem;
-}
-
-.eventSecondaryActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem 1rem;
-  padding-top: 0.1rem;
-}
-
-.secondaryAction {
-  border: none;
-  background: none;
-  color: rgb(255 255 255 / 0.44);
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 0;
-  cursor: pointer;
-  line-height: 1.4;
-}
-
-.secondaryAction:hover {
-  color: rgb(255 255 255 / 0.72);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .planButton {
@@ -302,200 +374,179 @@
   align-items: center;
   justify-content: center;
   min-height: 3rem;
+  border: none;
   border-radius: 999px;
-  font-size: 0.9rem;
+  padding: 0 1.15rem;
+  font-size: 0.92rem;
   font-weight: 650;
-  padding: 0 1rem;
+  cursor: pointer;
+  transition: background var(--motion-fast, 140ms ease);
 }
 
 .planButton--primary {
-  gap: 0.5rem;
-  width: 100%;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.34);
-  background: linear-gradient(
-    180deg,
-    rgb(var(--color-primary-rgb) / 0.22),
-    rgb(var(--color-primary-rgb) / 0.12)
-  );
-  color: rgb(247 250 255 / 0.98);
-  letter-spacing: -0.008em;
-  box-shadow: 0 12px 24px rgb(var(--color-primary-rgb) / 0.12);
+  background: #0F73FF;
+  color: #FFFFFF;
+}
+
+.planButton--primary:hover:not(:disabled) {
+  background: #0d67e1;
 }
 
 .followButton {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(255 255 255 / 0.86);
-  white-space: nowrap;
+  background: #222E3F;
+  color: #ABB8C9;
+}
+
+.followButton:hover:not(:disabled) {
+  background: #1c2736;
 }
 
 .followButton--active {
-  border-color: rgb(74 222 128 / 0.28);
-  background: rgb(74 222 128 / 0.08);
-  color: rgb(187 247 208 / 0.96);
+  background: rgb(15 115 255 / 0.18);
+  color: #FFFFFF;
 }
 
-.planButton:disabled {
-  opacity: 0.6;
+.followButton--active:hover:not(:disabled) {
+  background: rgb(15 115 255 / 0.24);
+}
+
+.planButton:disabled,
+.secondaryAction:disabled,
+.swipeNavLink:disabled,
+.planGhostButton:disabled,
+.planSaveButton:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
+}
+
+.eventSecondaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.secondaryAction,
+.swipeNavLink,
+.missingEventButton,
+.planGhostButton,
+.planSaveButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast, 140ms ease);
+}
+
+.secondaryAction {
+  flex: 1 1 calc(50% - 0.375rem);
+  background: #222E3F;
+  color: #ABB8C9;
+}
+
+.secondaryAction:hover {
+  background: #1c2736;
 }
 
 .eventSwipeRow {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding-top: 0.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .swipeNavLink {
-  flex: 0 0 auto;
-  border: none;
-  background: none;
-  color: rgb(255 255 255 / 0.48);
-  font-size: 0.84rem;
-  font-weight: 500;
-  padding: 0;
-  cursor: pointer;
-  line-height: 1.4;
+  width: 100%;
+  background: #222E3F;
+  color: #ABB8C9;
 }
 
 .swipeNavLink:not(:disabled):hover {
-  color: rgb(255 255 255 / 0.78);
-}
-
-.swipeNavLink:disabled {
-  opacity: 0.28;
-  cursor: not-allowed;
+  background: #1c2736;
 }
 
 .swipeHint {
-  flex: 1 1 auto;
   margin: 0;
-  color: rgb(255 255 255 / 0.52);
-  font-size: 0.8rem;
-  line-height: 1.4;
-  text-align: center;
-}
-
-
-.missingEventState {
-  display: grid;
-  padding-top: 0.2rem;
+  color: #ABB8C9;
+  font-size: 0.86rem;
+  line-height: 1.55;
 }
 
 .missingEventCard {
-  position: relative;
-  overflow: hidden;
-  width: 100%;
-  border-radius: 1.65rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.14);
-  background:
-    radial-gradient(circle at 14% 20%, rgb(var(--color-primary-rgb) / 0.18), transparent 42%),
-    radial-gradient(circle at 84% 0%, rgb(255 255 255 / 0.1), transparent 28%),
-    linear-gradient(180deg, rgb(15 22 33 / 0.98), rgb(12 18 28 / 0.98));
-  box-shadow: 0 22px 48px rgb(0 0 0 / 0.2);
-  padding: 1.6rem 1.3rem 1.3rem;
-}
-
-.missingEventStarfield {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.missingEventStar {
-  position: absolute;
-  width: 0.28rem;
-  height: 0.28rem;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.76);
-  animation: missingTwinkle 3.2s ease-in-out infinite;
-}
-
-.missingEventStar:nth-child(1) {
-  top: 1.2rem;
-  right: 1.8rem;
-}
-
-.missingEventStar:nth-child(2) {
-  top: 3.3rem;
-  right: 6.6rem;
-  animation-delay: 0.7s;
-}
-
-.missingEventStar:nth-child(3) {
-  top: 5.2rem;
-  right: 3.1rem;
-  animation-delay: 1.2s;
+  display: grid;
+  gap: 0.75rem;
 }
 
 .missingEventBadge {
   width: fit-content;
-  margin-bottom: 0.75rem;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(220 229 243 / 0.84);
+  background: #1c2736;
+  color: #ABB8C9;
   font-size: 0.74rem;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 0.38rem 0.68rem;
+  padding: 0.42rem 0.8rem;
 }
 
 .missingEventTitle {
   margin: 0;
-  color: rgb(249 252 255 / 0.98);
-  font-size: clamp(1.45rem, 5.8vw, 2.15rem);
+  color: #FFFFFF;
+  font-size: clamp(1.55rem, 4.5vw, 2.4rem);
   line-height: 1.08;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
 }
 
 .missingEventText {
-  margin: 0.62rem 0 1.15rem;
-  max-width: 34rem;
-  color: rgb(255 255 255 / 0.72);
-  font-size: 0.95rem;
-  line-height: 1.56;
+  margin: 0;
+  max-width: 42rem;
+  color: #ABB8C9;
+  font-size: 0.98rem;
+  line-height: 1.6;
 }
 
 .missingEventActions {
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 0.55rem;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 }
 
-.missingEventButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.7rem;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(248 250 255 / 0.9);
-  font-size: 0.84rem;
-  font-weight: 650;
-  padding: 0 0.9rem;
+.missingEventButton,
+.planGhostButton {
+  background: #222E3F;
+  color: #ABB8C9;
 }
 
-.missingEventButton--primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.36);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  color: rgb(249 253 255 / 0.98);
+.missingEventButton:hover,
+.planGhostButton:hover:not(:disabled) {
+  background: #1c2736;
+}
+
+.missingEventButton--primary,
+.planSaveButton {
+  background: #0F73FF;
+  color: #FFFFFF;
+}
+
+.missingEventButton--primary:hover,
+.planSaveButton:hover:not(:disabled) {
+  background: #0d67e1;
 }
 
 .missingEventButton--ghost {
-  background: transparent;
+  background: #1c2736;
 }
 
 .errorState {
-  display: grid;
   gap: 0.9rem;
   justify-items: start;
-  color: rgb(255 255 255 / 0.72);
   padding: 1rem 0;
+  color: #ABB8C9;
 }
 
 .errorState :deep(.inlineStatus) {
@@ -503,78 +554,77 @@
 }
 
 .planModalHint {
-  margin: 0.2rem 0 0;
-  color: rgb(255 255 255 / 0.64);
-  font-size: 0.84rem;
+  margin: 0.15rem 0 0;
+  color: #ABB8C9;
+  font-size: 0.86rem;
+  line-height: 1.5;
 }
 
 .planForm {
   display: grid;
-  gap: 0.8rem;
+  gap: 0.95rem;
 }
 
 .planField {
   display: grid;
-  gap: 0.38rem;
+  gap: 0.45rem;
 }
 
 .planField__label {
-  color: rgb(255 255 255 / 0.68);
-  font-size: 0.82rem;
+  color: #ABB8C9;
+  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
 .planField__input,
 .planField__textarea {
   width: 100%;
-  border-radius: 0.86rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
-  background: rgb(255 255 255 / 0.04);
-  color: rgb(255 255 255 / 0.92);
-  font-size: 0.92rem;
-  padding: 0.62rem 0.72rem;
+  border: none;
+  border-radius: 1rem;
+  background: #222E3F;
+  color: #FFFFFF;
+  font-size: 0.94rem;
+  padding: 0.78rem 0.9rem;
+  outline: none;
+  color-scheme: dark;
+  transition: background var(--motion-fast, 140ms ease);
+}
+
+.planField__input::placeholder,
+.planField__textarea::placeholder {
+  color: #ABB8C9;
+}
+
+.planField__input:focus,
+.planField__textarea:focus {
+  background: #1c2736;
 }
 
 .planField__textarea {
+  min-height: 6rem;
   resize: vertical;
-  min-height: 5.6rem;
 }
 
 .planRecommendation {
   margin: 0;
-  border-radius: 0.82rem;
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.25);
-  background: rgb(var(--color-primary-rgb) / 0.1);
-  color: rgb(236 243 255 / 0.94);
-  font-size: 0.84rem;
-  line-height: 1.45;
-  padding: 0.58rem 0.68rem;
+  border-radius: 1rem;
+  background: rgb(15 115 255 / 0.14);
+  color: #FFFFFF;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  padding: 0.85rem 0.95rem;
 }
 
 .planActions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.55rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
-.planGhostButton,
-.planSaveButton {
-  min-height: 2.5rem;
-  border-radius: 999px;
-  padding: 0 0.95rem;
-  font-size: 0.84rem;
-  font-weight: 600;
-}
-
-.planGhostButton {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2);
-  background: transparent;
-  color: rgb(255 255 255 / 0.74);
-}
-
-.planSaveButton {
-  border: 1px solid rgb(var(--color-primary-rgb) / 0.42);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  color: rgb(250 253 255 / 0.98);
+.loadingCard {
+  display: grid;
+  gap: 1rem;
 }
 
 .loadingLine,
@@ -582,39 +632,39 @@
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgb(255 255 255 / 0.06),
-    rgb(255 255 255 / 0.14),
-    rgb(255 255 255 / 0.06)
+    rgb(255 255 255 / 0.05),
+    rgb(255 255 255 / 0.12),
+    rgb(255 255 255 / 0.05)
   );
   background-size: 200% 100%;
   animation: shimmer 1.3s linear infinite;
 }
 
 .loadingLine {
-  height: 0.9rem;
+  height: 0.95rem;
 }
 
 .loadingLine--chips {
-  width: 48%;
+  width: 36%;
 }
 
 .loadingLine--title {
-  width: 78%;
-  height: 2.9rem;
-  border-radius: 1rem;
+  width: 72%;
+  height: 3.2rem;
+  border-radius: 1.25rem;
 }
 
 .loadingLine--meta {
-  width: 56%;
+  width: 50%;
 }
 
 .loadingLine--short {
-  width: 34%;
+  width: 28%;
 }
 
 .loadingPanel {
-  min-height: 6.8rem;
-  border-radius: 1.05rem;
+  min-height: 8rem;
+  border-radius: 1.35rem;
 }
 
 @keyframes shimmer {
@@ -627,60 +677,77 @@
   }
 }
 
-@keyframes missingTwinkle {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.92);
+@media (max-width: 1023px) {
+  .eventHero,
+  .eventContentGrid {
+    grid-template-columns: 1fr;
   }
 
-  50% {
-    opacity: 1;
-    transform: scale(1.28);
+  .eventDescriptionBlock--full {
+    grid-column: auto;
+  }
+
+  .eventOverviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 767px) {
   .eventDetailPage {
-    padding-inline: 0.85rem;
-    padding-bottom: 2.2rem;
+    padding: 1rem 0.85rem 2.5rem;
   }
 
-  .eventCard__content,
-  .loadingCard {
-    padding: 1rem;
+  .eventHero__main,
+  .eventActionPanel,
+  .eventSection,
+  .loadingCard,
+  .missingEventCard {
+    padding: 1.1rem;
+    border-radius: 1.4rem;
   }
 
   .eventTitle {
-    font-size: clamp(1.9rem, 9vw, 2.45rem);
+    font-size: clamp(2rem, 10vw, 2.8rem);
   }
 
-  .eventCtaRow {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.55rem;
+  .eventMeta {
+    font-size: 0.95rem;
   }
 
-  .planButton--primary {
-    grid-column: 1 / -1;
+  .eventOverviewGrid,
+  .eventCtaRow,
+  .eventSwipeRow {
+    grid-template-columns: 1fr;
   }
 
-  .planButton {
-    min-height: 2.9rem;
-    height: 2.9rem;
+  .secondaryAction,
+  .missingEventButton,
+  .planGhostButton,
+  .planSaveButton {
+    width: 100%;
   }
 
-  .missingEventCard {
-    padding: 1.2rem 1rem 1rem;
-  }
-
-  .missingEventActions {
+  .eventSecondaryActions,
+  .missingEventActions,
+  .planActions {
     display: grid;
     grid-template-columns: 1fr;
-    width: 100%;
   }
 
-  .missingEventButton {
-    width: 100%;
+  .eventSectionHeader {
+    gap: 0.85rem;
   }
 
+  .eventSectionHeader,
+  .locationPrompt {
+    grid-template-columns: 1fr;
+  }
+
+  .eventSectionHeader {
+    display: grid;
+  }
+
+  .locationPrompt {
+    display: grid;
+  }
 }
