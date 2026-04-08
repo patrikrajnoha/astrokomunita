@@ -13,10 +13,8 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use RuntimeException;
 
 class AuthController extends Controller
 {
@@ -124,46 +122,22 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
             'remember' => ['sometimes', 'boolean'],
         ]);
-        $remember = (bool) ($credentials['remember'] ?? false);
         unset($credentials['remember']);
 
-        $credentials['email'] = mb_strtolower(trim((string) $credentials['email']));
+        $email = mb_strtolower(trim((string) $credentials['email']));
+        $password = (string) $credentials['password'];
 
-        $isBotAccount = User::query()
-            ->whereRaw('LOWER(email) = ?', [$credentials['email']])
-            ->where('is_bot', true)
-            ->exists();
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
 
-        if ($isBotAccount) {
+        if (! $user || $user->is_bot || ! $this->credentialsMatchWithoutUserWrite($user, $password)) {
             return response()->json([
                 'message' => 'Nespravny email alebo heslo.',
             ], 422);
         }
 
-        try {
-            $attempted = Auth::attempt($credentials, $remember);
-        } catch (RuntimeException $exception) {
-            $attempted = false;
-        }
-
-        if (! $attempted) {
-            if ($this->attemptLegacyPlaintextLogin($credentials['email'], $credentials['password'], $remember)) {
-                $request->session()->regenerate();
-
-                $loggedInUser = $request->user();
-                if ($loggedInUser && ($loggedInUser->isBanned() || ! $loggedInUser->is_active)) {
-                    Auth::guard('web')->logout();
-                    return response()->json(['message' => 'Váš účet je zablokovaný.'], 403);
-                }
-
-                return response()->json($loggedInUser);
-            }
-
-            return response()->json([
-                'message' => 'Nespravny email alebo heslo.',
-            ], 422);
-        }
-
+        Auth::login($user, false);
         $request->session()->regenerate();
 
         $loggedInUser = $request->user();
@@ -175,20 +149,8 @@ class AuthController extends Controller
         return response()->json($loggedInUser);
     }
 
-    private function attemptLegacyPlaintextLogin(string $email, string $password, bool $remember): bool
+    private function credentialsMatchWithoutUserWrite(User $user, string $password): bool
     {
-        if (! $this->legacyPlaintextFallbackAllowed()) {
-            return false;
-        }
-
-        $user = User::query()
-            ->whereRaw('LOWER(email) = ?', [$email])
-            ->first();
-
-        if (! $user) {
-            return false;
-        }
-
         $stored = (string) ($user->getAuthPassword() ?? '');
         if ($stored === '') {
             return false;
@@ -196,26 +158,20 @@ class AuthController extends Controller
 
         $hashInfo = password_get_info($stored);
         $isAlreadyHashed = ! empty($hashInfo['algo']);
-        $verified = false;
 
         if ($isAlreadyHashed) {
-            $verified = password_verify($password, $stored);
-        } else {
-            $verified = hash_equals($stored, $password);
+            return password_verify($password, $stored);
         }
 
-        if (! $verified) {
+        if (! $this->legacyPlaintextFallbackAllowed()) {
+            return false;
+        }
+
+        if (! hash_equals($stored, $password)) {
             return false;
         }
 
         $this->logLegacyPlaintextFallbackUsage($user);
-
-        $user->forceFill([
-            'password' => Hash::make($password),
-        ])->save();
-
-        Auth::login($user, $remember);
-
         return true;
     }
 
