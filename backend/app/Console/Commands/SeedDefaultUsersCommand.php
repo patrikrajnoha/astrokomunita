@@ -26,7 +26,10 @@ class SeedDefaultUsersCommand extends Command
         }
 
         $purgeNonCoreUsers = app()->environment(['local', 'testing']) || (bool) $this->option('purge-non-core');
-        $summary = $defaultUsersSeeder->seed($purgeNonCoreUsers);
+        $summary = $defaultUsersSeeder->seed(
+            $purgeNonCoreUsers,
+            app()->environment('production')
+        );
 
         $created = (array) ($summary['created'] ?? []);
         $updated = (array) ($summary['updated'] ?? []);

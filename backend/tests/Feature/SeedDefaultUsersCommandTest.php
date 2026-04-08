@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\DefaultUsersSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use LogicException;
 use Tests\TestCase;
 
 class SeedDefaultUsersCommandTest extends TestCase
@@ -105,5 +106,23 @@ class SeedDefaultUsersCommandTest extends TestCase
         $this->assertSame([], $summary['deleted']);
         $this->assertNotNull(User::query()->where('username', 'legacy_user')->first());
         $this->assertNotNull(User::query()->where('username', DefaultUsersSeeder::DEFAULT_ADMIN_USERNAME)->first());
+    }
+
+    public function test_seeder_refuses_direct_execution_in_production_without_explicit_opt_in(): void
+    {
+        $originalEnvironment = $this->app->environment();
+
+        try {
+            $this->app->detectEnvironment(fn () => 'production');
+
+            $this->assertTrue(app()->environment('production'));
+
+            $this->expectException(LogicException::class);
+            $this->expectExceptionMessage('DefaultUsersSeeder refuses to run in production without explicit opt-in.');
+
+            app(DefaultUsersSeeder::class)->seed(false);
+        } finally {
+            $this->app->detectEnvironment(fn () => $originalEnvironment);
+        }
     }
 }
