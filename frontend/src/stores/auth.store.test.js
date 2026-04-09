@@ -160,6 +160,32 @@ describe('auth store login resilience', () => {
     expect(store.error).toBeNull()
   })
 
+  it('keeps authenticated state for preferences-save unauthorized failures', async () => {
+    const store = useAuthStore()
+    store.user = { id: 9, name: 'Observer' }
+    store.status = 'authenticated'
+
+    http.get.mockRejectedValueOnce({
+      response: {
+        status: 401,
+        data: { message: 'Unauthenticated.' },
+      },
+    })
+
+    const data = await store.fetchUser({
+      source: 'preferences-save',
+      retry: false,
+      markBootstrap: true,
+      preserveStateOnError: true,
+    })
+
+    expect(data).toEqual(expect.objectContaining({ id: 9 }))
+    expect(store.isAuthed).toBe(true)
+    expect(store.user).toEqual(expect.objectContaining({ id: 9 }))
+    expect(store.status).toBe('authenticated')
+    expect(store.error).toBeNull()
+  })
+
   it('uses auth-aware fetchUser request flags for /auth/me', async () => {
     const store = useAuthStore()
 
@@ -194,6 +220,29 @@ describe('auth store login resilience', () => {
     expect(store.isAuthed).toBe(false)
     expect(store.user).toBeNull()
     expect(store.status).toBe('guest')
+    expect(store.error).toBeNull()
+  })
+
+  it('keeps authenticated state for preferences-save empty auth/me payloads', async () => {
+    const store = useAuthStore()
+    store.user = { id: 12, name: 'Sky User' }
+    store.status = 'authenticated'
+
+    http.get.mockResolvedValueOnce({
+      data: null,
+    })
+
+    const data = await store.fetchUser({
+      source: 'preferences-save',
+      retry: false,
+      markBootstrap: true,
+      preserveStateOnError: true,
+    })
+
+    expect(data).toEqual(expect.objectContaining({ id: 12 }))
+    expect(store.isAuthed).toBe(true)
+    expect(store.user).toEqual(expect.objectContaining({ id: 12 }))
+    expect(store.status).toBe('authenticated')
     expect(store.error).toBeNull()
   })
 

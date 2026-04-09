@@ -3,7 +3,9 @@ import http, { refreshCsrfCookie } from '@/services/api'
 import { clearHomeFeedPrefetch } from '@/services/feedPrefetch'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
-const PRESERVE_UNAUTHORIZED_SOURCES = new Set([
+const PRESERVE_AUTH_STATE_SOURCES = new Set([
+  'email-gate-verified',
+  'preferences-save',
   'profile-save',
 ])
 const authDebugEnabled =
@@ -132,6 +134,10 @@ export const useAuthStore = defineStore('auth', {
 
       const requestPromise = (async () => {
         const isStaleAuthSnapshot = () => this.loginSequence !== authSequenceAtStart
+        const shouldPreserveCurrentAuthState = () =>
+          !!this.user &&
+          preserveStateOnError &&
+          PRESERVE_AUTH_STATE_SOURCES.has(source)
         const applyBootstrapFlags = () => {
           if (markBootstrap) {
             this.bootstrapDone = true
@@ -183,6 +189,21 @@ export const useAuthStore = defineStore('auth', {
               const hasAuthenticatedUser = Number(payload?.id || 0) > 0
 
               if (!hasAuthenticatedUser) {
+                if (shouldPreserveCurrentAuthState()) {
+                  this.status = 'authenticated'
+                  this.error = null
+
+                  if (authDebugEnabled) {
+                    console.info('[AUTH] fetchUser empty auth payload ignored (preserve state)', {
+                      source,
+                    })
+                  }
+
+                  applyBootstrapFlags()
+
+                  return this.user
+                }
+
                 this.user = null
                 this.status = 'guest'
                 this.error = null
@@ -262,10 +283,8 @@ export const useAuthStore = defineStore('auth', {
               const isTransientFailure =
                 classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
               const shouldPreserveUnauthorized =
-                !!this.user &&
-                classified.type === 'unauthorized' &&
-                preserveStateOnError &&
-                PRESERVE_UNAUTHORIZED_SOURCES.has(source)
+                shouldPreserveCurrentAuthState() &&
+                classified.type === 'unauthorized'
 
               if (shouldPreserveUnauthorized || (this.user && isTransientFailure)) {
                 this.status = 'authenticated'

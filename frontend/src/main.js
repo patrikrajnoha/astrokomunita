@@ -6,8 +6,11 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { appInitState, setInitError, setInitializing, setMounted } from '@/bootstrap/appInitState'
+import { clearPreloadRecoveryState, installPreloadRecovery } from '@/bootstrap/preloadRecovery'
 import { useAuthStore } from '@/stores/auth'
 import { captureClientError } from '@/services/errorTracker'
+
+installPreloadRecovery()
 
 function formatError(errorLike) {
   if (!errorLike) return { message: 'Neznáma chyba', stack: '' }
@@ -163,6 +166,8 @@ async function bootstrap() {
         window.dispatchEvent(new CustomEvent('post:updated', { detail: event?.post ?? event }))
       })
   }, 1000);
+
+  clearPreloadRecoveryState()
 
 } catch (error) {
   // Handle initialization or import failures
