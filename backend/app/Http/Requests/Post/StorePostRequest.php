@@ -55,8 +55,8 @@ class StorePostRequest extends FormRequest
     public function rules(): array
     {
         $mimes = implode(',', (array) config('media.post_attachment_mimes', []));
-        $maxKb = (int) config('media.post_attachment_max_kb', 10240);
-        $pollImageMaxKb = (int) config('media.poll_option_image_max_kb', 5120);
+        $maxKb = (int) config('media.post_attachment_max_kb', 32768);
+        $pollImageMaxKb = (int) config('media.poll_option_image_max_kb', 20480);
 
         return [
             'content' => [
@@ -110,9 +110,13 @@ class StorePostRequest extends FormRequest
 
     public function messages(): array
     {
+        $pollImageMaxMb = max(1, (int) ceil(((int) config('media.poll_option_image_max_kb', 20480)) / 1024));
+        $attachmentMaxMb = max(1, (int) ceil(((int) config('media.post_attachment_max_kb', 32768)) / 1024));
+
         return [
             'content.required' => 'Post content is required.',
             'content.min' => 'Post content must contain at least 1 character.',
+            'attachment.max' => sprintf('Attachment may not be greater than %d MB.', $attachmentMaxMb),
             'feed_key.in' => 'Feed key must be community or astro.',
             'author_kind.in' => 'Author kind must be either user or bot.',
             'bot_identity.in' => 'Bot identity must be kozmo or stela.',
@@ -120,7 +124,7 @@ class StorePostRequest extends FormRequest
             'poll.options.max' => 'Poll can have at most 4 options.',
             'poll.options.*.text.max' => 'Each poll option may not be greater than 25 characters.',
             'poll.options.*.image.image' => 'Poll option image must be a valid image file.',
-            'poll.options.*.image.max' => 'Poll option image may not be greater than 5 MB.',
+            'poll.options.*.image.max' => sprintf('Poll option image may not be greater than %d MB.', $pollImageMaxMb),
         ];
     }
 

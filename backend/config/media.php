@@ -20,7 +20,7 @@ return [
     | Post Attachment Validation
     |--------------------------------------------------------------------------
     */
-    'post_attachment_max_kb' => (int) env('POST_ATTACHMENT_MAX_KB', 20480),
+    'post_attachment_max_kb' => (int) env('POST_ATTACHMENT_MAX_KB', 32768),
     'post_attachment_mimes' => [
         'jpg',
         'jpeg',
@@ -52,7 +52,7 @@ return [
     | Observation Image Validation
     |--------------------------------------------------------------------------
     */
-    'observation_image_max_kb' => (int) env('OBSERVATION_IMAGE_MAX_KB', 20480),
+    'observation_image_max_kb' => (int) env('OBSERVATION_IMAGE_MAX_KB', 32768),
     'observation_image_mimes' => [
         'jpg',
         'jpeg',
@@ -67,5 +67,5 @@ return [
     | Poll Option Image Validation
     |--------------------------------------------------------------------------
     */
-    'poll_option_image_max_kb' => 5120,
+    'poll_option_image_max_kb' => (int) env('POLL_OPTION_IMAGE_MAX_KB', 20480),
 ];

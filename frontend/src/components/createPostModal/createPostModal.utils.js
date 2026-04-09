@@ -139,3 +139,11 @@ export function firstValidationError(error, fallbackMessage) {
     fallbackMessage
   )
 }
+
+export function resolveRequestErrorMessage(error, fallbackMessage) {
+  return (
+    error?.response?.data?.message ||
+    error?.userMessage ||
+    fallbackMessage
+  )
+}

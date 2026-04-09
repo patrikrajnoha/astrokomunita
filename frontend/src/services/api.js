@@ -210,8 +210,16 @@ function normalizeHttpErrorMessage(error) {
     return 'Server neodpovedá. Skús to znova neskôr.'
   }
 
+  if (status === 413) {
+    return 'Nahravanie zlyhalo. Subor alebo cely upload je prilis velky. Zmensi subory alebo pocet priloh a skus to znova.'
+  }
+
   const isNetworkError = !status && (code === 'ERR_NETWORK' || message === 'Network Error' || message.toLowerCase().includes('network'))
   if (isNetworkError) {
+    if (isFormDataPayload(error?.config?.data)) {
+      return 'Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky. Zmensi subor alebo pocet priloh a skus to znova.'
+    }
+
     return 'Backend je nedostupný. Skontroluj, či beží API server.'
   }
 
@@ -220,6 +228,10 @@ function normalizeHttpErrorMessage(error) {
   }
 
   return String(error?.response?.data?.message || message || 'Požiadavka zlyhala.')
+}
+
+function isFormDataPayload(payload) {
+  return typeof FormData !== 'undefined' && payload instanceof FormData
 }
 
 function logDevAuthDiagnostic(error, status) {
@@ -319,6 +331,8 @@ api.interceptors.response.use(
     if (!suppressToast) {
       if (status === 422) {
         toast.warn('Skontroluj formulár.')
+      } else if (status === 413) {
+        toast.warn(normalizedMessage)
       } else if (isVerificationError(error, status, normalizedMessage)) {
         const backendCode = resolveBackendErrorCode(error)
         const backendAction = resolveBackendAction(error)

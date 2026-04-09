@@ -16,7 +16,7 @@ class ReplyPostRequest extends FormRequest
     public function rules(): array
     {
         $mimes = implode(',', (array) config('media.post_attachment_mimes', []));
-        $maxKb = (int) config('media.post_attachment_max_kb', 10240);
+        $maxKb = (int) config('media.post_attachment_max_kb', 32768);
 
         return [
             'content' => ['required', 'string', 'min:1', 'max:2000'],
@@ -33,10 +33,13 @@ class ReplyPostRequest extends FormRequest
 
     public function messages(): array
     {
+        $attachmentMaxMb = max(1, (int) ceil(((int) config('media.post_attachment_max_kb', 32768)) / 1024));
+
         return [
             'content.required' => 'Reply content is required.',
             'content.min' => 'Reply content must contain at least 1 character.',
             'content.max' => 'Reply content may not be greater than 2000 characters.',
+            'attachment.max' => sprintf('Attachment may not be greater than %d MB.', $attachmentMaxMb),
         ];
     }
 

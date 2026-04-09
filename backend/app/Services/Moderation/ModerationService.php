@@ -351,8 +351,8 @@ class ModerationService
 
     private function moderationImageMaxBytes(): int
     {
-        $configured = (int) config('moderation.image_max_bytes', 20 * 1024 * 1024);
-        return $configured > 0 ? $configured : (20 * 1024 * 1024);
+        $configured = (int) config('moderation.image_max_bytes', 32 * 1024 * 1024);
+        return $configured > 0 ? $configured : (32 * 1024 * 1024);
     }
 
     private function isPayloadTooLargeError(ModerationClientException $exception): bool

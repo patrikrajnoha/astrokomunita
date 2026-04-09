@@ -4,6 +4,7 @@ import CreatePostModal from '@/components/CreatePostModal.vue'
 
 const getMock = vi.fn()
 const pushMock = vi.fn()
+const createPostMock = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({
@@ -36,7 +37,7 @@ vi.mock('@/composables/useToast', () => ({
 }))
 
 vi.mock('@/services/posts', () => ({
-  createPost: vi.fn(),
+  createPost: (...args) => createPostMock(...args),
 }))
 
 describe('CreatePostModal GIF selection', () => {
@@ -44,6 +45,7 @@ describe('CreatePostModal GIF selection', () => {
     vi.useFakeTimers()
     getMock.mockReset()
     pushMock.mockReset()
+    createPostMock.mockReset()
     URL.createObjectURL = vi.fn(() => 'blob:preview-image')
     URL.revokeObjectURL = vi.fn()
     getMock.mockResolvedValue({
@@ -60,6 +62,7 @@ describe('CreatePostModal GIF selection', () => {
         ],
       },
     })
+    createPostMock.mockResolvedValue({ data: { id: 1 } })
   })
 
   afterEach(() => {
@@ -224,6 +227,32 @@ describe('CreatePostModal GIF selection', () => {
     const previewImage = wrapper.find('.contentCol .mediaCard .mediaImg')
     expect(previewImage.exists()).toBe(true)
     expect(previewImage.attributes('src')).toBe('blob:preview-image')
+
+    wrapper.unmount()
+  })
+
+  it('shows upload-specific userMessage instead of generic submit error', async () => {
+    createPostMock.mockRejectedValueOnce({
+      userMessage: 'Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky.',
+    })
+
+    const wrapper = mount(CreatePostModal, {
+      props: { open: true },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+          PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
+        },
+      },
+    })
+
+    await wrapper.get('#composer-textarea').setValue('Test príspevok')
+    await wrapper.find('button.primary').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky.')
 
     wrapper.unmount()
   })

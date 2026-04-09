@@ -43,7 +43,7 @@ class StoreObservationRequest extends FormRequest
     public function rules(): array
     {
         $mimes = implode(',', (array) config('media.observation_image_mimes', ['jpg', 'jpeg', 'png', 'webp', 'gif']));
-        $maxKb = (int) config('media.observation_image_max_kb', 20480);
+        $maxKb = (int) config('media.observation_image_max_kb', 32768);
         $maxCount = max(1, (int) config('media.observation_image_max_count', 6));
 
         return [
@@ -64,6 +64,8 @@ class StoreObservationRequest extends FormRequest
 
     public function messages(): array
     {
+        $imageMaxMb = max(1, (int) ceil(((int) config('media.observation_image_max_kb', 32768)) / 1024));
+
         return [
             'title.required' => 'Observation title is required.',
             'observed_at.required' => 'Observation time is required.',
@@ -72,7 +74,7 @@ class StoreObservationRequest extends FormRequest
             'images.max' => 'Maximum :max images are allowed per observation.',
             'images.*.image' => 'Each uploaded file must be an image.',
             'images.*.mimes' => 'Allowed image formats are: :values.',
-            'images.*.max' => 'Each image may be up to :max KB.',
+            'images.*.max' => sprintf('Each image may be up to %d MB.', $imageMaxMb),
         ];
     }
 }

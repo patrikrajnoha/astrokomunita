@@ -24,7 +24,7 @@ return [
     'fallback_policy' => env('MODERATION_FALLBACK_POLICY', 'pending_blur_retry'),
 
     // Must match moderation microservice MAX_IMAGE_BYTES to avoid 413 loops.
-    'image_max_bytes' => (int) env('MODERATION_IMAGE_MAX_BYTES', 20 * 1024 * 1024),
+    'image_max_bytes' => (int) env('MODERATION_IMAGE_MAX_BYTES', 32 * 1024 * 1024),
     // JPEG resize settings for payload_too_large fallback.
     'image_resize_max_width' => (int) env('MODERATION_IMAGE_RESIZE_MAX_WIDTH', 1600),
     'image_resize_jpeg_quality' => (int) env('MODERATION_IMAGE_RESIZE_JPEG_QUALITY', 78),

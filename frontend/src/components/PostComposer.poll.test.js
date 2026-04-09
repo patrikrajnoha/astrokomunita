@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import PostComposer from '@/components/PostComposer.vue'
 
 const postMock = vi.fn()
@@ -94,5 +94,19 @@ describe('PostComposer poll mode', () => {
     expect(keys).toContain('poll[options][0][text]')
     expect(keys).toContain('poll[options][0][image]')
     expect(keys).not.toContain('attachment')
+  })
+
+  it('shows upload-specific userMessage instead of generic publish error', async () => {
+    postMock.mockRejectedValueOnce({
+      userMessage: 'Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky.',
+    })
+
+    const wrapper = mount(PostComposer)
+
+    await wrapper.find('#post-composer-textarea').setValue('Test príspevok')
+    await wrapper.find('button[aria-label="Publikovať"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky.')
   })
 })

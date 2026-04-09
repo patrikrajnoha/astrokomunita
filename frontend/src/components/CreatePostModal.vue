@@ -19,12 +19,13 @@ import {
   isImageFile,
   normalizePollOptions,
   prettySize,
+  resolveRequestErrorMessage,
   revokeAllPollOptionPreviews,
   revokeObjectUrl,
 } from './createPostModal/createPostModal.utils'
 
 const MAX_CHARS = 300
-const MAX_BYTES = 20 * 1024 * 1024
+const MAX_BYTES = 32 * 1024 * 1024
 const MIN_HEIGHT = 120
 const MAX_HEIGHT = 220
 const GIF_MIN_QUERY_LENGTH = 2
@@ -647,7 +648,7 @@ async function submit() {
     } else if (status === 422) {
       errorMessage.value = firstValidationError(error, 'Skontroluj text, prílohy a anketu.')
     } else {
-      errorMessage.value = error?.response?.data?.message || 'Odoslanie zlyhalo.'
+      errorMessage.value = resolveRequestErrorMessage(error, 'Odoslanie zlyhalo.')
     }
   } finally {
     submitting.value = false

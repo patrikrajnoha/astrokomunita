@@ -13,9 +13,9 @@ const GIF_MIN_QUERY_LENGTH = 2
 const props = defineProps({
   parentId: { type: [Number, String], required: true },
 
-  // Keep aligned with backend constraints (max 5MB + mimes)
+  // Keep aligned with backend post attachment constraints.
   accept: { type: String, default: 'image/*,.pdf,.txt,.doc,.docx' },
-  maxBytes: { type: Number, default: 5 * 1024 * 1024 },
+  maxBytes: { type: Number, default: 32 * 1024 * 1024 },
   compact: { type: Boolean, default: false },
   autofocus: { type: Boolean, default: false },
   placeholder: { type: String, default: 'Napíš komentár...' },
@@ -325,7 +325,7 @@ async function submit() {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre odoslanie komentára sa prihlás.'
     else if (status === 422) err.value = 'Skontroluj text (1–2000), prílohu a GIF.'
-    else err.value = e?.response?.data?.message || 'Odoslanie komentára zlyhalo.'
+    else err.value = e?.response?.data?.message || e?.userMessage || 'Odoslanie komentára zlyhalo.'
   } finally {
     posting.value = false
   }

@@ -16,6 +16,7 @@ import {
   isImageFile,
   normalizePollOptions,
   prettySize,
+  resolveRequestErrorMessage,
   revokeAllPollOptionPreviews,
   revokeObjectUrl,
 } from '@/components/createPostModal/createPostModal.utils'
@@ -35,7 +36,7 @@ const emit = defineEmits(['created'])
 
 const props = defineProps({
   accept: { type: String, default: 'image/*,.gif,.pdf,.txt,.doc,.docx' },
-  maxBytes: { type: Number, default: 20 * 1024 * 1024 },
+  maxBytes: { type: Number, default: 32 * 1024 * 1024 },
 })
 
 const auth = useAuthStore()
@@ -321,7 +322,7 @@ async function submit() {
     const status = e?.response?.status
     if (status === 401) err.value = 'Pre publikovanie sa prihlás.'
     else if (status === 422) err.value = firstValidationError(e, 'Skontroluj text, prílohu a poll možnosti.')
-    else err.value = e?.response?.data?.message || 'Publikovanie zlyhalo.'
+    else err.value = resolveRequestErrorMessage(e, 'Publikovanie zlyhalo.')
   } finally {
     posting.value = false
   }
