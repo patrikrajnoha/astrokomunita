@@ -5,8 +5,6 @@ import { clearHomeFeedPrefetch } from '@/services/feedPrefetch'
 const AUTH_TIMEOUTS_MS = [5000, 8000]
 const PRESERVE_UNAUTHORIZED_SOURCES = new Set([
   'profile-save',
-  'login-bg-refresh',
-  'register-bg-refresh',
 ])
 const authDebugEnabled =
   import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_AUTH || '').trim() === '1'
@@ -375,14 +373,6 @@ export const useAuthStore = defineStore('auth', {
         this.bootstrapDone = true
         this.initialized = true
         this.loginSequence += 1
-
-        // Non-blocking refresh for enriched payload (/auth/me adds activity fields).
-        this.fetchUser({
-          source: 'login-bg-refresh',
-          retry: false,
-          markBootstrap: false,
-          preserveStateOnError: true,
-        }).catch(() => {})
         return loginUser
       } finally {
         this.loading = false
@@ -403,12 +393,6 @@ export const useAuthStore = defineStore('auth', {
           this.bootstrapDone = true
           this.initialized = true
           this.loginSequence += 1
-          this.fetchUser({
-            source: 'register-bg-refresh',
-            retry: false,
-            markBootstrap: false,
-            preserveStateOnError: true,
-          }).catch(() => {})
           return
         }
 

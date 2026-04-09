@@ -39,18 +39,11 @@ describe('auth store login resilience', () => {
     http.defaults.headers.common = {}
   })
 
-  it('keeps authenticated user when login background refresh fails with 401', async () => {
+  it('keeps authenticated user after login without triggering auth refresh', async () => {
     const store = useAuthStore()
 
     http.post.mockResolvedValueOnce({
       data: { id: 7, name: 'Admin', role: 'admin' },
-    })
-
-    http.get.mockRejectedValueOnce({
-      response: {
-        status: 401,
-        data: { message: 'Unauthenticated.' },
-      },
     })
 
     await store.login({
@@ -70,21 +63,14 @@ describe('auth store login resilience', () => {
       remember: true,
     })
     expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
-    expect(http.get).toHaveBeenCalledWith('/auth/me', expect.any(Object))
+    expect(http.get).not.toHaveBeenCalled()
   })
 
-  it('keeps authenticated user when register background refresh fails with 401', async () => {
+  it('keeps authenticated user after register without triggering auth refresh', async () => {
     const store = useAuthStore()
 
     http.post.mockResolvedValueOnce({
       data: { id: 17, name: 'New User', role: 'member' },
-    })
-
-    http.get.mockRejectedValueOnce({
-      response: {
-        status: 401,
-        data: { message: 'Unauthenticated.' },
-      },
     })
 
     await store.register({
@@ -99,6 +85,7 @@ describe('auth store login resilience', () => {
     expect(store.user).toEqual(expect.objectContaining({ id: 17 }))
     expect(store.status).toBe('authenticated')
     expect(store.error).toBeNull()
+    expect(http.get).not.toHaveBeenCalled()
   })
 
   it('keeps local logout cleanup when backend logout returns 401', async () => {
@@ -263,10 +250,6 @@ describe('auth store login resilience', () => {
     }))
 
     http.post.mockResolvedValueOnce({
-      data: { id: 11, name: 'Sky User' },
-    })
-
-    http.get.mockResolvedValueOnce({
       data: { id: 11, name: 'Sky User' },
     })
 
