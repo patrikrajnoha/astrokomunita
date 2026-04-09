@@ -282,8 +282,12 @@ export const useAuthStore = defineStore('auth', {
 
               const isTransientFailure =
                 classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
+              const shouldPreserveProfileSaveUnauthorized =
+                source === 'profile-save' &&
+                !!this.user &&
+                classified.type === 'unauthorized'
 
-              if (this.user && (preserveStateOnError || isTransientFailure)) {
+              if (shouldPreserveProfileSaveUnauthorized || (this.user && (preserveStateOnError || isTransientFailure))) {
                 this.status = 'authenticated'
                 this.error = null
                 if (authDebugEnabled) {

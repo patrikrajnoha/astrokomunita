@@ -784,18 +784,18 @@ async function save() {
       }
     }
 
-    try {
-      const refreshed = await http.get('/auth/me', {
-        meta: { skipErrorToast: true },
-      })
-      if (refreshed?.data) {
-        userPayload = refreshed.data
-      }
-    } catch {
-      // Keep latest successful payload if /auth/me refresh fails.
+    if (userPayload) {
+      auth.user = userPayload
     }
 
-    if (userPayload) {
+    await auth.fetchUser({
+      source: 'profile-save',
+      preserveStateOnError: true,
+    })
+
+    if (auth.user) {
+      syncFromUser(auth.user)
+    } else if (userPayload) {
       auth.user = userPayload
       syncFromUser(userPayload)
     }

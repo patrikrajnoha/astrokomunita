@@ -102,6 +102,27 @@ describe('auth store login resilience', () => {
     expect(store.error?.type).toBe('unauthorized')
   })
 
+  it('keeps authenticated state for profile-save unauthorized failures', async () => {
+    const store = useAuthStore()
+    store.user = { id: 5, name: 'Tester' }
+    store.status = 'authenticated'
+
+    http.get.mockRejectedValueOnce({
+      response: {
+        status: 401,
+        data: { message: 'Unauthenticated.' },
+      },
+    })
+
+    const data = await store.fetchUser({ source: 'profile-save', retry: false, markBootstrap: true })
+
+    expect(data).toEqual(expect.objectContaining({ id: 5 }))
+    expect(store.isAuthed).toBe(true)
+    expect(store.user).toEqual(expect.objectContaining({ id: 5 }))
+    expect(store.status).toBe('authenticated')
+    expect(store.error).toBeNull()
+  })
+
   it('treats empty auth/me payload as guest', async () => {
     const store = useAuthStore()
 

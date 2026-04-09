@@ -278,6 +278,21 @@ describe('ProfileEdit', () => {
     expect(httpMock.patch.mock.calls.map(([url]) => url)).toEqual(['/profile'])
   })
 
+  it('refreshes auth via store after successful save and avoids direct /auth/me request', async () => {
+    const wrapper = mount(ProfileEdit)
+    await flush()
+
+    await wrapper.find('textarea').setValue('Nova bio')
+    await saveButton(wrapper).trigger('click')
+    await flush()
+
+    expect(authMock.fetchUser).toHaveBeenCalledWith({
+      source: 'profile-save',
+      preserveStateOnError: true,
+    })
+    expect(httpMock.get).not.toHaveBeenCalled()
+  })
+
   it('calls only /me/location when only location fields changed', async () => {
     const wrapper = mount(ProfileEdit)
     await flush()
