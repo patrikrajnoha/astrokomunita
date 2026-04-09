@@ -214,13 +214,13 @@ function formatCountdown(item) {
   if (diffMs < 0) return 'Práve prebieha'
 
   const diffMinutes = Math.round(diffMs / (60 * 1000))
-  if (diffMinutes < 60) return `Za ${diffMinutes} min`
+  if (diffMinutes < 60) return `O ${diffMinutes} min`
 
   const diffHours = Math.round(diffMinutes / 60)
-  if (diffHours < 48) return `Za ${diffHours} h`
+  if (diffHours < 48) return `O ${diffHours} h`
 
   const diffDays = Math.round(diffHours / 24)
-  return `Za ${diffDays} dni`
+  return `O ${diffDays} dni`
 }
 
 function formatCompactDate(item) {

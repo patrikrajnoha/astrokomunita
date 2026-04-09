@@ -60,7 +60,7 @@ describe('NextEclipseWidget', () => {
     expect(getMock).toHaveBeenCalledWith('/events/widget/next-eclipse')
     expect(wrapper.text()).toContain('Zatmenie na obzore')
     expect(wrapper.text()).toContain('Ciastocne zatmenie Slnka')
-    expect(wrapper.text()).toContain('Za 40 dní')
+    expect(wrapper.text()).toContain('O 40 dní')
     expect(wrapper.text()).not.toContain('Zdroj:')
     expect(wrapper.find('a[href="/events/108"]').exists()).toBe(true)
   })

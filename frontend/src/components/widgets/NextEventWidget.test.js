@@ -70,7 +70,7 @@ describe('NextEventWidget', () => {
     expect(normalizeText(wrapper.text())).toContain('meteoricky roj')
 
     // Countdown
-    expect(wrapper.text()).toContain('Za 2 dni')
+    expect(wrapper.text()).toContain('O 2 dni')
 
     // No source attribution
     expect(wrapper.text()).not.toContain('Zdroj:')

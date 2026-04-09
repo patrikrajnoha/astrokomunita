@@ -261,16 +261,16 @@ function formatCountdown(value) {
   const days = Math.floor(diffMs / dayMs)
 
   if (days >= 1) {
-    return days === 1 ? 'Za 1 deň' : days <= 4 ? `Za ${days} dni` : `Za ${days} dní`
+    return days === 1 ? 'O 1 deň' : days <= 4 ? `O ${days} dni` : `O ${days} dní`
   }
 
   const hours = Math.floor(diffMs / hourMs)
   if (hours >= 1) {
-    return hours === 1 ? 'Za 1 hodinu' : hours <= 4 ? `Za ${hours} hodiny` : `Za ${hours} hodín`
+    return hours === 1 ? 'O 1 hodinu' : hours <= 4 ? `O ${hours} hodiny` : `O ${hours} hodín`
   }
 
   const minutes = Math.max(1, Math.floor(diffMs / minuteMs))
-  return minutes === 1 ? 'Za 1 minútu' : minutes <= 4 ? `Za ${minutes} minúty` : `Za ${minutes} minút`
+  return minutes === 1 ? 'O 1 minútu' : minutes <= 4 ? `O ${minutes} minúty` : `O ${minutes} minút`
 }
 
 function formatUpdatedTime(value) {
