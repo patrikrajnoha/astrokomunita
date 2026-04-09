@@ -10,13 +10,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import PollComposerPanel from '@/components/poll/PollComposerPanel.vue'
 import ObservationCreateView from '@/views/ObservationCreateView.vue'
+import { IMAGE_UPLOAD_LIMITS, prepareImageFileForUpload } from '@/utils/imageUpload'
 import {
   clampPollDuration,
   createInitialPollOptions,
   createObjectUrl,
   firstValidationError,
   formatEventRange,
-  isImageFile,
   normalizePollOptions,
   prettySize,
   resolveRequestErrorMessage,
@@ -139,7 +139,9 @@ const fileInput = ref(null)
 const gifInputRef = ref(null)
 const content = ref('')
 const errorMessage = ref('')
+const mediaStatusMessage = ref('')
 const submitting = ref(false)
+const mediaPreparing = ref(false)
 const file = ref(null)
 const imagePreviewUrl = ref('')
 const selectedGif = ref(null)
@@ -193,7 +195,13 @@ const submitBlockReason = computed(() => {
 })
 const isSubmitDisabled = computed(() => {
   if (!isPostMode.value) return true
-  return submitting.value || normalizedLength.value === 0 || isOverLimit.value || !isPollValid.value
+  return (
+    submitting.value ||
+    mediaPreparing.value ||
+    normalizedLength.value === 0 ||
+    isOverLimit.value ||
+    !isPollValid.value
+  )
 })
 const counterRingStyle = computed(() => {
   const ratio = Math.max(0, Math.min(1, normalizedLength.value / MAX_CHARS))
@@ -211,7 +219,7 @@ watch(() => props.open, async (isOpen) => {
       await nextTick()
       focusTextarea()
       autoResize()
-      applyInitialAttachment()
+      await applyInitialAttachment()
     }
     return
   }
@@ -224,7 +232,7 @@ watch(
   () => props.initialAttachmentFile,
   (nextFile) => {
     if (!props.open || !nextFile || !isPostMode.value) return
-    applyInitialAttachment(nextFile)
+    void applyInitialAttachment(nextFile)
   },
 )
 
@@ -242,7 +250,7 @@ function onDraftsClick() {
 }
 
 function onOverlayClick() {
-  if (submitting.value || showGifModal.value || showEventModal.value) return
+  if (submitting.value || mediaPreparing.value || showGifModal.value || showEventModal.value) return
   cancelAndClose()
 }
 
@@ -253,7 +261,7 @@ function onKeydown(event) {
   if (showEventModal.value) return closeEventModal()
   if (showEmoji.value) return (showEmoji.value = false)
   if (showMore.value) return (showMore.value = false)
-  if (!submitting.value) cancelAndClose()
+  if (!submitting.value && !mediaPreparing.value) cancelAndClose()
 }
 
 function focusTextarea() {
@@ -298,20 +306,49 @@ function pickFile() {
   fileInput.value?.click()
 }
 
-function onFileChange(event) {
+async function onFileChange(event) {
   const pickedFile = event?.target?.files?.[0] || null
   if (pickedFile) {
-    setSelectedImageFile(pickedFile)
+    await setSelectedImageFile(pickedFile)
   }
   if (fileInput.value) fileInput.value.value = ''
 }
 
-function setSelectedImageFile(pickedFile) {
+async function prepareComposerImageFile(pickedFile, context, statusMessage) {
+  mediaPreparing.value = true
+  mediaStatusMessage.value = statusMessage
+  errorMessage.value = ''
+
+  try {
+    const prepared = await prepareImageFileForUpload(pickedFile, {
+      context,
+      maxBytes: context === 'poll' ? IMAGE_UPLOAD_LIMITS.pollOptionImageBytes : MAX_BYTES,
+    })
+    return prepared.file
+  } finally {
+    mediaPreparing.value = false
+    mediaStatusMessage.value = ''
+  }
+}
+
+async function setSelectedImageFile(pickedFile) {
   if (pollEnabled.value) {
     errorMessage.value = 'Pri ankete nie je možné pridať obrázok alebo GIF.'
     return false
   }
-  if (!isImageFile(pickedFile)) {
+
+  try {
+    pickedFile = await prepareComposerImageFile(
+      pickedFile,
+      'post-image',
+      'Optimalizujem obrazok pred odoslanim...',
+    )
+  } catch (error) {
+    errorMessage.value = String(error?.userMessage || error?.message || `Obrazok je prilis velky. Max ${prettySize(MAX_BYTES)}.`)
+    return false
+  }
+
+  if (!pickedFile) {
     errorMessage.value = 'Povolené sú iba obrázky.'
     return false
   }
@@ -387,20 +424,20 @@ function applyInitialAction() {
   }
 }
 
-function applyInitialAttachment(nextFile = props.initialAttachmentFile) {
+async function applyInitialAttachment(nextFile = props.initialAttachmentFile) {
   if (!nextFile) return
-  setSelectedImageFile(nextFile)
+  await setSelectedImageFile(nextFile)
 }
 
 function openObservationCreate() {
-  if (submitting.value) return
+  if (submitting.value || mediaPreparing.value) return
   composerMode.value = 'observation'
   showMore.value = false
   showEmoji.value = false
 }
 
 function switchToPostComposer() {
-  if (submitting.value) return
+  if (submitting.value || mediaPreparing.value) return
   composerMode.value = 'post'
   showMore.value = false
   showEmoji.value = false
@@ -578,6 +615,20 @@ function onPollOptionsUpdate(nextOptions) {
   pollOptions.value = normalizePollOptions(nextOptions, pollOptions.value)
 }
 
+async function preparePollOptionImageFile(pickedFile) {
+  const preparedFile = await prepareComposerImageFile(
+    pickedFile,
+    'poll',
+    'Optimalizujem obrazok pre anketu...',
+  )
+  errorMessage.value = ''
+  return preparedFile
+}
+
+function onPollImageError(message) {
+  errorMessage.value = String(message || 'Obrazok pre anketu sa nepodarilo spracovat.')
+}
+
 function setPollDurationSeconds(value) {
   pollDurationSeconds.value = clampPollDuration(value)
 }
@@ -598,6 +649,8 @@ function resetState() {
   composerMode.value = 'post'
   content.value = ''
   errorMessage.value = ''
+  mediaStatusMessage.value = ''
+  mediaPreparing.value = false
   showEmoji.value = false
   activeEmojiGroupKey.value = EMOJI_GROUPS[0].key
   showMore.value = false
@@ -614,7 +667,7 @@ function resetState() {
 }
 
 function cancelAndClose() {
-  if (submitting.value) return
+  if (submitting.value || mediaPreparing.value) return
   resetState()
   emit('close')
 }

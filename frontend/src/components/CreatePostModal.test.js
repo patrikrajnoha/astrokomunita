@@ -1,5 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+const imageUploadMock = vi.hoisted(() => ({
+  prepareImageFileForUpload: vi.fn(async (file) => ({ file, wasOptimized: false })),
+}))
+
+vi.mock('@/utils/imageUpload', async () => {
+  const actual = await vi.importActual('@/utils/imageUpload')
+  return {
+    ...actual,
+    prepareImageFileForUpload: (...args) => imageUploadMock.prepareImageFileForUpload(...args),
+  }
+})
+
 import CreatePostModal from '@/components/CreatePostModal.vue'
 
 const getMock = vi.fn()
@@ -46,6 +58,8 @@ describe('CreatePostModal GIF selection', () => {
     getMock.mockReset()
     pushMock.mockReset()
     createPostMock.mockReset()
+    imageUploadMock.prepareImageFileForUpload.mockReset()
+    imageUploadMock.prepareImageFileForUpload.mockImplementation(async (file) => ({ file, wasOptimized: false }))
     URL.createObjectURL = vi.fn(() => 'blob:preview-image')
     URL.revokeObjectURL = vi.fn()
     getMock.mockResolvedValue({
@@ -231,6 +245,38 @@ describe('CreatePostModal GIF selection', () => {
     wrapper.unmount()
   })
 
+  it('shows a clear message for unsupported image formats before upload', async () => {
+    imageUploadMock.prepareImageFileForUpload.mockRejectedValueOnce({
+      userMessage: 'Nepodporovany format obrazka. Povolene su JPG, PNG, WebP a GIF.',
+    })
+
+    const wrapper = mount(CreatePostModal, {
+      props: { open: true },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+          PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
+        },
+      },
+    })
+
+    const fileInput = wrapper.find('input.hiddenInput')
+    const unsupportedFile = new File(['image-bytes'], 'astro.heic', { type: 'image/heic' })
+    Object.defineProperty(fileInput.element, 'files', {
+      value: [unsupportedFile],
+      configurable: true,
+    })
+
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Nepodporovany format obrazka. Povolene su JPG, PNG, WebP a GIF.')
+
+    wrapper.unmount()
+  })
+
   it('shows upload-specific userMessage instead of generic submit error', async () => {
     createPostMock.mockRejectedValueOnce({
       userMessage: 'Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky.',
@@ -253,6 +299,41 @@ describe('CreatePostModal GIF selection', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky.')
+
+    wrapper.unmount()
+  })
+
+  it('unlocks the UI after image optimization fails', async () => {
+    imageUploadMock.prepareImageFileForUpload.mockRejectedValueOnce({
+      userMessage: 'Obrazok sa nepodarilo optimalizovat pred odoslanim. Skus mensi JPG, PNG alebo WebP obrazok.',
+    })
+
+    const wrapper = mount(CreatePostModal, {
+      props: { open: true },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          teleport: true,
+          PollComposerPanel: true,
+          ObservationCreateView: { template: '<div data-testid="observation-create-stub"></div>' },
+        },
+      },
+    })
+
+    const fileInput = wrapper.find('input.hiddenInput')
+    const oversizedFile = new File(['image-bytes'], 'broken.png', { type: 'image/png' })
+    Object.defineProperty(fileInput.element, 'files', {
+      value: [oversizedFile],
+      configurable: true,
+    })
+
+    await fileInput.trigger('change')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Obrazok sa nepodarilo optimalizovat pred odoslanim. Skus mensi JPG, PNG alebo WebP obrazok.')
+    expect(wrapper.find('.notice').exists()).toBe(false)
+    expect(fileInput.attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('button[aria-label="Obrazok"]').attributes('disabled')).toBeUndefined()
 
     wrapper.unmount()
   })

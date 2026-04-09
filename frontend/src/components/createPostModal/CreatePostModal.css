@@ -77,6 +77,13 @@
   font-size: 0.82rem;
 }
 
+.notice {
+  margin: 0;
+  padding: 0 1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+}
+
 .body {
   min-height: 0;
   display: grid;

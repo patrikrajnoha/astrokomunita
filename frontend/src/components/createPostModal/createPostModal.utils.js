@@ -1,3 +1,8 @@
+import {
+  extractFirstUploadValidationMessage,
+  resolveUploadRequestMessage,
+} from '@/utils/imageUpload'
+
 const DEFAULT_POLL_MIN_OPTIONS = 2
 const DEFAULT_POLL_MAX_OPTIONS = 4
 const DEFAULT_POLL_MIN_SECONDS = 300
@@ -121,29 +126,13 @@ export function parseEventDate(value) {
 }
 
 export function firstValidationError(error, fallbackMessage) {
-  const validationErrors = error?.response?.data?.errors
-  if (validationErrors && typeof validationErrors === 'object') {
-    for (const value of Object.values(validationErrors)) {
-      if (Array.isArray(value) && value[0]) {
-        return String(value[0])
-      }
-      if (value) {
-        return String(value)
-      }
-    }
-  }
-
-  return (
-    error?.response?.data?.message ||
-    error?.userMessage ||
-    fallbackMessage
+  return extractFirstUploadValidationMessage(
+    error?.response?.data?.errors,
+    resolveRequestErrorMessage(error, fallbackMessage),
+    { context: 'attachment' },
   )
 }
 
 export function resolveRequestErrorMessage(error, fallbackMessage) {
-  return (
-    error?.response?.data?.message ||
-    error?.userMessage ||
-    fallbackMessage
-  )
+  return resolveUploadRequestMessage(error, fallbackMessage, { context: 'attachment' })
 }

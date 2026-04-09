@@ -63,6 +63,7 @@
               type="file"
               class="fileInput"
               :accept="activePickerAccept"
+              :disabled="posting || mediaPreparing"
               @change="onFileChange"
             />
 
@@ -70,7 +71,7 @@
               class="iconBtn"
               type="button"
               :class="{ active: !!file && !isGifFile(file) }"
-              :disabled="posting"
+              :disabled="posting || mediaPreparing"
               aria-label="Obrazok"
               title="Obrazok"
               @click="pickImage"
@@ -150,6 +151,7 @@
           </button>
         </div>
 
+        <div v-if="mediaStatusMessage" class="status">{{ mediaStatusMessage }}</div>
         <div v-if="err" class="err">{{ err }}</div>
       </div>
     </div>

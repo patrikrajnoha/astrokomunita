@@ -434,6 +434,11 @@
   font-size: 0.84rem;
 }
 
+.status {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .pollAttachmentHint {
   color: var(--muted);
   font-size: 0.76rem;

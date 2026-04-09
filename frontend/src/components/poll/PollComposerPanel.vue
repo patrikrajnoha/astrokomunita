@@ -40,9 +40,10 @@ const props = defineProps({
   modelValue: { type: Array, required: true },
   durationSeconds: { type: Number, default: 86400 },
   disabled: { type: Boolean, default: false },
+  prepareImageFile: { type: Function, default: null },
 })
 
-const emit = defineEmits(['update:modelValue', 'update:durationSeconds', 'remove-poll'])
+const emit = defineEmits(['update:modelValue', 'update:durationSeconds', 'remove-poll', 'image-error'])
 
 function updateText(index, text) {
   const next = props.modelValue.map((option, optionIndex) => {
@@ -62,14 +63,35 @@ function removeOption(index) {
   emit('update:modelValue', props.modelValue.filter((_, optionIndex) => optionIndex !== index))
 }
 
-function setImage(index, file) {
-  emit('update:modelValue', props.modelValue.map((option, optionIndex) => {
-    if (optionIndex !== index) return option
-    return {
-      ...option,
-      imageFile: file,
-    }
-  }))
+async function setImage(index, file) {
+  if (!file) {
+    emit('update:modelValue', props.modelValue.map((option, optionIndex) => {
+      if (optionIndex !== index) return option
+      return {
+        ...option,
+        imageFile: null,
+      }
+    }))
+    return
+  }
+
+  try {
+    const nextFile = typeof props.prepareImageFile === 'function'
+      ? await props.prepareImageFile(file)
+      : file
+
+    if (!nextFile) return
+
+    emit('update:modelValue', props.modelValue.map((option, optionIndex) => {
+      if (optionIndex !== index) return option
+      return {
+        ...option,
+        imageFile: nextFile,
+      }
+    }))
+  } catch (error) {
+    emit('image-error', String(error?.userMessage || error?.message || 'Obrazok sa nepodarilo spracovat.'))
+  }
 }
 
 function removeImage(index) {

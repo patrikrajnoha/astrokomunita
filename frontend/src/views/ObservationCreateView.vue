@@ -73,7 +73,7 @@
 
       <label class="field">
         <span>Fotografie *</span>
-        <input type="file" accept="image/*" multiple required @change="onFilesChange">
+        <input type="file" accept="image/*" multiple required :disabled="saving || processingImages" @change="onFilesChange">
       </label>
 
       <div v-if="imagePreviews.length > 0" class="preview-grid">
@@ -81,12 +81,13 @@
       </div>
 
       <InlineStatus v-if="error" variant="error" :message="error" />
+      <InlineStatus v-else-if="statusMessage" variant="info" :message="statusMessage" />
 
       <div class="actions">
-        <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving" @click="onCancelClick">
+        <button type="button" class="ui-pill ui-pill--secondary" :disabled="saving || processingImages" @click="onCancelClick">
           {{ cancelLabel }}
         </button>
-        <button type="submit" class="ui-pill ui-pill--primary" :disabled="saving">
+        <button type="submit" class="ui-pill ui-pill--primary" :disabled="saving || processingImages">
           {{ submitLabel }}
         </button>
       </div>
@@ -102,6 +103,7 @@ import InlineStatus from '@/components/ui/InlineStatus.vue'
 import { createObservation } from '@/services/observations'
 import { getEvents } from '@/services/events'
 import { fromDateTimeLocal, toDateTimeLocal } from '@/utils/dateUtils'
+import { prepareImageFilesForUpload } from '@/utils/imageUpload'
 import { extractObservationError } from '@/utils/observationErrors'
 import { useToast } from '@/composables/useToast'
 
@@ -132,9 +134,12 @@ const selectedImages = ref([])
 const imagePreviews = ref([])
 const events = ref([])
 const saving = ref(false)
+const processingImages = ref(false)
+const statusMessage = ref('')
 const error = ref('')
 const openPostAfterCreate = ref(true)
 const submitLabel = computed(() => {
+  if (processingImages.value) return 'Optimalizujem fotografie...'
   if (saving.value) return 'Ukladám...'
   if (form.isPublic && openPostAfterCreate.value) return 'Vytvoriť a otvoriť príspevok'
   return 'Vytvoriť pozorovanie'
@@ -165,16 +170,43 @@ async function loadEvents() {
   }
 }
 
-function onFilesChange(event) {
+async function onFilesChange(event) {
   const files = Array.from(event?.target?.files || [])
-  selectedImages.value = files
+  if (event?.target) {
+    event.target.value = ''
+  }
 
-  revokePreviews()
-  imagePreviews.value = files.map((file) => URL.createObjectURL(file))
+  if (files.length === 0) {
+    selectedImages.value = []
+    revokePreviews()
+    imagePreviews.value = []
+    return
+  }
+
+  processingImages.value = true
+  statusMessage.value = files.length > 1
+    ? 'Optimalizujem fotografie pred odoslanim...'
+    : 'Optimalizujem fotografiu pred odoslanim...'
+  error.value = ''
+
+  try {
+    const preparedFiles = await prepareImageFilesForUpload(files, {
+      context: 'observation',
+    })
+
+    selectedImages.value = preparedFiles
+    revokePreviews()
+    imagePreviews.value = preparedFiles.map((file) => URL.createObjectURL(file))
+  } catch (uploadError) {
+    error.value = String(uploadError?.userMessage || uploadError?.message || 'Fotografie sa nepodarilo spracovat.')
+  } finally {
+    processingImages.value = false
+    statusMessage.value = ''
+  }
 }
 
 async function submit() {
-  if (!auth.isAuthed || saving.value) return
+  if (!auth.isAuthed || saving.value || processingImages.value) return
 
   error.value = ''
   const observedAtIso = fromDateTimeLocal(form.observedAt)
@@ -247,7 +279,7 @@ async function submit() {
 }
 
 function onCancelClick() {
-  if (saving.value) return
+  if (saving.value || processingImages.value) return
   if (props.embedded) {
     emit('cancel')
     return

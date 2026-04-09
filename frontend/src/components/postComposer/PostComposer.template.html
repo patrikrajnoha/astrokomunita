@@ -69,9 +69,11 @@
           v-if="pollEnabled"
           :model-value="pollOptions"
           :duration-seconds="pollDurationSeconds"
-          :disabled="posting"
+          :disabled="posting || mediaPreparing"
+          :prepare-image-file="preparePollOptionImageFile"
           @update:model-value="onPollOptionsUpdate"
           @update:duration-seconds="setPollDurationSeconds"
+          @image-error="onPollImageError"
           @remove-poll="disablePoll"
         />
 
@@ -109,13 +111,14 @@
               type="file"
               class="fileInput"
               :accept="accept"
+              :disabled="posting || mediaPreparing"
               @change="onFileChange"
             />
             <button
               class="actionIconBtn"
               :class="{ 'actionIconBtn--active': !!file }"
               type="button"
-              :disabled="posting || isAttachmentDisabled"
+              :disabled="posting || mediaPreparing || isAttachmentDisabled"
               :title="isAttachmentDisabled ? pollAttachmentDisabledHint : 'Obrázok'"
               aria-label="Pridať prílohu"
               @click="pickFile"
@@ -148,7 +151,7 @@
               v-if="!pollEnabled"
               class="actionIconBtn"
               type="button"
-              :disabled="posting"
+              :disabled="posting || mediaPreparing"
               aria-label="Pridať anketu"
               @click="enablePoll"
             >
@@ -164,7 +167,7 @@
               v-else
               class="actionIconBtn actionIconBtn--active"
               type="button"
-              :disabled="posting"
+              :disabled="posting || mediaPreparing"
               aria-label="Odstrániť anketu"
               @click="disablePoll"
             >
@@ -177,7 +180,7 @@
               class="actionIconBtn"
               :class="{ 'actionIconBtn--active': !!selectedEvent }"
               type="button"
-              :disabled="posting"
+              :disabled="posting || mediaPreparing"
               aria-label="Pridať udalosť"
               @click="openEventModal"
             >
@@ -200,6 +203,7 @@
         </div>
         <div v-if="pollEnabled" class="pollAttachmentHint">{{ pollAttachmentDisabledHint }}</div>
 
+        <div v-if="mediaStatusMessage" class="status">{{ mediaStatusMessage }}</div>
         <div v-if="err" class="err">{{ err }}</div>
         <div v-else-if="submitBlockReason" class="err">{{ submitBlockReason }}</div>
       </div>

@@ -7,6 +7,7 @@ import { createPost } from '@/services/posts'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import PollComposerPanel from '@/components/poll/PollComposerPanel.vue'
+import { IMAGE_UPLOAD_LIMITS, prepareImageFileForUpload } from '@/utils/imageUpload'
 import {
   clampPollDuration,
   createInitialPollOptions,
@@ -46,6 +47,8 @@ const content = ref('')
 const file = ref(null)
 const imagePreviewUrl = ref(null)
 const posting = ref(false)
+const mediaPreparing = ref(false)
+const mediaStatusMessage = ref('')
 const err = ref('')
 const isFocused = ref(false)
 const pollEnabled = ref(false)
@@ -63,6 +66,7 @@ const composerPlaceholder = computed(() => (pollEnabled.value ? 'Napíš otázku
 
 const isSubmitDisabled = computed(() => {
   if (posting.value) return true
+  if (mediaPreparing.value) return true
   if (!content.value.trim()) return true
   if (content.value.length > 2000) return true
   if (pollEnabled.value && !isPollValid.value) return true
@@ -203,6 +207,20 @@ function onPollOptionsUpdate(nextOptions) {
   })
 }
 
+async function preparePollOptionImageFile(pickedFile) {
+  const preparedFile = await prepareComposerImageFile(
+    pickedFile,
+    'poll',
+    'Optimalizujem obrazok pre anketu...',
+  )
+  err.value = ''
+  return preparedFile
+}
+
+function onPollImageError(message) {
+  err.value = String(message || 'Obrazok pre anketu sa nepodarilo spracovat.')
+}
+
 function setPollDurationSeconds(value) {
   pollDurationSeconds.value = normalizeComposerPollDuration(value)
 }
@@ -243,10 +261,33 @@ function removeFile() {
 
 function isAllowedByMvp(f) {
   const name = (f?.name || '').toLowerCase()
-  return isImageFile(f) || name.endsWith('.pdf') || name.endsWith('.txt') || name.endsWith('.doc') || name.endsWith('.docx')
+  return isLikelySupportedImage(f) || name.endsWith('.pdf') || name.endsWith('.txt') || name.endsWith('.doc') || name.endsWith('.docx')
 }
 
-function onFileChange(e) {
+function isLikelySupportedImage(f) {
+  if (isImageFile(f)) return true
+  const name = String(f?.name || '').toLowerCase()
+  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp') || name.endsWith('.gif')
+}
+
+async function prepareComposerImageFile(pickedFile, context, statusMessage) {
+  mediaPreparing.value = true
+  mediaStatusMessage.value = statusMessage
+  err.value = ''
+
+  try {
+    const prepared = await prepareImageFileForUpload(pickedFile, {
+      context,
+      maxBytes: context === 'poll' ? IMAGE_UPLOAD_LIMITS.pollOptionImageBytes : props.maxBytes,
+    })
+    return prepared.file
+  } finally {
+    mediaPreparing.value = false
+    mediaStatusMessage.value = ''
+  }
+}
+
+async function onFileChange(e) {
   err.value = ''
 
   if (pollEnabled.value) {
@@ -258,21 +299,33 @@ function onFileChange(e) {
   if (!f) return
 
   removeFile()
+  let nextFile = f
 
-  if (f.size > props.maxBytes) {
+  if (isLikelySupportedImage(f)) {
+    try {
+      nextFile = await prepareComposerImageFile(
+        f,
+        'post-image',
+        'Optimalizujem obrazok pred odoslanim...',
+      )
+    } catch (error) {
+      err.value = String(error?.userMessage || error?.message || `Obrazok je prilis velky. Max ${prettySize(props.maxBytes)}.`)
+      return
+    }
+  } else if (f.size > props.maxBytes) {
     err.value = `Súbor je príliš veľký. Max ${prettySize(props.maxBytes)}.`
     return
   }
 
-  if (!isAllowedByMvp(f)) {
+  if (!isAllowedByMvp(nextFile)) {
     err.value = 'Nepovolený typ súboru.'
     return
   }
 
-  file.value = f
+  file.value = nextFile
   if (selectedGif.value) removeGif()
-  if (isImageFile(f)) {
-    imagePreviewUrl.value = createObjectUrl(f)
+  if (isImageFile(nextFile)) {
+    imagePreviewUrl.value = createObjectUrl(nextFile)
   }
 }
 

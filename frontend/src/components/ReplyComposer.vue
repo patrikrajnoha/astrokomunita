@@ -6,6 +6,11 @@ import { RouterLink } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import {
+  extractFirstUploadValidationMessage,
+  prepareImageFileForUpload,
+  resolveUploadRequestMessage,
+} from '@/utils/imageUpload'
 
 const emit = defineEmits(['created'])
 const GIF_MIN_QUERY_LENGTH = 2
@@ -35,6 +40,8 @@ const gifLoading = ref(false)
 const gifError = ref('')
 const gifDebounceTimer = ref(null)
 const posting = ref(false)
+const mediaPreparing = ref(false)
+const mediaStatusMessage = ref('')
 const err = ref('')
 const showEmojiMenu = ref(false)
 const activePickerAccept = ref('image/*')
@@ -49,6 +56,7 @@ const remaining = computed(() => 2000 - content.value.length)
 const isSubmitDisabled = computed(() => {
   if (!auth.isAuthed) return true
   if (posting.value) return true
+  if (mediaPreparing.value) return true
   if (!content.value.trim()) return true
   if (content.value.length > 2000) return true
   return false
@@ -224,6 +232,12 @@ function isImageFile(f) {
   return typeof f?.type === 'string' && f.type.startsWith('image/')
 }
 
+function isLikelySupportedImage(f) {
+  if (isImageFile(f)) return true
+  const name = String(f?.name || '').toLowerCase()
+  return name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp') || name.endsWith('.gif')
+}
+
 function isGifFile(f) {
   const mime = String(f?.type || '').toLowerCase()
   if (mime === 'image/gif') return true
@@ -234,7 +248,7 @@ function isGifFile(f) {
 function isAllowedByMvp(f) {
   const name = (f?.name || '').toLowerCase()
   return (
-    isImageFile(f) ||
+    isLikelySupportedImage(f) ||
     name.endsWith('.pdf') ||
     name.endsWith('.txt') ||
     name.endsWith('.doc') ||
@@ -242,22 +256,33 @@ function isAllowedByMvp(f) {
   )
 }
 
-function onFileChange(e) {
+async function prepareReplyImageFile(pickedFile) {
+  mediaPreparing.value = true
+  mediaStatusMessage.value = 'Optimalizujem obrazok pred odoslanim...'
+  err.value = ''
+
+  try {
+    const prepared = await prepareImageFileForUpload(pickedFile, {
+      context: 'reply-image',
+      maxBytes: props.maxBytes,
+    })
+    return prepared.file
+  } finally {
+    mediaPreparing.value = false
+    mediaStatusMessage.value = ''
+  }
+}
+
+async function onFileChange(e) {
   err.value = ''
   const f = e?.target?.files?.[0] || null
   if (!f) {
     return
   }
 
-  if (!isImageFile(f)) {
+  if (!isLikelySupportedImage(f)) {
     removeFile()
     err.value = 'Vyber obrazok.'
-    return
-  }
-
-  if (f.size > props.maxBytes) {
-    removeFile()
-    err.value = `Subor je prilis velky. Max ${prettySize(props.maxBytes)}.`
     return
   }
 
@@ -267,11 +292,20 @@ function onFileChange(e) {
     return
   }
 
+  let nextFile = f
+  try {
+    nextFile = await prepareReplyImageFile(f)
+  } catch (error) {
+    removeFile()
+    err.value = String(error?.userMessage || error?.message || `Obrazok je prilis velky. Max ${prettySize(props.maxBytes)}.`)
+    return
+  }
+
   if (selectedGif.value) removeGif()
-  file.value = f
+  file.value = nextFile
   revokePreview()
-  if (isImageFile(f)) {
-    imagePreviewUrl.value = URL.createObjectURL(f)
+  if (isImageFile(nextFile)) {
+    imagePreviewUrl.value = URL.createObjectURL(nextFile)
   }
 }
 
@@ -323,9 +357,16 @@ async function submit() {
     autoGrow()
   } catch (e) {
     const status = e?.response?.status
+    if (status === 422) {
+      err.value = extractFirstUploadValidationMessage(
+        e?.response?.data?.errors,
+        'Skontroluj text (1-2000), prilohu a GIF.',
+        { context: 'post-image' },
+      )
+      return
+    }
     if (status === 401) err.value = 'Pre odoslanie komentára sa prihlás.'
-    else if (status === 422) err.value = 'Skontroluj text (1–2000), prílohu a GIF.'
-    else err.value = e?.response?.data?.message || e?.userMessage || 'Odoslanie komentára zlyhalo.'
+    else err.value = resolveUploadRequestMessage(e, 'Odoslanie komentara zlyhalo.', { context: 'post-image' })
   } finally {
     posting.value = false
   }
