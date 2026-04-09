@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 # Production Docker Compose
 #
 # Prerequisites:
@@ -118,10 +118,16 @@ services:
       APP_URL: https://api.${DOMAIN}
     command: >
       sh -lc "
-        php artisan storage:link --force 2>/dev/null || true &&
-        php artisan migrate --force &&
-        php artisan bots:sources:sync --quiet-summary &&
-        php-fpm -F
+        php artisan storage:link --force 2>/dev/null || true;
+        echo '[backend] waiting for database...';
+        for i in $$(seq 1 30); do
+          php artisan migrate --force && break;
+          echo '[backend] migrate failed, retry $$i/30';
+          sleep 2;
+        done;
+        php artisan migrate --force || exit 1;
+        php artisan bots:sources:sync --quiet-summary || true;
+        exec php-fpm -F
       "
     healthcheck:
       test: ["CMD-SHELL", "php -r '$$s=@fsockopen(\"127.0.0.1\",9000); if(!$$s){exit(1);} fclose($$s);'"]
