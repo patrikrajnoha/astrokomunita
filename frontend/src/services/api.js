@@ -30,27 +30,23 @@ const csrfClient = axios.create({
   xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
-async function refreshCsrf() {
-  await csrfClient.get('/sanctum/csrf-cookie')
-  // Edge / Windows: axios doesn't always pick up the updated cookie automatically
-  if (typeof document !== 'undefined') {
-    const row = document.cookie.split('; ').find((r) => r.startsWith('XSRF-TOKEN='))
-    const xsrf = row ? decodeURIComponent(row.split('=')[1]) : null
-    if (xsrf) {
-      api.defaults.headers.common['X-XSRF-TOKEN'] = xsrf
-    }
-  }
+function getCookie(name) {
+  if (typeof document === 'undefined') return null
+  const row = document.cookie.split('; ').find((r) => r.startsWith(name + '='))
+  return row ? decodeURIComponent(row.split('=')[1]) : null
 }
 
-const authProbeClient = axios.create({
-  baseURL: apiBaseUrl,
-  timeout: 6000,
-  withCredentials: true,
-  headers: {
-    Accept: 'application/json',
-  },
-})
+function syncXsrfHeaderFromCookie() {
+  const xsrf = getCookie('XSRF-TOKEN')
+  if (!xsrf) return
+  api.defaults.headers.common['X-XSRF-TOKEN'] = xsrf
+}
 
+export async function refreshCsrfCookie() {
+  await csrfClient.get('/sanctum/csrf-cookie')
+  // Edge / Windows: axios doesn't always pick up the updated cookie automatically
+  syncXsrfHeaderFromCookie()
+}
 let authProbePromise = null
 
 async function probeActiveSession() {
@@ -58,9 +54,11 @@ async function probeActiveSession() {
     return authProbePromise
   }
 
-  authProbePromise = authProbeClient
+  authProbePromise = api
     .get('/auth/me', {
+      timeout: 6000,
       withCredentials: true,
+      meta: { skipErrorToast: true, skipAuthRedirect: true },
     })
     .then(({ data }) => {
       const payload = data && typeof data === 'object' ? data : null
@@ -159,6 +157,11 @@ function isProtectedPath(pathname) {
 }
 
 function shouldRedirectToLogin(error) {
+  if (error?.config?.meta?.skipAuthRedirect === true || error?.config?.skipAuthRedirect === true) return false
+
+  const requestUrl = String(error?.config?.url || '').toLowerCase()
+  if (requestUrl.includes('/auth/me')) return false
+
   if (error?.config?.meta?.requiresAuth === true) return true
   if (typeof window === 'undefined') return false
   return isProtectedPath(window.location.pathname || '')
@@ -317,7 +320,7 @@ api.interceptors.response.use(
     // Auto-refresh CSRF and retry once on 419 before showing any error
     if (status === 419 && !error?.config?._csrfRetried) {
       try {
-        await refreshCsrf()
+        await refreshCsrfCookie()
         return api({ ...error.config, _csrfRetried: true })
       } catch {
         // refresh failed — fall through to toast

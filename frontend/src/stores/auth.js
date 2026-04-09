@@ -1,31 +1,17 @@
 import { defineStore } from 'pinia'
-import http from '@/services/api'
-import axios from 'axios'
+import http, { refreshCsrfCookie } from '@/services/api'
 import { clearHomeFeedPrefetch } from '@/services/feedPrefetch'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
-const configuredApiBaseUrl = import.meta.env.DEV
-  ? ''
-  : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')
-const csrfBaseUrl = String(configuredApiBaseUrl).replace(/\/api\/?$/i, '').replace(/\/+$/, '')
+const PRESERVE_UNAUTHORIZED_SOURCES = new Set([
+  'profile-save',
+  'login-bg-refresh',
+  'register-bg-refresh',
+])
 const authDebugEnabled =
   import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_AUTH || '').trim() === '1'
 let activeFetchUserPromise = null
 let activeFetchUserKey = ''
-
-// Separate axios instance for CSRF (no baseURL)
-const csrfHttp = axios.create({
-  baseURL: csrfBaseUrl || '',
-  withCredentials: true,
-  withXSRFToken: true,
-  xsrfCookieName: 'XSRF-TOKEN',
-  xsrfHeaderName: 'X-XSRF-TOKEN',
-})
-
-function getCookie(name) {
-  const row = document.cookie.split('; ').find((r) => r.startsWith(name + '='))
-  return row ? decodeURIComponent(row.split('=')[1]) : null
-}
 
 function getAuthEndpointDebug() {
   const baseURL = String(http?.defaults?.baseURL || '')
@@ -107,13 +93,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async csrf() {
-      await csrfHttp.get('/sanctum/csrf-cookie')
-
-      // Edge/Windows: set X-XSRF-TOKEN header from cookie
-      const xsrf = getCookie('XSRF-TOKEN')
-      if (xsrf) {
-        http.defaults.headers.common['X-XSRF-TOKEN'] = xsrf
-      }
+      await refreshCsrfCookie()
     },
 
     async postWithCsrfRetry(url, payload) {
@@ -142,6 +122,7 @@ export const useAuthStore = defineStore('auth', {
       const maxAttempts = shouldRetry ? 2 : 1
       const authSequenceAtStart = this.loginSequence
       const requestKey = JSON.stringify({
+        source,
         shouldRetry,
         markBootstrap,
         preserveStateOnError,
@@ -179,7 +160,7 @@ export const useAuthStore = defineStore('auth', {
               const { data } = await http.get('/auth/me', {
                 timeout,
                 withCredentials: true,
-                meta: { skipErrorToast: true },
+                meta: { skipErrorToast: true, skipAuthRedirect: true },
               })
 
               if (isStaleAuthSnapshot()) {
@@ -282,12 +263,13 @@ export const useAuthStore = defineStore('auth', {
 
               const isTransientFailure =
                 classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
-              const shouldPreserveProfileSaveUnauthorized =
-                source === 'profile-save' &&
+              const shouldPreserveUnauthorized =
                 !!this.user &&
-                classified.type === 'unauthorized'
+                classified.type === 'unauthorized' &&
+                preserveStateOnError &&
+                PRESERVE_UNAUTHORIZED_SOURCES.has(source)
 
-              if (shouldPreserveProfileSaveUnauthorized || (this.user && (preserveStateOnError || isTransientFailure))) {
+              if (shouldPreserveUnauthorized || (this.user && isTransientFailure)) {
                 this.status = 'authenticated'
                 this.error = null
                 if (authDebugEnabled) {

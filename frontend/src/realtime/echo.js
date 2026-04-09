@@ -54,6 +54,7 @@ function buildAuthorizer(authEndpoint) {
       if (xsrf) headers['X-XSRF-TOKEN'] = xsrf
 
       try {
+        // Realtime handshake intentionally bypasses API interceptors.
         const response = await axios.post(
           authEndpoint,
           {

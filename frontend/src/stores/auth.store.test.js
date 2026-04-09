@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
-import axios from 'axios'
 
-const csrfGetMock = vi.hoisted(() => vi.fn(async () => ({ data: {} })))
+const refreshCsrfCookieMock = vi.hoisted(() => vi.fn(async () => ({ data: {} })))
 const clearHomeFeedPrefetchMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/services/api', () => ({
@@ -18,14 +17,7 @@ vi.mock('@/services/api', () => ({
       },
     },
   },
-}))
-
-vi.mock('axios', () => ({
-  default: {
-    create: vi.fn(() => ({
-      get: csrfGetMock,
-    })),
-  },
+  refreshCsrfCookie: (...args) => refreshCsrfCookieMock(...args),
 }))
 
 vi.mock('@/services/feedPrefetch', () => ({
@@ -41,11 +33,10 @@ describe('auth store login resilience', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     clearHomeFeedPrefetchMock.mockClear()
-    csrfGetMock.mockClear()
+    refreshCsrfCookieMock.mockClear()
     http.post.mockReset()
     http.get.mockReset()
     http.defaults.headers.common = {}
-    axios.create.mockClear()
   })
 
   it('keeps authenticated user when login background refresh fails with 401', async () => {
@@ -78,7 +69,61 @@ describe('auth store login resilience', () => {
       password: 'secret',
       remember: true,
     })
+    expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
     expect(http.get).toHaveBeenCalledWith('/auth/me', expect.any(Object))
+  })
+
+  it('keeps authenticated user when register background refresh fails with 401', async () => {
+    const store = useAuthStore()
+
+    http.post.mockResolvedValueOnce({
+      data: { id: 17, name: 'New User', role: 'member' },
+    })
+
+    http.get.mockRejectedValueOnce({
+      response: {
+        status: 401,
+        data: { message: 'Unauthenticated.' },
+      },
+    })
+
+    await store.register({
+      email: 'new@example.com',
+      password: 'secret',
+    })
+
+    await flushPromises()
+
+    expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
+    expect(store.isAuthed).toBe(true)
+    expect(store.user).toEqual(expect.objectContaining({ id: 17 }))
+    expect(store.status).toBe('authenticated')
+    expect(store.error).toBeNull()
+  })
+
+  it('keeps local logout cleanup when backend logout returns 401', async () => {
+    const store = useAuthStore()
+    store.user = { id: 5, name: 'Tester' }
+    store.status = 'authenticated'
+    store.bootstrapDone = true
+    store.initialized = true
+
+    http.post.mockRejectedValueOnce({
+      response: {
+        status: 401,
+        data: { message: 'Unauthenticated.' },
+      },
+    })
+
+    await store.logout()
+
+    expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
+    expect(http.post).toHaveBeenCalledWith('/auth/logout')
+    expect(clearHomeFeedPrefetchMock).toHaveBeenCalled()
+    expect(store.isAuthed).toBe(false)
+    expect(store.user).toBeNull()
+    expect(store.status).toBe('guest')
+    expect(store.error).toBeNull()
   })
 
   it('still clears auth state for regular fetchUser unauthorized failures', async () => {
@@ -114,13 +159,39 @@ describe('auth store login resilience', () => {
       },
     })
 
-    const data = await store.fetchUser({ source: 'profile-save', retry: false, markBootstrap: true })
+    const data = await store.fetchUser({
+      source: 'profile-save',
+      retry: false,
+      markBootstrap: true,
+      preserveStateOnError: true,
+    })
 
     expect(data).toEqual(expect.objectContaining({ id: 5 }))
     expect(store.isAuthed).toBe(true)
     expect(store.user).toEqual(expect.objectContaining({ id: 5 }))
     expect(store.status).toBe('authenticated')
     expect(store.error).toBeNull()
+  })
+
+  it('uses auth-aware fetchUser request flags for /auth/me', async () => {
+    const store = useAuthStore()
+
+    http.get.mockResolvedValueOnce({
+      data: { id: 8, name: 'Scoped User' },
+    })
+
+    await store.fetchUser({ source: 'manual', retry: false, markBootstrap: true })
+
+    expect(http.get).toHaveBeenCalledWith(
+      '/auth/me',
+      expect.objectContaining({
+        withCredentials: true,
+        meta: expect.objectContaining({
+          skipErrorToast: true,
+          skipAuthRedirect: true,
+        }),
+      }),
+    )
   })
 
   it('treats empty auth/me payload as guest', async () => {
