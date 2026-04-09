@@ -116,6 +116,7 @@ services:
       <<: *backend-common-env
       APP_KEY: ${APP_KEY}
       APP_URL: https://api.${DOMAIN}
+      SESSION_SAME_SITE: none
     command: >
       sh -lc "
         php artisan storage:link --force 2>/dev/null || true;
