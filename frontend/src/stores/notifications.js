@@ -324,7 +324,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
       try {
         const res = await http.get('/notifications/unread-count', {
-          meta: { skipErrorToast: true },
+          meta: { skipErrorToast: true, skipAuthRedirect: true },
         })
         if (fetchSeq !== this.unreadCountFetchSeq) return
         this.unreadCount = res?.data?.count ?? 0

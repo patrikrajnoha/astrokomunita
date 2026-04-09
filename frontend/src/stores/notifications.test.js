@@ -305,7 +305,7 @@ describe('notifications store realtime handler', () => {
       meta: { skipErrorToast: true },
     })
     expect(http.get).toHaveBeenCalledWith('/notifications/unread-count', {
-      meta: { skipErrorToast: true },
+      meta: { skipErrorToast: true, skipAuthRedirect: true },
     })
     expect(store.unreadCount).toBe(0)
     expect(store.unreadBadge).toBe('')

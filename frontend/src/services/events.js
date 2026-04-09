@@ -59,7 +59,7 @@ export function lookupEventsByIds(ids = []) {
 
 export function getMyPreferences() {
   return api.get('/me/preferences', {
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, skipAuthRedirect: true },
   })
 }
 

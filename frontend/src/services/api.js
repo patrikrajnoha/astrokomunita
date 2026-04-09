@@ -145,26 +145,15 @@ function shouldShowErrorToast(message, status) {
   return true
 }
 
-function isProtectedPath(pathname) {
-  return (
-    pathname.startsWith('/settings') ||
-    pathname.startsWith('/creator-studio') ||
-    pathname.startsWith('/notifications') ||
-    pathname.startsWith('/bookmarks') ||
-    pathname.startsWith('/profile') ||
-    pathname.startsWith('/admin')
-  )
-}
-
-function shouldRedirectToLogin(error) {
+export function shouldRedirectToLogin(error) {
   if (error?.config?.meta?.skipAuthRedirect === true || error?.config?.skipAuthRedirect === true) return false
 
   const requestUrl = String(error?.config?.url || '').toLowerCase()
-  if (requestUrl.includes('/auth/me')) return false
+  if (requestUrl.includes('/auth/me')) return true
 
+  if (error?.config?.meta?.authCritical === true || error?.config?.authCritical === true) return true
   if (error?.config?.meta?.requiresAuth === true) return true
-  if (typeof window === 'undefined') return false
-  return isProtectedPath(window.location.pathname || '')
+  return false
 }
 
 function resolveBackendErrorCode(error) {

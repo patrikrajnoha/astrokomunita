@@ -17,7 +17,9 @@ export async function getStats(options = {}) {
     return statsCache
   }
 
-  const { data } = await api.get('/admin/stats', { meta: { skipErrorToast: true } })
+  const { data } = await api.get('/admin/stats', {
+    meta: { skipErrorToast: true, skipAuthRedirect: true },
+  })
   statsCache = data
   statsCachedAt = Date.now()
 

@@ -17,7 +17,10 @@ export function listObservations(params = {}) {
 
   return api.get('/observations', {
     params: query,
-    meta: { requiresAuth: Boolean(query.mine) },
+    meta: {
+      requiresAuth: Boolean(query.mine),
+      skipAuthRedirect: Boolean(query.mine),
+    },
   })
 }
 

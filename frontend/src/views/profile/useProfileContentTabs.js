@@ -238,6 +238,7 @@ export function useProfileContentTabs({
       try {
         const { data } = await http.get('/posts', {
           params: { scope: 'me', kind: k.kind, per_page: 1 },
+          meta: { skipAuthRedirect: true },
         })
 
         const total = Number.isFinite(data?.total) ? data.total : data?.data?.length || 0
@@ -343,6 +344,9 @@ export function useProfileContentTabs({
                 ? { per_page: 10 }
                 : { scope: 'me', kind: tab.kind, per_page: 10 }
             : undefined,
+        meta: reset && url === '/posts'
+          ? { skipAuthRedirect: true }
+          : undefined,
       })
 
       const rows = data?.data ?? []
