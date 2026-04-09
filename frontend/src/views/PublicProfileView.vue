@@ -4,6 +4,7 @@
 import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
+import PollCard from '@/components/PollCard.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import HashtagText from '@/components/HashtagText.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
@@ -13,7 +14,11 @@ import { listObservations } from '@/services/observations'
 import { useAuthStore } from '@/stores/auth'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { resolveUserProfileMedia } from '@/utils/profileMedia'
-import { attachmentSrc as resolveAttachmentSrc, isImage as isProfileImage } from './profileView.utils'
+import {
+  attachmentSrc as resolveAttachmentSrc,
+  isImage as isProfileImage,
+  observationForPost,
+} from './profileView.utils'
 
 const router = useRouter()
 const route = useRoute()
@@ -105,6 +110,12 @@ function goHome() {
 }
 
 function openPost(post) {
+  const observationId = Number(observationForPost(post)?.id || 0)
+  if (Number.isInteger(observationId) && observationId > 0) {
+    router.push(`/observations/${observationId}`)
+    return
+  }
+
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
 }
@@ -143,6 +154,26 @@ function parentHandle(post) {
   const name = toNonEmptyText(parentUser?.name)
   if (name && !looksLikeEmail(name)) return safeHandle(name)
   return 'user'
+}
+
+function updatePostPoll(post, nextPoll) {
+  if (!post || !nextPoll) return
+  post.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  tabState[activeTab.value].err = 'Prihlás sa pre hlasovanie.'
+}
+
+function publicObservationParams(overrides = {}) {
+  const userId = Number(user.value?.id || 0)
+  if (!Number.isInteger(userId) || userId <= 0) return null
+
+  return {
+    user_id: userId,
+    public_only: true,
+    ...overrides,
+  }
 }
 
 async function copyProfileLink() {
@@ -210,14 +241,14 @@ async function loadCounts() {
     { key: 'media', kind: 'media' },
   ]
 
-  const userId = Number(user.value?.id || 0)
+  const observationParams = publicObservationParams({ page: 1, per_page: 1 })
 
   const [postsResult, repliesResult, mediaResult, obsResult] = await Promise.allSettled([
     http.get(`/users/${encodedUsername.value}/posts`, { params: { kind: 'roots', per_page: 1 } }),
     http.get(`/users/${encodedUsername.value}/posts`, { params: { kind: 'replies', per_page: 1 } }),
     http.get(`/users/${encodedUsername.value}/posts`, { params: { kind: 'media', per_page: 1 } }),
-    Number.isInteger(userId) && userId > 0
-      ? listObservations({ user_id: userId, page: 1, per_page: 1 })
+    observationParams
+      ? listObservations(observationParams)
       : Promise.reject(new Error('no user id')),
   ])
 
@@ -256,17 +287,15 @@ async function loadTab(key, reset = true) {
 
   try {
     if (tab.kind === 'observations') {
-      const userId = Number(user.value?.id || 0)
-      if (!Number.isInteger(userId) || userId <= 0) return
-
       const page = reset ? 1 : Number(state.next || 0)
       if (!page) return
-
-      const { data } = await listObservations({
-        user_id: userId,
+      const observationParams = publicObservationParams({
         page,
         per_page: 10,
       })
+      if (!observationParams) return
+
+      const { data } = await listObservations(observationParams)
 
       const rows = Array.isArray(data?.data) ? data.data : []
       state.items = reset ? rows : [...state.items, ...rows]

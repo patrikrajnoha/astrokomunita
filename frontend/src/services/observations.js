@@ -4,6 +4,7 @@ export function listObservations(params = {}) {
   const query = {}
 
   if (params.mine) query.mine = 1
+  if (params.public_only) query.public_only = 1
   if (params.page) query.page = Number(params.page)
   if (params.per_page) query.per_page = Number(params.per_page)
   if (params.event_id) query.event_id = Number(params.event_id)

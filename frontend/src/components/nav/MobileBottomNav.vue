@@ -163,15 +163,20 @@ const isActive = (item) => {
 <style scoped>
 .mobileBottomNav {
   position: fixed;
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: 0.6rem;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 65;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.2rem;
-  padding: 0.3rem 0.3rem calc(0.4rem + env(safe-area-inset-bottom));
-  border-radius: 1.5rem;
+  padding:
+    0.3rem
+    max(0.6rem, env(safe-area-inset-right))
+    calc(0.4rem + env(safe-area-inset-bottom))
+    max(0.6rem, env(safe-area-inset-left));
+  border-top: 1px solid rgb(171 184 201 / 0.12);
+  border-radius: 1.5rem 1.5rem 0 0;
   background: #151d28;
   animation: mobileDockEnter 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }

@@ -1,18 +1,21 @@
-
   <section class="calendar-card">
     <div class="calendar-layout">
       <div class="left">
         <header class="month-header">
-          <div>
-            <div class="month-title">{{ monthLabel }}</div>
-            <div class="month-meta">{{ yearLabel }}</div>
+          <div class="month-copy">
+            <div class="month-eyebrow">Mesačný prehľad</div>
+            <div class="month-title-row">
+              <div class="month-title">{{ monthLabel }}</div>
+              <div class="month-meta month-meta--year">{{ yearLabel }}</div>
+            </div>
+            <div class="month-meta month-meta--helper">Vyber deň a zobraz detail udalosti.</div>
           </div>
           <div class="month-actions">
-            <button type="button" class="nav-btn" aria-label="Predošlý rok" @click="prevYear">&laquo;</button>
-            <button type="button" class="nav-btn" aria-label="Predošlý mesiac" @click="prevMonth">&lsaquo;</button>
-            <button type="button" class="nav-btn" @click="goToToday">Dnes</button>
-            <button type="button" class="nav-btn" aria-label="Nasledujúci mesiac" @click="nextMonth">&rsaquo;</button>
-            <button type="button" class="nav-btn" aria-label="Nasledujúci rok" @click="nextYear">&raquo;</button>
+            <button type="button" class="nav-btn nav-btn--icon" aria-label="Predošlý rok" @click="prevYear">&laquo;</button>
+            <button type="button" class="nav-btn nav-btn--icon" aria-label="Predošlý mesiac" @click="prevMonth">&lsaquo;</button>
+            <button type="button" class="nav-btn nav-btn--today" @click="goToToday">Dnes</button>
+            <button type="button" class="nav-btn nav-btn--icon" aria-label="Nasledujúci mesiac" @click="nextMonth">&rsaquo;</button>
+            <button type="button" class="nav-btn nav-btn--icon" aria-label="Nasledujúci rok" @click="nextYear">&raquo;</button>
           </div>
         </header>
 
@@ -38,9 +41,11 @@
             :class="dayCellClass(cell)"
             :data-tip="cellTooltip(cell)"
             :disabled="!cell.date"
+            :aria-pressed="cell.date ? String(isSameDay(cell.date, selectedDate)) : undefined"
+            :aria-current="cell.date && isSameDay(cell.date, today) ? 'date' : undefined"
             @click="cell.date && selectDate(cell.date)"
           >
-            <span v-if="cell.date">{{ cell.day }}</span>
+            <span v-if="cell.date" class="day-number">{{ cell.day }}</span>
             <span v-if="cell.date && dayEventCount(cell.date)" class="count-badge">
               {{ dayEventCount(cell.date) }}
             </span>
@@ -52,11 +57,14 @@
 
       <aside class="right">
         <header class="list-header">
-          <div class="list-title">{{ selectedLabel }}</div>
+          <div class="list-copy">
+            <div class="list-eyebrow">Vybraný deň</div>
+            <div class="list-title">{{ selectedLabel }}</div>
+          </div>
           <div class="list-subtitle">{{ selectedEventsCountLabel }}</div>
         </header>
 
-        <ul class="event-list">
+        <ul class="event-list" :class="{ 'event-list--empty': selectedEvents.length === 0 }">
           <li
             v-for="event in selectedEvents"
             :key="event.id"
@@ -79,7 +87,8 @@
             </div>
           </li>
           <li v-if="selectedEvents.length === 0" class="event-empty">
-            Žiadne udalosti v tento deň.
+            <div class="event-empty-title">Bez udalosti</div>
+            <p class="event-empty-copy">Na zvolený deň momentálne nemáme v kalendári žiadnu astronomickú udalosť.</p>
           </li>
         </ul>
       </aside>

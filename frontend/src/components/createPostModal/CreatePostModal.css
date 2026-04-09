@@ -157,26 +157,36 @@
 }
 
 .iconBtn {
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.36);
-  background: transparent;
-  color: rgb(var(--color-surface-rgb) / 0.9);
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: none;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
 .iconBtn svg {
-  width: 1rem;
-  height: 1rem;
+  width: 1.05rem;
+  height: 1.05rem;
 }
 
 .iconBtn.active {
-  border-color: rgb(var(--color-primary-rgb) / 0.75);
   background: rgb(var(--color-primary-rgb) / 0.14);
   color: rgb(var(--color-primary-rgb) / 1);
+}
+
+.iconBtn:hover:not(:disabled):not(.active) {
+  background: var(--interactive-hover);
+  color: rgb(var(--color-surface-rgb) / 0.98);
+}
+
+.iconBtn:focus-visible {
+  outline: 2px solid rgb(var(--color-primary-rgb) / 0.42);
+  outline-offset: 2px;
 }
 
 .counter {

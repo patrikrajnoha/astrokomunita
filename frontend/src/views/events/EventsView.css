@@ -55,6 +55,44 @@
   color: #abb8c9;
 }
 
+.events-page--calendar :deep(.page-header) {
+  border-radius: 1.75rem;
+  border: 1px solid rgba(171, 184, 201, 0.08);
+  background:
+    radial-gradient(circle at top left, rgba(15, 115, 255, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+  padding: 1.2rem 1.2rem 0.95rem;
+}
+
+.events-page--calendar :deep(.page-header__header) {
+  gap: 0.7rem;
+}
+
+.events-page--calendar :deep(.page-header__description) {
+  max-width: 42rem;
+  line-height: 1.6;
+}
+
+.hero-stats--calendar {
+  align-items: stretch;
+  gap: 0.72rem;
+}
+
+.hero-stat-calendar-primary,
+.hero-stat-calendar-secondary {
+  min-height: 2.3rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hero-stat-calendar-primary {
+  background: rgba(15, 115, 255, 0.16);
+}
+
+.hero-stat-calendar-secondary {
+  background: rgba(34, 46, 63, 0.82);
+}
+
 .content-wrap {
   width: 100%;
   padding-top: 0.95rem;
@@ -62,9 +100,18 @@
   gap: 0.85rem;
 }
 
+.content-wrap--calendar {
+  padding-top: 0.8rem;
+  gap: 0.6rem;
+}
+
 .filter-panel {
   display: grid;
   gap: 0.7rem;
+}
+
+.filter-panel--calendar {
+  gap: 0.5rem;
 }
 
 .toolbar-row,
@@ -84,6 +131,49 @@
   border-radius: 1rem;
   background: #151d28;
   padding: 0.55rem;
+}
+
+.toolbar-row--calendar {
+  top: calc(56px + 0.55rem);
+  justify-content: flex-start;
+  border-radius: 1.4rem;
+  border: 1px solid rgba(171, 184, 201, 0.08);
+  background: rgba(21, 29, 40, 0.88);
+  padding: 0.4rem;
+  backdrop-filter: blur(10px);
+}
+
+.toolbar-row--calendar .toolbar-segments {
+  width: 100%;
+}
+
+.toolbar-row--calendar .segmented-control {
+  gap: 0.2rem;
+  padding: 0.22rem;
+  border-radius: 1.15rem;
+  background: rgba(34, 46, 63, 0.9);
+}
+
+.toolbar-row--calendar .segment-btn {
+  min-height: 2.6rem;
+  padding: 0.62rem 1rem;
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
+}
+
+.toolbar-row--calendar .segment-btn:not(.active) {
+  background: transparent;
+  color: #abb8c9;
+}
+
+.toolbar-row--calendar .segment-btn:not(.active):hover {
+  background: #1c2736;
+  color: #ffffff;
+}
+
+.toolbar-row--calendar .segment-btn.active {
+  background: #0f73ff;
+  color: #ffffff;
 }
 
 .toolbar-segments {
@@ -358,8 +448,12 @@
 }
 
 .calendar-panel {
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   width: 100%;
+}
+
+.events-page--calendar .calendar-panel {
+  margin-top: 0;
 }
 
 .events-grid {
@@ -682,6 +776,23 @@
 
   .segment-btn {
     padding: 0.42rem 0.66rem;
+  }
+
+  .toolbar-row--calendar {
+    padding: 0.36rem;
+  }
+
+  .toolbar-row--calendar .toolbar-segments {
+    justify-content: stretch;
+  }
+
+  .toolbar-row--calendar .segmented-control {
+    width: 100%;
+  }
+
+  .toolbar-row--calendar .segment-btn {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .advanced-filters {

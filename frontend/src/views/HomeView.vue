@@ -16,9 +16,10 @@
             <span class="triggerText">Čo je nové na oblohe?</span>
             <span class="triggerCta" data-shortcut-image aria-label="Pridať obrázok">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke="currentColor" stroke-width="1.7" />
-                <path d="m7 15 3.2-3.2a1 1 0 0 1 1.4 0L14 14l2-2a1 1 0 0 1 1.4 0L20 14.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
-                <circle cx="9" cy="9" r="1.2" fill="currentColor" />
+                <rect x="4.25" y="5.25" width="15.5" height="13.5" rx="4" fill="currentColor" opacity="0.12" />
+                <rect x="5.25" y="6.25" width="13.5" height="11.5" rx="3.25" stroke="currentColor" stroke-width="1.7" />
+                <path d="M8.1 14.85 10.9 12.05a1 1 0 0 1 1.42 0l1.65 1.65 1.78-1.78a1 1 0 0 1 1.41 0l1.64 1.63" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="9.6" cy="10.15" r="1.2" fill="currentColor" />
               </svg>
             </span>
           </button>
@@ -189,29 +190,29 @@ export default {
 }
 
 .triggerCta {
-  width: 2.4rem;
-  height: 2.2rem;
-  border: 1px solid rgb(var(--color-accent-rgb) / 0.72);
-  border-radius: 999px;
-  background: rgb(var(--color-accent-rgb) / 0.14);
-  color: rgb(var(--color-accent-rgb) / 1);
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.95rem;
+  background: var(--color-btn-secondary-bg);
+  color: var(--color-btn-secondary-text);
   display: grid;
   place-items: center;
-  transition: background-color var(--motion-fast), border-color var(--motion-fast), box-shadow var(--motion-fast);
+  transition: background-color var(--motion-fast), color var(--motion-fast);
 }
 
 .triggerCta svg {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .composerTrigger:hover .triggerCta {
-  background: rgb(var(--color-accent-rgb) / 0.2);
-  border-color: rgb(var(--color-accent-rgb) / 0.8);
+  background: var(--interactive-hover);
+  color: var(--color-text-primary);
 }
 
 .composerTrigger:focus-visible .triggerCta {
-  box-shadow: 0 0 0 3px rgb(var(--color-accent-rgb) / 0.26);
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.42);
+  outline-offset: 2px;
 }
 
 .composerImageInput {

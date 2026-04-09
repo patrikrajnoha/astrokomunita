@@ -154,9 +154,25 @@
                 <span class="replyText">{{ shorten(p.parent.content) }}</span>
               </div>
 
-              <HashtagText class="postContent ui-stream-item__body" :content="p.content" />
+              <ObservationCard
+                v-if="observationForPost(p)"
+                :observation="observationForPost(p)"
+                :clickable="true"
+                :show-author="false"
+                @open="openObservation"
+              />
+              <HashtagText v-else class="postContent ui-stream-item__body" :content="p.content" />
 
-              <div v-if="p.attachment_url" class="attachment">
+              <PollCard
+                v-if="!observationForPost(p) && p.poll"
+                :poll="p.poll"
+                :post-id="p.id"
+                :is-authed="Boolean(auth.user)"
+                @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                @login-required="onPollLoginRequired"
+              />
+
+              <div v-if="!observationForPost(p) && p.attachment_url" class="attachment">
                 <img
                   v-if="isImage(p)"
                   class="attachmentImg"

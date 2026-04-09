@@ -384,4 +384,149 @@ describe('PublicProfileView media fallback', () => {
     expect(shareButton.text()).toContain('Zdieľať')
     expect(shareButton.find('.shareProfileBtn__icon').exists()).toBe(true)
   })
+  it('requests public-only observations on own public profile', async () => {
+    authStoreMock.user = {
+      id: 10,
+      username: 'astro',
+    }
+
+    apiGetMock.mockImplementation((url, config = {}) => {
+      if (url === '/users/astro') {
+        return Promise.resolve({
+          data: {
+            id: 10,
+            username: 'astro',
+            name: 'Astro User',
+            bio: null,
+          },
+        })
+      }
+
+      if (url === '/users/astro/posts') {
+        const kind = String(config?.params?.kind || 'roots')
+        if (kind === 'roots') return Promise.resolve({ data: makePostsResponse([], 0) })
+        return Promise.resolve({ data: makePostsResponse([], 0) })
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
+    })
+
+    const router = makeRouter()
+    await router.push('/u/astro')
+    await router.isReady()
+
+    mount(PublicProfileView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ObservationCard: { template: '<div class="obs-stub"></div>' },
+          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(listObservationsMock).toHaveBeenCalledWith(expect.objectContaining({
+      user_id: 10,
+      public_only: true,
+      page: 1,
+      per_page: 1,
+    }))
+  })
+
+  it('renders polls and attached observations in the public profile post list', async () => {
+    apiGetMock.mockImplementation((url, config = {}) => {
+      if (url === '/users/astro') {
+        return Promise.resolve({
+          data: {
+            id: 10,
+            username: 'astro',
+            name: 'Astro User',
+            bio: null,
+          },
+        })
+      }
+
+      if (url === '/users/astro/posts') {
+        const kind = String(config?.params?.kind || 'roots')
+        if (kind === 'roots') {
+          return Promise.resolve({
+            data: makePostsResponse([
+              {
+                id: 701,
+                content: 'Ktory objekt dnes?',
+                created_at: '2026-03-05T12:00:00Z',
+                poll: {
+                  id: 91,
+                  is_closed: false,
+                  total_votes: 4,
+                  ends_in_seconds: 3600,
+                  my_vote_option_id: null,
+                  chosen_option_id: null,
+                  user_has_voted: false,
+                  options: [
+                    { id: 1, text: 'M42', percent: 50, votes_count: 2, is_winner: false },
+                    { id: 2, text: 'M31', percent: 50, votes_count: 2, is_winner: false },
+                  ],
+                },
+              },
+              {
+                id: 702,
+                content: 'Pozorovanie: First Light',
+                created_at: '2026-03-05T13:00:00Z',
+                attached_observation: {
+                  id: 55,
+                  title: 'First Light',
+                  media: [],
+                  is_public: true,
+                  user: { username: 'astro' },
+                },
+              },
+            ], 2),
+          })
+        }
+
+        return Promise.resolve({ data: makePostsResponse([], 0) })
+      }
+
+      throw new Error(`Unexpected GET ${url}`)
+    })
+
+    const router = makeRouter()
+    await router.push('/u/astro')
+    await router.isReady()
+
+    const wrapper = mount(PublicProfileView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ObservationCard: {
+            props: ['observation'],
+            template: '<div data-testid="public-observation-stub">{{ observation.title }}</div>',
+          },
+          PollCard: {
+            props: ['poll'],
+            template: '<div data-testid="public-poll-stub">{{ poll.id }}</div>',
+          },
+          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        },
+      },
+    })
+
+    await flush()
+    await flush()
+
+    expect(wrapper.find('[data-testid="public-poll-stub"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="public-observation-stub"]').text()).toContain('First Light')
+
+    const openButtons = wrapper.findAll('.postActions .ui-btn')
+    expect(openButtons).toHaveLength(2)
+
+    await openButtons[1].trigger('click')
+    await flush()
+
+    expect(router.currentRoute.value.fullPath).toBe('/observations/55')
+  })
 })

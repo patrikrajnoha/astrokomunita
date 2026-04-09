@@ -152,6 +152,43 @@ class ObservationsApiTest extends TestCase
         $this->assertFalse($ids->contains((int) $otherPublic->id));
     }
 
+    public function test_public_only_filter_hides_private_observations_for_authenticated_owner(): void
+    {
+        $target = User::factory()->create();
+
+        $targetPublic = Observation::factory()->for($target)->create([
+            'title' => 'Target public',
+            'is_public' => true,
+        ]);
+        $targetPrivate = Observation::factory()->for($target)->create([
+            'title' => 'Target private',
+            'is_public' => false,
+        ]);
+
+        Sanctum::actingAs($target);
+
+        $defaultResponse = $this->getJson('/api/observations?user_id=' . $target->id);
+        $defaultResponse->assertOk();
+
+        $defaultIds = collect($defaultResponse->json('data'))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        $this->assertTrue($defaultIds->contains((int) $targetPublic->id));
+        $this->assertTrue($defaultIds->contains((int) $targetPrivate->id));
+
+        $publicOnlyResponse = $this->getJson('/api/observations?user_id=' . $target->id . '&public_only=1');
+        $publicOnlyResponse->assertOk();
+
+        $publicOnlyIds = collect($publicOnlyResponse->json('data'))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+
+        $this->assertTrue($publicOnlyIds->contains((int) $targetPublic->id));
+        $this->assertFalse($publicOnlyIds->contains((int) $targetPrivate->id));
+        $this->assertSame(1, (int) $publicOnlyResponse->json('total'));
+    }
+
     public function test_list_supports_oldest_sort_order(): void
     {
         $user = User::factory()->create();

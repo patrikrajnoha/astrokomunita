@@ -27,10 +27,12 @@ class ObservationController extends Controller
         $validated = $request->validate([
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'sort' => ['nullable', Rule::in(['newest', 'oldest'])],
+            'public_only' => ['nullable', 'boolean'],
         ]);
 
         $viewer = $this->resolveViewer($request);
         $mine = $request->boolean('mine');
+        $publicOnly = (bool) ($validated['public_only'] ?? $request->boolean('public_only'));
 
         if ($mine && !$viewer) {
             return response()->json([
@@ -72,7 +74,9 @@ class ObservationController extends Controller
             }
         }
 
-        if ($mine && $viewer) {
+        if ($publicOnly) {
+            $query->where('is_public', true);
+        } elseif ($mine && $viewer) {
             $query->where('user_id', $viewer->id);
         } elseif ($viewer) {
             $query->where(function ($visibilityQuery) use ($viewer): void {
