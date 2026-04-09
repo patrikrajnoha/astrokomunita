@@ -43,3 +43,8 @@ services/**/.venv*/
 *.err.log
 __pycache__/
 *.pyc
+
+# backups & dumps
+*.sql
+*.bak
+Caddyfile.*
