@@ -45,9 +45,26 @@ export default defineConfig(({ mode }) => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            framework: ['vue', 'vue-router', 'pinia'],
-            network: ['axios', 'laravel-echo'],
+          manualChunks(id) {
+            const normalizedId = String(id || '').replace(/\\/g, '/')
+
+            if (
+              normalizedId.includes('/node_modules/vue/') ||
+              normalizedId.includes('/node_modules/vue-router/') ||
+              normalizedId.includes('/node_modules/pinia/')
+            ) {
+              return 'framework'
+            }
+
+            if (
+              normalizedId.includes('/src/services/api.js') ||
+              normalizedId.includes('/node_modules/axios/') ||
+              normalizedId.includes('/node_modules/laravel-echo/')
+            ) {
+              return 'network'
+            }
+
+            return undefined
           },
         },
       },
