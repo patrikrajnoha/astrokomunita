@@ -22,6 +22,7 @@ function makeError(config = {}) {
 
 beforeEach(() => {
   globalThis.__astrokomunitaBootstrapPromise__ = null
+  vi.spyOn(console, 'log').mockImplementation(() => {})
 })
 
 describe('request bootstrap gating', () => {

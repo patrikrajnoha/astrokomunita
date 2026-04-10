@@ -261,13 +261,21 @@ function logDevAuthDiagnostic(error, status) {
 }
 
 api.interceptors.request.use(async (config) => {
-  const url = String(config?.url || '').toLowerCase()
-  const bootstrapPromise = typeof globalThis !== 'undefined'
-    ? globalThis['__astrokomunitaBootstrapPromise__']
-    : null
+  const url = String(config?.url ?? '')
+  const isBootstrapRequest = url.includes('/auth/me') || url.includes('csrf-cookie')
 
-  if (bootstrapPromise && !url.includes('/auth/me') && !url.includes('csrf-cookie')) {
-    await bootstrapPromise
+  if (!isBootstrapRequest) {
+    const gate = globalThis['__astrokomunitaBootstrapPromise__']
+    console.log('[bootstrap-gate] interceptor', {
+      url,
+      hasGate: Boolean(gate),
+    })
+
+    if (gate) {
+      console.log('[bootstrap-gate] waiting', { url })
+      await gate
+      console.log('[bootstrap-gate] released', { url })
+    }
   }
 
   let nextConfig = config
