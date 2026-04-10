@@ -18,8 +18,8 @@
     <RouterView v-if="auth.bootstrapDone" />
     <div v-else class="appInitScreen">
       <div class="card">
-        <h1>NaÄŤĂ­tavam aplikĂˇciu...</h1>
-        <p>ÄŚakĂˇm na dokonÄŤenie prihlĂˇsenia.</p>
+        <h1>Načítavam aplikáciu...</h1>
+        <p>Čakám na dokončenie prihlásenia.</p>
       </div>
     </div>
     <EmailVerificationGateModal
