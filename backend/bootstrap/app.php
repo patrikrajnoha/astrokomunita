@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
@@ -39,6 +40,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             EnsureFrontendApiRequestsAreStateful::class,
         ]);
+        $middleware->prependToPriorityList(
+            AuthenticatesRequests::class,
+            EnsureFrontendApiRequestsAreStateful::class,
+        );
 
         // Admin route middleware aliases (Laravel 12, no Kernel.php).
         $middleware->alias([
