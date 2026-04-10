@@ -20,6 +20,10 @@ class EnsureFrontendApiRequestsAreStateful extends SanctumEnsureFrontendRequests
             return false;
         }
 
+        if (static::hasExplicitXsrfSignal($request)) {
+            return true;
+        }
+
         if (! static::hasStatefulCookies($request)) {
             return false;
         }
@@ -27,12 +31,39 @@ class EnsureFrontendApiRequestsAreStateful extends SanctumEnsureFrontendRequests
         return static::requestHostLooksFirstParty($request);
     }
 
+    protected static function hasExplicitXsrfSignal(Request $request): bool
+    {
+        return trim((string) $request->headers->get('x-xsrf-token', '')) !== ''
+            || trim((string) $request->headers->get('x-csrf-token', '')) !== '';
+    }
+
     protected static function hasStatefulCookies(Request $request): bool
     {
         $sessionCookie = trim((string) config('session.cookie', ''));
+        $cookieHeader = (string) $request->headers->get('cookie', '');
 
-        return ($sessionCookie !== '' && $request->cookies->has($sessionCookie))
-            || $request->cookies->has('XSRF-TOKEN');
+        if ($request->cookies->count() > 0) {
+            return true;
+        }
+
+        if ($cookieHeader === '') {
+            return false;
+        }
+
+        $cookieNames = array_values(array_filter(array_unique([
+            $sessionCookie,
+            str_replace('-', '_', $sessionCookie),
+            str_replace('_', '-', $sessionCookie),
+            'XSRF-TOKEN',
+        ])));
+
+        foreach ($cookieNames as $cookieName) {
+            if (str_contains($cookieHeader, $cookieName.'=')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected static function requestHostLooksFirstParty(Request $request): bool
