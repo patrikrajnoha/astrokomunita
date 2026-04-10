@@ -22,9 +22,11 @@ function findButtonByLabel(wrapper, label) {
 function mountModal(props = {}) {
   return mount(OnboardingModal, {
     props: {
-      interestsCatalog: [
-        { key: 'meteory', label: 'Meteory' },
-        { key: 'mesiac', label: 'Mesiac' },
+      widgetCatalog: [
+        { key: 'search', label: 'Hľadaj', description: 'Rýchle vyhľadávanie obsahu.' },
+        { key: 'nasa_apod', label: 'Astrofoto dňa', description: 'Denná dávka astrofotografie.' },
+        { key: 'next_event', label: 'Najbližšia udalosť', description: 'Najbližšie udalosti na oblohe.' },
+        { key: 'latest_articles', label: 'Astro články', description: 'Nové články a tipy na pozorovanie.' },
       ],
       ...props,
     },
@@ -37,13 +39,13 @@ describe('OnboardingModal', () => {
     document.body.innerHTML = ''
   })
 
-  it('shows widget showcase and updates the copy when moving to location step', async () => {
+  it('shows widget showcase and updates copy after moving to location step', async () => {
     const wrapper = mountModal({
-      initialInterests: ['meteory'],
+      initialWidgetKeys: ['search', 'nasa_apod', 'next_event'],
     })
 
-    expect(wrapper.find('.widgetPreview').exists()).toBe(true)
-    expect(normalizeText(wrapper.text())).toContain('zaujmy menia to, co ti aplikacia prioritne ukazuje.')
+    expect(wrapper.find('.onbShowcasePreview').exists()).toBe(true)
+    expect(normalizeText(wrapper.text())).toContain('zacni s widgetmi, ktore naozaj pouzivas.')
 
     const nextButton = findButtonByLabel(wrapper, 'Ďalej')
     expect(nextButton).toBeTruthy()
@@ -54,13 +56,13 @@ describe('OnboardingModal', () => {
     await nextButton.trigger('click')
     await nextTick()
 
-    expect(normalizeText(wrapper.text())).toContain('lokalita spravi widgety skutocne uzitocne.')
-    expect(wrapper.find('.widgetPreview').exists()).toBe(true)
+    expect(normalizeText(wrapper.text())).toContain('lokalita zlepsi presnost widgetov.')
+    expect(wrapper.find('.onbShowcasePreview').exists()).toBe(true)
   })
 
-  it('emits finish payload after completing both steps', async () => {
+  it('emits finish payload with selected widgets and location', async () => {
     const wrapper = mountModal({
-      initialInterests: ['meteory'],
+      initialWidgetKeys: ['search', 'nasa_apod', 'next_event'],
       initialLocation: {
         location_label: 'Bratislava',
         location_place_id: 'bratislava',
@@ -88,7 +90,10 @@ describe('OnboardingModal', () => {
 
     expect(wrapper.emitted('finish')).toHaveLength(1)
     expect(wrapper.emitted('finish')[0][0]).toEqual({
-      interests: ['meteory'],
+      sidebar_widget_keys: ['search', 'nasa_apod', 'next_event'],
+      sidebar_widget_overrides: {
+        home: ['search', 'nasa_apod', 'next_event'],
+      },
       location_label: 'Bratislava',
       location_place_id: 'bratislava',
       location_lat: 48.1486,

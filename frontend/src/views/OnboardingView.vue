@@ -2,8 +2,8 @@
   <div class="onboardingPage">
     <OnboardingModal
       :loading="saving"
-      :interests-catalog="preferences.supportedInterests"
-      :initial-interests="preferences.interests"
+      :widget-catalog="widgetCatalog"
+      :initial-widget-keys="initialWidgetKeys"
       :initial-location="initialLocation"
       @finish="handleFinish"
       @skip="handleSkip"
@@ -15,6 +15,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
+import { useSidebarConfigStore } from '@/stores/sidebarConfig'
+import { DEFAULT_SIDEBAR_SCOPE } from '@/generated/sidebarScopes'
 import OnboardingModal from '@/components/onboarding/OnboardingModal.vue'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
 import { useToast } from '@/composables/useToast'
@@ -22,10 +24,28 @@ import { useToast } from '@/composables/useToast'
 const router = useRouter()
 const route = useRoute()
 const preferences = useEventPreferencesStore()
+const sidebarConfigStore = useSidebarConfigStore()
 const onboardingTour = useOnboardingTourStore()
 const { warn } = useToast()
+
 const saving = ref(false)
+const defaultScopeItems = ref([])
 const shouldStartTourAfterFlow = computed(() => route.query.start_tour === '1')
+
+const widgetDescriptions = {
+  next_event: 'Najbližšia astronomická udalosť na jednom mieste.',
+  nasa_apod: 'Denný výber astrofotografie z NASA APOD.',
+  search: 'Rýchle vyhľadávanie obsahu naprieč aplikáciou.',
+  latest_articles: 'Čerstvé články a novinky zo sveta astronómie.',
+  upcoming_events: 'Nadchádzajúce eventy, ktoré sa oplatí sledovať.',
+  moon_phases: 'Aktuálna fáza Mesiaca a najbližšie zmeny.',
+  moon_events: 'Mesiac, východy/západy a pozorovacie okná.',
+  constellations_now: 'Súhvezdia viditeľné práve teraz.',
+  aurora_watch: 'Aurora index a šanca pozorovania polárnej žiary.',
+  space_weather: 'Dôležité ukazovatele vesmírneho počasia.',
+  neo_watchlist: 'Blízke asteroidy a ich bezpečné prelety.',
+  iss_pass: 'Najbližšie prelety ISS nad tvojou lokalitou.',
+}
 
 const initialLocation = computed(() => ({
   location_label: preferences.locationLabel || '',
@@ -33,6 +53,73 @@ const initialLocation = computed(() => ({
   location_lat: preferences.locationLat,
   location_lon: preferences.locationLon,
 }))
+
+const sidebarDefaultWidgetKeys = computed(() => {
+  return defaultScopeItems.value
+    .filter((item) => item?.kind === 'builtin' && item?.is_enabled)
+    .sort((a, b) => Number(a?.order ?? 0) - Number(b?.order ?? 0))
+    .map((item) => String(item?.section_key || '').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+})
+
+const widgetCatalog = computed(() => {
+  const orderByKey = new Map()
+  defaultScopeItems.value.forEach((item, index) => {
+    const key = String(item?.section_key || '').trim()
+    if (!key || orderByKey.has(key)) return
+    const order = Number.isFinite(Number(item?.order)) ? Number(item.order) : index
+    orderByKey.set(key, order)
+  })
+
+  const rows = Array.isArray(preferences.supportedSidebarWidgets)
+    ? preferences.supportedSidebarWidgets
+    : []
+
+  const fallbackRows = rows.length > 0
+    ? rows
+    : defaultScopeItems.value.map((item) => ({
+        section_key: item?.section_key,
+        title: item?.title,
+      }))
+
+  return fallbackRows
+    .map((row, index) => {
+      const key = String(row?.section_key || '').trim()
+      const label = String(row?.title || '').trim()
+      if (!key || !label) return null
+
+      const order = orderByKey.has(key) ? orderByKey.get(key) : 1000 + index
+      return {
+        key,
+        label,
+        description: widgetDescriptions[key] || 'Prispôsob si sidebar podľa toho, čo chceš sledovať najčastejšie.',
+        order,
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.order - b.order)
+})
+
+const initialWidgetKeys = computed(() => {
+  const explicitHomeKeys = Array.isArray(preferences.sidebarWidgetOverrides?.[DEFAULT_SIDEBAR_SCOPE])
+    ? preferences.sidebarWidgetOverrides[DEFAULT_SIDEBAR_SCOPE]
+    : []
+
+  if (explicitHomeKeys.length > 0) {
+    return explicitHomeKeys.slice(0, 3)
+  }
+
+  if (Array.isArray(preferences.sidebarWidgetKeys) && preferences.sidebarWidgetKeys.length > 0) {
+    return preferences.sidebarWidgetKeys.slice(0, 3)
+  }
+
+  if (sidebarDefaultWidgetKeys.value.length > 0) {
+    return sidebarDefaultWidgetKeys.value.slice(0, 3)
+  }
+
+  return widgetCatalog.value.map((item) => item.key).slice(0, 3)
+})
 
 function resolveRedirectTarget() {
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
@@ -51,7 +138,7 @@ async function handleFinish(payload) {
       onboardingTour.restartTour()
     }
   } catch (error) {
-    warn(error?.userMessage || preferences.error || 'Nepodarilo sa ulozit onboarding.')
+    warn(error?.userMessage || preferences.error || 'Nepodarilo sa uložiť onboarding.')
   } finally {
     saving.value = false
   }
@@ -68,7 +155,7 @@ async function handleSkip() {
       onboardingTour.restartTour()
     }
   } catch (error) {
-    warn(error?.userMessage || preferences.error || 'Nepodarilo sa preskocit onboarding.')
+    warn(error?.userMessage || preferences.error || 'Nepodarilo sa preskočiť onboarding.')
   } finally {
     saving.value = false
   }
@@ -80,7 +167,12 @@ onMounted(async () => {
   } catch {
     // Router guard already handles failures conservatively.
   }
-  await preferences.ensureInterestsLoaded()
+
+  try {
+    defaultScopeItems.value = await sidebarConfigStore.fetchScope(DEFAULT_SIDEBAR_SCOPE, { force: true })
+  } catch {
+    defaultScopeItems.value = []
+  }
 
   if (preferences.isOnboardingCompleted) {
     await router.replace(resolveRedirectTarget())
@@ -95,8 +187,8 @@ onMounted(async () => {
   place-items: center;
   padding: 1rem;
   background:
-    radial-gradient(900px 420px at 12% -8%, rgb(var(--color-primary-rgb) / 0.18), transparent 65%),
-    radial-gradient(800px 460px at 92% 115%, rgb(var(--color-success-rgb) / 0.1), transparent 65%),
-    rgb(var(--color-bg-rgb));
+    radial-gradient(900px 440px at 10% -6%, rgb(15 115 255 / 0.17), transparent 65%),
+    radial-gradient(860px 500px at 96% 118%, rgb(15 115 255 / 0.1), transparent 70%),
+    #151d28;
 }
 </style>

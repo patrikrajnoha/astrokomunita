@@ -4,17 +4,20 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import OnboardingView from './OnboardingView.vue'
 
 const mockPreferences = vi.hoisted(() => ({
-  supportedInterests: [],
-  interests: [],
+  supportedSidebarWidgets: [],
+  sidebarWidgetOverrides: {},
+  sidebarWidgetKeys: [],
   locationLabel: '',
   locationPlaceId: '',
   locationLat: null,
   locationLon: null,
   isOnboardingCompleted: false,
   fetchPreferences: vi.fn(async () => {}),
-  ensureInterestsLoaded: vi.fn(async () => []),
   saveOnboarding: vi.fn(async () => {}),
   markOnboardingComplete: vi.fn(async () => {}),
+}))
+const mockSidebarConfigStore = vi.hoisted(() => ({
+  fetchScope: vi.fn(async () => []),
 }))
 const mockOnboardingTour = vi.hoisted(() => ({
   restartTour: vi.fn(),
@@ -23,6 +26,10 @@ const warnMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/stores/eventPreferences', () => ({
   useEventPreferencesStore: () => mockPreferences,
+}))
+
+vi.mock('@/stores/sidebarConfig', () => ({
+  useSidebarConfigStore: () => mockSidebarConfigStore,
 }))
 
 vi.mock('@/stores/onboardingTour', () => ({
@@ -48,10 +55,13 @@ function makeRouter() {
 describe('OnboardingView', () => {
   beforeEach(() => {
     mockPreferences.isOnboardingCompleted = false
+    mockPreferences.supportedSidebarWidgets = []
+    mockPreferences.sidebarWidgetOverrides = {}
+    mockPreferences.sidebarWidgetKeys = []
     mockPreferences.fetchPreferences.mockClear()
-    mockPreferences.ensureInterestsLoaded.mockClear()
     mockPreferences.saveOnboarding.mockClear()
     mockPreferences.markOnboardingComplete.mockClear()
+    mockSidebarConfigStore.fetchScope.mockClear()
     mockOnboardingTour.restartTour.mockClear()
     warnMock.mockClear()
   })
@@ -66,7 +76,7 @@ describe('OnboardingView', () => {
         plugins: [router],
         stubs: {
           OnboardingModal: {
-            template: '<button class="finish" @click="$emit(\'finish\', { interests: [\'meteory\'], location_label: \'Bratislava, Slovensko\' })">finish</button>',
+            template: '<button class="finish" @click="$emit(\'finish\', { sidebar_widget_keys: [\'search\', \'nasa_apod\', \'next_event\'], sidebar_widget_overrides: { home: [\'search\', \'nasa_apod\', \'next_event\'] }, location_label: \'Bratislava\' })">finish</button>',
           },
         },
       },
@@ -114,7 +124,7 @@ describe('OnboardingView', () => {
         plugins: [router],
         stubs: {
           OnboardingModal: {
-            template: '<button class="finish" @click="$emit(\'finish\', { interests: [] })">finish</button>',
+            template: '<button class="finish" @click="$emit(\'finish\', { sidebar_widget_keys: [\'search\', \'nasa_apod\', \'next_event\'] })">finish</button>',
           },
         },
       },

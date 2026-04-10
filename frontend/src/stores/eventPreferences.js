@@ -316,27 +316,46 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
     async saveOnboarding(payload) {
       const completedAt = payload?.onboarding_completed_at || new Date().toISOString()
 
-      return this.savePreferences({
-        interests: Array.isArray(payload?.interests) ? payload.interests : [],
-        location_label: payload?.location_label ?? '',
-        location_place_id: payload?.location_place_id ?? null,
-        location_lat: payload?.location_lat ?? null,
-        location_lon: payload?.location_lon ?? null,
+      const requestPayload = {
         onboarding_completed_at: completedAt,
-      }, {
+      }
+
+      if (Array.isArray(payload?.interests)) {
+        requestPayload.interests = payload.interests
+      }
+
+      if (Object.prototype.hasOwnProperty.call(payload || {}, 'location_label')) {
+        requestPayload.location_label = payload?.location_label ?? ''
+      }
+
+      if (Object.prototype.hasOwnProperty.call(payload || {}, 'location_place_id')) {
+        requestPayload.location_place_id = payload?.location_place_id ?? null
+      }
+
+      if (Object.prototype.hasOwnProperty.call(payload || {}, 'location_lat')) {
+        requestPayload.location_lat = payload?.location_lat ?? null
+      }
+
+      if (Object.prototype.hasOwnProperty.call(payload || {}, 'location_lon')) {
+        requestPayload.location_lon = payload?.location_lon ?? null
+      }
+
+      if (Array.isArray(payload?.sidebar_widget_keys)) {
+        requestPayload.sidebar_widget_keys = normalizeSidebarWidgetKeys(payload.sidebar_widget_keys)
+      }
+
+      if (payload?.sidebar_widget_overrides && typeof payload.sidebar_widget_overrides === 'object' && !Array.isArray(payload.sidebar_widget_overrides)) {
+        requestPayload.sidebar_widget_overrides = normalizeSidebarWidgetOverrides(payload.sidebar_widget_overrides)
+      }
+
+      return this.savePreferences(requestPayload, {
         skipAuthRedirect: true,
         skipErrorToast: true,
       })
     },
 
     async markOnboardingComplete() {
-      return this.saveOnboarding({
-        interests: [],
-        location_label: '',
-        location_place_id: null,
-        location_lat: null,
-        location_lon: null,
-      })
+      return this.saveOnboarding({})
     },
 
     async fetch(force = false) {
