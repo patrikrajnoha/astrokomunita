@@ -1,5 +1,12 @@
 const CACHE_NAME = 'astrokomunita-shell-v3'
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/favicon.ico']
+const NETWORK_ONLY_HOSTS = new Set(['api.astrokomunita.sk'])
+const NETWORK_ONLY_PATH_PREFIXES = ['/api/', '/sanctum/', '/broadcasting/']
+
+function shouldBypassRequest(url) {
+  if (NETWORK_ONLY_HOSTS.has(url.hostname)) return true
+  return NETWORK_ONLY_PATH_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,8 +33,8 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
 
-  // Keep API always network-first and uncached to avoid stale data.
-  if (url.pathname.startsWith('/api/')) return
+  // Keep API and auth traffic always network-only and uncached.
+  if (shouldBypassRequest(url)) return
 
   // Only handle same-origin requests and static assets.
   if (url.origin !== self.location.origin) return
