@@ -94,8 +94,8 @@ describe('App bootstrap gate', () => {
 
     expect(wrapper.find('.router-view-stub').exists()).toBe(false)
     expect(wrapper.find('.email-modal-stub').exists()).toBe(false)
-    expect(wrapper.text()).toContain('NaÄŤĂ­tavam aplikĂˇciu...')
-    expect(wrapper.text()).toContain('ÄŚakĂˇm na dokonÄŤenie prihlĂˇsenia.')
+    expect(wrapper.text()).toContain('Načítavam aplikáciu...')
+    expect(wrapper.text()).toContain('Čakám na dokončenie prihlásenia.')
   })
 
   it('renders route content after auth bootstrap is done', () => {

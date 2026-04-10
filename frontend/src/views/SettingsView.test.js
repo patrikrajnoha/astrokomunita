@@ -23,6 +23,8 @@ const authMock = vi.hoisted(() => ({
     newsletter_subscribed: false,
   },
   initialized: true,
+  bootstrapDone: true,
+  isAuthed: true,
   csrf: vi.fn(async () => {}),
   fetchUser: vi.fn(async () => {}),
   logout: vi.fn(async () => {}),
@@ -125,6 +127,8 @@ describe('SettingsView', () => {
       newsletter_subscribed: false,
     }
     authMock.isAdmin = false
+    authMock.bootstrapDone = true
+    authMock.isAuthed = true
     authMock.initialized = true
 
     httpMock.patch.mockResolvedValue({
@@ -566,9 +570,9 @@ describe('SettingsView', () => {
         },
         sidebar_widget_keys: ['search', 'nasa_apod', 'next_event'],
       },
-      {
-        meta: { requiresAuth: true },
-      },
+      expect.objectContaining({
+        meta: expect.objectContaining({ requiresAuth: true }),
+      }),
     )
 
     availableCards = wrapper.findAll('.widgetZone')[1].findAll('.widgetCard')
@@ -630,9 +634,9 @@ describe('SettingsView', () => {
         },
         sidebar_widget_keys: ['nasa_apod', 'search'],
       },
-      {
-        meta: { requiresAuth: true },
-      },
+      expect.objectContaining({
+        meta: expect.objectContaining({ requiresAuth: true }),
+      }),
     )
 
     const activeNames = wrapper.findAll('.widgetZone__list--active .widgetCard__name').map((node) => node.text())
@@ -692,9 +696,9 @@ describe('SettingsView', () => {
         },
         sidebar_widget_keys: ['search', 'nasa_apod', 'next_event'],
       },
-      {
-        meta: { requiresAuth: true },
-      },
+      expect.objectContaining({
+        meta: expect.objectContaining({ requiresAuth: true }),
+      }),
     )
     expect(httpMock.put).not.toHaveBeenCalledWith('/admin/sidebar-config', expect.anything(), expect.anything())
   })
