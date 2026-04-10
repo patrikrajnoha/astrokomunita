@@ -1,21 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
-const authStoreMock = vi.hoisted(() => ({
-  bootstrapDone: true,
-  waitForBootstrap: vi.fn(async () => null),
-}))
-const useAuthStoreMock = vi.hoisted(() => vi.fn(() => authStoreMock))
-const getActivePiniaMock = vi.hoisted(() => vi.fn(() => ({ __pinia: true })))
-
-vi.mock('pinia', () => ({
-  getActivePinia: (...args) => getActivePiniaMock(...args),
-}))
-
-vi.mock('@/stores/auth', () => ({
-  useAuthStore: (...args) => useAuthStoreMock(...args),
-}))
-
-import api, { shouldRedirectToLogin } from '@/services/api'
+import api, { setBootstrapPromise, shouldRedirectToLogin } from '@/services/api'
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
@@ -37,38 +21,75 @@ function makeError(config = {}) {
 }
 
 beforeEach(() => {
-  authStoreMock.bootstrapDone = true
-  authStoreMock.waitForBootstrap.mockReset()
-  authStoreMock.waitForBootstrap.mockResolvedValue(null)
-  useAuthStoreMock.mockClear()
-  getActivePiniaMock.mockReset()
-  getActivePiniaMock.mockReturnValue({ __pinia: true })
+  setBootstrapPromise(null)
 })
 
 describe('request bootstrap gating', () => {
   it('waits for auth bootstrap before sending non-auth requests', async () => {
-    authStoreMock.bootstrapDone = false
+    let resolveBootstrap
+    let interceptorReleased = false
+    const bootstrapPromise = new Promise((resolve) => {
+      resolveBootstrap = resolve
+    })
+    setBootstrapPromise(bootstrapPromise)
 
-    const config = await api.interceptors.request.handlers[0].fulfilled({
+    const pendingConfig = api.interceptors.request.handlers[0].fulfilled({
       url: '/notifications/unread-count',
     })
+      .then((config) => {
+        interceptorReleased = true
+        return config
+      })
 
-    expect(useAuthStoreMock).toHaveBeenCalledTimes(1)
-    expect(authStoreMock.waitForBootstrap).toHaveBeenCalledTimes(1)
+    await Promise.resolve()
+
+    expect(interceptorReleased).toBe(false)
+
+    resolveBootstrap()
+
+    const config = await pendingConfig
+
     expect(config).toEqual(expect.objectContaining({
       url: '/notifications/unread-count',
     }))
   })
 
   it('does not wait for the bootstrap auth/me request itself', async () => {
-    authStoreMock.bootstrapDone = false
+    let resolveBootstrap
+    const bootstrapPromise = new Promise((resolve) => {
+      resolveBootstrap = resolve
+    })
+    setBootstrapPromise(bootstrapPromise)
 
-    await api.interceptors.request.handlers[0].fulfilled({
+    const config = await api.interceptors.request.handlers[0].fulfilled({
       url: '/auth/me',
     })
 
-    expect(useAuthStoreMock).not.toHaveBeenCalled()
-    expect(authStoreMock.waitForBootstrap).not.toHaveBeenCalled()
+    expect(config).toEqual(expect.objectContaining({
+      url: '/auth/me',
+    }))
+
+    resolveBootstrap()
+    await bootstrapPromise
+  })
+
+  it('does not wait for csrf cookie requests', async () => {
+    let resolveBootstrap
+    const bootstrapPromise = new Promise((resolve) => {
+      resolveBootstrap = resolve
+    })
+    setBootstrapPromise(bootstrapPromise)
+
+    const config = await api.interceptors.request.handlers[0].fulfilled({
+      url: '/sanctum/csrf-cookie',
+    })
+
+    expect(config).toEqual(expect.objectContaining({
+      url: '/sanctum/csrf-cookie',
+    }))
+
+    resolveBootstrap()
+    await bootstrapPromise
   })
 })
 

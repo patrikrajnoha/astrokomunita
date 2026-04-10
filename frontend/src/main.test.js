@@ -39,6 +39,7 @@ const authStoreMock = vi.hoisted(() => ({
   bootstrapAuth: vi.fn(async () => null),
 }))
 const useAuthStoreMock = vi.hoisted(() => vi.fn(() => authStoreMock))
+const setBootstrapPromiseMock = vi.hoisted(() => vi.fn())
 const captureClientErrorMock = vi.hoisted(() => vi.fn())
 const initEchoMock = vi.hoisted(() => vi.fn(async () => {}))
 const getEchoMock = vi.hoisted(() => vi.fn(() => null))
@@ -69,6 +70,10 @@ vi.mock('@/bootstrap/appInitState', () => ({
 vi.mock('@/bootstrap/preloadRecovery', () => ({
   installPreloadRecovery: (...args) => installPreloadRecoveryMock(...args),
   clearPreloadRecoveryState: (...args) => clearPreloadRecoveryStateMock(...args),
+}))
+
+vi.mock('@/services/api', () => ({
+  setBootstrapPromise: (...args) => setBootstrapPromiseMock(...args),
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -121,6 +126,7 @@ describe('main bootstrap', () => {
     useAuthStoreMock.mockClear()
     authStoreMock.bootstrapAuth.mockReset()
     authStoreMock.bootstrapAuth.mockResolvedValue(null)
+    setBootstrapPromiseMock.mockClear()
     captureClientErrorMock.mockClear()
     initEchoMock.mockReset()
     initEchoMock.mockResolvedValue(undefined)
@@ -131,6 +137,12 @@ describe('main bootstrap', () => {
   it('keeps app initializing until auth bootstrap resolves', async () => {
     const events = []
     let resolveBootstrap
+    const bootstrapPromise = new Promise((resolve) => {
+      resolveBootstrap = () => {
+        events.push('bootstrapResolved')
+        resolve(null)
+      }
+    })
 
     setInitializingMock.mockImplementation((value) => {
       appInitStateMock.initializing = Boolean(value)
@@ -139,23 +151,20 @@ describe('main bootstrap', () => {
       }
     })
 
-    authStoreMock.bootstrapAuth.mockImplementationOnce(() => new Promise((resolve) => {
-      resolveBootstrap = () => {
-        events.push('bootstrapResolved')
-        resolve(null)
-      }
-    }))
+    authStoreMock.bootstrapAuth.mockReturnValueOnce(bootstrapPromise)
 
     await import('./main.js')
     await flushPromises()
 
     expect(appMountMock).toHaveBeenCalledWith('#app')
     expect(authStoreMock.bootstrapAuth).toHaveBeenCalledTimes(1)
+    expect(setBootstrapPromiseMock).toHaveBeenCalledWith(bootstrapPromise)
     expect(setInitializingMock).not.toHaveBeenCalledWith(false)
 
     resolveBootstrap()
     await flushPromises()
 
+    expect(setBootstrapPromiseMock).toHaveBeenLastCalledWith(null)
     expect(setInitializingMock).toHaveBeenCalledWith(false)
     expect(events).toEqual(['bootstrapResolved', 'setInitializingFalse'])
   })
@@ -167,6 +176,8 @@ describe('main bootstrap', () => {
     await import('./main.js')
     await flushPromises()
 
+    expect(setBootstrapPromiseMock).toHaveBeenNthCalledWith(1, expect.any(Promise))
+    expect(setBootstrapPromiseMock).toHaveBeenLastCalledWith(null)
     expect(setInitErrorMock).toHaveBeenCalledWith(expect.objectContaining({
       message: 'bootstrap failed',
     }))

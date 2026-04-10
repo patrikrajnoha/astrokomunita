@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { getActivePinia } from 'pinia'
 import { useToast } from '@/composables/useToast'
 
 const configuredApiBaseUrl = import.meta.env.DEV
@@ -49,7 +48,11 @@ export async function refreshCsrfCookie() {
   syncXsrfHeaderFromCookie()
 }
 let authProbePromise = null
-let authStoreModulePromise = null
+let _bootstrapPromise = null
+
+export function setBootstrapPromise(promise) {
+  _bootstrapPromise = promise ?? null
+}
 
 async function probeActiveSession() {
   if (authProbePromise) {
@@ -79,24 +82,6 @@ async function probeActiveSession() {
     })
 
   return authProbePromise
-}
-
-function shouldBypassBootstrapWait(config) {
-  if (config?.meta?.skipBootstrapWait === true || config?.skipBootstrapWait === true) {
-    return true
-  }
-
-  const requestUrl = String(config?.url || '').toLowerCase()
-  return requestUrl.includes('/auth/me')
-}
-
-async function getRequestAuthStore() {
-  const pinia = getActivePinia()
-  if (!pinia) return null
-
-  authStoreModulePromise ||= import('@/stores/auth')
-  const { useAuthStore } = await authStoreModulePromise
-  return useAuthStore(pinia)
 }
 
 function isLongRunningPath(url) {
@@ -281,11 +266,10 @@ function logDevAuthDiagnostic(error, status) {
 }
 
 api.interceptors.request.use(async (config) => {
-  if (!shouldBypassBootstrapWait(config)) {
-    const auth = await getRequestAuthStore()
-    if (!auth?.bootstrapDone && typeof auth?.waitForBootstrap === 'function') {
-      await auth.waitForBootstrap()
-    }
+  const url = String(config?.url || '').toLowerCase()
+
+  if (_bootstrapPromise && !url.includes('/auth/me') && !url.includes('csrf-cookie')) {
+    await _bootstrapPromise
   }
 
   let nextConfig = config
