@@ -36,7 +36,12 @@ jobs:
               git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF}"
               git diff --name-only --diff-filter=ACMR "origin/${GITHUB_BASE_REF}...HEAD"
             else
-              find backend frontend services moderation-service scripts -type f
+              BEFORE_SHA="${{ github.event.before }}"
+              if [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+                git diff --name-only --diff-filter=ACMR "${BEFORE_SHA}" "${GITHUB_SHA}"
+              else
+                git diff-tree --no-commit-id --name-only -r --diff-filter=ACMR "${GITHUB_SHA}"
+              fi
             fi
           }
 
