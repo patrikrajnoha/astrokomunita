@@ -3,6 +3,7 @@ import http, { refreshCsrfCookie } from '@/services/api'
 import { clearHomeFeedPrefetch } from '@/services/feedPrefetch'
 
 const AUTH_TIMEOUTS_MS = [5000, 8000]
+const AUTH_SESSION_ENDPOINT = '/me'
 const PRESERVE_AUTH_STATE_SOURCES = new Set([
   'email-gate-verified',
   'preferences-save',
@@ -19,7 +20,7 @@ function getAuthEndpointDebug() {
   const cleanBase = baseURL.replace(/\/+$/, '')
   return {
     baseURL,
-    url: `${cleanBase}/auth/me`,
+    url: `${cleanBase}${AUTH_SESSION_ENDPOINT}`,
   }
 }
 
@@ -33,7 +34,15 @@ function classifyFetchUserError(error) {
   const bannedAt = error?.response?.data?.banned_at ?? null
 
   if (status === 401 || status === 419) {
-    return { type: 'unauthorized', status, code, message, backendCode, reason: null, bannedAt: null }
+    return {
+      type: 'unauthorized',
+      status,
+      code,
+      message,
+      backendCode,
+      reason: null,
+      bannedAt: null,
+    }
   }
 
   if (status === 403 && backendCode === 'ACCOUNT_BANNED') {
@@ -140,9 +149,7 @@ export const useAuthStore = defineStore('auth', {
       const requestPromise = (async () => {
         const isStaleAuthSnapshot = () => this.loginSequence !== authSequenceAtStart
         const shouldPreserveCurrentAuthState = () =>
-          !!this.user &&
-          preserveStateOnError &&
-          PRESERVE_AUTH_STATE_SOURCES.has(source)
+          !!this.user && preserveStateOnError && PRESERVE_AUTH_STATE_SOURCES.has(source)
         const applyBootstrapFlags = () => {
           if (markBootstrap) {
             this.bootstrapDone = true
@@ -166,7 +173,7 @@ export const useAuthStore = defineStore('auth', {
             }
 
             try {
-              const { data } = await http.get('/auth/me', {
+              const { data } = await http.get(AUTH_SESSION_ENDPOINT, {
                 timeout,
                 withCredentials: true,
                 meta: { skipErrorToast: true, skipAuthRedirect: true },
@@ -286,10 +293,11 @@ export const useAuthStore = defineStore('auth', {
               }
 
               const isTransientFailure =
-                classified.type === 'timeout' || classified.type === 'network' || classified.type === 'server'
+                classified.type === 'timeout' ||
+                classified.type === 'network' ||
+                classified.type === 'server'
               const shouldPreserveUnauthorized =
-                shouldPreserveCurrentAuthState() &&
-                classified.type === 'unauthorized'
+                shouldPreserveCurrentAuthState() && classified.type === 'unauthorized'
 
               if (shouldPreserveUnauthorized || (this.user && isTransientFailure)) {
                 this.status = 'authenticated'
@@ -403,9 +411,10 @@ export const useAuthStore = defineStore('auth', {
       clearHomeFeedPrefetch()
       this.loading = true
       try {
-        const requestPayload = payload && typeof payload === 'object'
-          ? { ...payload, remember: payload.remember ?? true }
-          : { remember: true }
+        const requestPayload =
+          payload && typeof payload === 'object'
+            ? { ...payload, remember: payload.remember ?? true }
+            : { remember: true }
         const response = await this.postWithCsrfRetry('/auth/login', requestPayload)
         const loginUser = response?.data || null
 

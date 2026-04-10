@@ -3,8 +3,10 @@ import { useToast } from '@/composables/useToast'
 
 const configuredApiBaseUrl = import.meta.env.DEV
   ? ''
-  : (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '')
-const normalizedApiBaseUrl = String(configuredApiBaseUrl).replace(/\/api\/?$/i, '').replace(/\/+$/, '')
+  : import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || ''
+const normalizedApiBaseUrl = String(configuredApiBaseUrl)
+  .replace(/\/api\/?$/i, '')
+  .replace(/\/+$/, '')
 const apiBaseUrl = normalizedApiBaseUrl ? `${normalizedApiBaseUrl}/api` : '/api'
 
 const api = axios.create({
@@ -48,6 +50,7 @@ export async function refreshCsrfCookie() {
   syncXsrfHeaderFromCookie()
 }
 let authProbePromise = null
+const AUTH_SESSION_ENDPOINT = '/me'
 
 async function probeActiveSession() {
   if (authProbePromise) {
@@ -55,7 +58,7 @@ async function probeActiveSession() {
   }
 
   authProbePromise = api
-    .get('/auth/me', {
+    .get(AUTH_SESSION_ENDPOINT, {
       timeout: 6000,
       withCredentials: true,
       meta: { skipErrorToast: true, skipAuthRedirect: true },
@@ -86,20 +89,18 @@ function isLongRunningPath(url) {
   }
 
   const isSingleCandidateRetranslate =
-    normalized.includes('/admin/event-candidates/')
-    && normalized.includes('/retranslate')
-    && !normalized.includes('/retranslate-batch')
+    normalized.includes('/admin/event-candidates/') &&
+    normalized.includes('/retranslate') &&
+    !normalized.includes('/retranslate-batch')
   const isSingleCandidateApprove =
-    normalized.includes('/admin/event-candidates/')
-    && normalized.includes('/approve')
-    && !normalized.includes('/approve-batch')
+    normalized.includes('/admin/event-candidates/') &&
+    normalized.includes('/approve') &&
+    !normalized.includes('/approve-batch')
 
   const isAdminEventAiGenerate =
-    normalized.includes('/admin/events/') &&
-    normalized.includes('/ai/generate-description')
+    normalized.includes('/admin/events/') && normalized.includes('/ai/generate-description')
   const isAdminBlogAiTagSuggest =
-    normalized.includes('/admin/blog-posts/') &&
-    normalized.includes('/ai/suggest-tags')
+    normalized.includes('/admin/blog-posts/') && normalized.includes('/ai/suggest-tags')
 
   return (
     isAdminEventAiGenerate ||
@@ -146,12 +147,15 @@ function shouldShowErrorToast(message, status) {
 }
 
 export function shouldRedirectToLogin(error) {
-  if (error?.config?.meta?.skipAuthRedirect === true || error?.config?.skipAuthRedirect === true) return false
+  if (error?.config?.meta?.skipAuthRedirect === true || error?.config?.skipAuthRedirect === true)
+    return false
 
   const requestUrl = String(error?.config?.url || '').toLowerCase()
-  if (requestUrl.includes('/auth/me')) return true
+  if (requestUrl === AUTH_SESSION_ENDPOINT || requestUrl.endsWith(AUTH_SESSION_ENDPOINT))
+    return true
 
-  if (error?.config?.meta?.authCritical === true || error?.config?.authCritical === true) return true
+  if (error?.config?.meta?.authCritical === true || error?.config?.authCritical === true)
+    return true
   if (error?.config?.meta?.requiresAuth === true) return true
   return false
 }
@@ -181,7 +185,11 @@ function isVerificationError(error, status, message) {
   if (status !== 403 && status !== 410) return false
 
   const normalized = String(message || '').toLowerCase()
-  return normalized.includes('verified') || normalized.includes('verify') || normalized.includes('email address is not verified')
+  return (
+    normalized.includes('verified') ||
+    normalized.includes('verify') ||
+    normalized.includes('email address is not verified')
+  )
 }
 
 function redirectToEmailSettingsIfNeeded() {
@@ -214,7 +222,11 @@ function normalizeHttpErrorMessage(error) {
     return 'Nahravanie zlyhalo. Subor alebo cely upload je prilis velky. Zmensi subory alebo pocet priloh a skus to znova.'
   }
 
-  const isNetworkError = !status && (code === 'ERR_NETWORK' || message === 'Network Error' || message.toLowerCase().includes('network'))
+  const isNetworkError =
+    !status &&
+    (code === 'ERR_NETWORK' ||
+      message === 'Network Error' ||
+      message.toLowerCase().includes('network'))
   if (isNetworkError) {
     if (isFormDataPayload(error?.config?.data)) {
       return 'Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky. Zmensi subor alebo pocet priloh a skus to znova.'
@@ -243,9 +255,8 @@ function logDevAuthDiagnostic(error, status) {
   const requestUrl = String(config?.url || '')
   const baseURL = String(config?.baseURL || api.defaults.baseURL || '')
   const pathname = typeof window !== 'undefined' ? String(window.location.pathname || '') : ''
-  const hasXsrfCookie = typeof document !== 'undefined'
-    ? document.cookie.includes('XSRF-TOKEN=')
-    : false
+  const hasXsrfCookie =
+    typeof document !== 'undefined' ? document.cookie.includes('XSRF-TOKEN=') : false
 
   console.warn('[auth-flow] request failed', {
     status,
@@ -266,8 +277,7 @@ api.interceptors.request.use((config) => {
   if (isLongRunningPath(nextConfig?.url)) {
     const url = String(nextConfig?.url || '').toLowerCase()
     const isAdminEventAiGenerate =
-      url.includes('/admin/events/') &&
-      url.includes('/ai/generate-description')
+      url.includes('/admin/events/') && url.includes('/ai/generate-description')
     const isSingleCandidateRetranslate =
       url.includes('/admin/event-candidates/') &&
       url.includes('/retranslate') &&
@@ -311,7 +321,9 @@ api.interceptors.response.use(
 
     const isTimeoutOrNetwork =
       error?.code === 'ECONNABORTED' ||
-      String(error?.message || '').toLowerCase().includes('timeout') ||
+      String(error?.message || '')
+        .toLowerCase()
+        .includes('timeout') ||
       (!status && (error?.code === 'ERR_NETWORK' || error?.message === 'Network Error'))
 
     if (isTimeoutOrNetwork) {
@@ -338,8 +350,7 @@ api.interceptors.response.use(
       } else if (isVerificationError(error, status, normalizedMessage)) {
         const backendCode = resolveBackendErrorCode(error)
         const backendAction = resolveBackendAction(error)
-        const shouldOfferSettingsLink =
-          backendAction === 'GO_TO_SETTINGS_EMAIL' || !backendAction
+        const shouldOfferSettingsLink = backendAction === 'GO_TO_SETTINGS_EMAIL' || !backendAction
         const verificationMessage =
           backendCode === 'EMAIL_VERIFY_DEPRECATED'
             ? 'Overenie cez odkaz už nie je podporované.'
@@ -356,7 +367,10 @@ api.interceptors.response.use(
       } else if (status === 401) {
         if (shouldRedirectToLogin(error)) {
           const requestUrl = String(error?.config?.url || '').toLowerCase()
-          const shouldProbeSession = requestUrl !== '' && !requestUrl.includes('/auth/me')
+          const shouldProbeSession =
+            requestUrl !== '' &&
+            requestUrl !== AUTH_SESSION_ENDPOINT &&
+            !requestUrl.endsWith(AUTH_SESSION_ENDPOINT)
           let shouldRedirect = true
 
           if (shouldProbeSession) {
@@ -372,7 +386,10 @@ api.interceptors.response.use(
           }
         }
       } else if (status === 419) {
-        toast.warn(error?.response?.data?.message || 'Bezpečnostný token vypršal. Obnov stránku a skús to znova.')
+        toast.warn(
+          error?.response?.data?.message ||
+            'Bezpečnostný token vypršal. Obnov stránku a skús to znova.',
+        )
       } else if (status >= 500 || isTimeoutOrNetwork) {
         if (shouldShowErrorToast(normalizedMessage, status)) {
           toast.error(normalizedMessage)

@@ -194,7 +194,7 @@ describe('auth store login resilience', () => {
     expect(store.error).toBeNull()
   })
 
-  it('uses auth-aware fetchUser request flags for /auth/me', async () => {
+  it('uses auth-aware fetchUser request flags for /me', async () => {
     const store = useAuthStore()
 
     http.get.mockResolvedValueOnce({
@@ -204,7 +204,7 @@ describe('auth store login resilience', () => {
     await store.fetchUser({ source: 'manual', retry: false, markBootstrap: true })
 
     expect(http.get).toHaveBeenCalledWith(
-      '/auth/me',
+      '/me',
       expect.objectContaining({
         withCredentials: true,
         meta: expect.objectContaining({
@@ -215,7 +215,7 @@ describe('auth store login resilience', () => {
     )
   })
 
-  it('treats empty auth/me payload as guest', async () => {
+  it('treats empty /me payload as guest', async () => {
     const store = useAuthStore()
 
     http.get.mockResolvedValueOnce({
@@ -231,7 +231,7 @@ describe('auth store login resilience', () => {
     expect(store.error).toBeNull()
   })
 
-  it('keeps authenticated state for preferences-save empty auth/me payloads', async () => {
+  it('keeps authenticated state for preferences-save empty /me payloads', async () => {
     const store = useAuthStore()
     store.user = { id: 12, name: 'Sky User' }
     store.status = 'authenticated'
@@ -275,13 +275,16 @@ describe('auth store login resilience', () => {
     expect(store.error).toBeNull()
   })
 
-  it('dedupes concurrent bootstrapAuth requests onto a single auth/me call', async () => {
+  it('dedupes concurrent bootstrapAuth requests onto a single /me call', async () => {
     const store = useAuthStore()
     let resolveRequest
 
-    http.get.mockImplementationOnce(() => new Promise((resolve) => {
-      resolveRequest = resolve
-    }))
+    http.get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve
+        }),
+    )
 
     const first = store.bootstrapAuth()
     const second = store.bootstrapAuth()
@@ -304,9 +307,12 @@ describe('auth store login resilience', () => {
     const store = useAuthStore()
     let resolveRequest
 
-    http.get.mockImplementationOnce(() => new Promise((resolve) => {
-      resolveRequest = resolve
-    }))
+    http.get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = resolve
+        }),
+    )
 
     const bootstrapPromise = store.bootstrapAuth()
 
@@ -325,7 +331,7 @@ describe('auth store login resilience', () => {
     await expect(waitedBootstrap).resolves.toEqual(expect.objectContaining({ id: 77 }))
   })
 
-  it('refreshes csrf before bootstrap auth/me fetch', async () => {
+  it('refreshes csrf before bootstrap /me fetch', async () => {
     const store = useAuthStore()
     const callOrder = []
 
@@ -361,9 +367,12 @@ describe('auth store login resilience', () => {
     const store = useAuthStore()
     let rejectBootstrapRequest
 
-    http.get.mockImplementationOnce(() => new Promise((_, reject) => {
-      rejectBootstrapRequest = reject
-    }))
+    http.get.mockImplementationOnce(
+      () =>
+        new Promise((_, reject) => {
+          rejectBootstrapRequest = reject
+        }),
+    )
 
     http.post.mockResolvedValueOnce({
       data: { id: 11, name: 'Sky User' },

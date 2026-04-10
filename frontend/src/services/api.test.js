@@ -31,10 +31,12 @@ describe('request interceptor', () => {
       timeout: 15000,
     })
 
-    expect(config).toEqual(expect.objectContaining({
-      url: '/admin/event-sources/run',
-      timeout: 300000,
-    }))
+    expect(config).toEqual(
+      expect.objectContaining({
+        url: '/admin/event-sources/run',
+        timeout: 300000,
+      }),
+    )
   })
 
   it('extends timeout for slow sky widgets', async () => {
@@ -43,10 +45,12 @@ describe('request interceptor', () => {
       timeout: 15000,
     })
 
-    expect(config).toEqual(expect.objectContaining({
-      url: '/sky/moon-overview',
-      timeout: 45000,
-    }))
+    expect(config).toEqual(
+      expect.objectContaining({
+        url: '/sky/moon-overview',
+        timeout: 45000,
+      }),
+    )
   })
 
   it('leaves default timeout for regular requests', async () => {
@@ -55,43 +59,65 @@ describe('request interceptor', () => {
       timeout: 15000,
     })
 
-    expect(config).toEqual(expect.objectContaining({
-      url: '/notifications/unread-count',
-      timeout: 15000,
-    }))
+    expect(config).toEqual(
+      expect.objectContaining({
+        url: '/notifications/unread-count',
+        timeout: 15000,
+      }),
+    )
   })
 })
 
 describe('shouldRedirectToLogin', () => {
   it('does not redirect for background requests marked with skipAuthRedirect', () => {
-    expect(shouldRedirectToLogin(makeError({
-      url: '/notifications/unread-count',
-      meta: { skipAuthRedirect: true },
-    }))).toBe(false)
+    expect(
+      shouldRedirectToLogin(
+        makeError({
+          url: '/notifications/unread-count',
+          meta: { skipAuthRedirect: true },
+        }),
+      ),
+    ).toBe(false)
 
-    expect(shouldRedirectToLogin(makeError({
-      url: '/me/preferences',
-      meta: { requiresAuth: true, skipAuthRedirect: true },
-    }))).toBe(false)
+    expect(
+      shouldRedirectToLogin(
+        makeError({
+          url: '/me/preferences',
+          meta: { requiresAuth: true, skipAuthRedirect: true },
+        }),
+      ),
+    ).toBe(false)
 
-    expect(shouldRedirectToLogin(makeError({
-      url: '/posts',
-      meta: { skipAuthRedirect: true },
-      params: { scope: 'me', kind: 'roots', per_page: 1 },
-    }))).toBe(false)
+    expect(
+      shouldRedirectToLogin(
+        makeError({
+          url: '/posts',
+          meta: { skipAuthRedirect: true },
+          params: { scope: 'me', kind: 'roots', per_page: 1 },
+        }),
+      ),
+    ).toBe(false)
   })
 
   it('redirects for auth bootstrap requests when redirect suppression is not set', () => {
-    expect(shouldRedirectToLogin(makeError({
-      url: '/auth/me',
-      meta: { skipErrorToast: true },
-    }))).toBe(true)
+    expect(
+      shouldRedirectToLogin(
+        makeError({
+          url: '/me',
+          meta: { skipErrorToast: true },
+        }),
+      ),
+    ).toBe(true)
   })
 
   it('redirects for explicit requiresAuth requests', () => {
-    expect(shouldRedirectToLogin(makeError({
-      url: '/notification-preferences',
-      meta: { requiresAuth: true },
-    }))).toBe(true)
+    expect(
+      shouldRedirectToLogin(
+        makeError({
+          url: '/notification-preferences',
+          meta: { requiresAuth: true },
+        }),
+      ),
+    ).toBe(true)
   })
 })
