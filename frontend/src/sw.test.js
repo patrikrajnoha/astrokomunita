@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import vm from 'node:vm'
+import { fileURLToPath } from 'node:url'
 
 function loadServiceWorker() {
   const listeners = new Map()
@@ -29,7 +30,7 @@ function loadServiceWorker() {
 
   context.globalThis = context
 
-  const swPath = resolve(process.cwd(), 'public/sw.js')
+  const swPath = resolve(dirname(fileURLToPath(import.meta.url)), '../public/sw.js')
   const source = readFileSync(swPath, 'utf8')
   vm.runInNewContext(source, context, { filename: swPath })
 
