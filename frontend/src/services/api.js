@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getActivePinia } from 'pinia'
 import { useToast } from '@/composables/useToast'
 
 const configuredApiBaseUrl = import.meta.env.DEV
@@ -48,6 +49,7 @@ export async function refreshCsrfCookie() {
   syncXsrfHeaderFromCookie()
 }
 let authProbePromise = null
+let authStoreModulePromise = null
 
 async function probeActiveSession() {
   if (authProbePromise) {
@@ -77,6 +79,24 @@ async function probeActiveSession() {
     })
 
   return authProbePromise
+}
+
+function shouldBypassBootstrapWait(config) {
+  if (config?.meta?.skipBootstrapWait === true || config?.skipBootstrapWait === true) {
+    return true
+  }
+
+  const requestUrl = String(config?.url || '').toLowerCase()
+  return requestUrl.includes('/auth/me')
+}
+
+async function getRequestAuthStore() {
+  const pinia = getActivePinia()
+  if (!pinia) return null
+
+  authStoreModulePromise ||= import('@/stores/auth')
+  const { useAuthStore } = await authStoreModulePromise
+  return useAuthStore(pinia)
 }
 
 function isLongRunningPath(url) {
@@ -260,9 +280,18 @@ function logDevAuthDiagnostic(error, status) {
   })
 }
 
-api.interceptors.request.use((config) => {
-  if (isLongRunningPath(config?.url)) {
-    const url = String(config?.url || '').toLowerCase()
+api.interceptors.request.use(async (config) => {
+  if (!shouldBypassBootstrapWait(config)) {
+    const auth = await getRequestAuthStore()
+    if (!auth?.bootstrapDone && typeof auth?.waitForBootstrap === 'function') {
+      await auth.waitForBootstrap()
+    }
+  }
+
+  let nextConfig = config
+
+  if (isLongRunningPath(nextConfig?.url)) {
+    const url = String(nextConfig?.url || '').toLowerCase()
     const isAdminEventAiGenerate =
       url.includes('/admin/events/') &&
       url.includes('/ai/generate-description')
@@ -277,20 +306,20 @@ api.interceptors.request.use((config) => {
       url.includes('/admin/event-sources/purge') ||
       url.includes('/admin/event-sources/translation-artifacts/repair')
 
-    return {
-      ...config,
+    nextConfig = {
+      ...nextConfig,
       timeout: veryLongRunning ? 300000 : 120000,
     }
   }
 
-  if (isSlowSkyWidgetPath(config?.url)) {
-    return {
-      ...config,
+  if (isSlowSkyWidgetPath(nextConfig?.url)) {
+    nextConfig = {
+      ...nextConfig,
       timeout: 45000,
     }
   }
 
-  return config
+  return nextConfig
 })
 
 api.interceptors.response.use(
