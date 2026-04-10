@@ -5,6 +5,9 @@ import { useEventPreferencesStore } from '@/stores/eventPreferences'
 const getMyPreferencesMock = vi.hoisted(() => vi.fn())
 const updateMyPreferencesMock = vi.hoisted(() => vi.fn())
 const authStoreMock = vi.hoisted(() => ({
+  bootstrapDone: true,
+  isAuthed: true,
+  waitForBootstrap: vi.fn(async () => {}),
   csrf: vi.fn(async () => {}),
   fetchUser: vi.fn(async () => null),
 }))
@@ -59,7 +62,9 @@ describe('eventPreferences sidebar widget getters', () => {
     const first = store.fetchPreferences()
     const second = store.fetchPreferences()
 
-    expect(getMyPreferencesMock).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => {
+      expect(getMyPreferencesMock).toHaveBeenCalledTimes(1)
+    })
 
     resolveRequest({
       data: {
@@ -120,6 +125,33 @@ describe('eventPreferences sidebar widget getters', () => {
       markBootstrap: false,
       preserveStateOnError: true,
     })
+  })
+
+  it('waits for auth bootstrap before fetching preferences', async () => {
+    const store = useEventPreferencesStore()
+
+    getMyPreferencesMock.mockResolvedValue({
+      data: {
+        data: {
+          event_types: ['meteors'],
+          interests: ['visual'],
+          region: 'sk',
+          has_preferences: true,
+        },
+        meta: {},
+      },
+    })
+
+    const request = store.fetchPreferences()
+
+    await vi.waitFor(() => {
+      expect(authStoreMock.waitForBootstrap).toHaveBeenCalledTimes(1)
+      expect(getMyPreferencesMock).toHaveBeenCalledTimes(1)
+    })
+
+    await request
+
+    expect(authStoreMock.waitForBootstrap).toHaveBeenCalledTimes(1)
   })
 
   it('marks onboarding saves to skip auth redirects and duplicate toasts', async () => {

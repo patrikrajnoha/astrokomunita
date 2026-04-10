@@ -663,9 +663,9 @@ export function applyAuthGuards(routerInstance) {
     const redirectTarget = to.fullPath
     const requiresAuth = Boolean(to.meta?.requiresAuth ?? to.meta?.auth ?? false)
 
-    if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
+    if (!auth.bootstrapDone) {
       try {
-        await auth.bootstrapAuth()
+        await auth.waitForBootstrap()
       } catch {
         // Auth bootstrap failure is handled by store state and downstream guards.
       }

@@ -8,6 +8,17 @@ const DEFAULT_BORTLE_CLASS = 6
 const MAX_SIDEBAR_WIDGETS = 3
 let activePreferencesFetchPromise = null
 
+async function waitForAuthBootstrap(auth) {
+  if (typeof auth?.waitForBootstrap === 'function') {
+    await auth.waitForBootstrap()
+    return
+  }
+
+  if (!auth?.bootstrapDone && typeof auth?.bootstrapAuth === 'function') {
+    await auth.bootstrapAuth()
+  }
+}
+
 const normalizeSidebarWidgetKeys = (value) => {
   if (!Array.isArray(value)) return []
 
@@ -135,11 +146,18 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
 
     async fetchPreferences(force = false) {
       if (this.loaded && !force) return this
-      if (this.loading && activePreferencesFetchPromise) return activePreferencesFetchPromise
+      if (activePreferencesFetchPromise) return activePreferencesFetchPromise
 
       const requestPromise = (async () => {
         this.loading = true
         this.error = null
+
+        const auth = useAuthStore()
+        await waitForAuthBootstrap(auth)
+        if (!auth.isAuthed) {
+          this.reset()
+          return this
+        }
 
         try {
           const response = await getMyPreferences()
@@ -204,6 +222,15 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
 
       try {
         const auth = useAuthStore()
+        await waitForAuthBootstrap(auth)
+        if (!auth.isAuthed) {
+          const error = new Error('Unauthenticated.')
+          error.response = {
+            status: 401,
+            data: { message: 'Unauthenticated.' },
+          }
+          throw error
+        }
         await auth.csrf()
 
         const response = await updateMyPreferences(payload, {

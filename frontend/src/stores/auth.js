@@ -12,6 +12,7 @@ const authDebugEnabled =
   import.meta.env.DEV && String(import.meta.env.VITE_DEBUG_AUTH || '').trim() === '1'
 let activeFetchUserPromise = null
 let activeFetchUserKey = ''
+let activeBootstrapPromise = null
 
 function getAuthEndpointDebug() {
   const baseURL = String(http?.defaults?.baseURL || '')
@@ -72,6 +73,7 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   getters: {
+    bootstrapPromise: () => activeBootstrapPromise,
     isAuthed: (s) => !!s.user,
     isAdmin: (s) => s.user?.role === 'admin' || s.user?.is_admin,
     isEditor: (s) => s.user?.role === 'editor',
@@ -88,6 +90,9 @@ export const useAuthStore = defineStore('auth', {
       this.initialized = true
       this.status = 'guest'
       this.bootstrapDone = true
+      activeFetchUserPromise = null
+      activeFetchUserKey = ''
+      activeBootstrapPromise = null
       this.loginSequence += 1
       this.error = null
     },
@@ -362,12 +367,32 @@ export const useAuthStore = defineStore('auth', {
 
     async bootstrapAuth() {
       if (this.bootstrapDone) return this.user
-      try {
-        await this.csrf()
-      } catch {
-        // Continue with auth bootstrap even if refreshing the CSRF cookie fails.
-      }
-      return this.fetchUser({ source: 'bootstrap', retry: true, markBootstrap: true })
+      if (activeBootstrapPromise) return activeBootstrapPromise
+
+      const requestPromise = (async () => {
+        try {
+          await this.csrf()
+        } catch {
+          // Continue with auth bootstrap even if refreshing the CSRF cookie fails.
+        }
+
+        return this.fetchUser({ source: 'bootstrap', retry: true, markBootstrap: true })
+      })()
+
+      const trackedPromise = requestPromise.finally(() => {
+        if (activeBootstrapPromise === trackedPromise) {
+          activeBootstrapPromise = null
+        }
+      })
+
+      activeBootstrapPromise = trackedPromise
+      return trackedPromise
+    },
+
+    waitForBootstrap() {
+      if (this.bootstrapDone) return Promise.resolve(this.user)
+      if (activeBootstrapPromise) return activeBootstrapPromise
+      return this.bootstrapAuth()
     },
 
     async retryFetchUser() {
@@ -395,6 +420,9 @@ export const useAuthStore = defineStore('auth', {
         this.status = 'authenticated'
         this.error = null
         this.bootstrapDone = true
+        activeFetchUserPromise = null
+        activeFetchUserKey = ''
+        activeBootstrapPromise = null
         this.initialized = true
         this.loginSequence += 1
         return loginUser
@@ -415,6 +443,9 @@ export const useAuthStore = defineStore('auth', {
           this.status = 'authenticated'
           this.error = null
           this.bootstrapDone = true
+          activeFetchUserPromise = null
+          activeFetchUserKey = ''
+          activeBootstrapPromise = null
           this.initialized = true
           this.loginSequence += 1
           return
@@ -440,6 +471,9 @@ export const useAuthStore = defineStore('auth', {
         this.initialized = true
         this.status = 'guest'
         this.bootstrapDone = true
+        activeFetchUserPromise = null
+        activeFetchUserKey = ''
+        activeBootstrapPromise = null
         this.loginSequence += 1
         this.error = null
       }

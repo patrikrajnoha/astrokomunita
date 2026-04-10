@@ -7,8 +7,10 @@ import QuickActionTile from '@/components/admin/dashboard/QuickActionTile.vue'
 import StatsChart from '@/components/admin/dashboard/StatsChart.vue'
 import { getStats, downloadStatsCsv } from '@/services/api/admin/stats'
 import { useToast } from '@/composables/useToast'
+import { useAuthStore } from '@/stores/auth'
 
 const toast = useToast()
+const auth = useAuthStore()
 
 const loading = ref(false)
 const exporting = ref(false)
@@ -172,6 +174,8 @@ async function loadDashboard(force = false) {
   error.value = ''
 
   try {
+    await auth.waitForBootstrap()
+    if (!auth.isAuthed) return
     stats.value = await getStats({ force })
   } catch (e) {
     error.value = e?.response?.data?.message || 'Nepodarilo sa načítať štatistiky administrácie.'

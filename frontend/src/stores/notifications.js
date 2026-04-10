@@ -132,6 +132,17 @@ function applyReadState(list, id, readAt) {
   return changed ? next : list
 }
 
+async function waitForAuthBootstrap(auth) {
+  if (typeof auth?.waitForBootstrap === 'function') {
+    await auth.waitForBootstrap()
+    return
+  }
+
+  if (!auth?.bootstrapDone && typeof auth?.bootstrapAuth === 'function') {
+    await auth.bootstrapAuth()
+  }
+}
+
 export const useNotificationsStore = defineStore('notifications', {
   state: () => ({
     items: [],
@@ -193,6 +204,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async fetchList(page = 1, options = {}) {
       const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
       if (!auth.isAuthed) {
         this.resetState()
         return
@@ -250,6 +262,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async fetchLatest(limit = 10, options = {}) {
       const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
       if (!auth.isAuthed) {
         this.latestItems = []
         this.latestError = ''
@@ -298,6 +311,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async fetchUnreadCount(options = {}) {
       const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
       if (!auth.isAuthed) {
         this.unreadCountFetchSeq += 1
         this.unreadCount = 0
@@ -406,6 +420,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async startRealtime(options = {}) {
       const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
       const userId = Number(auth.user?.id || 0)
 
       if (!auth.isAuthed || !userId) {
@@ -471,6 +486,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async markRead(id) {
       const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
       if (!auth.isAuthed) return
 
       const normalizedId = normalizeNotificationId(id)
@@ -506,6 +522,7 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async markAllRead() {
       const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
       if (!auth.isAuthed) return
       if (this.markAllReading) return
       this.markAllReading = true

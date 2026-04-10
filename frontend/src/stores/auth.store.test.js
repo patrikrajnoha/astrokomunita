@@ -32,6 +32,14 @@ async function flushPromises() {
 describe('auth store login resilience', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    const store = useAuthStore()
+    store.reset()
+    store.bootstrapDone = false
+    store.initialized = false
+    store.status = 'idle'
+    store.loading = false
+    store.user = null
+    store.error = null
     clearHomeFeedPrefetchMock.mockClear()
     refreshCsrfCookieMock.mockClear()
     http.post.mockReset()
@@ -290,6 +298,31 @@ describe('auth store login resilience', () => {
     await expect(second).resolves.toEqual(expect.objectContaining({ id: 42 }))
     expect(store.isAuthed).toBe(true)
     expect(store.user).toEqual(expect.objectContaining({ id: 42 }))
+  })
+
+  it('exposes the in-flight bootstrap promise for other callers to await', async () => {
+    const store = useAuthStore()
+    let resolveRequest
+
+    http.get.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRequest = resolve
+    }))
+
+    const bootstrapPromise = store.bootstrapAuth()
+
+    expect(store.bootstrapPromise).toBeTruthy()
+    const waitedBootstrap = store.waitForBootstrap()
+
+    await vi.waitFor(() => {
+      expect(http.get).toHaveBeenCalledTimes(1)
+    })
+
+    resolveRequest({
+      data: { id: 77, name: 'Deferred User' },
+    })
+
+    await expect(bootstrapPromise).resolves.toEqual(expect.objectContaining({ id: 77 }))
+    await expect(waitedBootstrap).resolves.toEqual(expect.objectContaining({ id: 77 }))
   })
 
   it('refreshes csrf before bootstrap auth/me fetch', async () => {

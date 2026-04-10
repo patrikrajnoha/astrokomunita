@@ -6,6 +6,7 @@ const prefetchHomeFeedMock = vi.hoisted(() => vi.fn())
 const authState = {
   initialized: true,
   bootstrapDone: true,
+  bootstrapPromise: null,
   status: 'authenticated',
   loading: false,
   isAuthed: false,
@@ -13,6 +14,7 @@ const authState = {
   isEditor: false,
   user: null,
   bootstrapAuth: vi.fn(async () => {}),
+  waitForBootstrap: vi.fn(async () => {}),
 }
 
 const preferencesState = {
@@ -68,6 +70,7 @@ describe('router auth guard', () => {
   beforeEach(() => {
     authState.initialized = true
     authState.bootstrapDone = true
+    authState.bootstrapPromise = null
     authState.status = 'authenticated'
     authState.loading = false
     authState.isAuthed = false
@@ -75,6 +78,7 @@ describe('router auth guard', () => {
     authState.isEditor = false
     authState.user = null
     authState.bootstrapAuth.mockClear()
+    authState.waitForBootstrap.mockClear()
 
     preferencesState.loaded = true
     preferencesState.isOnboardingCompleted = true
@@ -130,7 +134,7 @@ describe('router auth guard', () => {
     authState.loading = false
     authState.isAuthed = false
     authState.user = null
-    authState.bootstrapAuth.mockImplementationOnce(async () => {
+    authState.waitForBootstrap.mockImplementationOnce(async () => {
       authState.isAuthed = true
       authState.user = { email_verified_at: null }
       authState.status = 'authenticated'
@@ -142,7 +146,7 @@ describe('router auth guard', () => {
     await router.push('/settings')
     await router.isReady()
 
-    expect(authState.bootstrapAuth).toHaveBeenCalledTimes(1)
+    expect(authState.waitForBootstrap).toHaveBeenCalledTimes(1)
     expect(router.currentRoute.value.name).toBe('settings')
   })
 
@@ -153,7 +157,7 @@ describe('router auth guard', () => {
     authState.loading = false
     authState.isAuthed = false
     authState.user = null
-    authState.bootstrapAuth.mockImplementationOnce(async () => {
+    authState.waitForBootstrap.mockImplementationOnce(async () => {
       authState.isAuthed = true
       authState.user = { email_verified_at: null }
       authState.status = 'authenticated'
@@ -165,8 +169,33 @@ describe('router auth guard', () => {
     await router.push('/events')
     await router.isReady()
 
-    expect(authState.bootstrapAuth).toHaveBeenCalledTimes(1)
+    expect(authState.waitForBootstrap).toHaveBeenCalledTimes(1)
     expect(router.currentRoute.value.name).toBe('events')
+  })
+
+  it('waits for an in-flight bootstrap before allowing admin child navigation', async () => {
+    authState.initialized = false
+    authState.bootstrapDone = false
+    authState.status = 'loading'
+    authState.loading = true
+    authState.isAuthed = false
+    authState.user = null
+    authState.waitForBootstrap.mockImplementationOnce(async () => {
+      authState.isAuthed = true
+      authState.isAdmin = true
+      authState.user = { id: 7, email_verified_at: '2026-02-17T00:00:00Z', role: 'admin' }
+      authState.status = 'authenticated'
+      authState.loading = false
+      authState.bootstrapDone = true
+      authState.initialized = true
+    })
+
+    const router = makeRouter()
+    await router.push('/admin/community/users')
+    await router.isReady()
+
+    expect(authState.waitForBootstrap).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('admin.users')
   })
 
   it('allows authenticated unverified users on requested routes', async () => {

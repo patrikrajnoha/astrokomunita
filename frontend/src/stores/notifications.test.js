@@ -4,8 +4,10 @@ import { useNotificationsStore } from '@/stores/notifications'
 import http from '@/services/api'
 
 const authState = vi.hoisted(() => ({
+  bootstrapDone: true,
   isAuthed: true,
   user: { id: 7 },
+  waitForBootstrap: vi.fn(async () => {}),
   csrf: vi.fn(async () => {}),
   logout: vi.fn(async () => {}),
 }))
@@ -47,6 +49,7 @@ describe('notifications store realtime handler', () => {
     infoToast.mockClear()
     http.get.mockReset()
     http.post.mockReset()
+    authState.waitForBootstrap.mockClear()
     authState.csrf.mockClear()
     authState.logout.mockClear()
     realtimeState.initEcho.mockReset()
@@ -129,6 +132,7 @@ describe('notifications store realtime handler', () => {
     const store = useNotificationsStore()
     await store.startRealtime()
 
+    expect(authState.waitForBootstrap).toHaveBeenCalledTimes(1)
     expect(authState.csrf).toHaveBeenCalledTimes(1)
     expect(echoClient.private).toHaveBeenCalledWith('users.7')
     expect(channel.listen).toHaveBeenCalledWith('.notification.created', expect.any(Function))
@@ -327,5 +331,18 @@ describe('notifications store realtime handler', () => {
     expect(http.get).toHaveBeenCalledTimes(1)
     expect(store.unreadCount).toBe(4)
     expect(store.unreadCountHydrated).toBe(true)
+  })
+
+  it('waits for auth bootstrap before fetching unread count', async () => {
+    const store = useNotificationsStore()
+
+    http.get.mockResolvedValueOnce({ data: { count: 6 } })
+
+    await store.fetchUnreadCount()
+
+    expect(authState.waitForBootstrap).toHaveBeenCalledTimes(1)
+    expect(http.get).toHaveBeenCalledWith('/notifications/unread-count', {
+      meta: { skipErrorToast: true, skipAuthRedirect: true },
+    })
   })
 })

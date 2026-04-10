@@ -7,6 +7,10 @@ const getStatsMock = vi.fn()
 const downloadStatsCsvMock = vi.fn()
 const toastSuccessMock = vi.fn()
 const toastErrorMock = vi.fn()
+const authState = vi.hoisted(() => ({
+  isAuthed: true,
+  waitForBootstrap: vi.fn(async () => {}),
+}))
 
 vi.mock('@/services/api/admin/stats', () => ({
   getStats: (...args) => getStatsMock(...args),
@@ -18,6 +22,10 @@ vi.mock('@/composables/useToast', () => ({
     success: (...args) => toastSuccessMock(...args),
     error: (...args) => toastErrorMock(...args),
   }),
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => authState,
 }))
 
 const statsPayload = {
@@ -66,6 +74,9 @@ function makeRouter() {
 describe('AdminDashboardView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.isAuthed = true
+    authState.waitForBootstrap.mockReset()
+    authState.waitForBootstrap.mockResolvedValue()
     getStatsMock.mockResolvedValue(statsPayload)
     downloadStatsCsvMock.mockResolvedValue({
       blob: new Blob(['section,metric,value']),
@@ -146,5 +157,30 @@ describe('AdminDashboardView', () => {
     await flush()
 
     expect(wrapper.find('[aria-label="Graf trendu"]').exists()).toBe(true)
+  })
+
+  it('waits for auth bootstrap before loading dashboard stats on mount', async () => {
+    let resolveBootstrap
+    authState.waitForBootstrap.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveBootstrap = resolve
+    }))
+
+    const router = makeRouter()
+    await router.push('/admin/dashboard')
+    await router.isReady()
+
+    mount(AdminDashboardView, {
+      global: { plugins: [router] },
+    })
+
+    await flush()
+    expect(getStatsMock).not.toHaveBeenCalled()
+
+    resolveBootstrap()
+    await flush()
+    await flush()
+
+    expect(authState.waitForBootstrap).toHaveBeenCalledTimes(1)
+    expect(getStatsMock).toHaveBeenCalledTimes(1)
   })
 })
