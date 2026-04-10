@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Fail on mojibake patterns
         run: |
           set -euo pipefail
@@ -89,18 +91,43 @@ jobs:
 
       - name: Fail when markdown or txt files exist
         run: |
-          forbidden_files="$(find . -type f \( -name '*.md' -o -name '*.MD' -o -name '*.txt' -o -name '*.TXT' \) \
-            -not -path './vendor/*' \
-            -not -path './node_modules/*' \
-            -not -path './storage/*' \
-            -not -path './docs/*' \
-            -not -path './.pytest_cache/*' \
-            -not -name 'README.md' \
-            -not -name 'security.md' \
-            -not -name 'requirements.txt')"
-          if [ -n "$forbidden_files" ]; then
+          set -euo pipefail
+
+          should_skip_path() {
+            case "$1" in
+              vendor/*|node_modules/*|storage/*|docs/*|.pytest_cache/*) return 0 ;;
+              README.md|security.md|requirements.txt) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          collect_targets() {
+            if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+              git fetch --no-tags --depth=1 origin "${GITHUB_BASE_REF}"
+              git diff --name-only --diff-filter=ACMR "origin/${GITHUB_BASE_REF}...HEAD"
+            else
+              BEFORE_SHA="${{ github.event.before }}"
+              if [ -n "${BEFORE_SHA}" ] && [ "${BEFORE_SHA}" != "0000000000000000000000000000000000000000" ]; then
+                git diff --name-only --diff-filter=ACMR "${BEFORE_SHA}" "${GITHUB_SHA}"
+              else
+                git diff-tree --no-commit-id --name-only -r --diff-filter=ACMR "${GITHUB_SHA}"
+              fi
+            fi
+          }
+
+          mapfile -t CANDIDATES < <(collect_targets)
+          FORBIDDEN_FILES=()
+          for path in "${CANDIDATES[@]}"; do
+            [ -n "$path" ] || continue
+            should_skip_path "$path" && continue
+            case "$path" in
+              *.md|*.MD|*.txt|*.TXT) FORBIDDEN_FILES+=("$path") ;;
+            esac
+          done
+
+          if [ "${#FORBIDDEN_FILES[@]}" -gt 0 ]; then
             echo "Found forbidden documentation files:"
-            echo "$forbidden_files"
+            printf '%s\n' "${FORBIDDEN_FILES[@]}"
             exit 1
           fi
 
