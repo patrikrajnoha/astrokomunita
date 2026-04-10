@@ -146,6 +146,29 @@ describe('router auth guard', () => {
     expect(router.currentRoute.value.name).toBe('settings')
   })
 
+  it('waits for auth bootstrap on public routes before completing first navigation', async () => {
+    authState.initialized = false
+    authState.bootstrapDone = false
+    authState.status = 'idle'
+    authState.loading = false
+    authState.isAuthed = false
+    authState.user = null
+    authState.bootstrapAuth.mockImplementationOnce(async () => {
+      authState.isAuthed = true
+      authState.user = { email_verified_at: null }
+      authState.status = 'authenticated'
+      authState.bootstrapDone = true
+      authState.initialized = true
+    })
+
+    const router = makeRouter()
+    await router.push('/events')
+    await router.isReady()
+
+    expect(authState.bootstrapAuth).toHaveBeenCalledTimes(1)
+    expect(router.currentRoute.value.name).toBe('events')
+  })
+
   it('allows authenticated unverified users on requested routes', async () => {
     authState.isAuthed = true
     authState.user = {

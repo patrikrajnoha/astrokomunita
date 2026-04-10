@@ -664,14 +664,10 @@ export function applyAuthGuards(routerInstance) {
     const requiresAuth = Boolean(to.meta?.requiresAuth ?? to.meta?.auth ?? false)
 
     if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
-      const bootstrapPromise = auth.bootstrapAuth()
-
-      if (requiresAuth) {
-        try {
-          await bootstrapPromise
-        } catch {
-          // Auth bootstrap failure is handled by store state and downstream guards.
-        }
+      try {
+        await auth.bootstrapAuth()
+      } catch {
+        // Auth bootstrap failure is handled by store state and downstream guards.
       }
     }
 
