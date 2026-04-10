@@ -7,7 +7,6 @@ import App from './App.vue'
 import router from './router'
 import { appInitState, setInitError, setInitializing, setMounted } from '@/bootstrap/appInitState'
 import { clearPreloadRecoveryState, installPreloadRecovery } from '@/bootstrap/preloadRecovery'
-import { setBootstrapPromise } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
 import { captureClientError } from '@/services/errorTracker'
 
@@ -182,13 +181,13 @@ async function bootstrap() {
 
   try {
     const bsPromise = auth.bootstrapAuth()
-    setBootstrapPromise(bsPromise)
+    globalThis['__astrokomunitaBootstrapPromise__'] = bsPromise
     await bsPromise
   } catch (error) {
     setInitError(formatError(error))
     ensureFatalOverlay(error, 'auth.bootstrapAuth')
   } finally {
-    setBootstrapPromise(null)
+    globalThis['__astrokomunitaBootstrapPromise__'] = null
     setInitializing(false)
   }
 

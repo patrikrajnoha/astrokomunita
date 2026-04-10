@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import api, { setBootstrapPromise, shouldRedirectToLogin } from '@/services/api'
+import api, { shouldRedirectToLogin } from '@/services/api'
 
 vi.mock('@/composables/useToast', () => ({
   useToast: () => ({
@@ -21,7 +21,7 @@ function makeError(config = {}) {
 }
 
 beforeEach(() => {
-  setBootstrapPromise(null)
+  globalThis.__astrokomunitaBootstrapPromise__ = null
 })
 
 describe('request bootstrap gating', () => {
@@ -31,7 +31,7 @@ describe('request bootstrap gating', () => {
     const bootstrapPromise = new Promise((resolve) => {
       resolveBootstrap = resolve
     })
-    setBootstrapPromise(bootstrapPromise)
+    globalThis.__astrokomunitaBootstrapPromise__ = bootstrapPromise
 
     const pendingConfig = api.interceptors.request.handlers[0].fulfilled({
       url: '/notifications/unread-count',
@@ -59,7 +59,7 @@ describe('request bootstrap gating', () => {
     const bootstrapPromise = new Promise((resolve) => {
       resolveBootstrap = resolve
     })
-    setBootstrapPromise(bootstrapPromise)
+    globalThis.__astrokomunitaBootstrapPromise__ = bootstrapPromise
 
     const config = await api.interceptors.request.handlers[0].fulfilled({
       url: '/auth/me',
@@ -78,7 +78,7 @@ describe('request bootstrap gating', () => {
     const bootstrapPromise = new Promise((resolve) => {
       resolveBootstrap = resolve
     })
-    setBootstrapPromise(bootstrapPromise)
+    globalThis.__astrokomunitaBootstrapPromise__ = bootstrapPromise
 
     const config = await api.interceptors.request.handlers[0].fulfilled({
       url: '/sanctum/csrf-cookie',

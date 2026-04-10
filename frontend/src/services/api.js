@@ -48,11 +48,6 @@ export async function refreshCsrfCookie() {
   syncXsrfHeaderFromCookie()
 }
 let authProbePromise = null
-let _bootstrapPromise = null
-
-export function setBootstrapPromise(promise) {
-  _bootstrapPromise = promise ?? null
-}
 
 async function probeActiveSession() {
   if (authProbePromise) {
@@ -267,9 +262,12 @@ function logDevAuthDiagnostic(error, status) {
 
 api.interceptors.request.use(async (config) => {
   const url = String(config?.url || '').toLowerCase()
+  const bootstrapPromise = typeof globalThis !== 'undefined'
+    ? globalThis['__astrokomunitaBootstrapPromise__']
+    : null
 
-  if (_bootstrapPromise && !url.includes('/auth/me') && !url.includes('csrf-cookie')) {
-    await _bootstrapPromise
+  if (bootstrapPromise && !url.includes('/auth/me') && !url.includes('csrf-cookie')) {
+    await bootstrapPromise
   }
 
   let nextConfig = config
