@@ -362,6 +362,11 @@ export const useAuthStore = defineStore('auth', {
 
     async bootstrapAuth() {
       if (this.bootstrapDone) return this.user
+      try {
+        await this.csrf()
+      } catch {
+        // Continue with auth bootstrap even if refreshing the CSRF cookie fails.
+      }
       return this.fetchUser({ source: 'bootstrap', retry: true, markBootstrap: true })
     },
 

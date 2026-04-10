@@ -278,7 +278,9 @@ describe('auth store login resilience', () => {
     const first = store.bootstrapAuth()
     const second = store.bootstrapAuth()
 
-    expect(http.get).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => {
+      expect(http.get).toHaveBeenCalledTimes(1)
+    })
 
     resolveRequest({
       data: { id: 42, name: 'Sky User' },
@@ -288,6 +290,38 @@ describe('auth store login resilience', () => {
     await expect(second).resolves.toEqual(expect.objectContaining({ id: 42 }))
     expect(store.isAuthed).toBe(true)
     expect(store.user).toEqual(expect.objectContaining({ id: 42 }))
+  })
+
+  it('refreshes csrf before bootstrap auth/me fetch', async () => {
+    const store = useAuthStore()
+    const callOrder = []
+
+    refreshCsrfCookieMock.mockImplementationOnce(async () => {
+      callOrder.push('csrf')
+      return { data: {} }
+    })
+
+    http.get.mockImplementationOnce(async () => {
+      callOrder.push('auth-me')
+      return { data: { id: 21, name: 'Bootstrap User' } }
+    })
+
+    await store.bootstrapAuth()
+
+    expect(callOrder).toEqual(['csrf', 'auth-me'])
+  })
+
+  it('continues bootstrap auth even when csrf refresh fails', async () => {
+    const store = useAuthStore()
+
+    refreshCsrfCookieMock.mockRejectedValueOnce(new Error('csrf failed'))
+    http.get.mockResolvedValueOnce({
+      data: { id: 22, name: 'Fallback User' },
+    })
+
+    await expect(store.bootstrapAuth()).resolves.toEqual(expect.objectContaining({ id: 22 }))
+    expect(http.get).toHaveBeenCalledTimes(1)
+    expect(store.isAuthed).toBe(true)
   })
 
   it('ignores stale bootstrap failure after a successful login', async () => {
@@ -303,7 +337,9 @@ describe('auth store login resilience', () => {
     })
 
     const bootstrapPromise = store.bootstrapAuth()
-    await flushPromises()
+    await vi.waitFor(() => {
+      expect(http.get).toHaveBeenCalledTimes(1)
+    })
 
     await store.login({
       email: 'sky@example.com',
