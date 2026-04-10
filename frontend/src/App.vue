@@ -15,8 +15,15 @@
   </div>
 
   <template v-else>
-    <RouterView />
+    <RouterView v-if="auth.bootstrapDone" />
+    <div v-else class="appInitScreen">
+      <div class="card">
+        <h1>NaÄŤĂ­tavam aplikĂˇciu...</h1>
+        <p>ÄŚakĂˇm na dokonÄŤenie prihlĂˇsenia.</p>
+      </div>
+    </div>
     <EmailVerificationGateModal
+      v-if="auth.bootstrapDone"
       :open="showEmailVerificationGate"
       @verified="handleEmailVerified"
     />
