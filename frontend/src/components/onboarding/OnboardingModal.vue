@@ -435,7 +435,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  overflow-y: auto;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
   background: rgb(5 9 14 / 0.72);
   backdrop-filter: blur(10px);
 }
@@ -443,6 +444,9 @@ onBeforeUnmount(() => {
 .onbCard {
   width: 100%;
   max-width: 900px;
+  max-height: calc(100dvh - 1.5rem);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   border-radius: 26px;
   background: #151d28;
   color: #ffffff;
@@ -503,10 +507,15 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr minmax(0, 275px);
   gap: 1.2rem;
   padding: 0.65rem 1.5rem 1rem;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .onbStepWrap {
   min-width: 0;
+  min-height: 0;
 }
 
 .onbSection {
@@ -565,9 +574,9 @@ onBeforeUnmount(() => {
   background: #222e3f;
   color: #abb8c9;
   text-align: left;
-  padding: 0.9rem 0.95rem;
+  padding: 0.82rem 0.9rem;
   display: grid;
-  gap: 0.34rem;
+  gap: 0.3rem;
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease;
 }
@@ -582,14 +591,18 @@ onBeforeUnmount(() => {
 }
 
 .onbWidgetTitle {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.25;
 }
 
 .onbWidgetDescription {
-  font-size: 0.78rem;
-  line-height: 1.35;
+  font-size: 0.76rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .onbWidgetState {
@@ -676,6 +689,7 @@ onBeforeUnmount(() => {
   border-radius: 18px;
   padding: 0.95rem;
   background: #1c2736;
+  align-self: start;
 }
 
 .onbShowcaseEyebrow {
@@ -783,8 +797,32 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 800px) {
+  .onbOverlay {
+    align-items: flex-start;
+  }
+
+  .onbCard {
+    max-height: calc(100dvh - 1rem);
+    border-radius: 22px;
+  }
+
+  .onbHeader {
+    padding: 1.05rem 1rem 0.6rem;
+  }
+
+  .onbTitle {
+    font-size: 1.14rem;
+  }
+
+  .onbSubtitle {
+    margin-top: 0.35rem;
+    font-size: 0.83rem;
+  }
+
   .onbBody {
     grid-template-columns: 1fr;
+    gap: 0.85rem;
+    padding: 0.45rem 1rem 0.8rem;
   }
 
   .onbShowcase {
@@ -792,7 +830,63 @@ onBeforeUnmount(() => {
   }
 
   .onbWidgetGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .onbSection {
+    min-height: 0;
+  }
+
+  .onbFooter {
+    padding: 0 1rem calc(1rem + env(safe-area-inset-bottom));
+    gap: 0.5rem;
+  }
+
+  .onbFooterActions {
+    gap: 0.42rem;
+  }
+
+  .onbBtn {
+    padding: 0.58rem 0.9rem;
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .onbStepText {
+    font-size: 0.72rem;
+  }
+
+  .onbSelectionHeader {
+    align-items: flex-start;
+    gap: 0.45rem;
+  }
+
+  .onbHint {
+    font-size: 0.82rem;
+  }
+
+  .onbCounter {
+    font-size: 0.72rem;
+    padding: 0.22rem 0.55rem;
+  }
+
+  .onbWidgetCard {
+    border-radius: 16px;
+    padding: 0.72rem 0.78rem;
+  }
+
+  .onbWidgetTitle {
+    font-size: 0.84rem;
+  }
+
+  .onbWidgetDescription {
+    font-size: 0.72rem;
+  }
+
+  .onbWidgetState {
+    font-size: 0.68rem;
   }
 }
 </style>
