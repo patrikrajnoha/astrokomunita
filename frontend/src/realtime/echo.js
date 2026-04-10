@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { refreshCsrfCookie } from '@/services/api'
 
 let echoInstance = null
 let echoCtorPromise = null
@@ -27,6 +28,36 @@ function getCsrfToken() {
   return getCookie('XSRF-TOKEN')
 }
 
+async function ensureBroadcastCsrfCookie() {
+  const existingCsrf = getCsrfToken()
+  const existingXsrf = getCookie('XSRF-TOKEN')
+
+  if (existingCsrf || existingXsrf) {
+    return {
+      csrf: existingCsrf,
+      xsrf: existingXsrf,
+    }
+  }
+
+  try {
+    await refreshCsrfCookie()
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn('[realtime] CSRF bootstrap failed:', error)
+    }
+  }
+
+  return {
+    csrf: getCsrfToken(),
+    xsrf: getCookie('XSRF-TOKEN'),
+  }
+}
+
+function shouldRetryBroadcastAuth(error) {
+  const status = Number(error?.response?.status || 0)
+  return status === 401 || status === 403 || status === 419
+}
+
 function resolveReverbOptions() {
   const scheme = String(import.meta.env.VITE_REVERB_SCHEME || 'http').toLowerCase()
   const hostFromEnv = String(import.meta.env.VITE_REVERB_HOST || '').trim()
@@ -44,32 +75,47 @@ function resolveReverbOptions() {
 function buildAuthorizer(authEndpoint) {
   return (channel) => ({
     async authorize(socketId, callback) {
-      const csrf = getCsrfToken()
-      const xsrf = getCookie('XSRF-TOKEN')
-      const headers = {
-        Accept: 'application/json',
-      }
+      let attempt = 0
 
-      if (csrf) headers['X-CSRF-TOKEN'] = csrf
-      if (xsrf) headers['X-XSRF-TOKEN'] = xsrf
+      while (attempt < 2) {
+        const { csrf, xsrf } = await ensureBroadcastCsrfCookie()
+        const headers = {
+          Accept: 'application/json',
+        }
 
-      try {
-        // Realtime handshake intentionally bypasses API interceptors.
-        const response = await axios.post(
-          authEndpoint,
-          {
-            socket_id: socketId,
-            channel_name: channel.name,
-          },
-          {
-            withCredentials: true,
-            headers,
-          },
-        )
+        if (csrf) headers['X-CSRF-TOKEN'] = csrf
+        if (xsrf) headers['X-XSRF-TOKEN'] = xsrf
 
-        callback(null, response.data)
-      } catch (error) {
-        callback(error)
+        try {
+          // Realtime handshake intentionally bypasses API interceptors.
+          const response = await axios.post(
+            authEndpoint,
+            {
+              socket_id: socketId,
+              channel_name: channel.name,
+            },
+            {
+              withCredentials: true,
+              headers,
+            },
+          )
+
+          callback(null, response.data)
+          return
+        } catch (error) {
+          if (attempt === 0 && shouldRetryBroadcastAuth(error)) {
+            attempt += 1
+            try {
+              await refreshCsrfCookie()
+              continue
+            } catch {
+              // Fall through to the original auth error below.
+            }
+          }
+
+          callback(error)
+          return
+        }
       }
     },
   })

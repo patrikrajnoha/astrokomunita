@@ -196,14 +196,22 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
       return trackedPromise
     },
 
-    async savePreferences(payload) {
+    async savePreferences(payload, options = {}) {
       if (this.saving) return null
 
       this.saving = true
       this.error = null
 
       try {
-        const response = await updateMyPreferences(payload)
+        const auth = useAuthStore()
+        await auth.csrf()
+
+        const response = await updateMyPreferences(payload, {
+          meta: {
+            skipAuthRedirect: options.skipAuthRedirect === true,
+            skipErrorToast: options.skipErrorToast === true,
+          },
+        })
         const data = response?.data?.data || {}
         const meta = response?.data?.meta || {}
 
@@ -244,7 +252,6 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         this.loaded = true
 
         if (Object.prototype.hasOwnProperty.call(payload || {}, 'location_label')) {
-          const auth = useAuthStore()
           try {
             await auth.fetchUser({
               source: 'preferences-save',
@@ -285,6 +292,9 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         location_lat: payload?.location_lat ?? null,
         location_lon: payload?.location_lon ?? null,
         onboarding_completed_at: completedAt,
+      }, {
+        skipAuthRedirect: true,
+        skipErrorToast: true,
       })
     },
 

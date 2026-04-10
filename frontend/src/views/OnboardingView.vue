@@ -17,11 +17,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import OnboardingModal from '@/components/onboarding/OnboardingModal.vue'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
+import { useToast } from '@/composables/useToast'
 
 const router = useRouter()
 const route = useRoute()
 const preferences = useEventPreferencesStore()
 const onboardingTour = useOnboardingTourStore()
+const { warn } = useToast()
 const saving = ref(false)
 const shouldStartTourAfterFlow = computed(() => route.query.start_tour === '1')
 
@@ -48,6 +50,8 @@ async function handleFinish(payload) {
     if (shouldStartTour) {
       onboardingTour.restartTour()
     }
+  } catch (error) {
+    warn(error?.userMessage || preferences.error || 'Nepodarilo sa ulozit onboarding.')
   } finally {
     saving.value = false
   }
@@ -63,6 +67,8 @@ async function handleSkip() {
     if (shouldStartTour) {
       onboardingTour.restartTour()
     }
+  } catch (error) {
+    warn(error?.userMessage || preferences.error || 'Nepodarilo sa preskocit onboarding.')
   } finally {
     saving.value = false
   }

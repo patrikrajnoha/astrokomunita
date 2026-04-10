@@ -91,9 +91,13 @@ class AuthController extends Controller
             'requires_email_verification' => $requiresEmailVerification,
         ]);
 
-        Auth::login($user);
+        Auth::login($user, false);
 
-        return response()->json($user->makeVisible(['email']), 201);
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
+        return response()->json($request->user()?->makeVisible(['email']) ?? $user->makeVisible(['email']), 201);
     }
 
     public function usernameAvailable(Request $request)
@@ -291,4 +295,3 @@ class AuthController extends Controller
         ], 410);
     }
 }
-

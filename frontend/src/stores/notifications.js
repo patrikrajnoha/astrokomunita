@@ -420,6 +420,12 @@ export const useNotificationsStore = defineStore('notifications', {
 
       this.stopRealtime({ disconnect: false })
 
+      try {
+        await auth.csrf()
+      } catch (error) {
+        console.warn('Notifications realtime CSRF bootstrap failed:', error?.message || error)
+      }
+
       const echo = await initEcho()
       if (!echo) {
         this.realtimeReady = false

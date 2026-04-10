@@ -63,9 +63,15 @@ export function getMyPreferences() {
   })
 }
 
-export function updateMyPreferences(payload) {
+export function updateMyPreferences(payload, config = {}) {
+  const meta = {
+    requiresAuth: true,
+    ...(config?.meta || {}),
+  }
+
   return api.put('/me/preferences', payload, {
-    meta: { requiresAuth: true },
+    ...config,
+    meta,
   })
 }
 

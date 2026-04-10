@@ -19,6 +19,7 @@ const mockPreferences = vi.hoisted(() => ({
 const mockOnboardingTour = vi.hoisted(() => ({
   restartTour: vi.fn(),
 }))
+const warnMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@/stores/eventPreferences', () => ({
   useEventPreferencesStore: () => mockPreferences,
@@ -26,6 +27,12 @@ vi.mock('@/stores/eventPreferences', () => ({
 
 vi.mock('@/stores/onboardingTour', () => ({
   useOnboardingTourStore: () => mockOnboardingTour,
+}))
+
+vi.mock('@/composables/useToast', () => ({
+  useToast: () => ({
+    warn: warnMock,
+  }),
 }))
 
 function makeRouter() {
@@ -46,6 +53,7 @@ describe('OnboardingView', () => {
     mockPreferences.saveOnboarding.mockClear()
     mockPreferences.markOnboardingComplete.mockClear()
     mockOnboardingTour.restartTour.mockClear()
+    warnMock.mockClear()
   })
 
   it('completing onboarding saves preferences once and redirects home', async () => {
@@ -118,5 +126,32 @@ describe('OnboardingView', () => {
       expect(router.currentRoute.value.name).toBe('home')
     })
     expect(mockOnboardingTour.restartTour).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the user on onboarding and warns when skip save fails', async () => {
+    const router = makeRouter()
+    await router.push('/onboarding?redirect=/')
+    await router.isReady()
+
+    mockPreferences.markOnboardingComplete.mockRejectedValueOnce({
+      userMessage: 'Relacia nie je pripravena.',
+    })
+
+    const wrapper = mount(OnboardingView, {
+      global: {
+        plugins: [router],
+        stubs: {
+          OnboardingModal: {
+            template: '<button class="skip" @click="$emit(\'skip\')">skip</button>',
+          },
+        },
+      },
+    })
+
+    await wrapper.find('.skip').trigger('click')
+    await vi.waitFor(() => {
+      expect(warnMock).toHaveBeenCalledWith('Relacia nie je pripravena.')
+    })
+    expect(router.currentRoute.value.name).toBe('onboarding')
   })
 })

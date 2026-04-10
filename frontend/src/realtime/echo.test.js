@@ -6,6 +6,10 @@ const echoState = vi.hoisted(() => ({
     this.disconnect = vi.fn()
   }),
 }))
+const axiosState = vi.hoisted(() => ({
+  post: vi.fn(),
+}))
+const refreshCsrfCookieMock = vi.hoisted(() => vi.fn(async () => {}))
 
 vi.mock('laravel-echo', () => ({
   default: echoState.ctor,
@@ -16,9 +20,11 @@ vi.mock('pusher-js', () => ({
 }))
 
 vi.mock('axios', () => ({
-  default: {
-    post: vi.fn(),
-  },
+  default: axiosState,
+}))
+
+vi.mock('@/services/api', () => ({
+  refreshCsrfCookie: (...args) => refreshCsrfCookieMock(...args),
 }))
 
 async function loadEchoModule() {
@@ -29,8 +35,11 @@ async function loadEchoModule() {
 describe('realtime echo config', () => {
   beforeEach(() => {
     echoState.ctor.mockClear()
+    axiosState.post.mockReset()
+    refreshCsrfCookieMock.mockReset()
     vi.stubEnv('VITE_REVERB_APP_KEY', 'local-app-key')
     vi.stubEnv('VITE_API_BASE_URL', 'http://127.0.0.1:8001')
+    document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
   })
 
   afterEach(() => {
@@ -86,6 +95,66 @@ describe('realtime echo config', () => {
 
     const options = echoState.ctor.mock.calls[0][0]
     expect(options.wsHost).toBe('127.0.0.1')
+
+    disconnectEcho()
+  })
+
+  it('bootstraps a csrf cookie before private broadcast auth when missing', async () => {
+    refreshCsrfCookieMock.mockImplementationOnce(async () => {
+      document.cookie = 'XSRF-TOKEN=csrf-cookie-value; path=/'
+    })
+    axiosState.post.mockResolvedValueOnce({ data: { auth: 'ok' } })
+
+    const { disconnectEcho, initEcho } = await loadEchoModule()
+    await initEcho()
+
+    const options = echoState.ctor.mock.calls[0][0]
+    const callback = vi.fn()
+
+    await options.authorizer({ name: 'private-users.7' }).authorize('socket-1', callback)
+
+    expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
+    expect(axiosState.post).toHaveBeenCalledWith(
+      '/broadcasting/auth',
+      {
+        socket_id: 'socket-1',
+        channel_name: 'private-users.7',
+      },
+      {
+        withCredentials: true,
+        headers: expect.objectContaining({
+          Accept: 'application/json',
+          'X-CSRF-TOKEN': 'csrf-cookie-value',
+          'X-XSRF-TOKEN': 'csrf-cookie-value',
+        }),
+      },
+    )
+    expect(callback).toHaveBeenCalledWith(null, { auth: 'ok' })
+
+    disconnectEcho()
+  })
+
+  it('retries private broadcast auth once after a 403', async () => {
+    document.cookie = 'XSRF-TOKEN=initial-token; path=/'
+    refreshCsrfCookieMock.mockImplementationOnce(async () => {
+      document.cookie = 'XSRF-TOKEN=retry-token; path=/'
+    })
+    axiosState.post
+      .mockRejectedValueOnce({ response: { status: 403 } })
+      .mockResolvedValueOnce({ data: { auth: 'ok' } })
+
+    const { disconnectEcho, initEcho } = await loadEchoModule()
+    await initEcho()
+
+    const options = echoState.ctor.mock.calls[0][0]
+    const callback = vi.fn()
+
+    await options.authorizer({ name: 'private-users.7' }).authorize('socket-2', callback)
+
+    expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
+    expect(axiosState.post).toHaveBeenCalledTimes(2)
+    expect(axiosState.post.mock.calls[1][2].headers['X-XSRF-TOKEN']).toBe('retry-token')
+    expect(callback).toHaveBeenCalledWith(null, { auth: 'ok' })
 
     disconnectEcho()
   })

@@ -51,6 +51,22 @@ class AuthRegistrationTest extends TestCase
         );
     }
 
+    public function test_registration_authenticates_the_new_user(): void
+    {
+        $this->postJson('/api/auth/register', [
+            'name' => 'Authenticated Tester',
+            'email' => 'authenticated-register@example.com',
+            'username' => 'auth_register_1',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertCreated();
+
+        $user = User::query()->where('email', 'authenticated-register@example.com')->firstOrFail();
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_registration_fails_for_taken_username(): void
     {
         User::factory()->create([

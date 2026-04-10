@@ -129,6 +129,7 @@ describe('notifications store realtime handler', () => {
     const store = useNotificationsStore()
     await store.startRealtime()
 
+    expect(authState.csrf).toHaveBeenCalledTimes(1)
     expect(echoClient.private).toHaveBeenCalledWith('users.7')
     expect(channel.listen).toHaveBeenCalledWith('.notification.created', expect.any(Function))
     expect(channel.listen).toHaveBeenCalledWith('NotificationCreated', expect.any(Function))

@@ -660,12 +660,20 @@ export function applyAuthGuards(routerInstance) {
       void prefetchHomeFeed(api)
     }
 
-    if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
-      auth.bootstrapAuth()
-    }
-
     const redirectTarget = to.fullPath
     const requiresAuth = Boolean(to.meta?.requiresAuth ?? to.meta?.auth ?? false)
+
+    if (!auth.bootstrapDone && auth.status === 'idle' && !auth.loading) {
+      const bootstrapPromise = auth.bootstrapAuth()
+
+      if (requiresAuth) {
+        try {
+          await bootstrapPromise
+        } catch {
+          // Auth bootstrap failure is handled by store state and downstream guards.
+        }
+      }
+    }
 
     const hasResolvedGuestState =
       (auth.bootstrapDone || auth.initialized) &&

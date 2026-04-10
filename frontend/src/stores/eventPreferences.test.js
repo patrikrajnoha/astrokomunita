@@ -5,6 +5,7 @@ import { useEventPreferencesStore } from '@/stores/eventPreferences'
 const getMyPreferencesMock = vi.hoisted(() => vi.fn())
 const updateMyPreferencesMock = vi.hoisted(() => vi.fn())
 const authStoreMock = vi.hoisted(() => ({
+  csrf: vi.fn(async () => {}),
   fetchUser: vi.fn(async () => null),
 }))
 
@@ -112,11 +113,52 @@ describe('eventPreferences sidebar widget getters', () => {
       location_lon: 17.1077,
     })
 
+    expect(authStoreMock.csrf).toHaveBeenCalledTimes(1)
     expect(authStoreMock.fetchUser).toHaveBeenCalledWith({
       source: 'preferences-save',
       retry: false,
       markBootstrap: false,
       preserveStateOnError: true,
     })
+  })
+
+  it('marks onboarding saves to skip auth redirects and duplicate toasts', async () => {
+    const store = useEventPreferencesStore()
+    updateMyPreferencesMock.mockResolvedValue({
+      data: {
+        data: {
+          interests: [],
+          location_label: '',
+          location_place_id: null,
+          location_lat: null,
+          location_lon: null,
+          onboarding_completed_at: '2026-04-10T10:00:00Z',
+          sidebar_widget_keys: [],
+          sidebar_widget_overrides: {},
+          has_preferences: true,
+        },
+        meta: {},
+      },
+    })
+
+    await store.saveOnboarding({
+      interests: [],
+      location_label: '',
+      location_place_id: null,
+      location_lat: null,
+      location_lon: null,
+    })
+
+    expect(updateMyPreferencesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        onboarding_completed_at: expect.any(String),
+      }),
+      expect.objectContaining({
+        meta: expect.objectContaining({
+          skipAuthRedirect: true,
+          skipErrorToast: true,
+        }),
+      }),
+    )
   })
 })
