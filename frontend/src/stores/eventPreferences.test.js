@@ -26,6 +26,8 @@ describe('eventPreferences sidebar widget getters', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    authStoreMock.bootstrapDone = true
+    authStoreMock.isAuthed = true
   })
 
   it('falls back to home widget selection for scopes without explicit override', () => {
@@ -129,6 +131,10 @@ describe('eventPreferences sidebar widget getters', () => {
 
   it('waits for auth bootstrap before fetching preferences', async () => {
     const store = useEventPreferencesStore()
+    authStoreMock.bootstrapDone = false
+    authStoreMock.waitForBootstrap.mockImplementationOnce(async () => {
+      authStoreMock.bootstrapDone = true
+    })
 
     getMyPreferencesMock.mockResolvedValue({
       data: {

@@ -133,12 +133,16 @@ function applyReadState(list, id, readAt) {
 }
 
 async function waitForAuthBootstrap(auth) {
+  if (auth?.bootstrapDone) {
+    return
+  }
+
   if (typeof auth?.waitForBootstrap === 'function') {
     await auth.waitForBootstrap()
     return
   }
 
-  if (!auth?.bootstrapDone && typeof auth?.bootstrapAuth === 'function') {
+  if (typeof auth?.bootstrapAuth === 'function') {
     await auth.bootstrapAuth()
   }
 }

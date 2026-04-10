@@ -260,24 +260,7 @@ function logDevAuthDiagnostic(error, status) {
   })
 }
 
-api.interceptors.request.use(async (config) => {
-  const url = String(config?.url ?? '')
-  const isBootstrapRequest = url.includes('/auth/me') || url.includes('csrf-cookie')
-
-  if (!isBootstrapRequest) {
-    const gate = globalThis['__astrokomunitaBootstrapPromise__']
-    console.log('[bootstrap-gate] interceptor', {
-      url,
-      hasGate: Boolean(gate),
-    })
-
-    if (gate) {
-      console.log('[bootstrap-gate] waiting', { url })
-      await gate
-      console.log('[bootstrap-gate] released', { url })
-    }
-  }
-
+api.interceptors.request.use((config) => {
   let nextConfig = config
 
   if (isLongRunningPath(nextConfig?.url)) {

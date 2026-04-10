@@ -8,6 +8,7 @@ const downloadStatsCsvMock = vi.fn()
 const toastSuccessMock = vi.fn()
 const toastErrorMock = vi.fn()
 const authState = vi.hoisted(() => ({
+  bootstrapDone: true,
   isAuthed: true,
   waitForBootstrap: vi.fn(async () => {}),
 }))
@@ -74,6 +75,7 @@ function makeRouter() {
 describe('AdminDashboardView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authState.bootstrapDone = true
     authState.isAuthed = true
     authState.waitForBootstrap.mockReset()
     authState.waitForBootstrap.mockResolvedValue()
@@ -160,9 +162,13 @@ describe('AdminDashboardView', () => {
   })
 
   it('waits for auth bootstrap before loading dashboard stats on mount', async () => {
+    authState.bootstrapDone = false
     let resolveBootstrap
     authState.waitForBootstrap.mockImplementationOnce(() => new Promise((resolve) => {
-      resolveBootstrap = resolve
+      resolveBootstrap = () => {
+        authState.bootstrapDone = true
+        resolve()
+      }
     }))
 
     const router = makeRouter()

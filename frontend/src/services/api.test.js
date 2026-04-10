@@ -21,76 +21,44 @@ function makeError(config = {}) {
 }
 
 beforeEach(() => {
-  globalThis.__astrokomunitaBootstrapPromise__ = null
-  vi.spyOn(console, 'log').mockImplementation(() => {})
+  vi.restoreAllMocks()
 })
 
-describe('request bootstrap gating', () => {
-  it('waits for auth bootstrap before sending non-auth requests', async () => {
-    let resolveBootstrap
-    let interceptorReleased = false
-    const bootstrapPromise = new Promise((resolve) => {
-      resolveBootstrap = resolve
+describe('request interceptor', () => {
+  it('extends timeout for long-running admin jobs', async () => {
+    const config = await api.interceptors.request.handlers[0].fulfilled({
+      url: '/admin/event-sources/run',
+      timeout: 15000,
     })
-    globalThis.__astrokomunitaBootstrapPromise__ = bootstrapPromise
-
-    const pendingConfig = api.interceptors.request.handlers[0].fulfilled({
-      url: '/notifications/unread-count',
-    })
-      .then((config) => {
-        interceptorReleased = true
-        return config
-      })
-
-    await Promise.resolve()
-
-    expect(interceptorReleased).toBe(false)
-
-    resolveBootstrap()
-
-    const config = await pendingConfig
 
     expect(config).toEqual(expect.objectContaining({
-      url: '/notifications/unread-count',
+      url: '/admin/event-sources/run',
+      timeout: 300000,
     }))
   })
 
-  it('does not wait for the bootstrap auth/me request itself', async () => {
-    let resolveBootstrap
-    const bootstrapPromise = new Promise((resolve) => {
-      resolveBootstrap = resolve
-    })
-    globalThis.__astrokomunitaBootstrapPromise__ = bootstrapPromise
-
+  it('extends timeout for slow sky widgets', async () => {
     const config = await api.interceptors.request.handlers[0].fulfilled({
-      url: '/auth/me',
+      url: '/sky/moon-overview',
+      timeout: 15000,
     })
 
     expect(config).toEqual(expect.objectContaining({
-      url: '/auth/me',
+      url: '/sky/moon-overview',
+      timeout: 45000,
     }))
-
-    resolveBootstrap()
-    await bootstrapPromise
   })
 
-  it('does not wait for csrf cookie requests', async () => {
-    let resolveBootstrap
-    const bootstrapPromise = new Promise((resolve) => {
-      resolveBootstrap = resolve
-    })
-    globalThis.__astrokomunitaBootstrapPromise__ = bootstrapPromise
-
+  it('leaves default timeout for regular requests', async () => {
     const config = await api.interceptors.request.handlers[0].fulfilled({
-      url: '/sanctum/csrf-cookie',
+      url: '/notifications/unread-count',
+      timeout: 15000,
     })
 
     expect(config).toEqual(expect.objectContaining({
-      url: '/sanctum/csrf-cookie',
+      url: '/notifications/unread-count',
+      timeout: 15000,
     }))
-
-    resolveBootstrap()
-    await bootstrapPromise
   })
 })
 

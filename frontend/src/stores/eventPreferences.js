@@ -9,12 +9,16 @@ const MAX_SIDEBAR_WIDGETS = 3
 let activePreferencesFetchPromise = null
 
 async function waitForAuthBootstrap(auth) {
+  if (auth?.bootstrapDone) {
+    return
+  }
+
   if (typeof auth?.waitForBootstrap === 'function') {
     await auth.waitForBootstrap()
     return
   }
 
-  if (!auth?.bootstrapDone && typeof auth?.bootstrapAuth === 'function') {
+  if (typeof auth?.bootstrapAuth === 'function') {
     await auth.bootstrapAuth()
   }
 }

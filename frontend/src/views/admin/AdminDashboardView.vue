@@ -174,7 +174,10 @@ async function loadDashboard(force = false) {
   error.value = ''
 
   try {
-    await auth.waitForBootstrap()
+    if (!auth.bootstrapDone) {
+      await auth.waitForBootstrap()
+    }
+
     if (!auth.isAuthed) return
     stats.value = await getStats({ force })
   } catch (e) {

@@ -1,3 +1,4 @@
+import { nextTick } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
@@ -669,6 +670,8 @@ export function applyAuthGuards(routerInstance) {
       } catch {
         // Auth bootstrap failure is handled by store state and downstream guards.
       }
+
+      await nextTick()
     }
 
     const hasResolvedGuestState =

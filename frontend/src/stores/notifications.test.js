@@ -49,6 +49,9 @@ describe('notifications store realtime handler', () => {
     infoToast.mockClear()
     http.get.mockReset()
     http.post.mockReset()
+    authState.bootstrapDone = true
+    authState.isAuthed = true
+    authState.user = { id: 7 }
     authState.waitForBootstrap.mockClear()
     authState.csrf.mockClear()
     authState.logout.mockClear()
@@ -113,6 +116,11 @@ describe('notifications store realtime handler', () => {
   })
 
   it('subscribes to users.{id} and handles realtime notification.created payload', async () => {
+    authState.bootstrapDone = false
+    authState.waitForBootstrap.mockImplementationOnce(async () => {
+      authState.bootstrapDone = true
+    })
+
     const handlers = {}
     const channel = {
       listen: vi.fn((eventName, callback) => {
@@ -335,6 +343,10 @@ describe('notifications store realtime handler', () => {
 
   it('waits for auth bootstrap before fetching unread count', async () => {
     const store = useNotificationsStore()
+    authState.bootstrapDone = false
+    authState.waitForBootstrap.mockImplementationOnce(async () => {
+      authState.bootstrapDone = true
+    })
 
     http.get.mockResolvedValueOnce({ data: { count: 6 } })
 

@@ -132,8 +132,6 @@ async function bootstrap() {
   const auth = useAuthStore(pinia)
   const bsPromise = auth.bootstrapAuth()
 
-  globalThis['__astrokomunitaBootstrapPromise__'] = bsPromise
-
   const app = createApp(App)
 
   app.config.errorHandler = (error, instance, info) => {
@@ -153,34 +151,29 @@ async function bootstrap() {
   try {
     app.mount('#app')
     setMounted(true)
-    console.info('[APP INIT] mounted');
+    console.info('[APP INIT] mounted')
 
-  // 1. Dynamic import and initialization
-  const { initEcho, getEcho } = await import('@/realtime/echo');
-  await initEcho();
+    const { initEcho, getEcho } = await import('@/realtime/echo')
+    await initEcho()
 
-  // 2. Setup Echo listener
-  // Using a small delay if the library needs internal "handshake" time, 
-  // though usually initEcho should resolve when ready.
-  setTimeout(() => {
-    const echo = getEcho();
-    if (!echo) return;
+    // Allow the Echo client to finish its internal handshake before attaching listeners.
+    setTimeout(() => {
+      const echo = getEcho()
+      if (!echo) return
 
-    echo.channel('posts')
-      .listen('.PostUpdated', (event) => {
-        window.dispatchEvent(new CustomEvent('post:updated', { detail: event?.post ?? event }))
-      })
-  }, 1000);
+      echo.channel('posts')
+        .listen('.PostUpdated', (event) => {
+          window.dispatchEvent(new CustomEvent('post:updated', { detail: event?.post ?? event }))
+        })
+    }, 1000)
 
-  clearPreloadRecoveryState()
-
-} catch (error) {
-  // Handle initialization or import failures
-  setInitError(formatError(error));
-  setInitializing(false);
-  ensureFatalOverlay(error, 'mount');
-  throw error;
-}
+    clearPreloadRecoveryState()
+  } catch (error) {
+    setInitError(formatError(error))
+    setInitializing(false)
+    ensureFatalOverlay(error, 'mount')
+    throw error
+  }
 
   try {
     await bsPromise
@@ -188,7 +181,6 @@ async function bootstrap() {
     setInitError(formatError(error))
     ensureFatalOverlay(error, 'auth.bootstrapAuth')
   } finally {
-    globalThis['__astrokomunitaBootstrapPromise__'] = null
     setInitializing(false)
   }
 
