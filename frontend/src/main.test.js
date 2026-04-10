@@ -113,7 +113,7 @@ describe('main bootstrap', () => {
     createPiniaMock.mockClear()
     createAppMock.mockClear()
     appUseMock.mockClear()
-    appMountMock.mockClear()
+    appMountMock.mockReset()
     setInitErrorMock.mockClear()
     setInitializingMock.mockClear()
     setMountedMock.mockClear()
@@ -146,6 +146,10 @@ describe('main bootstrap', () => {
       }
     })
 
+    appMountMock.mockImplementation((target) => {
+      events.push(`mountedWithPromise:${globalThis.__astrokomunitaBootstrapPromise__ === bootstrapPromise}`)
+      return target
+    })
     authStoreMock.bootstrapAuth.mockReturnValueOnce(bootstrapPromise)
 
     await import('./main.js')
@@ -154,6 +158,7 @@ describe('main bootstrap', () => {
     expect(appMountMock).toHaveBeenCalledWith('#app')
     expect(authStoreMock.bootstrapAuth).toHaveBeenCalledTimes(1)
     expect(globalThis.__astrokomunitaBootstrapPromise__).toBe(bootstrapPromise)
+    expect(events[0]).toBe('mountedWithPromise:true')
     expect(setInitializingMock).not.toHaveBeenCalledWith(false)
 
     resolveBootstrap()
@@ -161,7 +166,7 @@ describe('main bootstrap', () => {
 
     expect(globalThis.__astrokomunitaBootstrapPromise__).toBeNull()
     expect(setInitializingMock).toHaveBeenCalledWith(false)
-    expect(events).toEqual(['bootstrapResolved', 'setInitializingFalse'])
+    expect(events).toEqual(['mountedWithPromise:true', 'bootstrapResolved', 'setInitializingFalse'])
   })
 
   it('finishes initialization and records init error when auth bootstrap fails', async () => {

@@ -128,8 +128,13 @@ async function bootstrap() {
 
   attachGlobalDiagnostics()
 
-  const app = createApp(App)
   const pinia = createPinia()
+  const auth = useAuthStore(pinia)
+  const bsPromise = auth.bootstrapAuth()
+
+  globalThis['__astrokomunitaBootstrapPromise__'] = bsPromise
+
+  const app = createApp(App)
 
   app.config.errorHandler = (error, instance, info) => {
     console.error('[APP ERROR] vue errorHandler', info, instance, error)
@@ -177,11 +182,7 @@ async function bootstrap() {
   throw error;
 }
 
-  const auth = useAuthStore(pinia)
-
   try {
-    const bsPromise = auth.bootstrapAuth()
-    globalThis['__astrokomunitaBootstrapPromise__'] = bsPromise
     await bsPromise
   } catch (error) {
     setInitError(formatError(error))
