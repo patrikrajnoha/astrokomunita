@@ -10,13 +10,13 @@ use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Illuminate\Routing\Exceptions\InvalidSignatureException;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 use App\Support\ApiResponse;
 use App\Support\Telemetry\SentryReporter;
 use App\Http\Middleware\IsAdmin;
 use App\Http\Middleware\IsAdminContent;
 use App\Http\Middleware\EnsureUserActive;
 use App\Http\Middleware\EnsureEmailIsVerifiedOrAdmin;
+use App\Http\Middleware\EnsureFrontendApiRequestsAreStateful;
 use App\Http\Middleware\AddSecurityHeaders;
 use App\Http\Middleware\EnsureUploadPayloadWithinLimit;
 use App\Http\Middleware\SkyThrottle;
@@ -37,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Sanctum SPA session-based auth for API routes.
         $middleware->api(prepend: [
-            EnsureFrontendRequestsAreStateful::class,
+            EnsureFrontendApiRequestsAreStateful::class,
         ]);
 
         // Admin route middleware aliases (Laravel 12, no Kernel.php).
