@@ -30,7 +30,7 @@
           label="E-mail"
           type="email"
           autocomplete="email"
-          placeholder="you@example.com"
+          placeholder="vas@email.sk"
           helper="Obnovovací kód dostanete e-mailom."
           :error="emailError"
           required

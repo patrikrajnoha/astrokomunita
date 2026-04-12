@@ -65,9 +65,6 @@
           <p v-if="user?.bio" class="bio">{{ user.bio }}</p>
           <p v-else class="bio muted">Zatiaľ bez popisu.</p>
 
-          <div class="meta">
-            <span v-if="isOwnProfile && user?.location" class="metaItem">Lokalita: {{ user.location }}</span>
-          </div>
         </div>
 
         <div class="statsRow ui-profile-stats">

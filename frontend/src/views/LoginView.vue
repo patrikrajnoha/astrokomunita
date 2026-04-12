@@ -20,7 +20,7 @@
       </template>
 
       <AuthFormSection
-        kicker="ÚČET"
+        kicker=""
         title="Vitajte späť"
         description="Použite e-mail a heslo pre prístup k profilu a komunitnému feedu."
       >
@@ -30,7 +30,7 @@
             label="E-mail"
             type="email"
             autocomplete="email"
-            placeholder="you@example.com"
+            placeholder="vas@email.sk"
             :error="emailError"
             required
           >
@@ -87,7 +87,7 @@
           />
 
           <p class="authFootnote">
-            Potrebujete účet?
+            Nemáte účet?
             <RouterLink class="authInlineLink" :to="registerLink">Vytvoriť účet</RouterLink>
           </p>
         </form>

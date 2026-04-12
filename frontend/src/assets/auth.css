@@ -88,7 +88,7 @@
 }
 
 .authSplit__hero {
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .authSplit__divider {
@@ -613,6 +613,10 @@
 }
 
 @media (max-width: 560px) {
+  .authSplit__hero {
+    display: none;
+  }
+
   .authSplit__hero,
   .authSplit__form {
     padding: 1rem;
