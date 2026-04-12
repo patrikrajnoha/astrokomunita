@@ -291,7 +291,7 @@ describe('PublicProfileView media fallback', () => {
     expect(wrapper.text()).not.toContain('Lokalita:')
   })
 
-  it('shows location on own public profile', async () => {
+  it('keeps location hidden on own public profile', async () => {
     authStoreMock.user = {
       id: 10,
       username: 'astro',
@@ -336,8 +336,8 @@ describe('PublicProfileView media fallback', () => {
     await flush()
     await flush()
 
-    expect(wrapper.find('.meta .metaItem').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Lokalita: Bratislava')
+    expect(wrapper.find('.meta .metaItem').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Lokalita:')
   })
 
   it('renders share action label and icon in profile header', async () => {
