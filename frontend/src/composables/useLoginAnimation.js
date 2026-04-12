@@ -1,8 +1,16 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 
+// Login rocket animation inspired by:
+// https://codepen.io/stivaliserna/pen/rNMwpaG
+// Adapted for this app (Vue composable flow, Three.js runtime loading, GLTF/fallback model).
 const LOGIN_SUCCESS_ANIMATION_MS = 2800
 const MOBILE_BREAKPOINT_PX = 768
 const ROCKET_MODEL_SCALE = 0.6
+const ROCKET_BASE_Y = 24
+const ROCKET_IDLE_LOOP_MS = 2000
+const ROCKET_LAUNCH_STAGE_MS = 700
+const SUCCESS_OVERLAY_BASE_OPACITY = 0.86
+const SUCCESS_OVERLAY_MIN_OPACITY = 0.06
 const THREE_SCRIPT_SRC = 'https://unpkg.com/three@0.123.0/build/three.min.js'
 const GLTF_LOADER_SCRIPT_SRC = 'https://unpkg.com/three@0.123.0/examples/js/loaders/GLTFLoader.js'
 const SCRIPT_READY_TIMEOUT_MS = 7000
@@ -170,6 +178,7 @@ function getRocketViewportConfig(viewportWidth) {
       cameraY: -4,
       floatAmplitude: 28,
       rotationSpeed: 0.07,
+      launchDistance: 330,
     }
   }
 
@@ -179,6 +188,7 @@ function getRocketViewportConfig(viewportWidth) {
     cameraY: -10,
     floatAmplitude: 40,
     rotationSpeed: 0.1,
+    launchDistance: 480,
   }
 }
 
@@ -253,12 +263,15 @@ export function useLoginAnimation() {
   const rocketCanvasRef = ref(null)
   const showSuccessAnimation = ref(false)
   const isAnimating = ref(false)
+  const overlayOpacity = ref(SUCCESS_OVERLAY_BASE_OPACITY)
 
   let animationTimerId = null
   let rocketScene = null
   let rocketCamera = null
   let rocketRenderer = null
   let rocketModel = null
+  let rocketThrusterLight = null
+  let rocketThrusterFlame = null
   let rocketFrameId = null
   let rocketResizeHandler = null
   let rocketViewportConfig = null
@@ -282,7 +295,8 @@ export function useLoginAnimation() {
     }
 
     model.scale.setScalar(rocketViewportConfig?.modelScale || ROCKET_MODEL_SCALE)
-    model.position.y = 50
+    model.position.y = ROCKET_BASE_Y
+    model.userData.baseY = ROCKET_BASE_Y
   }
 
   function handleRocketResize() {
@@ -332,7 +346,19 @@ export function useLoginAnimation() {
     rocketCamera = null
     rocketRenderer = null
     rocketModel = null
+    rocketThrusterLight = null
+
+    if (rocketThrusterFlame) {
+      rocketThrusterFlame.geometry?.dispose?.()
+      const flameMaterials = Array.isArray(rocketThrusterFlame.material)
+        ? rocketThrusterFlame.material
+        : [rocketThrusterFlame.material]
+      flameMaterials.forEach((material) => material?.dispose?.())
+    }
+
+    rocketThrusterFlame = null
     rocketViewportConfig = null
+    overlayOpacity.value = SUCCESS_OVERLAY_BASE_OPACITY
   }
 
   async function startRocketAnimation() {
@@ -376,7 +402,31 @@ export function useLoginAnimation() {
 
     const pointLight = new THREE.PointLight(0xa11148, 2, 1000, 2)
     pointLight.position.set(200, -100, 50)
-    rocketScene.add(ambientLight, directionalLight, pointLight)
+    rocketThrusterLight = new THREE.PointLight(0xff8e47, 0, 460, 2.2)
+    rocketThrusterLight.position.set(0, ROCKET_BASE_Y - 70, 0)
+
+    const thrusterFlameMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff994d,
+      emissive: 0xff5e26,
+      emissiveIntensity: 0.9,
+      transparent: true,
+      opacity: 0.12,
+      roughness: 0.45,
+      metalness: 0.05,
+      depthWrite: false,
+    })
+    rocketThrusterFlame = new THREE.Mesh(new THREE.ConeGeometry(9, 34, 18), thrusterFlameMaterial)
+    rocketThrusterFlame.position.set(0, ROCKET_BASE_Y - 78, 0)
+    rocketThrusterFlame.rotation.x = Math.PI
+    rocketThrusterFlame.renderOrder = 2
+
+    rocketScene.add(
+      ambientLight,
+      directionalLight,
+      pointLight,
+      rocketThrusterLight,
+      rocketThrusterFlame,
+    )
 
     rocketModel = createFallbackRocket(THREE)
     applyRocketModelTransforms(rocketModel)
@@ -401,21 +451,59 @@ export function useLoginAnimation() {
     rocketResizeHandler = handleRocketResize
     window.addEventListener('resize', rocketResizeHandler, false)
 
-    const animationDuration = 2000
+    const animationStartTs = performance.now()
+    const launchStartMs = Math.max(0, LOGIN_SUCCESS_ANIMATION_MS - ROCKET_LAUNCH_STAGE_MS)
     const loop = () => {
       if (!rocketRenderer || !rocketScene || !rocketCamera) {
         return
       }
 
-      const t = (Date.now() % animationDuration) / animationDuration
+      const elapsedMs = performance.now() - animationStartTs
+      const t = (elapsedMs % ROCKET_IDLE_LOOP_MS) / ROCKET_IDLE_LOOP_MS
       rocketRenderer.render(rocketScene, rocketCamera)
 
       const targetRocketPosition = rocketViewportConfig?.floatAmplitude || 40
       const rotationSpeed = rocketViewportConfig?.rotationSpeed || 0.1
-      const delta = targetRocketPosition * Math.sin(Math.PI * 2 * t)
+      const launchDistance = rocketViewportConfig?.launchDistance || 480
+      const baseScale = rocketViewportConfig?.modelScale || ROCKET_MODEL_SCALE
+      const idleLift = targetRocketPosition * Math.sin(Math.PI * 2 * t)
+      const launchProgressRaw = elapsedMs <= launchStartMs
+        ? 0
+        : Math.min((elapsedMs - launchStartMs) / ROCKET_LAUNCH_STAGE_MS, 1)
+      const launchProgress = launchProgressRaw ** 3
+      const thrusterIdlePulse = 0.86 + (Math.sin(elapsedMs * 0.032) * 0.14)
+      const thrusterBoost = launchProgressRaw > 0 ? launchProgress : 0
+      const thrusterStrength = (0.08 + (thrusterBoost * 1.35)) * thrusterIdlePulse
+      const overlayLaunchProgress = launchProgressRaw > 0 ? launchProgressRaw ** 1.25 : 0
+
+      overlayOpacity.value = SUCCESS_OVERLAY_BASE_OPACITY
+        - ((SUCCESS_OVERLAY_BASE_OPACITY - SUCCESS_OVERLAY_MIN_OPACITY) * overlayLaunchProgress)
+
       if (rocketModel) {
-        rocketModel.rotation.y += rotationSpeed
-        rocketModel.position.y = delta
+        const baseY = rocketModel.userData?.baseY ?? ROCKET_BASE_Y
+        const rotationMultiplier = 1 - (launchProgress * 0.72)
+        rocketModel.rotation.y += rotationSpeed * rotationMultiplier
+        rocketModel.rotation.z = (idleLift / Math.max(targetRocketPosition, 1)) * 0.05 * (1 - launchProgress)
+        rocketModel.position.y = baseY + idleLift - (launchDistance * launchProgress)
+        rocketModel.scale.setScalar(baseScale * (1 + (launchProgress * 0.12)))
+      }
+
+      const thrusterY = (rocketModel?.position?.y ?? ROCKET_BASE_Y) - 72
+      if (rocketThrusterLight) {
+        rocketThrusterLight.position.set(0, thrusterY, 8)
+        rocketThrusterLight.intensity = 0.12 + (thrusterStrength * 2.9)
+      }
+
+      if (rocketThrusterFlame) {
+        rocketThrusterFlame.position.set(0, thrusterY - 9, 0)
+        const flameScaleY = 0.65 + (thrusterStrength * 2.6)
+        rocketThrusterFlame.scale.set(1, flameScaleY, 1)
+
+        const flameMaterial = rocketThrusterFlame.material
+        if (flameMaterial && !Array.isArray(flameMaterial)) {
+          flameMaterial.opacity = 0.1 + (thrusterStrength * 0.75)
+          flameMaterial.emissiveIntensity = 0.9 + (thrusterStrength * 2.1)
+        }
       }
 
       rocketFrameId = requestAnimationFrame(loop)
@@ -427,6 +515,7 @@ export function useLoginAnimation() {
   async function waitForSuccessAnimation() {
     showSuccessAnimation.value = true
     isAnimating.value = true
+    overlayOpacity.value = SUCCESS_OVERLAY_BASE_OPACITY
 
     await nextTick()
     void startRocketAnimation()
@@ -451,6 +540,7 @@ export function useLoginAnimation() {
     stopRocketAnimation()
     showSuccessAnimation.value = false
     isAnimating.value = false
+    overlayOpacity.value = SUCCESS_OVERLAY_BASE_OPACITY
   }
 
   onMounted(() => {
@@ -465,6 +555,7 @@ export function useLoginAnimation() {
     rocketCanvasRef,
     showSuccessAnimation,
     isAnimating,
+    overlayOpacity,
     waitForSuccessAnimation,
     cancelAnimation,
   }

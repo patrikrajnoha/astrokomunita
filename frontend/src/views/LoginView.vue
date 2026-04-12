@@ -98,6 +98,7 @@
       <div
         v-if="showSuccessAnimation"
         class="loginSuccessOverlay"
+        :style="{ '--overlay-opacity': overlayOpacity }"
         role="status"
         aria-live="polite"
         aria-label="Prihlásenie úspešné, pripravujem presmerovanie"
@@ -126,7 +127,14 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
-const { rocketCanvasRef, showSuccessAnimation, isAnimating, waitForSuccessAnimation, cancelAnimation } = useLoginAnimation()
+const {
+  rocketCanvasRef,
+  showSuccessAnimation,
+  isAnimating,
+  overlayOpacity,
+  waitForSuccessAnimation,
+  cancelAnimation,
+} = useLoginAnimation()
 
 const email = ref(typeof route.query.email === 'string' ? route.query.email : '')
 const password = ref('')
@@ -243,7 +251,8 @@ function handleEnterSubmit(event) {
   inset: 0;
   z-index: 90;
   pointer-events: none;
-  background: rgb(21 29 40 / 0.86);
+  background: rgba(21, 29, 40, var(--overlay-opacity, 0.86));
+  transition: background-color 120ms linear;
 }
 
 .loginSuccessOverlay__canvas {
