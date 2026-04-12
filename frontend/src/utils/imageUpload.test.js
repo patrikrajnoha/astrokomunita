@@ -72,7 +72,7 @@ describe('imageUpload', () => {
       maxBytes: IMAGE_UPLOAD_LIMITS.pollOptionImageBytes,
     })).rejects.toMatchObject({
       code: 'IMAGE_TOO_LARGE',
-      userMessage: 'Obrazok je prilis velky. Maximalna velkost pre anketu je 20.0 MB.',
+      userMessage: 'Obrázok je príliš veľký. Maximálna veľkosť pre anketu je 20.0 MB.',
     })
   })
 
@@ -113,6 +113,6 @@ describe('imageUpload', () => {
       },
     }, 'fallback', { context: 'attachment' })
 
-    expect(message).toBe('Obrazok je prilis velky. Maximalna velkost pre anketu je 20.0 MB.')
+    expect(message).toBe('Obrázok je príliš veľký. Maximálna veľkosť pre anketu je 20.0 MB.')
   })
 })

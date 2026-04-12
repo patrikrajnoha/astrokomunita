@@ -415,13 +415,13 @@ describe('FeedList tabs', () => {
     const wrapper = mountFeed()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Zobrazit viac')
+    expect(wrapper.text()).toContain('Zobraziť viac')
     expect(wrapper.text()).not.toContain('END_MARK')
 
     await wrapper.get('.show-more-btn').trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Zobrazit menej')
+    expect(wrapper.text()).toContain('Zobraziť menej')
     expect(wrapper.text()).toContain('END_MARK')
   })
 

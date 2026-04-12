@@ -27,8 +27,8 @@ describe('VerifyEmailView', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Overenie cez odkaz uz nie je podporovane')
-    expect(wrapper.text()).toContain('Prejst na overenie e-mailu')
+    expect(wrapper.text()).toContain('Overenie cez odkaz už nie je podporované')
+    expect(wrapper.text()).toContain('Prejsť na overenie e-mailu')
   })
 
   it('navigates to settings email detail from CTA button', async () => {

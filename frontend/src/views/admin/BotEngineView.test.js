@@ -184,7 +184,7 @@ describe('BotEngineView', () => {
 
     expect(toastErrorMock).toHaveBeenCalled()
     const message = String(toastErrorMock.mock.calls.at(-1)?.[0] || '')
-    expect(message).toContain('Spustenie dokoncene s chybami.')
+    expect(message).toContain('Spustenie dokončené s chybami.')
     expect(message).toContain('KozmoBot: 1 zdroj (OK 1).')
     expect(message).toContain('StellarBot: 1 zdroj (chyby 1).')
   })

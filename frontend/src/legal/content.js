@@ -11,41 +11,41 @@ export function getLegalPageContent(kind) {
     return {
       title: 'Privacy Policy',
       eyebrow: 'Legal',
-      intro: `${appName} spracuva osobne udaje len v rozsahu potrebnom na fungovanie uctu, komunity a bezpecnosti platformy.`,
+      intro: `${appName} spracúva osobné údaje len v rozsahu potrebnom na fungovanie účtu, komunity a bezpečnosti platformy.`,
       sections: [
         {
-          heading: 'Prevadzkovatel',
+          heading: 'Prevádzkovateľ',
           paragraphs: [
-            `Prevadzkovatelom platformy je ${controllerName}. Tento text je prakticky prehlad aktualneho fungovania aplikacie.`,
+            `Prevádzkovateľom platformy je ${controllerName}. Tento text je praktický prehľad aktuálneho fungovania aplikácie.`,
           ],
         },
         {
-          heading: 'Ake udaje spracuvame',
+          heading: 'Aké údaje spracúvame',
           paragraphs: [
-            'Udaje o ucte a profile, ktore vlozis pri pouzivani platformy (napr. username, profilove nastavenia a obsah profilu).',
-            'Komunitny obsah, ktory vytvoris alebo upravis (prispevky, komentare, reakcie, ulozene polozky a podobne akcie v aplikacii).',
-            'Technicke a bezpecnostne metadata potrebne na prihlasenie, ochranu formularov a prevenciu zneuzitia sluzby.',
+            'Údaje o účte a profile, ktoré vložíš pri používaní platformy (napr. username, profilové nastavenia a obsah profilu).',
+            'Komunitný obsah, ktorý vytvoríš alebo upravíš (príspevky, komentáre, reakcie, uložené položky a podobné akcie v aplikácii).',
+            'Technické a bezpečnostné metadáta potrebné na prihlásenie, ochranu formulárov a prevenciu zneužitia služby.',
           ],
         },
         {
-          heading: 'Preco udaje pouzivame',
+          heading: 'Prečo údaje používame',
           paragraphs: [
-            'Na prevadzku uctu, zobrazenie funkcionalit komunity, dorucenie obsahu a personalizaciu funkcii, ktore si sam zapnes.',
-            'Na bezpecnost platformy, ochranu pred zneuzitim a riesenie technickych incidentov.',
+            'Na prevádzku účtu, zobrazenie funkcionalít komunity, doručenie obsahu a personalizáciu funkcií, ktoré si sám zapneš.',
+            'Na bezpečnosť platformy, ochranu pred zneužitím a riešenie technických incidentov.',
           ],
         },
         {
-          heading: 'Ako dlho udaje drzime',
+          heading: 'Ako dlho údaje držíme',
           paragraphs: [
-            'Udaje naviazane na ucet sa drzia pocas existencie uctu, pokial ich neodstranis skorej priamo v aplikacii.',
-            'Session data, notifikacie a technicke logy maju obmedzenu dobu uchovania podla aktivnej serverovej konfiguracie.',
-            'Po zruseni uctu prebehne vymazanie alebo anonymizacia naviazanych dat v rozsahu aktualneho spravania aplikacie.',
+            'Údaje naviazané na účet sa držia počas existencie účtu, pokiaľ ich neodstrániš skôr priamo v aplikácii.',
+            'Session dáta, notifikácie a technické logy majú obmedzenú dobu uchovania podľa aktívnej serverovej konfigurácie.',
+            'Po zrušení účtu prebehne vymazanie alebo anonymizácia naviazaných dát v rozsahu aktuálneho správania aplikácie.',
           ],
         },
         {
-          heading: 'Tvoje moznosti',
+          heading: 'Tvoje možnosti',
           paragraphs: [
-            'V nastaveniach si vies upravit profil, stiahnut export dat a poziadat o odstranenie uctu.',
+            'V nastaveniach si vieš upraviť profil, stiahnuť export dát a požiadať o odstránenie účtu.',
           ],
         },
       ],
@@ -57,33 +57,33 @@ export function getLegalPageContent(kind) {
     return {
       title: 'Terms of Service',
       eyebrow: 'Legal',
-      intro: `${appName} je komunitna platforma pre astronomicky obsah a socialne funkcie. Pouzivanim sluzby suhlasis s tymito pravidlami.`,
+      intro: `${appName} je komunitná platforma pre astronomický obsah a sociálne funkcie. Používaním služby súhlasíš s týmito pravidlami.`,
       sections: [
         {
-          heading: 'Zakladne pravidla pouzivania',
+          heading: 'Základné pravidlá používania',
           paragraphs: [
-            'Pouzivaj platformu zakonny sposobom, s respektom k ostatnym a bez pokusov o narusenie bezpecnosti alebo dostupnosti sluzby.',
-            'Udaje v profile a komunitnom obsahu maju byt pravdive a nesmu porusovat prava tretich stran.',
+            'Používaj platformu zákonným spôsobom, s rešpektom k ostatným a bez pokusov o narušenie bezpečnosti alebo dostupnosti služby.',
+            'Údaje v profile a komunitnom obsahu majú byť pravdivé a nesmú porušovať práva tretích strán.',
           ],
         },
         {
-          heading: 'Obsah a zodpovednost',
+          heading: 'Obsah a zodpovednosť',
           paragraphs: [
-            'Za obsah zverejneny cez svoj ucet zodpovedas ty. Obsah nesmie obsahovat spam, podvod, nelegalny material ani skodlive zavadzanie.',
-            'Platforma moze pri poruseni pravidiel obmedzit viditelnost obsahu, docasne obmedzit ucet alebo ukoncit pristup.',
+            'Za obsah zverejnený cez svoj účet zodpovedáš ty. Obsah nesmie obsahovať spam, podvod, nelegálny materiál ani škodlivé zavádzanie.',
+            'Platforma môže pri porušení pravidiel obmedziť viditeľnosť obsahu, dočasne obmedziť účet alebo ukončiť prístup.',
           ],
         },
         {
-          heading: 'Bezpecnost a ochrana sluzby',
+          heading: 'Bezpečnosť a ochrana služby',
           paragraphs: [
-            'Na ochranu prihlasenia a formularov pouzivame session mechanizmy, CSRF ochranu a bezpecnostne overenie pri registracii.',
+            'Na ochranu prihlásenia a formulárov používame session mechanizmy, CSRF ochranu a bezpečnostné overenie pri registrácii.',
           ],
         },
         {
-          heading: 'Dostupnost a zmeny',
+          heading: 'Dostupnosť a zmeny',
           paragraphs: [
-            'Sluzba je priebezne vyvijana. Funkcie sa mozu menit, pridavat alebo odoberat podla technickych a bezpecnostnych potrieb.',
-            'Tieto podmienky mozeme primerane aktualizovat, ak sa zmeni fungovanie platformy alebo legislativne poziadavky.',
+            'Služba je priebežne vyvíjaná. Funkcie sa môžu meniť, pridávať alebo odoberať podľa technických a bezpečnostných potrieb.',
+            'Tieto podmienky môžeme primerane aktualizovať, ak sa zmení fungovanie platformy alebo legislatívne požiadavky.',
           ],
         },
       ],
@@ -94,31 +94,31 @@ export function getLegalPageContent(kind) {
   return {
     title: 'Cookies',
     eyebrow: 'Legal',
-    intro: `${appName} pouziva minimalny rozsah cookies a podobnych technologii, ktore su potrebne na bezpecne fungovanie prihlasenia a formularov.`,
+    intro: `${appName} používa minimálny rozsah cookies a podobných technológií, ktoré sú potrebné na bezpečné fungovanie prihlásenia a formulárov.`,
     sections: [
       {
-        heading: 'Nevyhnutne cookies',
+        heading: 'Nevyhnutné cookies',
         paragraphs: [
-          'Pouzivame nevyhnutne cookies pre relaciu pouzivatela a ochranu API poziadaviek (session cookie a XSRF-TOKEN).',
-          'Tieto cookies su potrebne na to, aby prihlasenie, formularove akcie a bezpecnostne mechanizmy fungovali spravne.',
+          'Používame nevyhnutné cookies pre reláciu používateľa a ochranu API požiadaviek (session cookie a XSRF-TOKEN).',
+          'Tieto cookies sú potrebné na to, aby prihlásenie, formulárové akcie a bezpečnostné mechanizmy fungovali správne.',
         ],
       },
       {
-        heading: 'Bezpecnostne overenie',
+        heading: 'Bezpečnostné overenie',
         paragraphs: [
-          'Pri registracii vyuzivame Cloudflare Turnstile proti botom. Tento mechanizmus moze pracovat s technickymi identifikatormi potrebnymi na ochranu formulara.',
+          'Pri registrácii využívame Cloudflare Turnstile proti botom. Tento mechanizmus môže pracovať s technickými identifikátormi potrebnými na ochranu formulára.',
         ],
       },
       {
-        heading: 'Co nepouzivame',
+        heading: 'Čo nepoužívame',
         paragraphs: [
-          'Podla aktualnej implementacie frontendu nepouzivame reklamne ani analyticke cookies tretich stran.',
+          'Podľa aktuálnej implementácie frontendu nepoužívame reklamné ani analytické cookies tretích strán.',
         ],
       },
       {
-        heading: 'Sprava preferencii',
+        heading: 'Správa preferencií',
         paragraphs: [
-          'Cookies mozes spravovat v prehliadaci. Vypnutie nevyhnutnych cookies moze obmedzit alebo znemoznit prihlasenie do aplikacie.',
+          'Cookies môžeš spravovať v prehliadači. Vypnutie nevyhnutných cookies môže obmedziť alebo znemožniť prihlásenie do aplikácie.',
         ],
       },
     ],

@@ -17,6 +17,7 @@ describe('UserActivityCard', () => {
 
     expect(wrapper.get('[data-testid="posts-count"]').text()).toContain('123')
     expect(wrapper.get('[data-testid="participations-count"]').text()).toContain('7')
+    expect(wrapper.text()).toContain('Účasť na eventoch')
     expect(wrapper.get('[data-testid="last-login"]').text()).not.toContain('Zatiaľ nezaznamenané')
   })
 

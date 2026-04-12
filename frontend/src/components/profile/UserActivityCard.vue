@@ -18,7 +18,7 @@
         <dd data-testid="posts-count">{{ formattedPostsCount }}</dd>
       </div>
       <div class="activityRow">
-        <dt>Ucast na eventoch</dt>
+        <dt>Účasť na eventoch</dt>
         <dd data-testid="participations-count">{{ formattedParticipationsCount }}</dd>
       </div>
     </dl>

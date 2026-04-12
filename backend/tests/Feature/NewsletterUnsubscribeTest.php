@@ -39,7 +39,7 @@ class NewsletterUnsubscribeTest extends TestCase
 
         $this->get($url)
             ->assertOk()
-            ->assertSeeText('Odhlasenie prebehlo uspesne');
+            ->assertSeeText('Odhlásenie prebehlo úspešne');
 
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
