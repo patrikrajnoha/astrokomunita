@@ -6,11 +6,11 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useEventFollowsStore } from '@/stores/eventFollows'
 import http from '@/services/api'
-import api from '@/services/api'
 import { useConfirm } from '@/composables/useConfirm'
 import { useToast } from '@/composables/useToast'
 import ProfileEventCard from '@/components/profile/ProfileEventCard.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
+import PollCard from '@/components/PollCard.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
@@ -162,6 +162,7 @@ function profilePostMenuItems(post) {
   if (canPinProfilePost(post)) {
     items.push({
       key: 'pin',
+      icon: isPinnedOnProfile(post) ? 'unpin' : 'pin',
       label:
         pinLoadingId.value === post.id
           ? 'Ukladám...'
@@ -175,6 +176,7 @@ function profilePostMenuItems(post) {
   items.push({
     key: 'delete',
     label: deleteLoadingId.value === post.id ? 'Mažem...' : 'Vymazať',
+    icon: 'trash',
     danger: true,
   })
 
@@ -215,11 +217,20 @@ function formatPostTimestamp(post) {
 }
 
 function postGifUrl(post) {
-  return resolvePostGifUrl(post, api?.defaults?.baseURL || '')
+  return resolvePostGifUrl(post, http?.defaults?.baseURL || '')
 }
 
 function attachmentSrc(post) {
-  return resolveAttachmentSrc(post, api?.defaults?.baseURL || '')
+  return resolveAttachmentSrc(post, http?.defaults?.baseURL || '')
+}
+
+function updatePostPoll(post, nextPoll) {
+  if (!post || !nextPoll) return
+  post.poll = nextPoll
+}
+
+function onPollLoginRequired() {
+  tabState[activeTab.value].err = 'Prihlás sa pre hlasovanie.'
 }
 
 function openAttachedEvent(post) {
@@ -286,3 +297,5 @@ onMounted(async () => {
 </script>
 
 <style scoped src="./profile/ProfileView.css"></style>
+
+

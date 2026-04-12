@@ -30,7 +30,7 @@
           </span>
 
           <span v-if="showResults" class="pollMeta" aria-hidden="true">
-            <span v-if="isChosen(option)" class="pollCheck">?</span>
+            <span v-if="isChosen(option)" class="pollCheck">&#10003;</span>
             <span class="pollPercent">{{ safePercent(option.percent) }}%</span>
           </span>
         </button>
@@ -101,7 +101,11 @@ const loading = ref(false)
 const tickSeconds = ref(Number(props.poll?.ends_in_seconds ?? 0))
 let timerId = null
 
-const isClosed = computed(() => Boolean(localPoll.value?.is_closed) || tickSeconds.value <= 0)
+const isClosed = computed(() => {
+  if (Boolean(localPoll.value?.is_closed)) return true
+  if (localPoll.value?.ends_in_seconds == null) return false
+  return tickSeconds.value <= 0
+})
 const hasVoted = computed(() => {
   if (Number(localPoll.value?.my_vote_option_id || 0) > 0) return true
   return Boolean(localPoll.value?.user_has_voted)

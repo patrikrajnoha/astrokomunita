@@ -509,6 +509,15 @@
                 />
                 <HashtagText v-else class="postContent" :content="p.content" />
 
+                <PollCard
+                  v-if="!observationForPost(p) && p.poll"
+                  :poll="p.poll"
+                  :post-id="p.id"
+                  :is-authed="Boolean(auth.user)"
+                  @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                  @login-required="onPollLoginRequired"
+                />
+
                 <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attachedEventCard">
                   <div class="attachedEventCopy">
                     <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalosť' }}</p>

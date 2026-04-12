@@ -350,4 +350,82 @@ describe('ProfileView avatar panel', () => {
 
     wrapper.unmount()
   })
+
+  it('renders polls in the profile post branch', async () => {
+    apiMock.get.mockImplementation((url, config = {}) => {
+      if (url === '/posts') {
+        const kind = String(config?.params?.kind || '')
+        const perPage = Number(config?.params?.per_page || 0)
+
+        if (kind === 'roots' && perPage === 10) {
+          return Promise.resolve({
+            data: {
+              data: [
+                {
+                  id: 411,
+                  content: 'Ktory objekt dnes?',
+                  created_at: '2026-03-20T19:00:00Z',
+                  poll: {
+                    id: 33,
+                    is_closed: false,
+                    total_votes: 2,
+                    ends_in_seconds: 3600,
+                    user_has_voted: false,
+                    options: [
+                      { id: 1, text: 'M42', percent: 50, votes_count: 1, is_winner: false },
+                      { id: 2, text: 'M31', percent: 50, votes_count: 1, is_winner: false },
+                    ],
+                  },
+                },
+              ],
+              total: 1,
+              next_page_url: null,
+            },
+          })
+        }
+
+        return Promise.resolve({
+          data: {
+            data: [],
+            total: 0,
+            next_page_url: null,
+          },
+        })
+      }
+
+      if (url === '/observations' || url === '/me/followed-events') {
+        return Promise.resolve({
+          data: {
+            data: [],
+            total: 0,
+            current_page: 1,
+            last_page: 1,
+            next_page_url: null,
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: [],
+          total: 0,
+          next_page_url: null,
+        },
+      })
+    })
+
+    const { wrapper } = await mountProfile({
+      stubs: {
+        PollCard: {
+          props: ['poll'],
+          template: '<div data-testid="profile-poll-stub">{{ poll.id }}</div>',
+        },
+      },
+    })
+
+    expect(wrapper.find('[data-testid="profile-poll-stub"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Ktory objekt dnes?')
+
+    wrapper.unmount()
+  })
 })

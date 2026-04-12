@@ -90,6 +90,7 @@ describe('PollCard responsive layout', () => {
     expect(wrapper.findAll('.pollFill')).toHaveLength(2)
     expect(wrapper.findAll('.mPollFill')).toHaveLength(2)
     expect(wrapper.text()).toContain('70%')
+    expect(wrapper.find('.pollCheck').text()).toBe('✓')
   })
 
   it('normalizes relative poll image urls to absolute media urls for rendering', () => {
