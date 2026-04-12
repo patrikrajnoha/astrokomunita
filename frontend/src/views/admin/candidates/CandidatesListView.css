@@ -817,3 +817,228 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Brand refresh: minimal dark UI */
+.candidatesPage {
+  --brand-bg: #151d28;
+  --brand-title: #ffffff;
+  --brand-hover: #1c2736;
+  --brand-vivid: #0f73ff;
+  --brand-muted: #abb8c9;
+  --brand-secondary: #222e3f;
+  --brand-danger: #eb2452;
+  --brand-success: #73df84;
+  --brand-orange: #fe8311;
+  --brand-yellow: #fed811;
+  --brand-blue: #1185fe;
+  --brand-pink: #ef75ea;
+  --brand-red: #f55454;
+}
+
+.pageTitle {
+  color: var(--brand-title);
+}
+
+.statusTabs,
+.actionToolbar,
+.tabSwitch,
+.candidateDetailModal,
+.candidateDetailOriginal,
+.candidateManualEdit,
+.toolbarDetails__menu {
+  background: var(--brand-bg);
+  border-color: rgb(28 39 54 / 0.95);
+  box-shadow: none;
+}
+
+.statusTab {
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--brand-muted);
+  min-height: 34px;
+  padding: 0.42rem 0.86rem;
+}
+
+.statusTab:hover:not(:disabled) {
+  background: var(--brand-hover);
+  color: var(--brand-title);
+}
+
+.statusTab--active {
+  background: var(--brand-vivid);
+  color: #ffffff;
+}
+
+.statusTab__count {
+  background: rgb(255 255 255 / 0.16);
+  color: #ffffff;
+}
+
+.toolbarButton {
+  border: 0;
+  box-shadow: none;
+  border-radius: 14px;
+  min-height: 36px;
+  padding: 0.48rem 0.9rem;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--brand-secondary);
+  color: var(--brand-muted);
+}
+
+.toolbarButton:hover:not(:disabled) {
+  background: var(--brand-hover);
+  color: var(--brand-title);
+}
+
+.toolbarButton:disabled {
+  opacity: 0.56;
+}
+
+.toolbarButton--ghost {
+  background: var(--brand-secondary);
+  color: var(--brand-muted);
+}
+
+.toolbarButton--primary {
+  background: var(--brand-vivid);
+  color: #ffffff;
+}
+
+.toolbarButton--primary:hover:not(:disabled) {
+  background: var(--brand-blue);
+}
+
+.toolbarButton--success {
+  background: var(--brand-success);
+  color: #151d28;
+}
+
+.toolbarButton--success:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.toolbarButton--active {
+  background: var(--brand-vivid);
+  color: #ffffff;
+}
+
+.toolbarButton--tab {
+  background: transparent;
+}
+
+.toolbarSelect,
+.toolbarInput {
+  border-color: rgb(28 39 54 / 0.95);
+  background: #121a25;
+  color: #ffffff;
+}
+
+.toolbarFieldLabel,
+.modeCounts,
+.candidateDetailModalItem span,
+.candidateDetailOriginal__label,
+.candidateManualEdit__label {
+  color: var(--brand-muted);
+}
+
+.candidateDetailModalItem {
+  border-radius: 14px;
+  background: #222e3f;
+}
+
+.candidateDetailModalItem strong,
+.candidateDetailModalText,
+.candidateDetailOriginal__title {
+  color: #ffffff;
+}
+
+.candidateDetailOriginal {
+  border: 1px solid rgb(28 39 54 / 0.95);
+  background: #1c2736;
+}
+
+.candidateDetailOriginal__text {
+  color: var(--brand-muted);
+}
+
+.candidateDetailProgress {
+  border: 0;
+  background: #1c2736;
+}
+
+.candidateDetailProgress__bar {
+  background: var(--brand-vivid);
+}
+
+.matchedSourceTag {
+  border: 0;
+  background: #222e3f;
+  color: var(--brand-muted);
+}
+
+.selectionBar {
+  border: 0;
+  background: rgb(15 115 255 / 0.2);
+}
+
+.selectionBar__count {
+  color: #9fc4ff;
+}
+
+.candidateDetailModalActions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.candidateDetailModalActions .toolbarButton {
+  min-width: 124px;
+}
+
+@media (max-width: 760px) {
+  .candidateDetailModalActions .toolbarButton {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .candidateDetailModalActions .toolbarButton {
+    flex: 1 1 100%;
+  }
+}
+
+:deep([data-testid="candidate-detail-modal"]) {
+  background: rgb(6 10 16 / 0.8);
+}
+
+:deep([data-testid="candidate-detail-modal"] .modalCard) {
+  background: #151d28;
+  border: 1px solid rgb(28 39 54 / 0.95);
+  border-radius: 20px;
+  box-shadow: none;
+}
+
+:deep([data-testid="candidate-detail-modal"] .modalHead) {
+  border-bottom: 1px solid rgb(28 39 54 / 0.95);
+}
+
+:deep([data-testid="candidate-detail-modal"] .modalTitle) {
+  color: #ffffff;
+}
+
+:deep([data-testid="candidate-detail-modal"] .modalClose) {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: #222e3f;
+  color: #abb8c9;
+  box-shadow: none;
+}
+
+:deep([data-testid="candidate-detail-modal"] .modalClose:hover:not(:disabled)) {
+  background: #1c2736;
+  color: #ffffff;
+}

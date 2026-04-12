@@ -99,30 +99,31 @@ function resolveRowClass(row) {
           </td>
         </tr>
 
-        <tr
-          v-for="row in rows"
-          v-else
-          :key="row[rowKey]"
-          class="adminTable__row"
-          :class="resolveRowClass(row)"
-          :data-row-key="row[rowKey]"
-        >
-          <td
-            v-for="column in columns"
-            :key="`${row[rowKey]}-${column.key}`"
-            class="adminTable__cell"
-            :class="[{ 'is-right': column.align === 'right' }, column.cellClass]"
+        <template v-else>
+          <tr
+            v-for="row in rows"
+            :key="row[rowKey]"
+            class="adminTable__row"
+            :class="resolveRowClass(row)"
+            :data-row-key="row[rowKey]"
           >
-            <slot
-              :name="`cell(${column.key})`"
-              :row="row"
-              :value="row[column.key]"
-              :column="column"
+            <td
+              v-for="column in columns"
+              :key="`${row[rowKey]}-${column.key}`"
+              class="adminTable__cell"
+              :class="[{ 'is-right': column.align === 'right' }, column.cellClass]"
             >
-              {{ textValue(row[column.key]) }}
-            </slot>
-          </td>
-        </tr>
+              <slot
+                :name="`cell(${column.key})`"
+                :row="row"
+                :value="row[column.key]"
+                :column="column"
+              >
+                {{ textValue(row[column.key]) }}
+              </slot>
+            </td>
+          </tr>
+        </template>
       </tbody>
     </table>
   </div>
@@ -205,6 +206,18 @@ function resolveRowClass(row) {
   .adminTable__head,
   .adminTable__cell {
     padding: 9px;
+  }
+}
+
+@media (max-width: 640px) {
+  .adminTable {
+    min-width: 480px;
+  }
+
+  .adminTable__head,
+  .adminTable__cell {
+    padding: 7px 6px;
+    font-size: 0.78rem;
   }
 }
 </style>
