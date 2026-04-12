@@ -1,12 +1,17 @@
-<div class="wrap">
-  <section class="card">
-    <header class="top">
-      <button class="back" type="button" @click="goBack">
-        <span aria-hidden="true">&larr;</span>
-        <span>Späť</span>
+<div class="pdWrap">
+  <div class="pdShell">
+
+    <!-- Top bar -->
+    <header class="pdTopBar">
+      <button class="pdBackBtn" type="button" @click="goBack">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+        </svg>
+        <span>Príspevok</span>
       </button>
     </header>
 
+    <!-- Loading -->
     <AsyncState
       v-if="loading"
       mode="loading"
@@ -16,7 +21,8 @@
       compact
     />
 
-    <div v-else-if="error" class="inlineErrorWrap">
+    <!-- Error -->
+    <div v-else-if="error" class="pdErrorWrap">
       <InlineStatus
         variant="error"
         :message="error"
@@ -25,118 +31,136 @@
       />
     </div>
 
-    <div v-else class="detailBody">
-      <article class="postCard postCardRoot">
-        <div class="postLeft">
-          <button class="avatar profileLink" type="button" @click="openProfile(root?.user)">
-            <UserAvatar class="avatarFallback" :user="root?.user" :alt="root?.user?.name || 'avatar'" />
+    <!-- Content -->
+    <div v-else class="pdBody">
+
+      <!-- ─── ROOT POST ─── -->
+      <article class="pdRootPost">
+
+        <!-- Author row -->
+        <div class="pdAuthorRow">
+          <button class="pdAvatarBtn profileLink" type="button" @click="openProfile(root?.user)">
+            <UserAvatar class="pdAvatarImg" :user="root?.user" :alt="root?.user?.name || 'avatar'" />
+          </button>
+          <div class="pdAuthorInfo">
+            <button class="pdAuthorName linkBtn" type="button" @click="openProfile(root?.user)">
+              {{ root?.user?.name ?? 'Používateľ' }}
+            </button>
+            <div class="pdAuthorSub">
+              <span class="pdHandle">@{{ root?.user?.username }}</span>
+              <span v-if="isBotPost(root)" class="pdBotBadge">BOT</span>
+            </div>
+          </div>
+          <div class="pdRootMenu">
+            <DropdownMenu
+              v-if="menuItemsForPost(root).length"
+              :items="menuItemsForPost(root)"
+              label="Ďalšie akcie"
+              menu-label="Akcie príspevku"
+              @select="(item) => onMenuAction(item, root)"
+            />
+          </div>
+        </div>
+
+        <!-- Post body -->
+        <div class="pdRootBody">
+          <template v-if="isEditingPost(root)">
+            <textarea
+              v-model="editContentDraft"
+              class="pdEditTextarea"
+              rows="6"
+              maxlength="5000"
+            ></textarea>
+            <div class="pdEditActions">
+              <button type="button" class="ui-btn ui-btn--primary pdEditBtn" :disabled="editSavingId === root?.id" @click="saveInlineEdit(root)">
+                {{ editSavingId === root?.id ? 'Ukladám...' : 'Uložiť' }}
+              </button>
+              <button type="button" class="ui-btn ui-btn--ghost pdEditBtn" :disabled="editSavingId === root?.id" @click="cancelInlineEdit">
+                Zrušiť
+              </button>
+            </div>
+          </template>
+          <div v-else class="pdRootText">
+            <HashtagText :content="root?.content" />
+          </div>
+        </div>
+
+        <!-- Poll -->
+        <PollCard
+          v-if="root?.poll"
+          :poll="root.poll"
+          :post-id="root.id"
+          :is-authed="auth.isAuthed"
+          @updated="updateRootPoll"
+          @login-required="onPollLoginRequired"
+        />
+
+        <!-- Attached event -->
+        <div v-if="attachedEventForPost(root)" class="pdAttachedEvent">
+          <div class="pdAttachedEventInfo">
+            <p class="pdAttachedEventTitle">{{ attachedEventForPost(root).title || 'Udalosť' }}</p>
+            <p class="pdAttachedEventDate">
+              {{ formatEventRange(attachedEventForPost(root).start_at, attachedEventForPost(root).end_at) }}
+            </p>
+          </div>
+          <button type="button" class="ui-btn ui-btn--subtle pdAttachedEventBtn" @click="openAttachedEvent(root)">
+            Otvoriť
           </button>
         </div>
 
-        <div class="postMain">
-          <div class="postHead">
-            <div class="postIdentity">
-              <div class="nameRow">
-                <button class="name linkBtn" type="button" @click="openProfile(root?.user)">
-                  {{ root?.user?.name ?? 'Používateľ' }}
-                </button>
-                <span v-if="root?.user?.username" class="userHandle">@{{ root.user.username }}</span>
-                <span class="nameTime">{{ fmt(root?.created_at) }}</span>
-                <span v-if="isBotPost(root)" class="botVerifiedBadge">BOT</span>
-              </div>
-            </div>
-          </div>
+        <!-- GIF -->
+        <div v-if="postGifUrl(root)" class="pdMedia">
+          <img class="pdGif" :src="postGifUrl(root)" :alt="postGifTitle(root)" loading="lazy" />
+        </div>
 
-          <div class="postText postTextRoot">
-            <template v-if="isEditingPost(root)">
-              <textarea
-                v-model="editContentDraft"
-                class="inlineEditTextarea"
-                rows="6"
-                maxlength="5000"
-              ></textarea>
-              <div class="inlineEditActions">
-                <button
-                  class="replyBtn"
-                  type="button"
-                  :disabled="editSavingId === root?.id"
-                  @click="saveInlineEdit(root)"
-                >
-                  {{ editSavingId === root?.id ? 'Ukladám...' : 'Uložiť' }}
-                </button>
-                <button
-                  class="replyBtn"
-                  type="button"
-                  :disabled="editSavingId === root?.id"
-                  @click="cancelInlineEdit"
-                >
-                  Zrušiť
-                </button>
-              </div>
-            </template>
-            <HashtagText v-else :content="root?.content" />
-          </div>
-
-          <PollCard
-            v-if="root?.poll"
-            :poll="root.poll"
-            :post-id="root.id"
-            :is-authed="auth.isAuthed"
-            @updated="updateRootPoll"
-            @login-required="onPollLoginRequired"
+        <!-- Image / video / file -->
+        <div v-if="root?.attachment_url" class="pdMedia">
+          <div v-if="isAttachmentBlocked(root)" class="pdRemovedMedia">Odstránené</div>
+          <PostMediaImage
+            v-else-if="isImage(root)"
+            :src="attachmentSrc(root)"
+            alt="Príloha príspevku"
+            :blurred="isAttachmentPending(root)"
+            :status="root?.attachment_moderation_status"
+            :post-id="root?.id"
+            pending-label="Kontrolujem..."
+            @unblurred="(d) => onAttachmentUnblurred(root, d)"
           />
-
-          <div v-if="attachedEventForPost(root)" class="attachedEventCard">
-            <div class="attachedEventCopy">
-              <p class="attachedEventTitle">{{ attachedEventForPost(root).title || 'Udalosť' }}</p>
-              <p class="attachedEventDate">
-                {{ formatEventRange(attachedEventForPost(root).start_at, attachedEventForPost(root).end_at) }}
-              </p>
+          <a
+            v-else-if="!isAttachmentPending(root)"
+            class="pdFileCard"
+            :href="attachmentSrc(root)"
+            target="_blank"
+            rel="noopener"
+          >
+            <div class="pdFileIcon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
             </div>
-            <button class="replyBtn" type="button" @click="openAttachedEvent(root)">
-              Otvoriť udalosť
-            </button>
-          </div>
+            <div class="pdFileInfo">
+              <div class="pdFileTitle">Príloha</div>
+              <div class="pdFileName">{{ root?.attachment_original_name || 'Súbor' }}</div>
+            </div>
+            <div class="pdFileArrow">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+          </a>
+        </div>
 
-          <div v-if="postGifUrl(root)" class="mediaWrap">
-            <img class="gifEmbed" :src="postGifUrl(root)" :alt="postGifTitle(root)" loading="lazy" />
-          </div>
+        <!-- Notice -->
+        <div v-if="reportNotice" class="pdNotice">{{ reportNotice }}</div>
 
-          <div v-if="root?.attachment_url" class="mediaWrap">
-            <div v-if="isAttachmentBlocked(root)" class="removedMedia">Odstránené</div>
-            <PostMediaImage
-              v-else-if="isImage(root)"
-              :src="attachmentSrc(root)"
-              alt="Príloha príspevku"
-              :blurred="isAttachmentPending(root)"
-              :status="root?.attachment_moderation_status"
-              :post-id="root?.id"
-              pending-label="Kontrolujem..."
-              @unblurred="(d) => onAttachmentUnblurred(root, d)"
-            />
+        <!-- Stats row -->
+        <div class="pdStatsRow">
+          <time class="pdStatTime" :datetime="root?.created_at">{{ fmtFull(root?.created_at) }}</time>
+          <span class="pdStatDot" aria-hidden="true">·</span>
+          <span class="pdStatItem"><strong>{{ root?.likes_count ?? 0 }}</strong>&nbsp;lajkov</span>
+          <span class="pdStatDot" aria-hidden="true">·</span>
+          <span class="pdStatItem"><strong>{{ repliesCount }}</strong>&nbsp;odpovedí</span>
+        </div>
 
-            <a
-              v-else-if="!isAttachmentPending(root)"
-              class="fileCard"
-              :href="attachmentSrc(root)"
-              target="_blank"
-              rel="noopener"
-            >
-              <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
-              <div class="fileInfo">
-                <div class="fileTitle">Príloha</div>
-                <div class="fileName">
-                  {{ root?.attachment_original_name || 'Súbor' }}
-                </div>
-              </div>
-              <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
-            </a>
-          </div>
-
-          <div v-if="reportNotice" class="reportNoticeInline">{{ reportNotice }}</div>
-
+        <!-- Action bar -->
+        <div class="pdRootActions">
           <PostActionBar
-            v-if="root"
             :item="root"
             :reply-count="Number(root?.replies_count ?? repliesCount)"
             :like-count="Number(root?.likes_count ?? 0)"
@@ -144,62 +168,65 @@
             :bookmark-loading="isBookmarkLoading(root)"
             :like-bump="likeBumpId === root.id"
             :is-authed="auth.isAuthed"
-            :menu-items="menuItemsForPost(root)"
+            :menu-items="[]"
             @reply="focusReplyComposer"
             @like="toggleLike(root)"
             @bookmark="toggleBookmark(root)"
             @share="openShareModal(root)"
-            @menu-select="(item) => onMenuAction(item, root)"
           />
         </div>
       </article>
 
-      <div class="composerWrap">
+      <!-- Reply composer -->
+      <div v-if="root?.id" class="pdComposerSection">
         <ReplyComposer
           ref="rootComposerRef"
-          v-if="root?.id"
           :parent-id="root.id"
           @created="onReplyCreated"
         />
       </div>
 
-      <section id="replies" class="replies">
-        <div class="repliesHead">
-          <h2 class="repliesTitle">Diskusia</h2>
-          <span class="repliesCount">{{ repliesCountLabel }}</span>
+      <!-- ─── REPLIES ─── -->
+      <section class="pdRepliesSection">
+        <div class="pdRepliesHeader">
+          <h2 class="pdRepliesTitle">Diskusia</h2>
+          <span v-if="repliesCount > 0" class="pdRepliesCount">{{ repliesCountLabel }}</span>
         </div>
 
-        <div v-if="replies.length === 0" class="repliesEmpty">
-          <p class="repliesEmptyTitle">Zatiaľ bez odpovedí.</p>
-          <p class="repliesEmptyText">Buď prvý, kto odpovie na tento post.</p>
+        <div v-if="replies.length === 0" class="pdRepliesEmpty">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true" class="pdEmptyIcon">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <p class="pdEmptyTitle">Zatiaľ bez odpovedí</p>
+          <p class="pdEmptyText">Buď prvý, kto odpovie na tento príspevok.</p>
         </div>
 
-        <div v-else class="replyList">
+        <div v-else class="pdReplyList">
+          <!-- Top-level replies -->
           <article
             v-for="r in replies"
             :key="r.id"
-            class="replyCard"
-            :class="{ replyCardNew: Number(highlightReplyId) === Number(r.id) }"
+            class="pdReplyItem"
+            :class="{ 'pdReplyItem--new': Number(highlightReplyId) === Number(r.id) }"
             :data-reply-id="r.id"
           >
-            <div class="replyLeft">
-              <button class="avatar avatarSm profileLink" type="button" @click="openProfile(r?.user)">
-                <UserAvatar class="avatarFallback" :user="r?.user" :alt="r?.user?.name || 'avatar'" />
+            <div class="pdReplyAvatarCol">
+              <button class="pdReplyAvatarBtn profileLink" type="button" @click="openProfile(r?.user)">
+                <UserAvatar class="pdReplyAvatarImg" :user="r?.user" :alt="r?.user?.name || 'avatar'" />
               </button>
+              <div v-if="r.replies?.length" class="pdThreadLine" aria-hidden="true" />
             </div>
 
-            <div class="replyMain">
-              <div class="replyHead">
-                <div class="replyHeadMain">
-                  <div class="nameRow">
-                    <button class="name linkBtn" type="button" @click="openProfile(r?.user)">
-                      {{ r?.user?.name ?? 'Používateľ' }}
-                    </button>
-                    <span v-if="r?.user?.username" class="userHandle">@{{ r.user.username }}</span>
-                    <span class="nameTime">{{ fmt(r?.created_at) }}</span>
-                  </div>
+            <div class="pdReplyContent">
+              <div class="pdReplyHeader">
+                <div class="pdReplyMeta">
+                  <button class="pdReplyAuthor linkBtn" type="button" @click="openProfile(r?.user)">
+                    {{ r?.user?.name ?? 'Používateľ' }}
+                  </button>
+                  <span v-if="r?.user?.username" class="pdHandle">@{{ r.user.username }}</span>
+                  <span class="pdReplyTime">{{ fmt(r?.created_at) }}</span>
                 </div>
-                <div class="postActionsMenu">
+                <div class="pdReplyMenuSlot">
                   <DropdownMenu
                     v-if="menuItemsForPost(r).length"
                     :items="menuItemsForPost(r)"
@@ -210,42 +237,25 @@
                 </div>
               </div>
 
-              <div class="replyText">
+              <div class="pdReplyText">
                 <template v-if="isEditingPost(r)">
-                  <textarea
-                    v-model="editContentDraft"
-                    class="inlineEditTextarea"
-                    rows="5"
-                    maxlength="5000"
-                  ></textarea>
-                  <div class="inlineEditActions">
-                    <button
-                      class="replyBtn"
-                      type="button"
-                      :disabled="editSavingId === r.id"
-                      @click="saveInlineEdit(r)"
-                    >
+                  <textarea v-model="editContentDraft" class="pdEditTextarea" rows="5" maxlength="5000"></textarea>
+                  <div class="pdEditActions">
+                    <button type="button" class="ui-btn ui-btn--primary pdEditBtn" :disabled="editSavingId === r.id" @click="saveInlineEdit(r)">
                       {{ editSavingId === r.id ? 'Ukladám...' : 'Uložiť' }}
                     </button>
-                    <button
-                      class="replyBtn"
-                      type="button"
-                      :disabled="editSavingId === r.id"
-                      @click="cancelInlineEdit"
-                    >
-                      Zrušiť
-                    </button>
+                    <button type="button" class="ui-btn ui-btn--ghost pdEditBtn" :disabled="editSavingId === r.id" @click="cancelInlineEdit">Zrušiť</button>
                   </div>
                 </template>
                 <HashtagText v-else :content="r.content" />
               </div>
 
-              <div v-if="postGifUrl(r)" class="mediaWrapSm">
-                <img class="gifEmbed" :src="postGifUrl(r)" :alt="postGifTitle(r)" loading="lazy" />
+              <div v-if="postGifUrl(r)" class="pdReplyMedia">
+                <img class="pdGif" :src="postGifUrl(r)" :alt="postGifTitle(r)" loading="lazy" />
               </div>
 
-              <div v-if="r.attachment_url" class="mediaWrapSm">
-                <div v-if="isAttachmentBlocked(r)" class="removedMedia">Odstránené</div>
+              <div v-if="r.attachment_url" class="pdReplyMedia">
+                <div v-if="isAttachmentBlocked(r)" class="pdRemovedMedia">Odstránené</div>
                 <PostMediaImage
                   v-else-if="isImage(r)"
                   :src="attachmentSrc(r)"
@@ -256,66 +266,61 @@
                   pending-label="Kontrolujem..."
                   @unblurred="(d) => onAttachmentUnblurred(r, d)"
                 />
-
-                <a
-                  v-else-if="!isAttachmentPending(r)"
-                  class="fileCard fileCardSm"
-                  :href="attachmentSrc(r)"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
-                  <div class="fileInfo">
-                    <div class="fileTitle">Príloha</div>
-                    <div class="fileName">
-                      {{ r.attachment_original_name || 'Súbor' }}
-                    </div>
-                  </div>
-                  <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+                <a v-else-if="!isAttachmentPending(r)" class="pdFileCard pdFileCard--sm" :href="attachmentSrc(r)" target="_blank" rel="noopener">
+                  <div class="pdFileIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
+                  <div class="pdFileInfo"><div class="pdFileTitle">Príloha</div><div class="pdFileName">{{ r.attachment_original_name || 'Súbor' }}</div></div>
+                  <div class="pdFileArrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
                 </a>
               </div>
 
-              <div class="replyActions">
-                <button
-                  v-if="r.depth === 1"
-                  class="replyBtn"
-                  type="button"
-                  @click="toggleReplyComposer(r.id)"
-                >
-                  {{ activeReplyId === r.id ? 'Zavrieť' : 'Odpovedať' }}
-                </button>
+              <div class="pdReplyActions">
+                <PostActionBar
+                  :item="r"
+                  :reply-count="Number(r.replies?.length ?? 0)"
+                  :like-count="Number(r.likes_count ?? 0)"
+                  :like-loading="isLikeLoading(r)"
+                  :bookmark-loading="isBookmarkLoading(r)"
+                  :like-bump="likeBumpId === r.id"
+                  :is-authed="auth.isAuthed"
+                  :menu-items="[]"
+                  :reply-title="activeReplyId === r.id ? 'Zavrieť' : 'Odpovedať'"
+                  @reply="() => r.depth === 1 && toggleReplyComposer(r.id)"
+                  @like="toggleLike(r)"
+                  @bookmark="toggleBookmark(r)"
+                  @share="openShareModal(r)"
+                  @menu-select="(item) => onMenuAction(item, r)"
+                />
               </div>
 
-              <div v-if="activeReplyId === r.id" class="composerWrapSm">
+              <div v-if="activeReplyId === r.id" class="pdNestedComposer">
                 <ReplyComposer :parent-id="r.id" compact autofocus @created="onReplyCreated" />
               </div>
 
-              <div v-if="r.replies && r.replies.length" class="replyChildren">
+              <!-- Child replies -->
+              <div v-if="r.replies?.length" class="pdChildReplies">
                 <article
                   v-for="c in r.replies"
                   :key="c.id"
-                  class="replyCard replyCardChild"
-                  :class="{ replyCardNew: Number(highlightReplyId) === Number(c.id) }"
+                  class="pdReplyItem pdReplyItem--child"
+                  :class="{ 'pdReplyItem--new': Number(highlightReplyId) === Number(c.id) }"
                   :data-reply-id="c.id"
                 >
-                  <div class="replyLeft">
-                    <button class="avatar avatarSm profileLink" type="button" @click="openProfile(c?.user)">
-                      <UserAvatar class="avatarFallback" :user="c?.user" :alt="c?.user?.name || 'avatar'" />
+                  <div class="pdReplyAvatarCol">
+                    <button class="pdReplyAvatarBtn profileLink" type="button" @click="openProfile(c?.user)">
+                      <UserAvatar class="pdReplyAvatarImg" :user="c?.user" :alt="c?.user?.name || 'avatar'" />
                     </button>
                   </div>
 
-                  <div class="replyMain">
-                    <div class="replyHead">
-                      <div class="replyHeadMain">
-                        <div class="nameRow">
-                          <button class="name linkBtn" type="button" @click="openProfile(c?.user)">
-                            {{ c?.user?.name ?? 'Používateľ' }}
-                          </button>
-                          <span v-if="c?.user?.username" class="userHandle">@{{ c.user.username }}</span>
-                          <span class="nameTime">{{ fmt(c?.created_at) }}</span>
-                        </div>
+                  <div class="pdReplyContent">
+                    <div class="pdReplyHeader">
+                      <div class="pdReplyMeta">
+                        <button class="pdReplyAuthor linkBtn" type="button" @click="openProfile(c?.user)">
+                          {{ c?.user?.name ?? 'Používateľ' }}
+                        </button>
+                        <span v-if="c?.user?.username" class="pdHandle">@{{ c.user.username }}</span>
+                        <span class="pdReplyTime">{{ fmt(c?.created_at) }}</span>
                       </div>
-                      <div class="postActionsMenu">
+                      <div class="pdReplyMenuSlot">
                         <DropdownMenu
                           v-if="menuItemsForPost(c).length"
                           :items="menuItemsForPost(c)"
@@ -326,42 +331,25 @@
                       </div>
                     </div>
 
-                    <div class="replyText">
+                    <div class="pdReplyText">
                       <template v-if="isEditingPost(c)">
-                        <textarea
-                          v-model="editContentDraft"
-                          class="inlineEditTextarea"
-                          rows="5"
-                          maxlength="5000"
-                        ></textarea>
-                        <div class="inlineEditActions">
-                          <button
-                            class="replyBtn"
-                            type="button"
-                            :disabled="editSavingId === c.id"
-                            @click="saveInlineEdit(c)"
-                          >
+                        <textarea v-model="editContentDraft" class="pdEditTextarea" rows="5" maxlength="5000"></textarea>
+                        <div class="pdEditActions">
+                          <button type="button" class="ui-btn ui-btn--primary pdEditBtn" :disabled="editSavingId === c.id" @click="saveInlineEdit(c)">
                             {{ editSavingId === c.id ? 'Ukladám...' : 'Uložiť' }}
                           </button>
-                          <button
-                            class="replyBtn"
-                            type="button"
-                            :disabled="editSavingId === c.id"
-                            @click="cancelInlineEdit"
-                          >
-                            Zrušiť
-                          </button>
+                          <button type="button" class="ui-btn ui-btn--ghost pdEditBtn" :disabled="editSavingId === c.id" @click="cancelInlineEdit">Zrušiť</button>
                         </div>
                       </template>
                       <HashtagText v-else :content="c.content" />
                     </div>
 
-                    <div v-if="postGifUrl(c)" class="mediaWrapSm">
-                      <img class="gifEmbed" :src="postGifUrl(c)" :alt="postGifTitle(c)" loading="lazy" />
+                    <div v-if="postGifUrl(c)" class="pdReplyMedia">
+                      <img class="pdGif" :src="postGifUrl(c)" :alt="postGifTitle(c)" loading="lazy" />
                     </div>
 
-                    <div v-if="c.attachment_url" class="mediaWrapSm">
-                      <div v-if="isAttachmentBlocked(c)" class="removedMedia">Odstránené</div>
+                    <div v-if="c.attachment_url" class="pdReplyMedia">
+                      <div v-if="isAttachmentBlocked(c)" class="pdRemovedMedia">Odstránené</div>
                       <PostMediaImage
                         v-else-if="isImage(c)"
                         :src="attachmentSrc(c)"
@@ -372,23 +360,29 @@
                         pending-label="Kontrolujem..."
                         @unblurred="(d) => onAttachmentUnblurred(c, d)"
                       />
-
-                      <a
-                        v-else-if="!isAttachmentPending(c)"
-                        class="fileCard fileCardSm"
-                        :href="attachmentSrc(c)"
-                        target="_blank"
-                        rel="noopener"
-                      >
-                        <div class="fileIcon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
-                        <div class="fileInfo">
-                          <div class="fileTitle">Príloha</div>
-                          <div class="fileName">
-                            {{ c.attachment_original_name || 'Súbor' }}
-                          </div>
-                        </div>
-                        <div class="fileArrow"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
+                      <a v-else-if="!isAttachmentPending(c)" class="pdFileCard pdFileCard--sm" :href="attachmentSrc(c)" target="_blank" rel="noopener">
+                        <div class="pdFileIcon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg></div>
+                        <div class="pdFileInfo"><div class="pdFileTitle">Príloha</div><div class="pdFileName">{{ c.attachment_original_name || 'Súbor' }}</div></div>
+                        <div class="pdFileArrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></div>
                       </a>
+                    </div>
+
+                    <div class="pdReplyActions">
+                      <PostActionBar
+                        :item="c"
+                        :reply-count="0"
+                        :like-count="Number(c.likes_count ?? 0)"
+                        :like-loading="isLikeLoading(c)"
+                        :bookmark-loading="isBookmarkLoading(c)"
+                        :like-bump="likeBumpId === c.id"
+                        :is-authed="auth.isAuthed"
+                        :menu-items="[]"
+                        @reply="() => {}"
+                        @like="toggleLike(c)"
+                        @bookmark="toggleBookmark(c)"
+                        @share="openShareModal(c)"
+                        @menu-select="(item) => onMenuAction(item, c)"
+                      />
                     </div>
                   </div>
                 </article>
@@ -399,6 +393,7 @@
       </section>
     </div>
 
+    <!-- Report modal -->
     <div v-if="reportTarget" class="report-modal" @click.self="closeReport">
       <div class="report-content" role="dialog" aria-modal="true" aria-labelledby="pd-report-title">
         <div class="report-header">
@@ -456,5 +451,6 @@
     </div>
 
     <ShareModal :open="!!shareTarget" :post="shareTarget" @close="closeShareModal" />
-  </section>
+
+  </div>
 </div>

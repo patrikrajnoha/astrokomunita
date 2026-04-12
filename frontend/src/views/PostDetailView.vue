@@ -157,6 +157,21 @@ function fmt(iso) {
   return formatRelativeShort(iso)
 }
 
+function fmtFull(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleString('sk-SK', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return fmt(iso)
+  }
+}
+
 function openAttachedEvent(item) {
   const eventId = Number(attachedEventForPost(item)?.id || 0)
   if (!Number.isInteger(eventId) || eventId <= 0) return
