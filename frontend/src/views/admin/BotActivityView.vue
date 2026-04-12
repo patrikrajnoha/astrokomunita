@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
@@ -382,31 +382,58 @@ onBeforeUnmount(() => {
 
       <p v-if="!loadingRuns && runs.length === 0" class="muted">Žiadne behy pre zvolené filtre.</p>
 
-      <div v-else class="tableWrap">
-        <table class="activityTable activityTable--runs">
-          <thead>
-            <tr>
-              <th>Čas</th>
-              <th>Bot</th>
-              <th>Zdroj</th>
-              <th>Stav</th>
-              <th>Publikované</th>
-              <th>Chyby</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="run in runs" :key="run.id">
-              <td>{{ formatDateTime(run.started_at) }}</td>
-              <td>{{ identityLabel(run.bot_identity) }}</td>
-              <td>{{ run.source_key || '-' }}</td>
-              <td>
-                <span :class="runStatusClass(run.status)">{{ run.status || '-' }}</span>
-              </td>
-              <td>{{ Number(run?.stats?.published_count || 0) }}</td>
-              <td>{{ Number(run?.stats?.failed_count || 0) }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <div class="tableWrap tableWrap--runs">
+          <table class="activityTable activityTable--runs">
+            <thead>
+              <tr>
+                <th>Čas</th>
+                <th>Bot</th>
+                <th>Zdroj</th>
+                <th>Stav</th>
+                <th>Publikované</th>
+                <th>Chyby</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="run in runs" :key="run.id">
+                <td>{{ formatDateTime(run.started_at) }}</td>
+                <td>{{ identityLabel(run.bot_identity) }}</td>
+                <td>{{ run.source_key || '-' }}</td>
+                <td>
+                  <span :class="runStatusClass(run.status)">{{ run.status || '-' }}</span>
+                </td>
+                <td>{{ Number(run?.stats?.published_count || 0) }}</td>
+                <td>{{ Number(run?.stats?.failed_count || 0) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="runsMobileList">
+          <article v-for="run in runs" :key="`run-mobile-${run.id}`" class="mobileCard">
+            <div class="mobileCard__head">
+              <strong class="mobileCard__title">{{ identityLabel(run.bot_identity) }}</strong>
+              <span :class="runStatusClass(run.status)">{{ run.status || '-' }}</span>
+            </div>
+
+            <div class="mobileCard__meta">
+              <span>{{ formatDateTime(run.started_at) }}</span>
+              <span>{{ run.source_key || '-' }}</span>
+            </div>
+
+            <dl class="mobileStats">
+              <div>
+                <dt>Publikované</dt>
+                <dd>{{ Number(run?.stats?.published_count || 0) }}</dd>
+              </div>
+              <div>
+                <dt>Chyby</dt>
+                <dd>{{ Number(run?.stats?.failed_count || 0) }}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -419,37 +446,72 @@ onBeforeUnmount(() => {
       <p v-if="error" class="error">{{ error }}</p>
       <p v-else-if="!loadingLogs && rows.length === 0" class="muted">Žiadne logy pre zadané filtre.</p>
 
-      <div v-else class="tableWrap">
-        <table class="activityTable">
-          <thead>
-            <tr>
-              <th>Čas</th>
-              <th>Bot</th>
-              <th>Zdroj</th>
-              <th>Výsledok</th>
-              <th>Správa</th>
-              <th>Detail</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.id">
-              <td>{{ formatDateTime(row.created_at) }}</td>
-              <td>{{ identityLabel(row.bot_identity) }}</td>
-              <td>{{ sourceLabel(row) }}</td>
-              <td>
-                <span :class="outcomeClass(row.outcome)">
-                  {{ outcomeLabel(row.outcome) }}
-                </span>
-              </td>
-              <td class="messageCell">{{ row.message || '-' }}</td>
-              <td class="idCell">
-                <span>akcia: {{ row.action || '-' }}</span>
-                <span v-if="row.bot_item_id || row.post_id">item/post: {{ row.bot_item_id || '-' }}/{{ row.post_id || '-' }}</span>
-                <span v-if="row.reason">dôvod: {{ row.reason }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <div class="tableWrap tableWrap--logs">
+          <table class="activityTable">
+            <thead>
+              <tr>
+                <th>Čas</th>
+                <th>Bot</th>
+                <th>Zdroj</th>
+                <th>Výsledok</th>
+                <th>Správa</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in rows" :key="row.id">
+                <td>{{ formatDateTime(row.created_at) }}</td>
+                <td>{{ identityLabel(row.bot_identity) }}</td>
+                <td>{{ sourceLabel(row) }}</td>
+                <td>
+                  <span :class="outcomeClass(row.outcome)">
+                    {{ outcomeLabel(row.outcome) }}
+                  </span>
+                </td>
+                <td class="messageCell">{{ row.message || '-' }}</td>
+                <td class="idCell">
+                  <span>akcia: {{ row.action || '-' }}</span>
+                  <span v-if="row.bot_item_id || row.post_id">item/post: {{ row.bot_item_id || '-' }}/{{ row.post_id || '-' }}</span>
+                  <span v-if="row.reason">dôvod: {{ row.reason }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="logsMobileList">
+          <article v-for="row in rows" :key="`row-mobile-${row.id}`" class="mobileCard logMobileCard">
+            <div class="mobileCard__head">
+              <strong class="mobileCard__title">{{ identityLabel(row.bot_identity) }}</strong>
+              <span :class="outcomeClass(row.outcome)">
+                {{ outcomeLabel(row.outcome) }}
+              </span>
+            </div>
+
+            <div class="mobileCard__meta">
+              <span>{{ formatDateTime(row.created_at) }}</span>
+              <span>{{ sourceLabel(row) }}</span>
+            </div>
+
+            <p class="logMobileCard__message">{{ row.message || '-' }}</p>
+
+            <dl class="mobileDetailGrid">
+              <div>
+                <dt>Akcia</dt>
+                <dd>{{ row.action || '-' }}</dd>
+              </div>
+              <div v-if="row.bot_item_id || row.post_id">
+                <dt>Item/Post</dt>
+                <dd>{{ row.bot_item_id || '-' }}/{{ row.post_id || '-' }}</dd>
+              </div>
+              <div v-if="row.reason">
+                <dt>Dôvod</dt>
+                <dd>{{ row.reason }}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
       </div>
 
       <div class="pager">
@@ -673,6 +735,106 @@ onBeforeUnmount(() => {
   max-width: 360px;
 }
 
+.runsMobileList,
+.logsMobileList {
+  display: none;
+  gap: 8px;
+}
+
+.mobileCard {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 10px;
+  background: rgb(var(--color-bg-rgb) / 0.84);
+  padding: 9px;
+  display: grid;
+  gap: 7px;
+}
+
+.mobileCard__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobileCard__title {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.mobileCard__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.73rem;
+  color: rgb(var(--color-text-secondary-rgb) / 0.9);
+}
+
+.mobileStats {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mobileStats div {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 8px;
+  background: rgb(var(--color-surface-rgb) / 0.05);
+  padding: 6px 8px;
+}
+
+.mobileStats dt {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+}
+
+.mobileStats dd {
+  margin: 2px 0 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.logMobileCard__message {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: rgb(var(--color-text-secondary-rgb) / 0.98);
+  overflow-wrap: anywhere;
+}
+
+.mobileDetailGrid {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.mobileDetailGrid div {
+  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
+  border-radius: 8px;
+  background: rgb(var(--color-surface-rgb) / 0.05);
+  padding: 6px 8px;
+}
+
+.mobileDetailGrid dt {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgb(var(--color-text-secondary-rgb) / 0.82);
+}
+
+.mobileDetailGrid dd {
+  margin: 2px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .pager {
   display: flex;
   flex-wrap: wrap;
@@ -717,12 +879,14 @@ onBeforeUnmount(() => {
 }
 
 @container (max-width: 720px) {
-  .activityTable {
-    min-width: 640px;
+  .tableWrap--runs,
+  .tableWrap--logs {
+    display: none;
   }
 
-  .activityTable--runs {
-    min-width: 560px;
+  .runsMobileList,
+  .logsMobileList {
+    display: grid;
   }
 
   .pager {
@@ -732,6 +896,12 @@ onBeforeUnmount(() => {
   .pager .ghostBtn {
     flex: 1 1 auto;
     text-align: center;
+  }
+}
+
+@container (max-width: 460px) {
+  .mobileStats {
+    grid-template-columns: 1fr;
   }
 }
 </style>

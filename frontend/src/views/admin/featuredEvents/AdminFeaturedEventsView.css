@@ -125,7 +125,8 @@
 /* ── Split grid ── */
 .splitGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -136,6 +137,7 @@
   border-radius: 14px;
   padding: 14px 16px;
   background: rgba(21, 29, 40, 0.55);
+  min-width: 0;
 }
 
 .panel + .panel {
@@ -329,6 +331,26 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-end;
+}
+
+.eventSelect {
+  background: #151d28;
+  border: 1px solid rgba(171, 184, 201, 0.28);
+  color: #ffffff;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.eventSelect:hover:not(:disabled) {
+  border-color: rgba(171, 184, 201, 0.44);
+}
+
+.eventSelect:focus-visible {
+  outline: none;
+  border-color: #0F73FF;
+  box-shadow: 0 0 0 2px rgba(15, 115, 255, 0.28);
 }
 
 /* ── Footer ── */

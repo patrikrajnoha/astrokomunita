@@ -263,33 +263,227 @@ export default {
 </script>
 
 <style scoped>
-.inboxTab { display: grid; gap: 1rem; }
-.tabActions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-.searchInput { padding: 0.5rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--color-text-secondary); background: var(--color-bg); color: var(--color-surface); min-width: 240px; }
-.actionsHint { border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.45); border-radius: 0.8rem; padding: 0.75rem 0.9rem; color: var(--color-text-secondary); font-size: 0.88rem; }
-.itemsList { list-style: none; padding: 0; margin: 0; display: grid; gap: 1rem; }
-.itemCard { padding: 1rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); background: rgb(var(--color-bg-rgb) / 0.4); border-radius: 0.9rem; display: grid; gap: 0.6rem; }
-.itemHeader { display: flex; gap: 0.5rem; align-items: center; }
-.itemBadge { padding: 0.2rem 0.6rem; border-radius: 0.4rem; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; }
-.badge-review { background: var(--color-warning); color: var(--color-white); }
-.sourceBadge { padding: 0.2rem 0.6rem; background: rgb(var(--color-primary-rgb) / 0.16); color: var(--color-primary); border-radius: 0.4rem; font-size: 0.78rem; }
-.itemTitle { font-weight: 700; color: var(--color-surface); }
-.itemSummary { color: var(--color-text-secondary); }
-.itemMeta { display: flex; gap: 0.8rem; flex-wrap: wrap; font-size: 0.83rem; color: var(--color-text-secondary); }
-.itemActions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-.danger { color: var(--color-danger); border-color: var(--color-danger); }
-.pagination { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem; border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.2); border-radius: 0.8rem; }
-.paginationBtn { padding: 0.4rem 0.7rem; border-radius: 0.5rem; border: 1px solid var(--color-text-secondary); background: var(--color-bg); color: var(--color-surface); }
-.paginationInfo { color: var(--color-text-secondary); font-size: 0.85rem; }
-.modalOverlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-.modalCard { background: var(--color-bg); border: 1px solid var(--color-text-secondary); border-radius: 0.9rem; padding: 1rem; width: min(560px, 92vw); }
-.modalHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7rem; }
-.modalBody { display: grid; gap: 0.7rem; }
-.formGroup { display: grid; gap: 0.35rem; }
-.formInput, .formTextarea { padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--color-text-secondary); background: var(--color-bg); color: var(--color-surface); }
-.modalActions { display: flex; gap: 0.5rem; justify-content: flex-end; }
-.state { padding: 1.4rem; border: 1px dashed rgb(var(--color-text-secondary-rgb) / 0.35); border-radius: 0.9rem; }
-.stateTitle { font-weight: 700; color: var(--color-surface); margin-bottom: 0.3rem; }
-.stateText { color: var(--color-text-secondary); }
-.stateError { border-style: solid; border-color: rgb(var(--color-danger-rgb) / 0.4); background: rgb(var(--color-danger-rgb) / 0.08); }
+.inboxTab {
+  display: grid;
+  gap: 1rem;
+}
+
+.tabActions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  padding: 0.56rem 0.72rem;
+  border-radius: 14px;
+  border: 0;
+  background: #1c2736;
+  color: #ffffff;
+  min-width: 240px;
+}
+
+.searchInput::placeholder {
+  color: rgb(171 184 201 / 0.8);
+}
+
+.actionsHint {
+  border: 0;
+  background: #222e3f;
+  border-radius: 16px;
+  padding: 0.75rem 0.9rem;
+  color: #abb8c9;
+  font-size: 0.88rem;
+}
+
+.itemsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.itemCard {
+  padding: 1rem;
+  border: 0;
+  background: #1c2736;
+  border-radius: 16px;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.itemHeader {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.itemBadge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 0;
+}
+
+.badge-review {
+  background: #fe8311;
+  color: #ffffff;
+}
+
+.sourceBadge {
+  padding: 0.2rem 0.6rem;
+  background: rgb(15 115 255 / 0.2);
+  color: #0f73ff;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.itemTitle {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.itemSummary {
+  color: #abb8c9;
+}
+
+.itemMeta {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  font-size: 0.83rem;
+  color: #abb8c9;
+}
+
+.itemActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.danger {
+  color: #eb2452;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.7rem;
+  border: 0;
+  border-radius: 16px;
+  background: #1c2736;
+}
+
+.paginationBtn {
+  min-height: 36px;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 0;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
+  font-weight: 500;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.paginationBtn:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
+}
+
+.paginationBtn:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.paginationInfo {
+  color: #abb8c9;
+  font-size: 0.85rem;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(6 10 16 / 0.72);
+  display: grid;
+  place-items: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalCard {
+  background: #151d28;
+  border: 0;
+  border-radius: 24px;
+  padding: 1rem;
+  width: min(560px, 92vw);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.modalHeader h2 {
+  color: #ffffff;
+}
+
+.modalBody {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.formGroup {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.formGroup label {
+  color: #abb8c9;
+}
+
+.formInput,
+.formTextarea {
+  padding: 0.56rem 0.66rem;
+  border-radius: 14px;
+  border: 0;
+  background: #1c2736;
+  color: #ffffff;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.state {
+  padding: 1.4rem;
+  border: 0;
+  border-radius: 16px;
+  background: #1c2736;
+}
+
+.stateTitle {
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.3rem;
+}
+
+.stateText {
+  color: #abb8c9;
+}
+
+.stateError {
+  background: rgb(245 84 84 / 0.14);
+}
 </style>

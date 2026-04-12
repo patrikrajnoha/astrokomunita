@@ -118,7 +118,7 @@
           id="event-select"
           v-model="selectedEventId"
           :disabled="saving || loading"
-          class="flex-1 min-w-0 min-h-[32px] rounded-xl bg-app border-0 text-[12.5px] px-2.5 [color-scheme:dark] focus:outline-none disabled:opacity-50"
+          class="eventSelect flex-1 min-w-0 min-h-[32px] rounded-xl text-[12.5px] px-2.5 [color-scheme:dark] disabled:opacity-50"
         >
           <option value="">Vybrať udalosť…</option>
           <option v-for="ev in candidateEvents" :key="ev.id" :value="String(ev.id)">

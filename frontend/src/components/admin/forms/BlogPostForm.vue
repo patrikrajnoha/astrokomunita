@@ -236,22 +236,19 @@ async function handleSubmit() {
 <style scoped>
 .modalOverlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
+  background: rgb(6 10 16 / 0.72);
+  display: grid;
+  place-items: center;
   z-index: 1000;
   padding: 1rem;
 }
 
 .modalContent {
-  background: var(--color-background);
-  border-radius: 0.5rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: #151d28;
+  border-radius: 24px;
+  border: 0;
+  box-shadow: none;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -265,56 +262,63 @@ async function handleSubmit() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--divider-color);
+  padding: 1.2rem;
+  border-bottom: 1px solid rgb(34 46 63 / 0.9);
 }
 
 .modalHeader h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   font-weight: 600;
-  color: var(--color-text);
+  color: #ffffff;
 }
 
 .modalClose {
-  background: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
   border: none;
-  font-size: 1.5rem;
-  color: var(--color-text-secondary);
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0;
   line-height: 1;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .modalClose:hover {
-  color: var(--color-text);
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .modalBody {
-  padding: 1.5rem;
+  padding: 1.1rem 1.2rem;
 }
 
 .formField {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .formLabel {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
-  color: var(--color-text);
+  color: #abb8c9;
   font-size: 0.875rem;
 }
 
-.formInput, .formTextarea {
+.formInput,
+.formTextarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  background: var(--color-background);
-  color: var(--color-text);
+  padding: 0.72rem 0.78rem;
+  border: none;
+  border-radius: 14px;
+  box-shadow: none;
+  background: #1c2736;
+  color: #ffffff;
   font-size: 0.875rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: background-color 140ms ease;
 }
 
 .formTextarea--large {
@@ -322,59 +326,68 @@ async function handleSubmit() {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
-.formInput:focus-visible, .formTextarea:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.formInput::placeholder,
+.formTextarea::placeholder {
+  color: rgb(171 184 201 / 0.8);
+}
+
+.formInput:focus-visible,
+.formTextarea:focus-visible {
+  outline: 2px solid #0f73ff;
+  outline-offset: 1px;
 }
 
 .formError {
-  color: var(--color-danger);
+  color: #eb2452;
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
 
 .formHint {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: #abb8c9;
   margin-top: 0.25rem;
 }
 
 .formTabs {
   display: flex;
   margin-bottom: 1rem;
-  border-bottom: 1px solid var(--divider-color);
+  border-bottom: 1px solid rgb(34 46 63 / 0.9);
 }
 
 .tabBtn {
-  padding: 0.75rem 1.5rem;
+  min-height: 2.1rem;
+  padding: 0.4rem 0.95rem;
   border: none;
-  background: none;
-  color: var(--color-text-secondary);
+  border-radius: 999px;
+  box-shadow: none;
+  background: transparent;
+  color: #abb8c9;
   cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .tabBtn:hover {
-  color: var(--color-text);
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .tabBtn--active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  background: #0f73ff;
+  color: #ffffff;
 }
 
 .contentPreview {
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
+  border: 0;
+  border-radius: 14px;
   padding: 1rem;
   min-height: 300px;
-  background: var(--color-background-secondary);
+  background: #1c2736;
 }
 
 .previewContent {
   line-height: 1.6;
+  color: #ffffff;
 }
 
 .coverUpload {
@@ -393,7 +406,7 @@ async function handleSubmit() {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 0.375rem;
+  border-radius: 14px;
 }
 
 .coverRemove {
@@ -403,9 +416,10 @@ async function handleSubmit() {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: var(--color-danger);
-  color: white;
+  background: #eb2452;
+  color: #ffffff;
   border: none;
+  box-shadow: none;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -421,19 +435,21 @@ async function handleSubmit() {
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
-  padding: 1.5rem;
-  border-top: 1px solid var(--divider-color);
-  background: var(--color-background-secondary);
+  padding: 1rem 1.2rem 1.2rem;
+  border-top: 1px solid rgb(34 46 63 / 0.9);
+  background: transparent;
 }
 
 .btn {
-  padding: 0.75rem 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
+  min-height: 40px;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -441,62 +457,65 @@ async function handleSubmit() {
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.52;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: var(--color-primary);
-  color: white;
-  border-color: var(--color-primary);
+  background: #0f73ff;
+  color: #ffffff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+  background: #0d65e6;
 }
 
 .btn-secondary {
-  background: var(--color-background);
-  color: var(--color-text);
-  border-color: var(--color-border);
+  background: #222e3f;
+  color: #abb8c9;
 }
 
-.btn-secondary:hover {
-  background: var(--color-background-hover);
+.btn-secondary:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .btn-outline {
-  background: transparent;
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: #222e3f;
+  color: #abb8c9;
 }
 
-.btn-outline:hover {
-  background: var(--color-primary);
-  color: white;
+.btn-outline:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 @media (max-width: 640px) {
-  .modalContent {
-    margin: 0;
-    max-height: 100vh;
-    border-radius: 0;
+  .modalOverlay {
+    align-items: end;
+    padding: 0.5rem;
   }
-  
-  .modalHeader, .modalBody, .modalFooter {
+
+  .modalContent {
+    max-height: 96vh;
+    border-radius: 20px;
+  }
+
+  .modalHeader,
+  .modalBody,
+  .modalFooter {
     padding: 1rem;
   }
-  
+
   .modalFooter {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
     justify-content: center;
   }
-  
+
   .coverUpload {
     flex-direction: column;
     align-items: stretch;
