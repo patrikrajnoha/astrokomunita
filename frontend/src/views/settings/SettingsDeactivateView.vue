@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <SettingsDetailShell
     title="Deaktivácia účtu"
     subtitle="Táto akcia natrvalo odstráni účet, všetky príspevky a súvisiaci obsah."

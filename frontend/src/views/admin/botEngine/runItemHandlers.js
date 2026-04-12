@@ -105,7 +105,7 @@ export function createRunItemHandlers({
       }
 
       toast.success(
-        `Vymazane posty: ${Number(result.deleted_posts || 0)} | bez postu: ${Number(result.missing_posts || 0)} | chyby: ${Number(result.failed_items || 0)}.`,
+        `Vymazané posty: ${Number(result.deleted_posts || 0)} | bez postu: ${Number(result.missing_posts || 0)} | chyby: ${Number(result.failed_items || 0)}.`,
       )
 
       await Promise.all([loadRuns(), loadTranslationHealth()])

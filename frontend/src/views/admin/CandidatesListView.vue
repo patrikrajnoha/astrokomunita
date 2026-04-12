@@ -503,7 +503,7 @@ async function pollDetailRetranslateBackground(mode, candidateId, token) {
 
   if (Date.now() - detailRetranslateBackgroundStartedAt.value > DETAIL_RETRANSLATE_BACKGROUND_MAX_MS) {
     stopDetailRetranslateBackgroundPolling()
-    detailRetranslateError.value = 'Spracovanie trva prilis dlho. Skontroluj, ci bezi queue worker.'
+    detailRetranslateError.value = 'Spracovanie trvá príliš dlho. Skontroluj, či beží queue worker.'
     toast.warn(detailRetranslateError.value)
     return
   }
@@ -802,9 +802,9 @@ async function publishBySelectedMode() {
 }
 
 const AI_SCOPE_LABELS = {
-  all: 'vsetci kandidati podla filtra',
-  missing: 'kandidati bez prelozeneho popisu',
-  template: 'kandidati so sablonovym popisom',
+  all: 'všetci kandidáti podľa filtra',
+  missing: 'kandidáti bez preloženého popisu',
+  template: 'kandidáti so šablónovým popisom',
 }
 
 function clampInt(value, min, max, fallback) {
@@ -830,7 +830,7 @@ async function generateAiDescriptionsForCandidates() {
       title: 'Generovanie popisov',
       message: `Spustit ${modeLabel.toLowerCase()} pre ${AI_SCOPE_LABELS[selectedScope]}? (max ${requestedLimit})`,
       confirmText: 'Spustit',
-      cancelText: 'Zrusit',
+      cancelText: 'Zrušiť',
     })
     if (!approved) return
 
@@ -864,9 +864,9 @@ async function generateAiDescriptionsForCandidates() {
 
     if (Number(result.total_selected || 0) === 0) {
       if (selectedScope === 'missing') {
-        toast.warn('Nenasli sa kandidati bez prelozeneho popisu. Pre AI prepis sablony zvol rozsah "kandidati so sablonovym popisom" alebo "vsetci kandidati".')
+        toast.warn('Nenašli sa kandidáti bez preloženého popisu. Pre AI prepis šablóny zvoľ rozsah "kandidáti so šablónovým popisom" alebo "všetci kandidáti".')
       } else {
-        toast.warn(`Nenasli sa kandidati pre rozsah: ${AI_SCOPE_LABELS[selectedScope]}. Skus zmenit rozsah alebo filter.`)
+        toast.warn(`Nenašli sa kandidáti pre rozsah: ${AI_SCOPE_LABELS[selectedScope]}. Skús zmeniť rozsah alebo filter.`)
       }
       return
     }

@@ -185,7 +185,7 @@ const showAuthBannedBanner = computed(() => {
 })
 const authFallbackMessage = computed(() => {
   if (auth.error?.type === 'timeout') {
-    return 'Nepodarilo sa nacitat profil (timeout). Pokracujes ako host.'
+    return 'Nepodarilo sa načítať profil (timeout). Pokracujes ako host.'
   }
 
   return 'Backend je nedostupny. Pokracujes ako host.'
@@ -193,10 +193,10 @@ const authFallbackMessage = computed(() => {
 const authBannedMessage = computed(() => {
   const reason = parseStringValue(auth.error?.reason)
   if (reason) {
-    return `Tento ucet je zablokovany. Dovod: ${reason}`
+    return `Tento účet je zablokovaný. Dôvod: ${reason}`
   }
 
-  return 'Tento ucet je zablokovany.'
+  return 'Tento účet je zablokovaný.'
 })
 const authBannerMessage = computed(() => {
   if (showAuthBannedBanner.value) {
@@ -329,7 +329,7 @@ const scheduleNotificationsRealtimeBootstrap = () => {
 
 const onPostCreated = async (createdPost) => {
   closeComposerModal()
-  showToast('Prispevok bol publikovany.', 'success')
+  showToast('Príspevok bol publikovaný.', 'success')
 
   if (route.name === 'home') {
     dispatchPostCreated(createdPost)

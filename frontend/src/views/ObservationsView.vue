@@ -3,7 +3,7 @@
     <header class="observations-header">
       <div>
         <h1>Pozorovania</h1>
-        <p>Zaznamenane pozorovania s fotografiami a metadatami.</p>
+        <p>Zaznamenané pozorovania s fotografiami a metadátami.</p>
       </div>
       <RouterLink class="create-link" to="/observations/new">
         Pridať pozorovanie

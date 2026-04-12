@@ -40,7 +40,7 @@
       <div v-else-if="error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
         <InlineStatus
           variant="error"
-          :message="error || 'Nastala chyba pri nacitani notifikacii.'"
+          :message="error || 'Nastala chyba pri načítaní notifikacii.'"
           action-label="Skúsiť znova"
           class="w-full max-w-lg"
           @action="retry"

@@ -219,7 +219,7 @@ function normalizeHttpErrorMessage(error) {
   }
 
   if (status === 413) {
-    return 'Nahravanie zlyhalo. Subor alebo cely upload je prilis velky. Zmensi subory alebo pocet priloh a skus to znova.'
+    return 'Nahrávanie zlyhalo. Súbor alebo celý upload je príliš veľký. Zmenši súbory alebo počet príloh a skús to znova.'
   }
 
   const isNetworkError =
@@ -229,7 +229,7 @@ function normalizeHttpErrorMessage(error) {
       message.toLowerCase().includes('network'))
   if (isNetworkError) {
     if (isFormDataPayload(error?.config?.data)) {
-      return 'Nahravanie zlyhalo. Upload bol odmietnuty alebo je prilis velky. Zmensi subor alebo pocet priloh a skus to znova.'
+      return 'Nahrávanie zlyhalo. Upload bol odmietnutý alebo je príliš veľký. Zmenši súbor alebo počet príloh a skús to znova.'
     }
 
     return 'Backend je nedostupný. Skontroluj, či beží API server.'

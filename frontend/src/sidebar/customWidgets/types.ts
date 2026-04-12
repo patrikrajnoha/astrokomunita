@@ -1,4 +1,4 @@
-﻿// Sidebar domain model:
+// Sidebar domain model:
 // - layout builder stores ordered references to widgets per scope,
 // - custom component is a reusable widget definition with type + config.
 
@@ -81,7 +81,7 @@ export const SIDEBAR_WIDGET_TYPE_OPTIONS: Array<{ value: SidebarWidgetType; labe
   { value: SIDEBAR_WIDGET_TYPES.INFO_CARD, label: 'Info karta' },
   { value: SIDEBAR_WIDGET_TYPES.LINK_LIST, label: 'Zoznam odkazov' },
   { value: SIDEBAR_WIDGET_TYPES.HTML, label: 'HTML blok' },
-  { value: SIDEBAR_WIDGET_TYPES.CONTEST, label: 'SUTAZ' },
+  { value: SIDEBAR_WIDGET_TYPES.CONTEST, label: 'SÚŤAŽ' },
 ]
 
 const typeLabelMap: Record<SidebarWidgetType, string> = {
@@ -89,7 +89,7 @@ const typeLabelMap: Record<SidebarWidgetType, string> = {
   [SIDEBAR_WIDGET_TYPES.INFO_CARD]: 'Info karta',
   [SIDEBAR_WIDGET_TYPES.LINK_LIST]: 'Zoznam odkazov',
   [SIDEBAR_WIDGET_TYPES.HTML]: 'HTML blok',
-  [SIDEBAR_WIDGET_TYPES.CONTEST]: 'SUTAZ',
+  [SIDEBAR_WIDGET_TYPES.CONTEST]: 'SÚŤAŽ',
 }
 
 const trimString = (value: unknown): string => {

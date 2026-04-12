@@ -258,7 +258,7 @@ function isAllowedByMvp(f) {
 
 async function prepareReplyImageFile(pickedFile) {
   mediaPreparing.value = true
-  mediaStatusMessage.value = 'Optimalizujem obrazok pred odoslanim...'
+  mediaStatusMessage.value = 'Optimalizujem obrazok pred odoslaním...'
   err.value = ''
 
   try {
@@ -297,7 +297,7 @@ async function onFileChange(e) {
     nextFile = await prepareReplyImageFile(f)
   } catch (error) {
     removeFile()
-    err.value = String(error?.userMessage || error?.message || `Obrazok je prilis velky. Max ${prettySize(props.maxBytes)}.`)
+    err.value = String(error?.userMessage || error?.message || `Obrázok je príliš veľký. Max ${prettySize(props.maxBytes)}.`)
     return
   }
 

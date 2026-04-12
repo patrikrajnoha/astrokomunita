@@ -106,7 +106,7 @@ onMounted(loadRun)
           <dt>Spustene</dt>
           <dd>{{ formatDate(run.started_at) }}</dd>
 
-          <dt>Dokoncene</dt>
+          <dt>Dokončené</dt>
           <dd>{{ formatDate(run.finished_at) }}</dd>
 
           <dt>Nacitane</dt>
@@ -130,7 +130,7 @@ onMounted(loadRun)
 
       <section class="card actionCard">
         <button type="button" class="primaryBtn" data-testid="view-candidates-btn" @click="openRunCandidates">
-          Zobrazit kandidatov z tohto behu
+          Zobraziť kandidátov z tohto behu
         </button>
       </section>
     </template>

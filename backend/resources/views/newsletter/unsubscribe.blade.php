@@ -14,16 +14,16 @@
             <td style="padding:24px;">
               <h1 style="margin:0 0 12px;font-size:26px;line-height:1.2;color:#ffffff;">
                 @if($alreadyUnsubscribed)
-                  Newsletter bol uz odhlaseny
+                  Newsletter bol už odhlásený
                 @else
-                  Odhlasenie prebehlo uspesne
+                  Odhlásenie prebehlo úspešne
                 @endif
               </h1>
               <p style="margin:0;font-size:15px;line-height:1.6;color:#dbeafe;">
                 @if($alreadyUnsubscribed)
-                  Tento ucet uz nema zapnuty tyzdenny newsletter.
+                  Tento účet už nemá zapnutý týždenný newsletter.
                 @else
-                  Uz vam nebudeme posielat tyzdenny newsletter.
+                  Už vám nebudeme posielať týždenný newsletter.
                 @endif
               </p>
               <p style="margin:14px 0 0;font-size:13px;line-height:1.5;color:#9fb2d1;">

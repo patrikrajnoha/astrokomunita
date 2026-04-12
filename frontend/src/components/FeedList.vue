@@ -1,4 +1,4 @@
-﻿<template src="./feedList/FeedList.template.html"></template>
+<template src="./feedList/FeedList.template.html"></template>
 
 <script setup>
 import { computed, defineAsyncComponent, onBeforeUnmount, ref } from 'vue'

@@ -165,8 +165,8 @@ export const adminEventSourcesMessages = {
       qualityClear: 'Kvalita prekladov je aktuálne bez nálezov.',
       qualityFound: 'Nájdené podozrivé preklady: {{count}}.',
       repairDone: 'Repair hotový. Spracované {{processed}}, preložené {{translated}}, zlyhalo {{failed}}.',
-      purgeDryRunDone: 'Dry run: publikovane zmazane {{events}}, ponechane {{preservedEvents}}, kandidati {{candidates}}, runy {{runs}}.',
-      purgeDone: 'Vymazane: publikovane {{events}}, ponechane {{preservedEvents}}, kandidati {{candidates}}, runy {{runs}}.',
+      purgeDryRunDone: 'Dry run: publikované zmazané {{events}}, ponechané {{preservedEvents}}, kandidáti {{candidates}}, runy {{runs}}.',
+      purgeDone: 'Vymazané: publikované {{events}}, ponechané {{preservedEvents}}, kandidáti {{candidates}}, runy {{runs}}.',
     },
   },
 }

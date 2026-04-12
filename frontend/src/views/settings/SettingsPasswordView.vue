@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <SettingsDetailShell
     title="Zmena hesla"
     subtitle="Nastavte nové heslo pre svoj účet."

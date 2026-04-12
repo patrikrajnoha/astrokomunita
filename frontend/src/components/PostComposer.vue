@@ -218,7 +218,7 @@ async function preparePollOptionImageFile(pickedFile) {
 }
 
 function onPollImageError(message) {
-  err.value = String(message || 'Obrazok pre anketu sa nepodarilo spracovat.')
+  err.value = String(message || 'Obrázok pre anketu sa nepodarilo spracovat.')
 }
 
 function setPollDurationSeconds(value) {
@@ -306,10 +306,10 @@ async function onFileChange(e) {
       nextFile = await prepareComposerImageFile(
         f,
         'post-image',
-        'Optimalizujem obrazok pred odoslanim...',
+        'Optimalizujem obrazok pred odoslaním...',
       )
     } catch (error) {
-      err.value = String(error?.userMessage || error?.message || `Obrazok je prilis velky. Max ${prettySize(props.maxBytes)}.`)
+      err.value = String(error?.userMessage || error?.message || `Obrázok je príliš veľký. Max ${prettySize(props.maxBytes)}.`)
       return
     }
   } else if (f.size > props.maxBytes) {

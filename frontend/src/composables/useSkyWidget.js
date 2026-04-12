@@ -296,7 +296,7 @@ export function useSkyWidget(options = {}) {
       return nightStart ? `Noc začne: ${nightStart}` : 'Najlepšie dnes: po zotmení'
     }
 
-    if (!bestTimeToday.value?.window) return 'Najlepšie dnes nie je dostupne.'
+    if (!bestTimeToday.value?.window) return 'Najlepšie dnes nie je dostupné.'
     return bestTimeToday.value.window
   })
 
@@ -331,10 +331,10 @@ export function useSkyWidget(options = {}) {
     }
 
     if (!isAstronomicalNight.value) {
-      return 'Obloha este nie je v plnej astronomickej tme.'
+      return 'Obloha ešte nie je v plnej astronomickej tme.'
     }
 
-    if (!bestTimeToday.value?.window) return 'Najlepšie pozorovanie dnes nie je dostupne.'
+    if (!bestTimeToday.value?.window) return 'Najlepšie pozorovanie dnes nie je dostupné.'
     const note = sanitizeLabel(bestTimeToday.value?.note)
     return note ? `${bestTimeToday.value.window} | ${note}` : bestTimeToday.value.window
   })
@@ -342,7 +342,7 @@ export function useSkyWidget(options = {}) {
   const countdownToNightLabel = computed(() => {
     if (skyPhase.value === SKY_PHASE.LOCATION_REQUIRED || skyPhase.value === SKY_PHASE.UNKNOWN) return ''
     if (skyPhase.value === SKY_PHASE.ASTRONOMICAL_NIGHT) return 'Astronomicka noc prebieha.'
-    if (isDark.value === true) return 'Tma uz prebieha.'
+    if (isDark.value === true) return 'Tma už prebieha.'
 
     if (!(nightStartsAt.value instanceof Date)) return ''
     const deltaMs = nightStartsAt.value.getTime() - nowTick.value
@@ -361,7 +361,7 @@ export function useSkyWidget(options = {}) {
       return 'Nastav polohu, aby sme vedeli vyhodnotiť podmienky.'
     }
     if (skyPhase.value === SKY_PHASE.UNKNOWN) {
-      return 'Udaje su neuplne, skus obnovit widget.'
+      return 'Údaje sú neúplné, skús obnoviť widget.'
     }
     if (isDaylight.value) {
       return 'Vhodné skôr na planéty pri západe alebo ranné pozorovanie.'
@@ -449,7 +449,7 @@ export function useSkyWidget(options = {}) {
         key: 'phase',
         label: 'Stav oblohy',
         value: 'Sumrak',
-        hint: 'Na plne tmavu oblohu sa este caka.',
+        hint: 'Na plne tmavu oblohu sa ešte caka.',
         tone: 'neutral',
       })
     }
@@ -518,7 +518,7 @@ export function useSkyWidget(options = {}) {
   })
 
   const lightPollutionEstimateLine = computed(() => (
-    isLightPollutionEstimate.value ? 'Pouzivame odhad svetelneho znečistenia podla lokality' : ''
+    isLightPollutionEstimate.value ? 'Pouzivame odhad svetelneho znečistenia podľa lokality' : ''
   ))
   const lightPollutionImpactLine = computed(() => (
     sanitizeLabel(bortlePresentation.value?.impactText)
@@ -561,11 +561,11 @@ export function useSkyWidget(options = {}) {
     const reason = sanitizeLabel(planetsPayload.value?.reason)
 
     if (reason === 'sky_service_unavailable') {
-      return 'Planety su teraz nedostupne.'
+      return 'Planety sú teraz nedostupne.'
     }
 
     if (reason === 'degraded_contract') {
-      return 'Planety su dočasne nedostupne.'
+      return 'Planety sú dočasne nedostupne.'
     }
 
     if (!planetsNightV15.value) {
@@ -573,7 +573,7 @@ export function useSkyWidget(options = {}) {
     }
 
     if (planetsDisplayListV15.value.length === 0) {
-      return 'Teraz nevidno ziadnu planetu dost vysoko.'
+      return 'Teraz nevidno žiadnu planétu dosť vysoko.'
     }
 
     return ''
@@ -964,7 +964,7 @@ export function useSkyWidget(options = {}) {
       issFetchedAt.value = new Date()
     } catch {
       if (token !== requestTokens.iss) return
-      issError.value = 'Udaje o ISS su dočasne nedostupne.'
+      issError.value = 'Údaje o ISS sú dočasne nedostupne.'
     } finally {
       if (token === requestTokens.iss && !options.silent) {
         issLoading.value = false
@@ -1058,7 +1058,7 @@ export function useSkyWidget(options = {}) {
     } catch {
       if (token !== requestTokens.ephemeris) return
       resetEphemerisPayload()
-      ephemerisError.value = 'Efemeridy su dočasne nedostupne.'
+      ephemerisError.value = 'Efemeridy sú dočasne nedostupne.'
     } finally {
       if (token === requestTokens.ephemeris && !options.silent) {
         ephemerisLoading.value = false

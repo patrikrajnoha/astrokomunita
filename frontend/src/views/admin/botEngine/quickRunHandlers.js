@@ -309,12 +309,12 @@ export function createQuickRunHandlers({
 
     const summary = results.map((result) => result.summary).join(' | ')
     const completionLabel = hasFailure
-      ? 'Spustenie dokoncene s chybami.'
+      ? 'Spustenie dokončené s chybami.'
       : hasPartial
-        ? 'Spustenie dokoncene ciastocne.'
+        ? 'Spustenie dokončené čiastočne.'
         : hasSkipped
-          ? 'Spustenie dokoncene s preskocenymi zdrojmi.'
-          : 'Spustenie dokoncene.'
+          ? 'Spustenie dokončené s preskočenými zdrojmi.'
+          : 'Spustenie dokončené.'
 
     if (hasFailure && lastErrorMessage !== '') {
       toast.error(`${completionLabel} ${summary} ${lastErrorMessage}`)

@@ -38,11 +38,11 @@ export function computeStatus(post) {
 export function statusLabel(value) {
   switch (value) {
     case 'published':
-      return 'Publikovany'
+      return 'Publikovaný'
     case 'hidden':
-      return 'Skryty'
+      return 'Skrytý'
     case 'scheduled':
-      return 'Naplanovany'
+      return 'Naplánovaný'
     case 'draft':
     default:
       return 'Koncept'
@@ -177,7 +177,7 @@ export function readTimeFor(text) {
     .split(/\s+/)
     .filter(Boolean).length
   const minutes = Math.max(1, Math.round(words / 220))
-  return `${minutes} min citania`
+  return `${minutes} min čítania`
 }
 
 export function toMetricCount(value) {

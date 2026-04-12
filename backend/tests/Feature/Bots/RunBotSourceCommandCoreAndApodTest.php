@@ -390,7 +390,7 @@ class RunBotSourceCommandCoreAndApodTest extends RunBotSourceCommandTestCase
     {
         config()->set('bots.identities.kozmo.username', 'kozmobot');
         config()->set('bots.identities.kozmo.display_name', 'Kozmo');
-        $customDisplayName = 'Legacy Kozmo đźš€';
+        $customDisplayName = 'Legacy Kozmo 🚀';
 
         $legacyBot = User::factory()->create([
             'is_bot' => true,

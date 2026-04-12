@@ -65,8 +65,8 @@ export function eventTypeIconLabel(eventItem) {
 export function publicConfidenceBadgeLabel(eventItem) {
   const level = eventItem?.public_confidence?.level
   if (!level || level === 'unknown') return ''
-  if (level === 'verified') return 'Overene'
-  if (level === 'partial') return 'Ciastocne'
+  if (level === 'verified') return 'Overené'
+  if (level === 'partial') return 'Čiastočné'
   if (level === 'low') return 'Nizka dovera'
   return ''
 }
@@ -74,13 +74,13 @@ export function publicConfidenceBadgeLabel(eventItem) {
 export function publicConfidenceTooltip(eventItem) {
   const confidence = eventItem?.public_confidence
   if (!confidence) return ''
-  if (confidence.level === 'unknown') return 'Nie su dostupne udaje o doveryhodnosti.'
+  if (confidence.level === 'unknown') return 'Nie sú dostupné údaje o dôveryhodnosti.'
 
   if (typeof confidence.score === 'number' && typeof confidence.sources_count === 'number') {
     return `${confidence.reason} Skore: ${confidence.score}/100 | Zdrojov: ${confidence.sources_count}`
   }
 
-  return confidence.reason || 'Nie su dostupne udaje o doveryhodnosti.'
+  return confidence.reason || 'Nie sú dostupné údaje o dôveryhodnosti.'
 }
 
 export function eventCardSummary(eventItem) {

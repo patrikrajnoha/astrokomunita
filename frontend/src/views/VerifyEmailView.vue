@@ -1,14 +1,14 @@
 <template>
   <div class="verifyPage">
     <section class="verifyCard">
-      <h1>Overenie cez odkaz uz nie je podporovane</h1>
+      <h1>Overenie cez odkaz už nie je podporované</h1>
       <p class="muted">
-        Pouzi overenie kodom v Nastavenia -> Ucet -> E-mail.
+        Použi overenie kódom v Nastavenia -> Účet -> E-mail.
       </p>
 
       <div class="actions">
         <button type="button" class="ui-pill ui-pill--primary" @click="goToSettingsEmail">
-          Prejst na overenie e-mailu
+          Prejsť na overenie e-mailu
         </button>
       </div>
     </section>

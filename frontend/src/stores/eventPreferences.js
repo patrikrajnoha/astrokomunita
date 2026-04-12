@@ -201,7 +201,7 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
           this.loaded = true
           return this
         } catch (error) {
-          this.error = error?.response?.data?.message || 'Nepodarilo sa nacitat preferencie.'
+          this.error = error?.response?.data?.message || 'Nepodarilo sa načítať preferencie.'
           throw error
         } finally {
           this.loading = false
@@ -297,7 +297,7 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
 
         return response
       } catch (error) {
-        this.error = error?.response?.data?.message || 'Nepodarilo sa ulozit preferencie.'
+        this.error = error?.response?.data?.message || 'Nepodarilo sa uložiť preferencie.'
         throw error
       } finally {
         this.saving = false

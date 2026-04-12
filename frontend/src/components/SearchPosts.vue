@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="w-full">
     <!-- Moderné vyhľadávacie pole -->
     <div class="relative mb-6">

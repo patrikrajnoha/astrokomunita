@@ -68,7 +68,7 @@ const EXACT_TEXT_REPLACEMENTS = {
   sever: 'sever',
   Blizenci: 'Blíženci',
   Byk: 'Býk',
-  'Velky pes': 'Veľký pes',
+  'Veľký pes': 'Veľký pes',
 }
 
 const WORD_REPLACEMENTS = [

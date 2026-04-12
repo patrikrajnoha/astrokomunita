@@ -14,7 +14,7 @@
         <dd data-testid="last-login">{{ formattedLastLogin }}</dd>
       </div>
       <div class="activityRow">
-        <dt>Pocet postov</dt>
+        <dt>Počet postov</dt>
         <dd data-testid="posts-count">{{ formattedPostsCount }}</dd>
       </div>
       <div class="activityRow">

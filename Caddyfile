@@ -1,4 +1,4 @@
-﻿# Caddyfile - automatic HTTPS via Let's Encrypt
+# Caddyfile - automatic HTTPS via Let's Encrypt
 # DOMAIN env var is set in root .env (for example astrokomunita.sk)
 #
 # Subdomains:

@@ -1,4 +1,4 @@
-﻿import { onBeforeUnmount, onMounted, reactive } from 'vue'
+import { onBeforeUnmount, onMounted, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import http from '@/services/api'
 

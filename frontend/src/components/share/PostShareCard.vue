@@ -1,5 +1,5 @@
-﻿<template>
-  <div class="share-canvas" role="img" aria-label="Nahlad zdielacej karty prispevku">
+<template>
+  <div class="share-canvas" role="img" aria-label="Náhľad zdieľacej karty príspevku">
     <div class="share-card">
       <header class="share-head">
         <div class="author-wrap">
@@ -23,7 +23,7 @@
       </main>
 
       <figure v-if="hasMedia" class="share-media">
-        <img :src="mediaUrl" alt="Fotografia prispevku" loading="eager" />
+        <img :src="mediaUrl" alt="Fotografia príspevku" loading="eager" />
       </figure>
 
       <footer class="share-foot">

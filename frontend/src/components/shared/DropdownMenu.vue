@@ -58,8 +58,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   items: { type: Array, default: () => [] },
-  label: { type: String, default: 'Dalsie akcie' },
-  menuLabel: { type: String, default: 'Akcie prispevku' },
+  label: { type: String, default: 'Ďalšie akcie' },
+  menuLabel: { type: String, default: 'Akcie príspevku' },
 })
 
 const emit = defineEmits(['select', 'open', 'close'])

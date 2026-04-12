@@ -1,4 +1,4 @@
-﻿export const legacySettingsSectionToRouteName = {
+export const legacySettingsSectionToRouteName = {
   account: 'settings.email',
   activity: 'settings.activity',
   data: 'settings.data-export',

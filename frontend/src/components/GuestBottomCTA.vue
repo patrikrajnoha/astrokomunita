@@ -16,7 +16,7 @@
 
       <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-center md:w-auto md:justify-end md:gap-3">
         <RouterLink to="/login" class="ui-pill ui-pill--secondary w-full sm:w-auto">
-          Prihlasit sa
+          Prihlásiť sa
         </RouterLink>
         <RouterLink to="/register" class="ui-pill ui-pill--primary w-full sm:w-auto">
           Zaregistrovat sa

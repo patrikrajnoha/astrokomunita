@@ -118,7 +118,7 @@ export function useAppLayoutWidgets({
   const openAllWidgetsSheet = () => {
     showAllWidgets.value = true
     activeWidgetKey.value = ''
-    activeWidgetTitle.value = 'Vsetky widgety'
+    activeWidgetTitle.value = 'Všetky widgety'
     closeWidgetMenu()
     isWidgetSheetOpen.value = true
   }

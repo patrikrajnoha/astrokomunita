@@ -107,7 +107,7 @@
 
         <label class="field field-check">
           <input v-model="form.isPublic" type="checkbox">
-          <span>Zobrazit vo verejnom feede</span>
+          <span>Zobraziť vo verejnom feede</span>
         </label>
 
         <div v-if="existingMedia.length > 0" class="existing-media">

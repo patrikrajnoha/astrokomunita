@@ -152,39 +152,39 @@ export function createUploadTooLargeMessage({ context = 'attachment', maxBytes }
   const formattedLimit = prettySize(resolvedMaxBytes)
 
   if (normalizedContext === 'poll') {
-    return `Obrazok je prilis velky. Maximalna velkost pre anketu je ${formattedLimit}.`
+    return `Obrázok je príliš veľký. Maximálna veľkosť pre anketu je ${formattedLimit}.`
   }
 
   if (normalizedContext === 'observation') {
-    return `Obrazok je prilis velky. Maximalna velkost jednej fotografie je ${formattedLimit}.`
+    return `Obrázok je príliš veľký. Maximálna veľkosť jednej fotografie je ${formattedLimit}.`
   }
 
   if (normalizedContext === 'post-image' || normalizedContext === 'reply-image') {
-    return `Obrazok je prilis velky. Maximalna povolena velkost je ${formattedLimit}.`
+    return `Obrázok je príliš veľký. Maximálna povolena veľkosť je ${formattedLimit}.`
   }
 
-  return `Subor je prilis velky. Maximalna povolena velkost je ${formattedLimit}.`
+  return `Súbor je príliš veľký. Maximálna povolena veľkosť je ${formattedLimit}.`
 }
 
 export function createUnsupportedImageMessage() {
-  return 'Nepodporovany format obrazka. Povolene su JPG, PNG, WebP a GIF.'
+  return 'Nepodporovany format obrazka. Povolene sú JPG, PNG, WebP a GIF.'
 }
 
 export function createImageOptimizationFailedMessage() {
-  return 'Obrazok sa nepodarilo optimalizovat pred odoslanim. Skus mensi JPG, PNG alebo WebP obrazok.'
+  return 'Obrázok sa nepodarilo optimalizovať pred odoslaním. Skús menší JPG, PNG alebo WebP obrazok.'
 }
 
 export function createInvalidUploadMessage(context = 'attachment') {
   const normalizedContext = normalizeContext(context)
   if (normalizedContext === 'attachment') {
-    return 'Nahravanie suboru zlyhalo. Skus vybrat subor znova.'
+    return 'Nahrávanie suboru zlyhalo. Skús vybrat súbor znova.'
   }
 
-  return 'Nahravanie obrazka zlyhalo. Skus vybrat obrazok znova.'
+  return 'Nahrávanie obrazka zlyhalo. Skús vybrat obrazok znova.'
 }
 
 export function createImageDimensionMessage() {
-  return 'Obrazok ma prilis velke rozmery. Skus ho zmensit a nahraj znova.'
+  return 'Obrázok ma príliš velke rozmery. Skús ho zmenšiť a nahraj znova.'
 }
 
 export function normalizeUploadErrorText(message, { context = 'attachment' } = {}) {

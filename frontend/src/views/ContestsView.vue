@@ -14,14 +14,14 @@ const activeContest = computed(() => activeContests.value[0] || null)
 const finishedContest = computed(() => latestFinished.value || null)
 
 const instructionText = computed(() => {
-  if (!activeContest.value) return 'Aktuálne neprebieha ziadna sutaz.'
+  if (!activeContest.value) return 'Aktuálne neprebieha ziadna súťaž.'
   return `Pre ucast pouzite hashtag #${activeContest.value.hashtag}`
 })
 
 const countdownText = computed(() => {
   if (!activeContest.value?.ends_at) return ''
   const diffMs = new Date(activeContest.value.ends_at).getTime() - nowTick.value
-  if (diffMs <= 0) return 'Sutaz je ukoncena.'
+  if (diffMs <= 0) return 'Súťaž je ukončená.'
 
   const totalSeconds = Math.floor(diffMs / 1000)
   const days = Math.floor(totalSeconds / 86400)
@@ -55,7 +55,7 @@ async function loadPage() {
       winnerParticipants.value = []
     }
   } catch (e) {
-    error.value = e?.response?.data?.message || 'Nepodarilo sa nacitat sutaz.'
+    error.value = e?.response?.data?.message || 'Nepodarilo sa načítať súťaž.'
   } finally {
     loading.value = false
   }
@@ -87,12 +87,12 @@ onBeforeUnmount(() => {
 <template>
   <section class="contestsPage">
     <header>
-      <h1>Sutaz</h1>
+      <h1>Súťaž</h1>
       <p class="lead">Minimalny sutazny feed zalozeny na ucasti cez hashtagy.</p>
     </header>
 
     <article class="card" v-if="loading">
-      <p>Nacitavam sutaz...</p>
+      <p>Načítavam súťaž...</p>
     </article>
 
     <article class="card error" v-else-if="error">
@@ -109,17 +109,17 @@ onBeforeUnmount(() => {
     </article>
 
     <article class="card" v-else>
-      <p>Zatial nie je aktivna sutaz.</p>
+      <p>Zatiaľ nie je aktívna súťaž.</p>
     </article>
 
     <article class="card" v-if="finishedContest">
-      <p class="badge done">Posledna ukoncena</p>
+      <p class="badge done">Posledna ukončená</p>
       <h3>{{ finishedContest.name }}</h3>
       <p v-if="finishedContest.winner_post_id">
         Vyherny post: #{{ finishedContest.winner_post_id }}
         <span v-if="winnerUsername">od @{{ winnerUsername }}</span>
       </p>
-      <p v-else>Vyherca este nebol zverejneny.</p>
+      <p v-else>Vyherca ešte nebol zverejneny.</p>
     </article>
   </section>
 </template>

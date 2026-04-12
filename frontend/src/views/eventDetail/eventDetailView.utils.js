@@ -166,8 +166,8 @@ export function mapVisibility(value) {
 }
 
 export function mapConfidence(level) {
-  if (level === 'verified') return 'Overene'
-  if (level === 'partial') return 'Ciastocne overene'
+  if (level === 'verified') return 'Overené'
+  if (level === 'partial') return 'Čiastočné overené'
   if (level === 'low') return 'Nizsia dovera'
   return ''
 }

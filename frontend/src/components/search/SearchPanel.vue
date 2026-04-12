@@ -74,7 +74,7 @@
           <button
             type="submit"
             class="rounded-md p-1 text-[color:rgb(var(--color-text-secondary-rgb)/0.75)] transition hover:text-[var(--color-primary)]"
-            aria-label="Spustit hladanie"
+            aria-label="Spustiť hľadanie"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m1-4a7 7 0 11-14 0 7 7 0 0114 0z" />

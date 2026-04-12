@@ -124,7 +124,7 @@ describe('EmailVerificationGateModal', () => {
     httpMock.post.mockClear()
 
     await wrapper.get('#email-gate-code').setValue('12345-67890')
-    const confirmButton = wrapper.findAll('button').find((node) => normalizeText(node.text()).includes('potvrdit kod'))
+    const confirmButton = wrapper.findAll('button').find((node) => normalizeText(node.text()).includes('pokracovat'))
     expect(confirmButton).toBeTruthy()
     if (!confirmButton) {
       throw new Error('Confirm button not found')

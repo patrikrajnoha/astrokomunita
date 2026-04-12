@@ -31,11 +31,11 @@
     "primary_months": [3, 4, 5],
     "secondary_months": [1, 2, 6, 7, 8, 9, 10, 11, 12],
     "is_circumpolar": true,
-    "direction": "severozapad az sever",
+    "direction": "severozapad až sever",
     "best_time": "21:00-23:30",
     "visibility_level": "high",
     "visibility_text": "Velmi dobre viditelne",
-    "short_hint": "Velky voz pomaha najst Polarku."
+    "short_hint": "Veľký voz pomáha nájsť Polárku."
   },
   {
     "name": "Ursa Minor",
@@ -48,7 +48,7 @@
     "best_time": "cely vecer",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
-    "short_hint": "Polarka na konci maleho voza je stabilny orientacny bod."
+    "short_hint": "Polárka na konci malého voza je stabilný orientačný bod."
   },
   {
     "name": "Leo",
@@ -56,7 +56,7 @@
     "season": "spring",
     "primary_months": [3, 4, 5],
     "secondary_months": [2, 6],
-    "direction": "juhovychod az juh",
+    "direction": "juhovychod až juh",
     "best_time": "21:00-23:00",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
@@ -68,7 +68,7 @@
     "season": "winter",
     "primary_months": [12, 1, 2],
     "secondary_months": [11, 3, 4],
-    "direction": "vychod az juhovychod",
+    "direction": "vychod až juhovychod",
     "best_time": "20:30-23:00",
     "visibility_level": "high",
     "visibility_text": "Lahko viditelne",
@@ -84,7 +84,7 @@
     "best_time": "19:30-22:00",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
-    "short_hint": "Aldebaran a Plejady su dobre orientacne body."
+    "short_hint": "Aldebaran a Plejady sú dobre orientacne body."
   },
   {
     "name": "Cygnus",
@@ -92,7 +92,7 @@
     "season": "summer",
     "primary_months": [6, 7, 8, 9],
     "secondary_months": [5, 10],
-    "direction": "vychod az juhovychod",
+    "direction": "vychod až juhovychod",
     "best_time": "22:00-00:00",
     "visibility_level": "high",
     "visibility_text": "Lahko viditelne",
@@ -104,7 +104,7 @@
     "season": "summer",
     "primary_months": [6, 7, 8, 9],
     "secondary_months": [5, 10],
-    "direction": "vychod az juh",
+    "direction": "vychod až juh",
     "best_time": "21:30-23:30",
     "visibility_level": "high",
     "visibility_text": "Lahko viditelne",
@@ -116,7 +116,7 @@
     "season": "summer",
     "primary_months": [6, 7, 8, 9],
     "secondary_months": [5, 10],
-    "direction": "juhovychod az juh",
+    "direction": "juhovychod až juh",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
@@ -128,7 +128,7 @@
     "season": "autumn",
     "primary_months": [9, 10, 11],
     "secondary_months": [8, 12],
-    "direction": "vychod az severovychod",
+    "direction": "vychod až severovychod",
     "best_time": "20:00-22:30",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
@@ -144,7 +144,7 @@
     "best_time": "20:00-22:00",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
-    "short_hint": "Velky stvorec Pegasa je lahky orientacny utvar."
+    "short_hint": "Veľký štvorec Pegasa je ľahký orientačný útvar."
   },
   {
     "name": "Perseus",
@@ -164,11 +164,11 @@
     "season": "winter",
     "primary_months": [12, 1, 2],
     "secondary_months": [11, 3],
-    "direction": "vychod az severovychod",
+    "direction": "vychod až severovychod",
     "best_time": "20:00-23:00",
     "visibility_level": "high",
     "visibility_text": "Lahko viditelne",
-    "short_hint": "Capella je velmi jasna a dobre rozoznatelna."
+    "short_hint": "Capella je veľmi jasna a dobre rozoznatelna."
   },
   {
     "name": "Bootes",
@@ -176,11 +176,11 @@
     "season": "spring",
     "primary_months": [4, 5, 6],
     "secondary_months": [3, 7],
-    "direction": "vychod az juhovychod",
+    "direction": "vychod až juhovychod",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",
-    "short_hint": "Arcturus je velmi jasny orientacny bod jarnej oblohy."
+    "short_hint": "Arcturus je veľmi jasný orientačný bod jarnej oblohy."
   },
   {
     "name": "Scorpius",
@@ -208,7 +208,7 @@
   },
   {
     "name": "Canis Major",
-    "display_name": "Velky pes",
+    "display_name": "Veľký pes",
     "season": "winter",
     "primary_months": [12, 1, 2],
     "secondary_months": [11, 3],
@@ -224,7 +224,7 @@
     "season": "spring",
     "primary_months": [3, 4, 5],
     "secondary_months": [2, 6],
-    "direction": "juhovychod az juh",
+    "direction": "juhovychod až juh",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
     "visibility_text": "Stredne viditelne",

@@ -72,8 +72,8 @@
               type="button"
               :class="{ active: !!file && !isGifFile(file) }"
               :disabled="posting || mediaPreparing"
-              aria-label="Obrazok"
-              title="Obrazok"
+              aria-label="Obrázok"
+              title="Obrázok"
               @click="pickImage"
             >
               <svg viewBox="0 0 24 24" fill="none">
@@ -168,7 +168,7 @@
           v-model="gifQuery"
           class="modalInput"
           type="text"
-          placeholder="Hladaj GIF..."
+          placeholder="Hľadaj GIF..."
           @input="onGifQueryChange"
         />
 
@@ -177,7 +177,7 @@
         </div>
         <p v-else-if="gifError" class="modalError">{{ gifError }}</p>
         <p v-else-if="gifQuery.trim().length < GIF_MIN_QUERY_LENGTH" class="modalHint">Zadaj aspon 2 znaky.</p>
-        <p v-else-if="gifResults.length === 0" class="modalHint">Ziadne GIFy.</p>
+        <p v-else-if="gifResults.length === 0" class="modalHint">Žiadne GIFy.</p>
         <div v-else class="gifGrid">
           <button v-for="gif in gifResults" :key="gif.id" type="button" class="gifTile" @click="selectGif(gif)">
             <img :src="gif.preview_url" :alt="gif.title || 'GIF'" loading="lazy" />

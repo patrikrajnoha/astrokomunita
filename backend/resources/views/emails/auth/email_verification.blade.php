@@ -16,11 +16,11 @@
 
                             @if ($purpose === 'email_change_current')
                                 <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">
-                                    Pouzi tento jednorazovy kod na potvrdenie zmeny e-mailu pre tvoj ucet.
+                                    Použi tento jednorazový kód na potvrdenie zmeny e-mailu pre tvoj účet.
                                 </p>
                             @else
                                 <p style="margin:0 0 12px;font-size:15px;line-height:1.6;">
-                                    Pouzi tento jednorazovy kod na overenie e-mailovej adresy pre tvoj ucet.
+                                    Použi tento jednorazový kód na overenie e-mailovej adresy pre tvoj účet.
                                 </p>
                             @endif
 

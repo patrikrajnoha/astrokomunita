@@ -8,7 +8,7 @@ export const BASE_NOTIFICATION_PREFERENCE_KEYS = [
 export const EVENT_REMINDER_PREFERENCE_ROWS = [
   {
     key: 'event_reminder',
-    label: 'Vsetky ulozene udalosti',
+    label: 'Všetky uložené udalosti',
     description: 'Zakladne pripomienky pre eventy, ktore sledujes alebo si si ulozil.',
   },
   {

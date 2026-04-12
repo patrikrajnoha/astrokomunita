@@ -2,7 +2,7 @@
   <article class="skyCard">
     <header class="cardHead">
       <h2>Viditeľné planety</h2>
-      <p>Zoradene podla vysky nad horizontom</p>
+      <p>Zoradene podľa vysky nad horizontom</p>
     </header>
 
     <div v-if="loading" class="state">Načítavam dáta...</div>
@@ -18,9 +18,9 @@
       </div>
 
       <div v-else-if="visiblePlanets.length === 0" class="emptyState">
-        <p v-if="reason === 'sky_service_unavailable'">Udaje o planetach su dočasne nedostupne.</p>
-        <p v-else-if="reason === 'degraded_contract'">Udaje o planetach maju dočasne nekompletny kontrakt.</p>
-        <p v-else>Momentalne nie su vhodne podmienky na pozorovanie planet.</p>
+        <p v-if="reason === 'sky_service_unavailable'">Údaje o planétach sú dočasne nedostupné.</p>
+        <p v-else-if="reason === 'degraded_contract'">Údaje o planétach majú dočasne nekompletný kontrakt.</p>
+        <p v-else>Momentálne nie sú vhodné podmienky na pozorovanie planét.</p>
       </div>
 
       <ul v-else class="planetList">

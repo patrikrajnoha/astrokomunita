@@ -181,7 +181,7 @@ const progressMetaItems = computed(() => {
 
   const stats = []
   if (hasDeterminateProgress.value) {
-    stats.push(`Dokoncene: ${Math.min(progressCurrent.value, progressTotal.value)}/${progressTotal.value}`)
+    stats.push(`Dokončené: ${Math.min(progressCurrent.value, progressTotal.value)}/${progressTotal.value}`)
     if (progressRemaining.value > 0) {
       stats.push(`Zostava: ${progressRemaining.value}`)
     }
@@ -190,7 +190,7 @@ const progressMetaItems = computed(() => {
   }
 
   if (progressCurrentSourceKey.value) {
-    stats.push(`Prave bezi: ${sourceLabel(progressCurrentSourceKey.value)}`)
+    stats.push(`Prave beží: ${sourceLabel(progressCurrentSourceKey.value)}`)
   }
 
   if (progressFailedCount.value > 0) {
@@ -710,7 +710,7 @@ async function runSelected() {
       toast.success(t('messages.runSelectedSuccess'))
     } else {
       const successfulSources = Math.max(0, sourceKeys.length - failedSources)
-      toast.warn(`Crawling hotovy: ${successfulSources}/${sourceKeys.length} zdrojov uspesne, chyby: ${failedSources}.`)
+      toast.warn(`Crawling hotový: ${successfulSources}/${sourceKeys.length} zdrojov úspešne, chyby: ${failedSources}.`)
       if (firstFailureMessage) {
         error.value = firstFailureMessage
       }
@@ -918,4 +918,3 @@ onBeforeUnmount(() => {
 <template src="./eventSources/EventSourcesView.template.html"></template>
 
 <style scoped src="./eventSources/EventSourcesView.css"></style>
-

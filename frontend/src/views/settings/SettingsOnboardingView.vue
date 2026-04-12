@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <SettingsDetailShell
     title="Onboarding sprievodca"
     subtitle="Interaktívna prehliadka feedu, kalendára a pozorovacích podmienok."

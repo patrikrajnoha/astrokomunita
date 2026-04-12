@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <SettingsDetailShell
     title="Konfigurácia sidebaru"
     :subtitle="settingsSubtitle"

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <section class="settings-card" :class="{ 'settings-card-danger': danger }">
     <RouterLink class="settings-back-link" :to="{ name: 'settings' }">
       <span aria-hidden="true">&lt;-</span>

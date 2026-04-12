@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AdminPageShell from '@/components/admin/shared/AdminPageShell.vue'
 import { useToast } from '@/composables/useToast'

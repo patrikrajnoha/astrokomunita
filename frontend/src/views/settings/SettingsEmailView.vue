@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <SettingsDetailShell
     title="E-mail"
     subtitle="Stav overenia, overovací kód a bezpečná zmena e-mailu."

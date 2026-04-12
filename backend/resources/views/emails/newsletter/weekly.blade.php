@@ -8,7 +8,7 @@
   if ($intro === '') {
     $startLabel = $weekStart ?? '-';
     $endLabel = $weekEnd ?? '-';
-    $intro = "Prehlad na tyzden {$startLabel} az {$endLabel}.";
+    $intro = "Prehľad na týždeň {$startLabel} až {$endLabel}.";
   }
   $calendarUrl = (string) data_get($payload, 'cta.calendar_url', '#');
   $eventsUrl = (string) data_get($payload, 'cta.events_url', '#');
@@ -19,7 +19,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tyzdenny newsletter</title>
+  <title>Týždenný newsletter</title>
 </head>
 <body style="margin:0;padding:0;background:#0b1220;color:#e5ecff;font-family:InterVariable,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Liberation Sans',Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;background:#0b1220;">
@@ -50,7 +50,7 @@
                     </span>
                   </li>
                 @empty
-                  <li style="margin-bottom:10px;">Tento tyzden zatial nema vybrane udalosti.</li>
+                  <li style="margin-bottom:10px;">Tento týždeň zatiaľ nemá vybrané udalosti.</li>
                 @endforelse
               </ul>
             </td>
@@ -58,7 +58,7 @@
 
           <tr>
             <td style="padding:10px 24px 8px;">
-              <h2 style="margin:0 0 10px;font-size:18px;color:#ffffff;">Najcitanejsie clanky (7 dni)</h2>
+              <h2 style="margin:0 0 10px;font-size:18px;color:#ffffff;">Najčítanejšie články (7 dni)</h2>
               <ul style="margin:0;padding:0 0 0 18px;color:#dbeafe;">
                 @forelse($articles as $article)
                   <li style="margin-bottom:10px;line-height:1.45;">
@@ -66,11 +66,11 @@
                       {{ $article['title'] ?? 'Clanok' }}
                     </a>
                     <span style="display:block;font-size:13px;color:#9fb2d1;margin-top:2px;">
-                      Citania: {{ (int) ($article['views'] ?? 0) }}
+                      Čítania: {{ (int) ($article['views'] ?? 0) }}
                     </span>
                   </li>
                 @empty
-                  <li style="margin-bottom:10px;">Za posledny tyzden este nie su dostupne clanky.</li>
+                  <li style="margin-bottom:10px;">Za posledný týždeň ešte nie sú dostupné články.</li>
                 @endforelse
               </ul>
             </td>
@@ -91,13 +91,13 @@
                     <a href="{{ $calendarUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Otvorit kalendar</a>
                   </td>
                   <td style="padding:0 0 8px 8px;">
-                    <a href="{{ $eventsUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Prejst udalosti</a>
+                    <a href="{{ $eventsUrl }}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;">Prejsť udalosti</a>
                   </td>
                 </tr>
               </table>
               <p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#9fb2d1;">
                 Tento email ste dostali, pretoze mate zapnuty tyzdenny newsletter.
-                <a href="{{ $unsubscribeUrl }}" style="color:#93c5fd;text-decoration:underline;">Odhlasit sa z newslettera</a>
+                <a href="{{ $unsubscribeUrl }}" style="color:#93c5fd;text-decoration:underline;">Odhlásiť sa z newslettera</a>
               </p>
             </td>
           </tr>

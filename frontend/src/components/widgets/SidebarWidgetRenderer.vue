@@ -44,7 +44,7 @@
       <div v-if="contestConfig.imageUrl" class="widgetMedia">
         <img :src="contestConfig.imageUrl" alt="" loading="lazy" />
       </div>
-      <h3 class="widgetTitle">{{ contestConfig.title || 'SUTAZ' }}</h3>
+      <h3 class="widgetTitle">{{ contestConfig.title || 'SÚŤAŽ' }}</h3>
       <p class="widgetText">{{ contestConfig.description || 'Dopln kratky popis sutaze.' }}</p>
     </template>
 
