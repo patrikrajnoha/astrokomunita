@@ -9,6 +9,15 @@
       ></span>
     </div>
 
+    <div class="shooting-stars" aria-hidden="true">
+      <span
+        v-for="shootingStar in shootingStars"
+        :key="shootingStar.id"
+        class="shooting-star"
+        :style="shootingStar.style"
+      ></span>
+    </div>
+
     <div class="center">
       <div class="circle circle--outer"></div>
 
@@ -54,13 +63,15 @@
           </svg>
 
           <div class="circle planet">
-            <div class="craters">
-              <div class="crater crater--1"></div>
-              <div class="crater crater--2"></div>
-              <div class="crater crater--3"></div>
-              <div class="crater crater--4"></div>
-              <div class="crater crater--5"></div>
-              <div class="crater crater--6"></div>
+            <div class="planet__surface">
+              <div class="craters">
+                <div class="crater crater--1"></div>
+                <div class="crater crater--2"></div>
+                <div class="crater crater--3"></div>
+                <div class="crater crater--4"></div>
+                <div class="crater crater--5"></div>
+                <div class="crater crater--6"></div>
+              </div>
             </div>
           </div>
 
@@ -111,6 +122,9 @@
 </template>
 
 <script>
+// 404 stars + astronaut animation inspired by:
+// https://codepen.io/Meerkap/pen/NWMJKRg
+// Adapted for this app (Vue structure, deterministic stars, responsive tuning).
 function seededRandom(seed) {
   const value = Math.sin(seed * 9999.91) * 10000
   return value - Math.floor(value)
@@ -139,11 +153,41 @@ function createStars(count) {
   return stars
 }
 
+function createShootingStars(count) {
+  const shootingStars = []
+
+  for (let i = 1; i <= count; i += 1) {
+    const top = 8 + (seededRandom(i * 5.33) * 42)
+    const left = 8 + (seededRandom(i * 6.11) * 58)
+    const tail = 40 + (seededRandom(i * 6.91) * 36)
+    const distance = 180 + (seededRandom(i * 7.73) * 240)
+    const cycle = 7 + (seededRandom(i * 8.41) * 6)
+    const delay = -(seededRandom(i * 9.07) * cycle)
+    const angle = 24 + (seededRandom(i * 9.83) * 16)
+
+    shootingStars.push({
+      id: i,
+      style: {
+        '--shoot-top': `${top.toFixed(2)}%`,
+        '--shoot-left': `${left.toFixed(2)}%`,
+        '--shoot-tail': `${tail.toFixed(0)}px`,
+        '--shoot-distance': `${distance.toFixed(0)}px`,
+        '--shoot-cycle': `${cycle.toFixed(2)}s`,
+        '--shoot-delay': `${delay.toFixed(2)}s`,
+        '--shoot-angle': `${angle.toFixed(2)}deg`,
+      },
+    })
+  }
+
+  return shootingStars
+}
+
 export default {
   name: 'NotFoundView',
   data() {
     return {
       stars: createStars(80),
+      shootingStars: createShootingStars(6),
     }
   },
 }
@@ -172,12 +216,21 @@ export default {
   left: 50%;
   transform: translate(-50%, -50%);
   transition: transform 0.5s;
+  animation: center-appear 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   z-index: 1;
 }
 
 .stars {
   position: absolute;
   inset: 0;
+}
+
+.shooting-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1;
 }
 
 .star {
@@ -207,6 +260,33 @@ export default {
   left: calc(var(--star-size) / 2);
   width: var(--star-size);
   height: calc(3 * var(--star-size));
+}
+
+.shooting-star {
+  position: absolute;
+  top: var(--shoot-top);
+  left: var(--shoot-left);
+  width: var(--shoot-tail);
+  height: 2px;
+  border-radius: 999px;
+  opacity: 0;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / 0.98));
+  filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.42));
+  transform-origin: left center;
+  animation: shooting-star var(--shoot-cycle) linear infinite;
+  animation-delay: var(--shoot-delay);
+}
+
+.shooting-star::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.92);
+  transform: translateY(-50%);
 }
 
 .circle {
@@ -397,6 +477,8 @@ export default {
   position: absolute;
   top: -40px;
   left: -260px;
+  transform-origin: 100% 0;
+  animation: wire-sway 4.6s ease-in-out infinite;
 }
 
 .planet {
@@ -404,6 +486,20 @@ export default {
   box-shadow: inset -6px -10px 0 1px #cc3b6b, 0 2px 10px rgba(0, 0, 0, 0.4);
   width: 155px;
   height: 155px;
+  overflow: hidden;
+}
+
+.planet__surface {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  animation: planet-rotate 18s linear infinite;
+}
+
+.craters {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .crater {
@@ -484,6 +580,19 @@ export default {
   font-size: 15px;
   white-space: nowrap;
   text-align: center;
+  animation: sorry-appear 760ms ease-out 280ms both;
+}
+
+@keyframes center-appear {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
 }
 
 @keyframes blink {
@@ -499,6 +608,29 @@ export default {
   }
 }
 
+@keyframes shooting-star {
+  0%,
+  84% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) rotate(var(--shoot-angle)) scaleX(0.6);
+  }
+
+  87% {
+    opacity: 0.95;
+    transform: translate3d(0, 0, 0) rotate(var(--shoot-angle)) scaleX(1);
+  }
+
+  96% {
+    opacity: 0.75;
+    transform: translate3d(var(--shoot-distance), calc(var(--shoot-distance) * 0.42), 0) rotate(var(--shoot-angle)) scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--shoot-distance) * 1.12), calc(var(--shoot-distance) * 0.48), 0) rotate(var(--shoot-angle)) scaleX(0.82);
+  }
+}
+
 @keyframes floating {
   0%,
   100% {
@@ -507,6 +639,39 @@ export default {
 
   50% {
     transform: translate(0, -6px) rotate(1deg);
+  }
+}
+
+@keyframes wire-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-2deg);
+  }
+}
+
+@keyframes planet-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sorry-appear {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 }
 
