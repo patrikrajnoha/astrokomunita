@@ -1,5 +1,5 @@
 <template>
-  <div class="post-actions" :class="{ 'post-actions--menu-open': isMenuOpen }" @click.stop>
+  <div class="post-actions" :class="{ 'post-actions--menu-open': isMenuOpen }">
     <div class="post-actions-left">
       <button class="action-btn action-btn--reply" type="button" :title="replyTitle" @click.stop="$emit('reply')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -164,6 +164,13 @@ const likeCount = computed(() => Number(props.likeCount ?? 0))
   min-width: 0;
   position: relative;
   z-index: 4;
+  pointer-events: none;
+}
+
+.post-actions-left,
+.post-actions-right,
+.post-actions-more {
+  pointer-events: auto;
 }
 
 .post-actions--menu-open {
