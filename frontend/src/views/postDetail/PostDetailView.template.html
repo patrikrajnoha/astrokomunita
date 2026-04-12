@@ -51,15 +51,7 @@
               <span v-if="isBotPost(root)" class="pdBotBadge">BOT</span>
             </div>
           </div>
-          <div class="pdRootMenu">
-            <DropdownMenu
-              v-if="menuItemsForPost(root).length"
-              :items="menuItemsForPost(root)"
-              label="Ďalšie akcie"
-              menu-label="Akcie príspevku"
-              @select="(item) => onMenuAction(item, root)"
-            />
-          </div>
+          <div class="pdRootMenu"></div>
         </div>
 
         <!-- Post body -->
@@ -168,11 +160,12 @@
             :bookmark-loading="isBookmarkLoading(root)"
             :like-bump="likeBumpId === root.id"
             :is-authed="auth.isAuthed"
-            :menu-items="[]"
+            :menu-items="menuItemsForPost(root)"
             @reply="focusReplyComposer"
             @like="toggleLike(root)"
             @bookmark="toggleBookmark(root)"
             @share="openShareModal(root)"
+            @menu-select="(item) => onMenuAction(item, root)"
           />
         </div>
       </article>
