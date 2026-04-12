@@ -20,7 +20,7 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
-    "axios": "^1.13.6",
+    "axios": "^1.15.0",
     "html-to-image": "^1.11.13",
     "laravel-echo": "^2.3.0",
     "pinia": "^3.0.4",
@@ -46,6 +46,6 @@
     "tailwindcss": "^4.2.1",
     "vite": "^7.3.0",
     "vite-plugin-vue-devtools": "^8.0.5",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.9"
   }
 }
