@@ -5,6 +5,17 @@
   max-width: 680px;
 }
 
+.profileTab-enter-active,
+.profileTab-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.profileTab-enter-from,
+.profileTab-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
 .topbar {
   position: sticky;
   top: 0;

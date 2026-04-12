@@ -72,6 +72,37 @@
   gap: 0.75rem;
 }
 
+.searchSectionStack {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.searchMode-enter-active,
+.searchMode-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.searchMode-enter-from,
+.searchMode-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.searchSection-enter-active,
+.searchSection-leave-active {
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+}
+
+.searchSection-enter-from,
+.searchSection-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.searchSection-move {
+  transition: transform var(--motion-base);
+}
+
 .searchPage__notice {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 0.75rem;

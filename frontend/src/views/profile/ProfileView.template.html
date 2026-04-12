@@ -432,7 +432,9 @@
           @action="onGlobalEmptyAction"
         />
 
-          <div v-else-if="activeTab === 'observations'" class="observationsList">
+        <Transition v-else name="profileTab" mode="out-in">
+          <div :key="activeTab">
+          <div v-if="activeTab === 'observations'" class="observationsList">
             <ObservationCard
               v-for="item in tabState.observations.items"
               :key="item.id"
@@ -583,6 +585,8 @@
               </div>
             </article>
           </div>
+          </div>
+        </Transition>
 
         <div class="loadMore">
           <button

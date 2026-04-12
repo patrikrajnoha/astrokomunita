@@ -394,7 +394,12 @@
           data-testid="create-content-trigger"
           @click="toggleCreatePicker"
         >
-          <span aria-hidden="true" class="createPlusIcon">+</span>
+          <span aria-hidden="true" class="createPlusIcon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="2" />
+              <path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+          </span>
           <span>Nový</span>
         </button>
 

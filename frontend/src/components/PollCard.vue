@@ -102,7 +102,7 @@ const tickSeconds = ref(Number(props.poll?.ends_in_seconds ?? 0))
 let timerId = null
 
 const isClosed = computed(() => {
-  if (Boolean(localPoll.value?.is_closed)) return true
+  if (localPoll.value?.is_closed) return true
   if (localPoll.value?.ends_in_seconds == null) return false
   return tickSeconds.value <= 0
 })

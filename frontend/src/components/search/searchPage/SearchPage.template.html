@@ -29,7 +29,8 @@
         </nav>
       </section>
 
-      <section v-if="showSearchResults" class="searchPage__content">
+      <Transition name="searchMode" mode="out-in">
+      <section v-if="showSearchResults" key="results" class="searchPage__content">
         <SearchSkeleton v-if="isGlobalLoading" :sections="3" :rows="3" />
 
         <section
@@ -45,6 +46,7 @@
         </section>
 
         <template v-else>
+          <TransitionGroup name="searchSection" tag="div" class="searchSectionStack">
           <section
             v-for="section in globalSections"
             :key="section.key"
@@ -72,6 +74,7 @@
               />
             </div>
           </section>
+          </TransitionGroup>
 
           <section v-if="globalResults.keywords.length" class="searchSection" aria-label="Kľúčové slová">
             <header class="searchSection__header">
@@ -104,7 +107,7 @@
         </template>
       </section>
 
-      <section v-else class="searchPage__content">
+      <section v-else :key="`discovery-${activeTab}`" class="searchPage__content">
         <SearchSkeleton v-if="isDiscoveryLoading" :sections="2" :rows="3" />
 
         <section
@@ -120,6 +123,7 @@
         </section>
 
         <template v-else>
+          <TransitionGroup name="searchSection" tag="div" class="searchSectionStack">
           <section
             v-for="section in activeDiscoverySections"
             :key="section.key"
@@ -147,6 +151,7 @@
               />
             </div>
           </section>
+          </TransitionGroup>
 
           <section v-if="discovery.keywords.length" class="searchSection" aria-label="Populárne kľúčové slová">
             <header class="searchSection__header">
@@ -178,5 +183,6 @@
           />
         </template>
       </section>
+      </Transition>
     </div>
   </section>

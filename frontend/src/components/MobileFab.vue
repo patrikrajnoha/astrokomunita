@@ -2,7 +2,7 @@
   <button
     type="button"
     class="mobileFab"
-    data-tour="conditions"
+    data-tour="conditions-fab"
     :style="fabStyle"
     :aria-label="label"
     :title="label"
