@@ -10,7 +10,7 @@
     </div>
 
     <div class="relative z-[1] mx-auto flex min-h-dvh w-full max-w-[1440px] px-3 py-3 sm:px-5 sm:py-5 lg:px-8 lg:py-8">
-      <div class="grid w-full overflow-hidden rounded-[28px] lg:grid-cols-[minmax(0,1fr)_1px_minmax(420px,520px)] lg:rounded-[36px]">
+      <div class="grid w-full overflow-hidden rounded-[28px] lg:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] lg:rounded-[36px]">
         <section class="authSplit__hero">
           <slot name="hero" />
         </section>
