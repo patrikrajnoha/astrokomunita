@@ -1,25 +1,9 @@
 const appName = String(import.meta.env.VITE_APP_NAME || 'Astrokomunita').trim() || 'Astrokomunita'
 const controllerName = String(import.meta.env.VITE_LEGAL_CONTROLLER_NAME || appName).trim() || appName
-const contactEmail =
-  String(import.meta.env.VITE_LEGAL_CONTACT_EMAIL || import.meta.env.VITE_CONTACT_EMAIL || 'hello@example.com').trim() ||
-  'hello@example.com'
-
-const parsePositiveNumber = (value, fallback) => {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
-}
-
-const logRetentionDays = parsePositiveNumber(import.meta.env.VITE_LOG_RETENTION_DAYS, 30)
-const notificationRetentionDays = parsePositiveNumber(import.meta.env.VITE_NOTIFICATION_RETENTION_DAYS, 90)
-const sessionLifetimeHours = parsePositiveNumber(import.meta.env.VITE_SESSION_LIFETIME_HOURS, 2)
 
 const sharedFacts = {
   appName,
   controllerName,
-  contactEmail,
-  logRetentionDays,
-  notificationRetentionDays,
-  sessionLifetimeHours,
 }
 
 export function getLegalPageContent(kind) {
@@ -27,41 +11,41 @@ export function getLegalPageContent(kind) {
     return {
       title: 'Privacy Policy',
       eyebrow: 'Legal',
-      intro: `${appName} spracúva osobné údaje v minimálnom rozsahu potrebnom na účet, komunitné funkcie a bezpečnosť platformy. Toto je praktický, minimálny text a nie právne poradenstvo.`,
+      intro: `${appName} spracuva osobne udaje len v rozsahu potrebnom na fungovanie uctu, komunity a bezpecnosti platformy.`,
       sections: [
         {
-          heading: 'Prevádzkovateľ a kontakt',
+          heading: 'Prevadzkovatel',
           paragraphs: [
-            `Prevádzkovateľom osobných údajov je ${controllerName}. Pre otázky o súkromí, exporte alebo výmaze účtu nás môžeš kontaktovať na ${contactEmail}.`,
+            `Prevadzkovatelom platformy je ${controllerName}. Tento text je prakticky prehlad aktualneho fungovania aplikacie.`,
           ],
         },
         {
-          heading: 'Aké údaje spracúvame',
+          heading: 'Ake udaje spracuvame',
           paragraphs: [
-            'Spracúvame údaje o účte a profile, najmä meno, username, email, profilový obsah, nastavenia, preferencie a obsah, ktorý sám vytvoríš.',
-            'Ak používaš lokalitu, spracúvame približnú lokalitu a súvisiace preferencie pre personalizáciu obsahu, kalendár a observing funkcie. Session systém môže dočasne uchovať aj IP adresu a user-agent na bezpečnosť a udržanie relácie.',
-            'Pri registrácii používame Cloudflare Turnstile ako bezpečnostný mechanizmus proti botom. Pri emailovej komunikácii môžu byť spracúvané údaje potrebné na verifikáciu emailu, systémové notifikácie a newsletter, ak si ho zapol.',
+            'Udaje o ucte a profile, ktore vlozis pri pouzivani platformy (napr. username, profilove nastavenia a obsah profilu).',
+            'Komunitny obsah, ktory vytvoris alebo upravis (prispevky, komentare, reakcie, ulozene polozky a podobne akcie v aplikacii).',
+            'Technicke a bezpecnostne metadata potrebne na prihlasenie, ochranu formularov a prevenciu zneuzitia sluzby.',
           ],
         },
         {
-          heading: 'Účely a právne základy',
+          heading: 'Preco udaje pouzivame',
           paragraphs: [
-            'Účely spracovania zahŕňajú vytvorenie a správu účtu, prevádzku profilu a komunity, zabezpečenie prihlásenia a CSRF ochrany, prevenciu zneužitia a doručovanie nevyhnutných emailov.',
-            'Právnym základom je plnenie zmluvy pri účte a poskytovaní služby, oprávnený záujem pri bezpečnosti, prevencii zneužitia a technických logoch, a súhlas tam, kde je voliteľná funkcionalita založená na prihlásení k odberu alebo podobnej voľbe.',
+            'Na prevadzku uctu, zobrazenie funkcionalit komunity, dorucenie obsahu a personalizaciu funkcii, ktore si sam zapnes.',
+            'Na bezpecnost platformy, ochranu pred zneuzitim a riesenie technickych incidentov.',
           ],
         },
         {
-          heading: 'Retention a mazanie',
+          heading: 'Ako dlho udaje drzime',
           paragraphs: [
-            `Aktívne session dáta sa bežne držia počas trvania relácie; štandardný session timeout je približne ${sessionLifetimeHours} hodiny a databázové sessions sa priebežne čistia cez session prune alebo garbage collection. IP adresa v sessions môže byť dočasne uložená pre bezpečnosť.`,
-            `Aplikačné logy sa uchovávajú len obmedzene dlho podľa infraštruktúry, cielene približne ${logRetentionDays} dní, ak nie je potrebné dlhšie uchovanie pre riešenie incidentu alebo splnenie povinnosti.`,
-            `In-app notifikácie sú navrhnuté na automatické mazanie po približne ${notificationRetentionDays} dňoch. Pri zrušení účtu sa odstránia aj naviazané dáta a obsah podľa aktuálneho správania aplikácie.`,
+            'Udaje naviazane na ucet sa drzia pocas existencie uctu, pokial ich neodstranis skorej priamo v aplikacii.',
+            'Session data, notifikacie a technicke logy maju obmedzenu dobu uchovania podla aktivnej serverovej konfiguracie.',
+            'Po zruseni uctu prebehne vymazanie alebo anonymizacia naviazanych dat v rozsahu aktualneho spravania aplikacie.',
           ],
         },
         {
-          heading: 'Tvoje práva',
+          heading: 'Tvoje moznosti',
           paragraphs: [
-            'Máš právo požiadať o prístup k svojim údajom, opravu, obmedzenie, námietku podľa povahy spracovania a vymazanie. Priamo v aplikácii máš dostupný export údajov, úpravu profilu a self-service odstránenie účtu.',
+            'V nastaveniach si vies upravit profil, stiahnut export dat a poziadat o odstranenie uctu.',
           ],
         },
       ],
@@ -73,38 +57,33 @@ export function getLegalPageContent(kind) {
     return {
       title: 'Terms of Service',
       eyebrow: 'Legal',
-      intro: `${appName} je komunitná služba pre astronomický obsah, udalosti a sociálne funkcie. Tieto podmienky sú jednoduchý minimálny základ pre bežné používanie platformy.`,
+      intro: `${appName} je komunitna platforma pre astronomicky obsah a socialne funkcie. Pouzivanim sluzby suhlasis s tymito pravidlami.`,
       sections: [
         {
-          heading: 'Používanie služby',
+          heading: 'Zakladne pravidla pouzivania',
           paragraphs: [
-            `Používaním ${appName} súhlasíš s tým, že budeš poskytovať pravdivé údaje o účte, nebudeš zneužívať platformu a budeš rešpektovať komunitné pravidlá, zákon a práva iných osôb.`,
-            'Služba môže obsahovať komunitný obsah, pozvánky, notifikácie, observing nástroje a emailové správy spojené s prevádzkou účtu.',
+            'Pouzivaj platformu zakonny sposobom, s respektom k ostatnym a bez pokusov o narusenie bezpecnosti alebo dostupnosti sluzby.',
+            'Udaje v profile a komunitnom obsahu maju byt pravdive a nesmu porusovat prava tretich stran.',
           ],
         },
         {
-          heading: 'Obsah a účet',
+          heading: 'Obsah a zodpovednost',
           paragraphs: [
-            'Zodpovedáš za obsah, ktorý publikuješ, zdieľaš alebo posielaš cez svoj účet. Obsah nesmie porušovať práva tretích strán, obsahovať spam, zavádzajúce informácie alebo nezákonný materiál.',
-            'Vyhradzujeme si právo obmedziť alebo ukončiť prístup pri zjavnom zneužití, bezpečnostnom incidente alebo porušení pravidiel.',
+            'Za obsah zverejneny cez svoj ucet zodpovedas ty. Obsah nesmie obsahovat spam, podvod, nelegalny material ani skodlive zavadzanie.',
+            'Platforma moze pri poruseni pravidiel obmedzit viditelnost obsahu, docasne obmedzit ucet alebo ukoncit pristup.',
           ],
         },
         {
-          heading: 'Súkromie a bezpečnosť',
+          heading: 'Bezpecnost a ochrana sluzby',
           paragraphs: [
-            `Detaily o osobných údajoch, retention a právach nájdeš na stránke Privacy Policy. Na bezpečnosť registrácie a prevádzky služby môžeme používať session mechanizmy, CSRF ochranu a Cloudflare Turnstile.`,
+            'Na ochranu prihlasenia a formularov pouzivame session mechanizmy, CSRF ochranu a bezpecnostne overenie pri registracii.',
           ],
         },
         {
-          heading: 'Dostupnosť a zmeny',
+          heading: 'Dostupnost a zmeny',
           paragraphs: [
-            'Služba sa poskytuje priebežne a môže sa meniť, dočasne obmedziť alebo aktualizovať bez nároku na nepretržitú dostupnosť. Vybrané funkcie môžu byť pridané, odstránené alebo upravené z technických a bezpečnostných dôvodov.',
-          ],
-        },
-        {
-          heading: 'Kontakt',
-          paragraphs: [
-            `Pre otázky k podmienkam alebo prevádzke služby napíš na ${contactEmail}.`,
+            'Sluzba je priebezne vyvijana. Funkcie sa mozu menit, pridavat alebo odoberat podla technickych a bezpecnostnych potrieb.',
+            'Tieto podmienky mozeme primerane aktualizovat, ak sa zmeni fungovanie platformy alebo legislativne poziadavky.',
           ],
         },
       ],
@@ -115,32 +94,31 @@ export function getLegalPageContent(kind) {
   return {
     title: 'Cookies',
     eyebrow: 'Legal',
-    intro: `${appName} používa minimálny cookies surface potrebný na prihlásenie, bezpečnosť a ochranu formulárov.`,
+    intro: `${appName} pouziva minimalny rozsah cookies a podobnych technologii, ktore su potrebne na bezpecne fungovanie prihlasenia a formularov.`,
     sections: [
       {
-        heading: 'Nevyhnutné cookies a podobné technológie',
+        heading: 'Nevyhnutne cookies',
         paragraphs: [
-          'Používame len nevyhnutné cookies pre fungovanie aplikácie, konkrétne session cookie pre reláciu používateľa a XSRF-TOKEN pre ochranu formulárov a API požiadaviek.',
-          'Pri registrácii používame Cloudflare Turnstile ako bezpečnostný mechanizmus proti botom. Tento mechanizmus môže pracovať s vlastnými technickými identifikátormi alebo signálmi potrebnými na bezpečnosť formulára.',
+          'Pouzivame nevyhnutne cookies pre relaciu pouzivatela a ochranu API poziadaviek (session cookie a XSRF-TOKEN).',
+          'Tieto cookies su potrebne na to, aby prihlasenie, formularove akcie a bezpecnostne mechanizmy fungovali spravne.',
         ],
       },
       {
-        heading: 'Čo momentálne nepoužívame',
+        heading: 'Bezpecnostne overenie',
         paragraphs: [
-          'Podľa aktuálneho stavu nepoužívame analytics ani marketing cookies. Ak sa to v budúcnosti zmení, táto stránka by mala byť aktualizovaná spolu s príslušným consent flow.',
+          'Pri registracii vyuzivame Cloudflare Turnstile proti botom. Tento mechanizmus moze pracovat s technickymi identifikatormi potrebnymi na ochranu formulara.',
         ],
       },
       {
-        heading: 'Retention a sessions',
+        heading: 'Co nepouzivame',
         paragraphs: [
-          `Session cookie slúži na udržanie prihlásenia a štandardne sa viaže na reláciu so session timeoutom približne ${sessionLifetimeHours} hodiny. Databázové sessions sa čistia priebežne cez session prune alebo garbage collection a môžu dočasne obsahovať IP adresu pre bezpečnosť.`,
-          `In-app notifikácie sa mažú po približne ${notificationRetentionDays} dňoch. Aplikačné logy majú mať obmedzenú retention, cielene približne ${logRetentionDays} dní.`,
+          'Podla aktualnej implementacie frontendu nepouzivame reklamne ani analyticke cookies tretich stran.',
         ],
       },
       {
-        heading: 'Kontakt a voľby',
+        heading: 'Sprava preferencii',
         paragraphs: [
-          `Ak máš otázky ku cookies alebo súkromiu, napíš na ${contactEmail}. Svoje konto, export dát a vymazanie účtu spravuješ priamo v nastaveniach aplikácie.`,
+          'Cookies mozes spravovat v prehliadaci. Vypnutie nevyhnutnych cookies moze obmedzit alebo znemoznit prihlasenie do aplikacie.',
         ],
       },
     ],
