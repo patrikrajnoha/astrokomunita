@@ -167,17 +167,17 @@ watch(
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(0 0 0 / 0.64);
+  background: rgb(6 10 16 / 0.72);
 }
 
 .prefs-card {
   width: min(540px, 100%);
-  border-radius: 1rem;
-  border: 1px solid rgb(48 48 48);
-  background: rgb(8 8 8);
-  color: rgb(247 247 247);
-  padding: 1rem;
-  box-shadow: 0 24px 52px rgb(0 0 0 / 0.42);
+  border-radius: 24px;
+  border: 0;
+  background: #151d28;
+  color: #ffffff;
+  padding: 1.1rem;
+  box-shadow: none;
 }
 
 .prefs-header {
@@ -191,15 +191,23 @@ watch(
   margin: 0;
   font-size: 1.1rem;
   font-weight: 800;
+  color: #ffffff;
 }
 
 .prefs-close {
-  width: 2rem;
-  height: 2rem;
+  width: 2.2rem;
+  height: 2.2rem;
   border-radius: 999px;
-  border: 1px solid rgb(58 58 58);
-  background: transparent;
-  color: rgb(209 209 209);
+  border: 0;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.prefs-close:hover {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .prefs-close svg {
@@ -214,15 +222,15 @@ watch(
   margin: 0.55rem 0 0;
   font-size: 0.88rem;
   line-height: 1.4;
-  color: rgb(172 172 172);
+  color: #abb8c9;
 }
 
 .prefs-error {
   margin-top: 0.85rem;
-  border: 1px solid rgb(190 24 93 / 0.6);
-  background: rgb(136 19 55 / 0.22);
-  color: rgb(253 164 175);
-  border-radius: 0.75rem;
+  border: 0;
+  background: rgb(245 84 84 / 0.16);
+  color: #f55454;
+  border-radius: 14px;
   padding: 0.62rem 0.75rem;
   font-size: 0.84rem;
 }
@@ -230,7 +238,7 @@ watch(
 .prefs-loading {
   margin-top: 0.85rem;
   font-size: 0.84rem;
-  color: rgb(175 175 175);
+  color: #abb8c9;
 }
 
 .prefs-list {
@@ -244,22 +252,27 @@ watch(
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border: 1px solid rgb(31 31 31);
-  border-radius: 0.75rem;
-  background: rgb(12 12 12);
+  border: 0;
+  border-radius: 14px;
+  background: #222e3f;
   padding: 0.62rem 0.7rem;
+  transition: background-color 140ms ease;
+}
+
+.prefs-row:hover {
+  background: #1c2736;
 }
 
 .prefs-label {
   font-size: 0.86rem;
-  color: rgb(227 227 227);
+  color: #ffffff;
   line-height: 1.3;
 }
 
 .prefs-checkbox {
-  width: 1rem;
-  height: 1rem;
-  accent-color: rgb(255 255 255);
+  width: 1.08rem;
+  height: 1.08rem;
+  accent-color: #0f73ff;
 }
 
 .prefs-actions {
@@ -270,27 +283,37 @@ watch(
 }
 
 .prefs-btn {
-  min-height: 2.1rem;
-  border-radius: 0.68rem;
-  padding: 0.46rem 0.82rem;
+  min-height: 2.4rem;
+  border-radius: 999px;
+  border: 0;
+  box-shadow: none;
+  padding: 0.5rem 1rem;
   font-size: 0.84rem;
-  font-weight: 700;
+  font-weight: 600;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
 }
 
 .prefs-btn-secondary {
-  border: 1px solid rgb(60 60 60);
-  background: transparent;
-  color: rgb(214 214 214);
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+.prefs-btn-secondary:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .prefs-btn-primary {
-  border: 1px solid rgb(89 89 89);
-  background: rgb(235 235 235);
-  color: rgb(11 11 11);
+  background: #0f73ff;
+  color: #ffffff;
+}
+
+.prefs-btn-primary:hover:not(:disabled) {
+  background: #0d65e6;
 }
 
 .prefs-btn:disabled {
-  opacity: 0.65;
+  opacity: 0.52;
   cursor: not-allowed;
 }
 
@@ -330,7 +353,7 @@ watch(
   .prefs-actions {
     position: sticky;
     bottom: 0;
-    background: rgb(8 8 8);
+    background: #151d28;
     padding-top: 0.7rem;
   }
 }

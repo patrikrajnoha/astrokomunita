@@ -21,6 +21,12 @@
   --color-secondary-btn-hover: #2a3a52;
   --color-danger:           #EB2452;
   --color-danger-hover:     #f1456c;
+  --color-orange:           #FE8311;
+  --color-yellow:           #FED811;
+  --color-green:            #73DF84;
+  --color-blue-soft:        #1185FE;
+  --color-pink:             #EF75EA;
+  --color-red-soft:         #F55454;
 }
 
 .ui-divider,

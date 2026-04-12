@@ -88,7 +88,7 @@
                 <div class="post-meta">
                   <div class="post-author ui-stream-item__meta">
                     <button class="author-name" type="button" @click.stop="openProfile(p)">
-                      {{ p?.user?.name ?? 'Pouzivatel' }}
+                      {{ p?.user?.name ?? 'Používateľ' }}
                     </button>
                     <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Overeny bot">BOT</span>
                     <span class="author-username">@{{ p?.user?.username }}</span>
@@ -127,7 +127,7 @@
                       :disabled="editSavingId === p.id"
                       @click.stop="saveInlineEdit(p)"
                     >
-                      {{ editSavingId === p.id ? 'Ukladám...' : 'Ulozit' }}
+                      {{ editSavingId === p.id ? 'Ukladám...' : 'Uložiť' }}
                     </button>
                     <button
                       type="button"
@@ -135,7 +135,7 @@
                       :disabled="editSavingId === p.id"
                       @click.stop="cancelInlineEdit"
                     >
-                      Zrusit
+                      Zrušiť
                     </button>
                   </div>
                 </template>
@@ -147,7 +147,7 @@
                     type="button"
                     @click.stop="togglePostContent(p)"
                   >
-                    {{ isPostContentExpanded(p) ? 'Zobrazit menej' : 'Zobrazit viac' }}
+                    {{ isPostContentExpanded(p) ? 'Zobraziť menej' : 'Zobraziť viac' }}
                   </button>
                 </template>
               </div>
@@ -189,7 +189,7 @@
                 <PostMediaImage
                   v-else
                   :src="stelaPreviewImageSrc(p)"
-                  alt="Stela APOD nahlad"
+                  alt="Stela APOD náhľad"
                   :blurred="isAttachmentPending(p)"
                   :status="p?.attachment_moderation_status"
                   fit="cover"
@@ -210,7 +210,7 @@
                 <PostMediaImage
                   v-else-if="isImage(p)"
                   :src="attachmentSrc(p)"
-                  alt="Priloha prispevku"
+                  alt="Príloha príspevku"
                   :blurred="isAttachmentPending(p)"
                   :status="p?.attachment_moderation_status"
                   fit="cover"
@@ -236,12 +236,12 @@
                 >
                   <div class="file-icon" aria-hidden="true">&#128206;</div>
                   <div class="file-info">
-                    <div class="file-title">Pr?loha</div>
+                    <div class="file-title">Príloha</div>
                     <div class="file-name">
-                      {{ p.attachment_original_name || 'S?bor' }}
+                      {{ p.attachment_original_name || 'Súbor' }}
                     </div>
                   </div>
-                  <div class="file-arrow">?</div>
+                  <div class="file-arrow">→</div>
                 </a>
               </div>
 

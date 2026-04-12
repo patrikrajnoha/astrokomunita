@@ -176,14 +176,16 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.72);
-  background: rgb(var(--color-bg-rgb) / 0.66);
-  color: var(--color-surface);
+  border: 0;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
   font-weight: 800;
 }
 
 .removeMedia:hover {
-  background: rgb(var(--color-bg-rgb) / 0.88);
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .removeMedia:disabled {
@@ -240,16 +242,18 @@
 
 .fileRemove {
   padding: 0.34rem 0.58rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgb(var(--color-danger-rgb) / 0.5);
-  background: rgb(var(--color-danger-rgb) / 0.12);
-  color: var(--color-danger);
+  border-radius: 999px;
+  border: 0;
+  box-shadow: none;
+  background: #eb2452;
+  color: #ffffff;
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 500;
+  transition: background-color 140ms ease, opacity 140ms ease;
 }
 
 .fileRemove:hover {
-  background: rgb(var(--color-danger-rgb) / 0.2);
+  background: rgb(245 84 84 / 1);
 }
 
 .fileRemove:disabled {
@@ -317,8 +321,9 @@
 .iconBtn {
   width: 38px;
   height: 38px;
-  border-radius: 14px;
+  border-radius: 999px;
   border: none;
+  box-shadow: none;
   background: var(--color-btn-secondary-bg);
   color: var(--color-btn-secondary-text);
   display: inline-flex;
@@ -354,12 +359,13 @@
 
 .actionbtn {
   padding: 0.5rem 0.76rem;
-  border-radius: var(--radius-md);
+  border-radius: 999px;
   border: none;
+  box-shadow: none;
   background: var(--color-accent);
   color: var(--color-white);
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 500;
   transition: background-color 160ms ease, opacity 160ms ease;
 }
 
@@ -386,7 +392,7 @@
   position: fixed;
   inset: 0;
   z-index: 95;
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(6 10 16 / 0.72);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -396,9 +402,9 @@
   width: min(100%, 620px);
   max-height: 80vh;
   overflow: auto;
-  border-radius: var(--radius-xl);
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  background: rgb(var(--color-bg-rgb) / 0.96);
+  border-radius: 24px;
+  border: 0;
+  background: #151d28;
   padding: 0.8rem;
   display: grid;
   gap: 0.65rem;
@@ -417,19 +423,26 @@
 }
 
 .modalClose {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-surface);
-  width: 28px;
-  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
+  width: 32px;
+  height: 32px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.modalClose:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .modalInput {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.46);
-  color: var(--color-surface);
+  border: 0;
+  border-radius: 14px;
+  background: #1c2736;
+  color: #ffffff;
   padding: 0.52rem 0.65rem;
 }
 
@@ -440,11 +453,11 @@
 }
 
 .gifTile {
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.24);
-  border-radius: 10px;
+  border: 0;
+  border-radius: 14px;
   overflow: hidden;
   padding: 0;
-  background: transparent;
+  background: #1c2736;
   min-height: 92px;
 }
 

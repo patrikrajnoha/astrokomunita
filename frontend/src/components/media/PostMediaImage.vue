@@ -28,10 +28,10 @@
         <button
           type="button"
           class="media-overlay-btn"
-          aria-label="Zobrazit cele"
+          aria-label="Zobraziť celé"
           @click.stop="openLightbox"
         >
-          Zobrazit cele
+          Zobraziť celé
         </button>
       </div>
       <div v-if="effectiveBlurred" class="media-state-overlay" :class="{ 'media-state-overlay--animated': isPendingStatus }">
@@ -85,7 +85,7 @@ const showBadge = ref(false)
 let resizeRaf = null
 let pollTimer = null
 
-const altText = computed(() => props.alt || 'Priloha')
+const altText = computed(() => props.alt || 'Príloha')
 const effectiveBlurred = computed(() => props.blurred && !isRevealing.value)
 const normalizedStatus = computed(() => String(props.status || '').trim().toLowerCase())
 const isPendingStatus = computed(() => {

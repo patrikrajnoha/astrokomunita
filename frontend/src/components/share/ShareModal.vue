@@ -41,7 +41,7 @@
         </div>
 
         <div v-if="generated?.dataUrl" class="preview-wrap">
-          <img class="preview-image" :src="generated.dataUrl" alt="Nahlad zdielaneho obrazku" />
+          <img class="preview-image" :src="generated.dataUrl" alt="Náhľad zdieľaného obrázku" />
 
           <button
             v-if="canShareFile"
@@ -171,7 +171,7 @@ async function onShareLink() {
     await shareLink(props.post)
     showToast('Odkaz je pripraveny.', 'success')
   } catch {
-    showToast('Nepodarilo sa zdielat odkaz.', 'error')
+    showToast('Nepodarilo sa zdieľať odkaz.', 'error')
   }
 }
 
@@ -180,7 +180,7 @@ async function onCopyLink() {
   const url = buildPostUrl(props.post)
 
   if (!url) {
-    showToast('Nepodarilo sa vytvorit odkaz.', 'error')
+    showToast('Nepodarilo sa vytvoriť odkaz.', 'error')
     return
   }
 
@@ -211,9 +211,9 @@ async function onGenerateImage() {
   generating.value = true
   try {
     generated.value = await generateShareImage(props.post)
-    showToast('Obrazok je pripraveny.', 'success')
+    showToast('Obrázok je pripravený.', 'success')
   } catch {
-    showToast('Generovanie obrazka zlyhalo. Skus odkaz.', 'error')
+    showToast('Generovanie obrázka zlyhalo. Skús odkaz.', 'error')
     await onCopyLink()
   } finally {
     generating.value = false
@@ -231,7 +231,7 @@ async function onShareGenerated() {
     try {
       await navigator.share({
         title: String(props.post?.title || 'Príspevok'),
-        text: 'Zdielam post z Astrokomunity',
+        text: 'Zdieľam post z Astrokomunity',
         files: [generated.value.file],
       })
       return
@@ -253,7 +253,7 @@ function onDownloadGenerated() {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  showToast('PNG bolo stiahnute.', 'success')
+  showToast('PNG bolo stiahnuté.', 'success')
 }
 </script>
 
@@ -262,7 +262,7 @@ function onDownloadGenerated() {
   position: fixed;
   inset: 0;
   z-index: 1150;
-  background: rgba(3, 7, 18, 0.6);
+  background: rgb(6 10 16 / 0.72);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -273,11 +273,11 @@ function onDownloadGenerated() {
   width: min(520px, 100%);
   max-height: min(88vh, 820px);
   overflow: auto;
-  border-radius: 18px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
-  background: rgb(var(--color-bg-rgb) / 0.98);
-  color: var(--color-surface);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  border-radius: 24px;
+  border: 0;
+  background: #151d28;
+  color: #ffffff;
+  box-shadow: none;
   padding: 16px;
 }
 
@@ -292,17 +292,25 @@ function onDownloadGenerated() {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
+  color: #ffffff;
 }
 
 .icon-close {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: transparent;
-  color: var(--color-text-secondary);
+  border-radius: 999px;
+  border: 0;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
   font-size: 16px;
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.icon-close:hover {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .share-actions-row {
@@ -317,12 +325,14 @@ function onDownloadGenerated() {
 .share-btn,
 .copy-link {
   min-height: 40px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  border-radius: 999px;
+  border: 0;
+  box-shadow: none;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 0 14px;
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
 }
 
 .share-btn {
@@ -335,16 +345,24 @@ function onDownloadGenerated() {
 }
 
 .share-btn--primary {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-white);
+  background: #0f73ff;
+  color: #ffffff;
+}
+
+.share-btn--primary:hover:not(:disabled) {
+  background: #0d65e6;
 }
 
 .share-btn--secondary,
 .copy-link {
-  background: transparent;
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.34);
-  color: var(--color-surface);
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+.share-btn--secondary:hover:not(:disabled),
+.copy-link:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .preview-wrap {
@@ -356,15 +374,15 @@ function onDownloadGenerated() {
 
 .preview-image {
   width: 100%;
-  border-radius: 12px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.3);
-  background: var(--color-bg-main);
+  border-radius: 14px;
+  border: 0;
+  background: #1c2736;
 }
 
 .share-btn:focus-visible,
 .copy-link:focus-visible,
 .icon-close:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid #0f73ff;
   outline-offset: 2px;
 }
 

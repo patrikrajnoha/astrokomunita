@@ -109,18 +109,16 @@ function formatShortDate(value) {
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(5 8 19 / 0.72);
+  background: rgb(6 10 16 / 0.72);
   backdrop-filter: blur(8px);
 }
 
 .card {
   width: min(100%, 660px);
-  border-radius: 20px;
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.14);
-  background:
-    radial-gradient(600px 200px at 10% 0%, rgb(var(--color-primary-rgb) / 0.18), transparent 60%),
-    linear-gradient(160deg, rgb(var(--color-bg-rgb) / 0.98), rgb(var(--color-bg-rgb) / 0.95));
-  box-shadow: 0 32px 80px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(var(--color-surface-rgb) / 0.06);
+  border-radius: 24px;
+  border: 0;
+  background: #151d28;
+  box-shadow: none;
   padding: 1.25rem;
   overflow: hidden;
 }
@@ -140,7 +138,7 @@ function formatShortDate(value) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--color-primary);
+  color: #0f73ff;
   opacity: 0.85;
 }
 
@@ -148,7 +146,7 @@ function formatShortDate(value) {
   margin: 0;
   font-size: clamp(1.2rem, 3vw, 1.6rem);
   font-weight: 700;
-  color: rgb(var(--color-surface-rgb) / 0.97);
+  color: #ffffff;
   line-height: 1.15;
 }
 
@@ -156,15 +154,16 @@ function formatShortDate(value) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
   border: none;
-  background: rgb(var(--color-surface-rgb) / 0.08);
-  color: rgb(var(--color-surface-rgb) / 0.6);
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.14s, color 0.14s;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .closeBtn svg {
@@ -173,8 +172,8 @@ function formatShortDate(value) {
 }
 
 .closeBtn:hover {
-  background: rgb(var(--color-surface-rgb) / 0.15);
-  color: rgb(var(--color-surface-rgb) / 0.95);
+  background: #1c2736;
+  color: #ffffff;
 }
 
 /* ── Grid ── */
@@ -187,10 +186,10 @@ function formatShortDate(value) {
 
 /* ── Tile ── */
 .tile {
-  border: 1px solid rgb(var(--color-surface-rgb) / 0.1);
-  border-radius: 12px;
+  border: 0;
+  border-radius: 16px;
   padding: 0.7rem 0.75rem 0.6rem;
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  background: #1c2736;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -203,14 +202,14 @@ function formatShortDate(value) {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: rgb(var(--color-text-secondary-rgb) / 0.75);
+  color: #abb8c9;
 }
 
 .tile__title {
   margin: 0;
   font-size: 0.82rem;
   font-weight: 600;
-  color: rgb(var(--color-surface-rgb) / 0.96);
+  color: #ffffff;
   line-height: 1.3;
   flex: 1;
   display: -webkit-box;
@@ -228,33 +227,33 @@ function formatShortDate(value) {
 
 .calBtn {
   font-size: 0.65rem;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
-  padding: 0.18rem 0.5rem;
+  padding: 0.28rem 0.64rem;
   border-radius: 999px;
-  border: 1px solid transparent;
-  transition: background 0.12s;
+  border: 0;
+  box-shadow: none;
+  transition: background-color 140ms ease, color 140ms ease;
   white-space: nowrap;
 }
 
 .calBtn--g {
-  border-color: rgb(66 133 244 / 0.35);
-  background: rgb(66 133 244 / 0.1);
-  color: rgb(66 133 244 / 0.9);
+  background: #0f73ff;
+  color: #ffffff;
 }
 
 .calBtn--g:hover {
-  background: rgb(66 133 244 / 0.2);
+  background: #0d65e6;
 }
 
 .calBtn--ics {
-  border-color: rgb(var(--color-primary-rgb) / 0.3);
-  background: rgb(var(--color-primary-rgb) / 0.08);
-  color: var(--color-primary);
+  background: #222e3f;
+  color: #abb8c9;
 }
 
 .calBtn--ics:hover {
-  background: rgb(var(--color-primary-rgb) / 0.16);
+  background: #1c2736;
+  color: #ffffff;
 }
 
 /* ── Footer ── */
@@ -264,40 +263,40 @@ function formatShortDate(value) {
   align-items: center;
   gap: 0.45rem;
   padding-top: 0.75rem;
-  border-top: 1px solid rgb(var(--color-surface-rgb) / 0.08);
+  border-top: 1px solid rgb(34 46 63 / 0.85);
 }
 
 .footBtn {
-  border-radius: 10px;
+  border-radius: 999px;
   padding: 0.5rem 0.9rem;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 0;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  transition: background 0.14s;
+  box-shadow: none;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .footBtn--ghost {
-  border-color: rgb(var(--color-surface-rgb) / 0.18);
-  background: rgb(var(--color-bg-rgb) / 0.5);
-  color: rgb(var(--color-surface-rgb) / 0.85);
+  background: #222e3f;
+  color: #abb8c9;
 }
 
 .footBtn--ghost:hover {
-  background: rgb(var(--color-surface-rgb) / 0.07);
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .footBtn--primary {
-  border-color: rgb(var(--color-primary-rgb) / 0.45);
-  background: rgb(var(--color-primary-rgb) / 0.18);
-  color: var(--color-primary);
+  background: #0f73ff;
+  color: #ffffff;
 }
 
 .footBtn--primary:hover {
-  background: rgb(var(--color-primary-rgb) / 0.28);
+  background: #0d65e6;
 }
 
 /* ── Animations ── */

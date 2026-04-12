@@ -3,87 +3,92 @@
     <transition name="vgate">
       <div
         v-if="open"
-        class="fixed inset-0 z-[1400] flex items-center justify-center p-4"
-        style="background:rgba(1,6,15,0.78);backdrop-filter:blur(12px) saturate(180%)"
+        class="vgate-overlay fixed inset-0 z-[1400] flex items-center justify-center p-4"
         data-testid="email-verification-gate"
       >
         <section
           ref="cardRef"
-          class="vgate-card w-full max-w-[420px] bg-app rounded-2xl px-6 pt-6 pb-6"
+          class="vgate-card w-full max-w-[420px]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="email-gate-title"
           tabindex="-1"
         >
-          <!-- Icon -->
-          <div class="w-10 h-10 rounded-full bg-vivid/10 flex items-center justify-center mb-5">
-            <svg class="w-[18px] h-[18px] text-vivid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <div class="vgate-icon" aria-hidden="true">
+            <svg
+              class="vgate-icon__glyph"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
               <rect x="2" y="4" width="20" height="16" rx="2.5" />
               <path d="m2 7 10 6.5L22 7" />
             </svg>
           </div>
 
-          <h2 id="email-gate-title" class="text-white text-[1.15rem] font-semibold leading-snug">
-            Over svoj e-mail
+          <h2 id="email-gate-title" class="vgate-title">
+            Potvrď svoju identitu ✨
           </h2>
-          <p class="mt-2 text-muted text-sm leading-relaxed">
-            Poslali sme overovací kód na
-            <strong class="text-vivid font-medium">{{ account.email || 'tvoj e-mail' }}</strong>.
-            Kým kód nepotvrdíš, aplikáciu nie je možné používať.
+          <p class="vgate-description">
+            Overovací kód sme poslali na
+            <span class="vgate-email">{{ account.email || 'tvoj e-mail' }}</span>
+          </p>
+          <p class="vgate-description vgate-description--secondary">
+            Zadaj ho a vstúp do Astrokomunity.
           </p>
 
-          <!-- Alerts -->
           <transition name="vgate-alert">
             <div
               v-if="state.success"
-              class="mt-4 rounded-xl bg-green-500/10 text-green-400 px-4 py-2.5 text-sm"
+              class="vgate-pill vgate-pill--success"
               role="status"
             >
               {{ state.success }}
             </div>
           </transition>
+
           <transition name="vgate-alert">
             <div
               v-if="state.error"
-              class="mt-4 rounded-xl bg-danger/10 text-danger px-4 py-2.5 text-sm"
+              class="vgate-pill vgate-pill--error"
               role="alert"
             >
               {{ state.error }}
             </div>
           </transition>
 
-          <!-- Input -->
-          <div class="mt-5">
-            <label class="block text-muted text-xs font-medium mb-1.5" for="email-gate-code">
+          <div class="vgate-field">
+            <label class="vgate-label" for="email-gate-code">
               Overovací kód
             </label>
             <input
               id="email-gate-code"
               v-model.trim="form.code"
-              class="vgate-input w-full bg-hover rounded-xl px-4 py-3 text-white text-base tracking-widest transition-shadow"
+              class="vgate-input"
               type="text"
               inputmode="numeric"
               autocomplete="one-time-code"
               placeholder="12345-67890"
               :disabled="state.loading || state.confirming"
             />
-            <p v-if="state.fieldError" class="mt-1.5 text-danger text-xs">{{ state.fieldError }}</p>
+            <p v-if="state.fieldError" class="vgate-fieldError">{{ state.fieldError }}</p>
           </div>
 
-          <!-- Confirm -->
           <button
             type="button"
-            class="mt-3 w-full rounded-2xl bg-vivid hover:bg-vivid-hover text-white font-medium py-3 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+            class="vgate-button vgate-button--primary"
             :disabled="state.loading || state.sending || state.confirming || !form.code"
             @click="confirmCode"
           >
-            {{ state.confirming ? 'Potvrdzujem…' : 'Potvrdiť kód' }}
+            Pokračovať
           </button>
 
-          <!-- Resend -->
           <button
             type="button"
-            class="mt-2 w-full rounded-2xl bg-secondary-btn hover:bg-secondary-btn-hover text-muted font-medium py-3 text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
+            class="vgate-button vgate-button--secondary"
             :disabled="state.loading || state.sending || state.confirming || account.secondsToResend > 0"
             @click="sendCode"
           >
@@ -137,11 +142,16 @@ let previousBodyOverflow = ''
 let previousActiveElement = null
 let initialSendTriggered = false
 
+function formatResendTime(seconds) {
+  const clamped = Math.max(0, Number(seconds || 0))
+  return `${clamped}s`
+}
+
 const sendButtonLabel = computed(() => {
-  if (state.loading) return 'Načítavam…'
-  if (state.sending) return 'Odosielam…'
-  if (account.secondsToResend > 0) return `Opakovať za ${account.secondsToResend} s`
-  return 'Poslať overovací e-mail'
+  if (state.loading) return 'Načítavam...'
+  if (state.sending) return 'Odosielam...'
+  if (account.secondsToResend > 0) return `Znova vyslať kód o ${formatResendTime(account.secondsToResend)}`
+  return 'Znova vyslať kód'
 })
 
 function extractFirstError(errorsObject, field) {
@@ -241,7 +251,7 @@ async function sendCode() {
     await auth.csrf()
     const response = await http.post('/account/email/verification/send', {})
     applyStatus(response?.data?.data || {})
-    state.success = response?.data?.message || 'Overovací kód bol odoslaný.'
+    state.success = 'Kód bol odoslaný ✉️'
     initialSendTriggered = true
   } catch (error) {
     const resolved = resolveRequestError(error, 'Nepodarilo sa odoslať overovací kód.')
@@ -279,7 +289,8 @@ async function confirmCode() {
     }
   } catch (error) {
     const resolved = resolveRequestError(error, 'Nepodarilo sa overiť kód.')
-    state.error = resolved.message
+    const status = Number(error?.response?.status || 0)
+    state.error = status === 422 ? 'Neplatný kód. Skús znova.' : resolved.message
     state.fieldError = resolved.fieldError
   } finally {
     state.confirming = false
@@ -387,65 +398,234 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-/* Backdrop fade */
+.vgate-overlay {
+  background: rgb(4 8 14 / 82%);
+  backdrop-filter: blur(8px);
+}
+
+.vgate-card {
+  background: #151d28;
+  border: 0;
+  border-radius: 24px;
+  box-shadow: none;
+  padding: 24px;
+}
+
+.vgate-icon {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgb(15 115 255 / 14%);
+  color: #0f73ff;
+}
+
+.vgate-icon__glyph {
+  width: 20px;
+  height: 20px;
+}
+
+.vgate-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1.42rem;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+}
+
+.vgate-description {
+  margin: 10px 0 0;
+  color: #abb8c9;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.vgate-description--secondary {
+  margin-top: 8px;
+}
+
+.vgate-email {
+  color: #0f73ff;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.vgate-pill {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.81rem;
+  line-height: 1.35;
+}
+
+.vgate-pill--success {
+  background: rgb(115 223 132 / 14%);
+  color: #73df84;
+}
+
+.vgate-pill--error {
+  background: rgb(245 84 84 / 14%);
+  color: #eb2452;
+}
+
+.vgate-field {
+  margin-top: 18px;
+}
+
+.vgate-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #abb8c9;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.vgate-fieldError {
+  margin-top: 7px;
+  color: #eb2452;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .vgate-enter-active,
 .vgate-leave-active {
   transition: opacity 220ms ease;
 }
+
 .vgate-enter-from,
 .vgate-leave-to {
   opacity: 0;
 }
 
-/* Card scale */
 .vgate-enter-active .vgate-card {
-  animation: vgateIn 300ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  animation: vgateIn 280ms ease both;
 }
+
 .vgate-leave-active .vgate-card {
   animation: vgateOut 180ms ease forwards;
 }
 
 @keyframes vgateIn {
   from {
-    transform: scale(0.92) translateY(14px);
+    transform: scale(0.96) translateY(12px);
     opacity: 0;
   }
+
   to {
     transform: scale(1) translateY(0);
     opacity: 1;
   }
 }
+
 @keyframes vgateOut {
   to {
-    transform: scale(0.95) translateY(6px);
+    transform: scale(0.97) translateY(8px);
     opacity: 0;
   }
 }
 
-/* Alert slide */
 .vgate-alert-enter-active,
 .vgate-alert-leave-active {
   transition: opacity 160ms ease, transform 160ms ease;
 }
+
 .vgate-alert-enter-from,
 .vgate-alert-leave-to {
   opacity: 0;
   transform: translateY(-4px);
 }
 
-/* Input */
 .vgate-input {
-  border: none;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 16px;
+  background: #1c2736;
+  color: #ffffff;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
   outline: none;
+  transition: box-shadow 140ms ease, background-color 140ms ease, opacity 140ms ease;
 }
+
 .vgate-input::placeholder {
-  color: rgba(171, 184, 201, 0.3);
+  color: rgb(171 184 201 / 62%);
 }
+
 .vgate-input:focus {
-  box-shadow: 0 0 0 2px rgba(15, 115, 255, 0.35);
+  box-shadow: 0 0 0 3px rgb(15 115 255 / 34%);
 }
+
 .vgate-input:disabled {
-  opacity: 0.5;
+  opacity: 0.54;
   cursor: not-allowed;
+}
+
+.vgate-button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  font-size: 0.94rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.vgate-button--primary {
+  background: #0f73ff;
+  color: #ffffff;
+}
+
+.vgate-button--primary:hover {
+  background: #0d65e6;
+}
+
+.vgate-button--secondary {
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+.vgate-button--secondary:hover {
+  background: #1c2736;
+  color: #abb8c9;
+}
+
+.vgate-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(15 115 255 / 34%);
+}
+
+.vgate-button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .vgate-overlay {
+    padding: 16px;
+    align-items: flex-end;
+  }
+
+  .vgate-card {
+    border-radius: 20px;
+    padding: 20px 16px 16px;
+  }
+
+  .vgate-title {
+    font-size: 1.32rem;
+  }
+
+  .vgate-description {
+    font-size: 0.91rem;
+  }
 }
 </style>

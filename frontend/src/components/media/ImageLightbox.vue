@@ -109,7 +109,7 @@ function onKeydown(event) {
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(2, 6, 23, 0.84);
+  background: rgb(6 10 16 / 0.78);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,10 +120,10 @@ function onKeydown(event) {
   position: relative;
   width: min(1200px, 100%);
   height: min(92vh, 980px);
-  border-radius: 14px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.35);
-  background: rgb(var(--color-bg-rgb) / 0.92);
-  box-shadow: 0 24px 68px rgba(0, 0, 0, 0.45);
+  border-radius: 20px;
+  border: 0;
+  background: #151d28;
+  box-shadow: none;
 }
 
 .lightbox-stage {
@@ -140,7 +140,7 @@ function onKeydown(event) {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 10px;
+  border-radius: 14px;
 }
 
 .lightbox-close {
@@ -149,16 +149,23 @@ function onKeydown(event) {
   right: 10px;
   width: 36px;
   height: 36px;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.45);
-  border-radius: 10px;
-  background: rgb(var(--color-bg-rgb) / 0.9);
-  color: var(--color-surface);
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
   cursor: pointer;
   z-index: 2;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.lightbox-close:hover {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .lightbox-close:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid #0f73ff;
   outline-offset: 2px;
 }
 </style>

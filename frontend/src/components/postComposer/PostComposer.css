@@ -111,9 +111,10 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgb(var(--color-bg-rgb) / 0.75);
-  color: var(--surface);
+  border: 0;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -122,6 +123,11 @@
 .removeMedia svg {
   width: 0.9rem;
   height: 0.9rem;
+}
+
+.removeMedia:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .fileChip {
@@ -310,18 +316,22 @@
 }
 
 .eventCalendarBtn {
-  background: rgb(var(--color-accent-rgb) / 0.18);
-  color: var(--color-accent);
+  background: #0f73ff;
+  color: #ffffff;
 }
 
 .eventRemoveBtn {
-  background: var(--color-btn-secondary-bg);
-  color: var(--color-btn-secondary-text);
+  background: #222e3f;
+  color: #abb8c9;
 }
 
-.eventCalendarBtn:hover:not(:disabled),
+.eventCalendarBtn:hover:not(:disabled) {
+  background: #0d65e6;
+}
+
 .eventRemoveBtn:hover:not(:disabled) {
-  opacity: 0.85;
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .actionsBar {
@@ -365,8 +375,9 @@
 .actionIconBtn {
   width: 38px;
   height: 38px;
-  border-radius: 14px;
+  border-radius: 999px;
   border: none;
+  box-shadow: none;
   background: var(--color-btn-secondary-bg);
   color: var(--color-btn-secondary-text);
   display: inline-flex;
@@ -459,7 +470,7 @@
   position: fixed;
   inset: 0;
   z-index: 95;
-  background: rgb(0 0 0 / 0.45);
+  background: rgb(6 10 16 / 0.72);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -469,9 +480,9 @@
   width: min(100%, 620px);
   max-height: 80vh;
   overflow: auto;
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
+  border-radius: 24px;
+  border: 0;
+  background: #151d28;
   padding: 0.8rem;
   display: grid;
   gap: 0.65rem;
@@ -490,19 +501,26 @@
 }
 
 .modalClose {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--color-text-primary);
-  width: 44px;
-  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: none;
+  background: #222e3f;
+  color: #abb8c9;
+  width: 36px;
+  height: 36px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.modalClose:hover:not(:disabled) {
+  background: #1c2736;
+  color: #ffffff;
 }
 
 .modalInput {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: rgb(var(--color-bg-rgb) / 0.46);
-  color: var(--color-text-primary);
+  border: 0;
+  border-radius: 14px;
+  background: #1c2736;
+  color: #ffffff;
   padding: 0.52rem 0.65rem;
 }
 
@@ -513,11 +531,11 @@
 }
 
 .gifTile {
-  border: 1px solid var(--soft-border);
-  border-radius: 10px;
+  border: 0;
+  border-radius: 14px;
   overflow: hidden;
   padding: 0;
-  background: transparent;
+  background: #1c2736;
   min-height: 92px;
 }
 
@@ -547,13 +565,18 @@
 }
 
 .eventItem {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-primary);
+  border: 0;
+  border-radius: 14px;
+  background: #1c2736;
+  color: #ffffff;
   text-align: left;
   padding: 0.5rem 0.58rem;
   display: grid;
+  transition: background-color 140ms ease;
+}
+
+.eventItem:hover {
+  background: #222e3f;
 }
 
 .eventItemTitle {
