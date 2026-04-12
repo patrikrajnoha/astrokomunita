@@ -429,6 +429,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .onbOverlay {
+  --onb-bg: #151d28;
+  --onb-surface-hover: #1c2736;
+  --onb-primary: #0f73ff;
+  --onb-text: #ffffff;
+  --onb-muted: #abb8c9;
+  --onb-secondary-btn: #222e3f;
+  --onb-danger: #eb2452;
+
   position: fixed;
   inset: 0;
   z-index: 1300;
@@ -437,24 +445,26 @@ onBeforeUnmount(() => {
   justify-content: center;
   overflow-y: auto;
   padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
-  background: rgb(5 9 14 / 0.72);
-  backdrop-filter: blur(10px);
+  background: rgb(21 29 40 / 0.78);
+  backdrop-filter: blur(8px);
 }
 
 .onbCard {
   width: 100%;
-  max-width: 900px;
+  max-width: 920px;
   max-height: calc(100dvh - 1.5rem);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  border-radius: 26px;
-  background: #151d28;
-  color: #ffffff;
+  border-radius: 24px;
+  background: var(--onb-bg);
+  color: var(--onb-text);
+  border: 1px solid rgb(171 184 201 / 0.16);
   overflow: hidden;
+  animation: onbCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .onbHeader {
-  padding: 1.5rem 1.5rem 0.75rem;
+  padding: 1.35rem 1.35rem 0.7rem;
 }
 
 .onbHeaderRow {
@@ -484,29 +494,29 @@ onBeforeUnmount(() => {
 }
 
 .onbStepText {
-  color: #abb8c9;
+  color: var(--onb-muted);
   font-size: 0.78rem;
 }
 
 .onbTitle {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: clamp(1.2rem, 1.35vw, 1.38rem);
   line-height: 1.2;
-  color: #ffffff;
+  color: var(--onb-text);
 }
 
 .onbSubtitle {
   margin: 0.45rem 0 0;
-  color: #abb8c9;
-  font-size: 0.92rem;
+  color: var(--onb-muted);
+  font-size: 0.9rem;
   line-height: 1.45;
 }
 
 .onbBody {
   display: grid;
-  grid-template-columns: 1fr minmax(0, 275px);
-  gap: 1.2rem;
-  padding: 0.65rem 1.5rem 1rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 285px);
+  gap: 1rem;
+  padding: 0.65rem 1.35rem 1rem;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -519,19 +529,20 @@ onBeforeUnmount(() => {
 }
 
 .onbSection {
-  min-height: 270px;
+  min-height: 0;
 }
 
 .onbSelectionHeader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
 .onbHint {
   margin: 0;
-  color: #abb8c9;
+  color: var(--onb-muted);
   font-size: 0.88rem;
   line-height: 1.45;
 }
@@ -543,51 +554,52 @@ onBeforeUnmount(() => {
 .onbCounter {
   border-radius: 999px;
   padding: 0.25rem 0.65rem;
-  background: #222e3f;
-  color: #abb8c9;
+  background: var(--onb-secondary-btn);
+  color: var(--onb-muted);
   font-size: 0.78rem;
   font-weight: 600;
 }
 
 .onbCounter.is-full {
-  background: rgb(15 115 255 / 0.22);
-  color: #0f73ff;
+  background: rgb(15 115 255 / 0.18);
+  color: var(--onb-primary);
 }
 
 .onbError {
   margin: 0.6rem 0 0;
-  color: #eb2452;
+  color: var(--onb-danger);
   font-size: 0.82rem;
 }
 
 .onbWidgetGrid {
   margin-top: 0.85rem;
   display: grid;
-  gap: 0.62rem;
+  gap: 0.55rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .onbWidgetCard {
   border: none;
   box-shadow: none;
-  border-radius: 18px;
-  background: #222e3f;
-  color: #abb8c9;
+  border-radius: 20px;
+  background: var(--onb-secondary-btn);
+  color: var(--onb-muted);
   text-align: left;
-  padding: 0.82rem 0.9rem;
+  padding: 0.84rem 0.9rem;
   display: grid;
   gap: 0.3rem;
   cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .onbWidgetCard:hover {
-  background: #1c2736;
+  background: var(--onb-surface-hover);
+  transform: translateY(-1px);
 }
 
 .onbWidgetCard.is-selected {
-  background: #0f73ff;
-  color: #ffffff;
+  background: var(--onb-primary);
+  color: var(--onb-text);
 }
 
 .onbWidgetTitle {
@@ -619,7 +631,7 @@ onBeforeUnmount(() => {
 .onbLabel {
   display: block;
   margin-bottom: 0.35rem;
-  color: #abb8c9;
+  color: var(--onb-muted);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -628,21 +640,22 @@ onBeforeUnmount(() => {
   width: 100%;
   border: none;
   box-shadow: none;
-  border-radius: 16px;
-  background: #222e3f;
-  color: #ffffff;
+  border-radius: 18px;
+  background: var(--onb-secondary-btn);
+  color: var(--onb-text);
   padding: 0.82rem 0.95rem;
   font-size: 0.9rem;
   box-sizing: border-box;
   outline: none;
+  transition: background-color 160ms ease;
 }
 
 .onbInput::placeholder {
-  color: rgb(171 184 201 / 0.62);
+  color: rgb(171 184 201 / 0.68);
 }
 
 .onbInput:focus {
-  background: #1c2736;
+  background: var(--onb-surface-hover);
 }
 
 .onbSuggestions {
@@ -653,8 +666,10 @@ onBeforeUnmount(() => {
   inset-inline: 0;
   z-index: 12;
   overflow: hidden;
-  border-radius: 14px;
-  background: #222e3f;
+  border-radius: 16px;
+  background: var(--onb-secondary-btn);
+  max-height: min(14rem, 42vh);
+  overflow-y: auto;
 }
 
 .onbSuggestionBtn {
@@ -669,32 +684,32 @@ onBeforeUnmount(() => {
 }
 
 .onbSuggestionBtn:hover {
-  background: #1c2736;
+  background: var(--onb-surface-hover);
 }
 
 .onbSuggestionPrimary {
   display: block;
-  color: #ffffff;
+  color: var(--onb-text);
   font-size: 0.86rem;
 }
 
 .onbSuggestionSecondary {
   display: block;
   margin-top: 0.18rem;
-  color: #abb8c9;
+  color: var(--onb-muted);
   font-size: 0.74rem;
 }
 
 .onbShowcase {
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 0.95rem;
-  background: #1c2736;
+  background: var(--onb-surface-hover);
   align-self: start;
 }
 
 .onbShowcaseEyebrow {
   margin: 0;
-  color: #0f73ff;
+  color: var(--onb-primary);
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -703,14 +718,14 @@ onBeforeUnmount(() => {
 
 .onbShowcaseTitle {
   margin: 0.5rem 0 0;
-  color: #ffffff;
+  color: var(--onb-text);
   font-size: 0.95rem;
   line-height: 1.35;
 }
 
 .onbShowcaseText {
   margin: 0.48rem 0 0;
-  color: #abb8c9;
+  color: var(--onb-muted);
   font-size: 0.79rem;
   line-height: 1.45;
 }
@@ -720,11 +735,12 @@ onBeforeUnmount(() => {
 }
 
 .onbFooter {
-  padding: 0 1.5rem 1.4rem;
+  padding: 0 1.35rem 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .onbFooterActions {
@@ -737,12 +753,12 @@ onBeforeUnmount(() => {
   border: none;
   box-shadow: none;
   border-radius: 999px;
-  padding: 0.64rem 1.1rem;
-  font-size: 0.86rem;
+  padding: 0.72rem 1.2rem;
+  font-size: 0.87rem;
   font-weight: 600;
   line-height: 1.1;
   cursor: pointer;
-  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
 }
 
 .onbBtn:disabled {
@@ -751,29 +767,29 @@ onBeforeUnmount(() => {
 }
 
 .onbBtn--secondary {
-  background: #222e3f;
-  color: #abb8c9;
+  background: var(--onb-secondary-btn);
+  color: var(--onb-muted);
 }
 
 .onbBtn--secondary:hover:not(:disabled) {
-  background: #1c2736;
+  background: var(--onb-surface-hover);
 }
 
 .onbBtn--primary {
-  background: #0f73ff;
-  color: #ffffff;
+  background: var(--onb-primary);
+  color: var(--onb-text);
 }
 
 .onbBtn--primary:hover:not(:disabled) {
-  background: rgb(15 115 255 / 0.88);
+  background: #1185fe;
 }
 
 .onbFade-enter-active {
-  transition: opacity 220ms ease;
+  transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .onbFade-leave-active {
-  transition: opacity 180ms ease;
+  transition: opacity 220ms ease;
 }
 
 .onbFade-enter-from,
@@ -783,20 +799,32 @@ onBeforeUnmount(() => {
 
 .onbStep-enter-active,
 .onbStep-leave-active {
-  transition: opacity 150ms ease, transform 150ms ease;
+  transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .onbStep-enter-from {
   opacity: 0;
-  transform: translateX(10px);
+  transform: translateX(6px);
 }
 
 .onbStep-leave-to {
   opacity: 0;
-  transform: translateX(-10px);
+  transform: translateX(-6px);
 }
 
-@media (max-width: 800px) {
+@keyframes onbCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 920px) {
   .onbOverlay {
     align-items: flex-start;
   }
@@ -830,7 +858,7 @@ onBeforeUnmount(() => {
   }
 
   .onbWidgetGrid {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 0.5rem;
   }
 
@@ -847,9 +875,21 @@ onBeforeUnmount(() => {
     gap: 0.42rem;
   }
 
+}
+
+@media (max-width: 640px) {
+  .onbFooter {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .onbFooterActions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
   .onbBtn {
-    padding: 0.58rem 0.9rem;
-    font-size: 0.82rem;
+    min-height: 2.5rem;
   }
 }
 
@@ -887,6 +927,21 @@ onBeforeUnmount(() => {
 
   .onbWidgetState {
     font-size: 0.68rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onbCard,
+  .onbStepDot,
+  .onbWidgetCard,
+  .onbBtn,
+  .onbFade-enter-active,
+  .onbFade-leave-active,
+  .onbStep-enter-active,
+  .onbStep-leave-active {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 }
 </style>

@@ -130,6 +130,8 @@ const steps = [
   {
     id: 'conditions',
     selector: '[data-tour="conditions"]',
+    desktopSelector: '[data-tour="conditions-sidebar"]',
+    mobileSelector: '[data-tour="conditions-fab"]',
     title: 'Pozorovacie podmienky',
     body: 'Na jednom mieste máš počasie, seeing a ďalšie užitočné widgety.',
     tip: 'Na mobile otvoríš widgety tlačidlom vpravo dole, na desktope ich nájdeš v pravom paneli. Vzhľad a poradie widgetov si vieš upraviť v Nastaveniach > Sidebar widgety.',
@@ -148,6 +150,7 @@ const RESOLVE_ATTEMPTS = 10
 const RESOLVE_DELAY_MS = 150
 const HIGHLIGHT_CLASS = 'onboarding-tour-target'
 const FALLBACK_TOOLTIP_HEIGHT = 180
+const MOBILE_MAX_WIDTH = 767
 
 const currentStepIndex = ref(0)
 const tooltipRef = ref(null)
@@ -214,6 +217,23 @@ const clamp = (value, min, max) => {
 }
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms))
+
+const isMobileViewport = () => {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+  return viewportWidth <= MOBILE_MAX_WIDTH
+}
+
+const getStepSelectorCandidates = (step) => {
+  if (!step?.selector) return []
+  if (step.id !== 'conditions') return [step.selector]
+
+  const preferredSelector = isMobileViewport() ? step.mobileSelector : step.desktopSelector
+  const fallbackSelector = isMobileViewport() ? step.desktopSelector : step.mobileSelector
+
+  return [preferredSelector, step.selector, fallbackSelector].filter(
+    (selector, index, selectors) => Boolean(selector) && selectors.indexOf(selector) === index,
+  )
+}
 
 const normalizeTargetRect = (rect) => {
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
@@ -327,17 +347,21 @@ const ensureElementInViewport = async (element) => {
   await wait(220)
 }
 
-const waitForElement = async (selector) => {
+const waitForElement = async (selectors) => {
+  const selectorList = Array.isArray(selectors) ? selectors : [selectors]
+
   for (let attempt = 0; attempt < RESOLVE_ATTEMPTS; attempt += 1) {
     await nextTick()
 
-    const element = findVisibleElement(selector)
-    if (element) return element
+    for (const selector of selectorList) {
+      const element = findVisibleElement(selector)
+      if (element) return { element, selector }
+    }
 
     await wait(RESOLVE_DELAY_MS)
   }
 
-  return null
+  return { element: null, selector: selectorList[0] || '' }
 }
 
 const isRouteSatisfied = (step) => {
@@ -380,11 +404,12 @@ const resolveTarget = async () => {
   await ensureOnRoute(step)
   if (currentSequence !== resolveSequence || !tourStore.isOpen) return
 
-  const element = await waitForElement(step.selector)
+  const selectorCandidates = getStepSelectorCandidates(step)
+  const { element, selector } = await waitForElement(selectorCandidates)
   if (currentSequence !== resolveSequence || !tourStore.isOpen) return
 
   if (!element) {
-    console.warn(`[OnboardingTour] selector not found: ${step.selector}`)
+    console.warn(`[OnboardingTour] selector not found: ${selector || step.selector}`)
     isTargetAvailable.value = false
     targetRect.value = null
     await focusTooltip()
@@ -490,6 +515,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .tourRoot {
+  --tour-bg: #151d28;
+  --tour-text: #ffffff;
+  --tour-muted: #abb8c9;
+  --tour-hover: #1c2736;
+  --tour-primary: #0f73ff;
+  --tour-secondary-btn: #222e3f;
+  --tour-danger: #eb2452;
+
   position: fixed;
   inset: 0;
   z-index: 2100;
@@ -499,20 +532,20 @@ onBeforeUnmount(() => {
 .tourOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(3, 7, 18, 0.6);
+  background: rgb(21 29 40 / 0.7);
   pointer-events: none;
 }
 
 .tourSpotlight {
   position: fixed;
   z-index: 2101;
-  border: 1.5px solid rgba(15, 115, 255, 0.9);
+  border: 1.5px solid rgb(15 115 255 / 0.9);
   border-radius: 12px;
   box-shadow:
-    0 0 0 9999px rgba(3, 7, 18, 0.42),
+    0 0 0 9999px rgb(21 29 40 / 0.44),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   pointer-events: none;
-  transition: top 200ms ease, left 200ms ease, width 200ms ease, height 200ms ease;
+  transition: top 260ms cubic-bezier(0.22, 1, 0.36, 1), left 260ms cubic-bezier(0.22, 1, 0.36, 1), width 260ms cubic-bezier(0.22, 1, 0.36, 1), height 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tourTooltip {
@@ -522,24 +555,24 @@ onBeforeUnmount(() => {
   width: min(340px, calc(100vw - 24px));
   max-height: min(78vh, 520px);
   overflow: auto;
-  border-radius: 16px;
-  background: #151d28;
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+  border-radius: 18px;
+  background: var(--tour-bg);
+  border: 1px solid rgb(171 184 201 / 0.15);
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  animation: tourIn 260ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  animation: tourIn 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes tourIn {
   from {
     opacity: 0;
-    transform: scale(0.93) translateY(10px);
+    transform: translateY(6px) scale(0.995);
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -551,8 +584,8 @@ onBeforeUnmount(() => {
   height: 1.65rem;
   border-radius: 999px;
   border: none;
-  background: rgba(171, 184, 201, 0.12);
-  color: #ABB8C9;
+  background: var(--tour-secondary-btn);
+  color: var(--tour-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -561,7 +594,7 @@ onBeforeUnmount(() => {
 }
 
 .tourClose:hover {
-  background: rgba(171, 184, 201, 0.2);
+  background: var(--tour-hover);
 }
 
 .tourMeta {
@@ -577,7 +610,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #ABB8C9;
+  color: var(--tour-muted);
   opacity: 0.7;
 }
 
@@ -592,16 +625,16 @@ onBeforeUnmount(() => {
 .tourProgressFill {
   display: block;
   height: 100%;
-  background: #0F73FF;
+  background: var(--tour-primary);
   border-radius: 999px;
-  transition: width 220ms ease;
+  transition: width 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tourTitle {
   margin: 0;
-  font-size: 0.98rem;
+  font-size: 1rem;
   font-weight: 600;
-  color: #FFFFFF;
+  color: var(--tour-text);
   line-height: 1.3;
 }
 
@@ -609,24 +642,24 @@ onBeforeUnmount(() => {
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.55;
-  color: #ABB8C9;
+  color: var(--tour-muted);
 }
 
 .tourTip {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.5;
-  color: rgba(15, 115, 255, 0.9);
-  border-left: 2px solid rgba(15, 115, 255, 0.45);
+  color: rgb(15 115 255 / 0.92);
+  border-left: 2px solid rgb(15 115 255 / 0.5);
   padding-left: 0.5rem;
 }
 
 .tourMissing {
   margin: 0;
   font-size: 0.78rem;
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fe8311;
+  background: rgb(254 131 17 / 0.12);
+  border: 1px solid rgb(254 131 17 / 0.34);
   border-radius: 8px;
   padding: 0.4rem 0.5rem;
 }
@@ -642,15 +675,15 @@ onBeforeUnmount(() => {
   height: 5px;
   border-radius: 999px;
   border: none;
-  background: rgba(171, 184, 201, 0.3);
+  background: rgb(171 184 201 / 0.34);
   padding: 0;
   cursor: pointer;
-  transition: background 180ms ease, width 180ms ease;
+  transition: background 220ms ease, width 220ms ease;
 }
 
 .tourDot.active {
   width: 14px;
-  background: #0F73FF;
+  background: var(--tour-primary);
 }
 
 .tourActions {
@@ -670,30 +703,31 @@ onBeforeUnmount(() => {
 .tourBtnGhost,
 .tourBtnPrimary {
   border: none;
+  box-shadow: none;
   border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  padding: 0.42rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.56rem 1rem;
   cursor: pointer;
-  transition: background 140ms ease, opacity 140ms ease;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
 }
 
 .tourBtnGhost {
-  background: rgba(171, 184, 201, 0.1);
-  color: #ABB8C9;
+  background: var(--tour-secondary-btn);
+  color: var(--tour-muted);
 }
 
 .tourBtnGhost:hover {
-  background: rgba(171, 184, 201, 0.16);
+  background: var(--tour-hover);
 }
 
 .tourBtnPrimary {
-  background: #0F73FF;
-  color: #FFFFFF;
+  background: var(--tour-primary);
+  color: var(--tour-text);
 }
 
 .tourBtnPrimary:hover {
-  background: #0d65e6;
+  background: #1185fe;
 }
 
 .tourBtnGhost:focus-visible,
@@ -715,6 +749,18 @@ onBeforeUnmount(() => {
   .tourActionsRight {
     width: 100%;
     justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tourSpotlight,
+  .tourTooltip,
+  .tourProgressFill,
+  .tourDot,
+  .tourBtnGhost,
+  .tourBtnPrimary {
+    animation: none !important;
+    transition: none !important;
   }
 }
 

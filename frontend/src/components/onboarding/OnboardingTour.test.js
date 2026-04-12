@@ -34,6 +34,14 @@ function appendTourTarget(id) {
   return element
 }
 
+function setViewportWidth(width) {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    writable: true,
+    value: width,
+  })
+}
+
 function normalizeText(value = '') {
   return String(value || '')
     .normalize('NFD')
@@ -70,9 +78,10 @@ async function mountTour(startStep = 0) {
 
 describe('OnboardingTour', () => {
   beforeEach(() => {
+    setViewportWidth(1280)
     window.localStorage.removeItem(ONBOARDING_TOUR_STORAGE_KEY)
     appendTourTarget('feed')
-    appendTourTarget('conditions')
+    appendTourTarget('conditions-sidebar')
   })
 
   afterEach(() => {
@@ -96,5 +105,21 @@ describe('OnboardingTour', () => {
 
     expect(normalizeText(wrapper.get('.tourTitle').text())).toBe('komunitny feed')
     expect(wrapper.find('.widgetPreview').exists()).toBe(false)
+  })
+
+  it('prefers mobile fab target on small screens for conditions step', async () => {
+    setViewportWidth(390)
+    appendTourTarget('conditions-fab')
+    const desktopTarget = document.querySelector('[data-tour="conditions-sidebar"]')
+    const mobileTarget = document.querySelector('[data-tour="conditions-fab"]')
+    expect(desktopTarget).toBeTruthy()
+    expect(mobileTarget).toBeTruthy()
+
+    await mountTour(2)
+
+    await vi.waitFor(() => {
+      expect(mobileTarget.classList.contains('onboarding-tour-target')).toBe(true)
+    })
+    expect(desktopTarget.classList.contains('onboarding-tour-target')).toBe(false)
   })
 })

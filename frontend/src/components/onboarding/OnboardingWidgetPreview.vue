@@ -34,12 +34,17 @@ const previewWidgets = [
 
 <style scoped>
 .widgetPreview {
+  --preview-bg: #151d28;
+  --preview-hover: #1c2736;
+  --preview-primary: #0f73ff;
+  --preview-muted: #abb8c9;
+
   position: relative;
-  border-radius: 0.95rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.22);
+  border-radius: 1rem;
+  border: 1px solid rgb(171 184 201 / 0.22);
   background:
-    radial-gradient(140% 100% at 0% 0%, rgb(var(--color-primary-rgb) / 0.1), transparent 60%),
-    linear-gradient(180deg, rgb(var(--color-bg-rgb) / 0.96), rgb(var(--color-bg-rgb) / 0.88));
+    radial-gradient(140% 100% at 0% 0%, rgb(15 115 255 / 0.12), transparent 62%),
+    linear-gradient(180deg, var(--preview-hover), var(--preview-bg));
   overflow: hidden;
   pointer-events: none;
   user-select: none;
@@ -58,22 +63,22 @@ const previewWidgets = [
   inset: 0.75rem;
   overflow: hidden;
   opacity: 0;
-  transform: translateY(8px) scale(0.987);
-  animation: widgetPreviewCycle 12s ease-in-out infinite;
-  animation-delay: calc(var(--widget-index) * -3s);
+  transform: translateY(5px) scale(0.994);
+  animation: widgetPreviewCycle 16s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-delay: calc(var(--widget-index) * -4s);
 }
 
 @keyframes widgetPreviewCycle {
   0%,
-  22% {
+  18% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 
-  28%,
+  24%,
   100% {
     opacity: 0;
-    transform: translateY(8px) scale(0.987);
+    transform: translateY(5px) scale(0.994);
   }
 }
 
