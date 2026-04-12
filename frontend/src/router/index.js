@@ -9,6 +9,115 @@ import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { legacySettingsSectionToRouteName } from '@/views/settings/settingsSections'
 
 const wipEnabled = String(import.meta.env.VITE_FEATURE_WIP || 'false').toLowerCase() === 'true'
+const SITE_NAME = 'Astrokomunita'
+const DEFAULT_DOCUMENT_TITLE = `${SITE_NAME} – astronomická komunita na Slovensku`
+
+const PAGE_TITLE_BY_ROUTE_NAME = Object.freeze({
+  home: 'Domov',
+  events: 'Udalosti',
+  'events-swipe': 'Udalosti',
+  'event-detail': 'Detail udalosti',
+  observations: 'Pozorovania',
+  'observations.create': 'Nové pozorovanie',
+  'observations.detail': 'Detail pozorovania',
+  learn: 'Vzdelávanie',
+  'learn-detail': 'Článok',
+  search: 'Vyhľadávanie',
+  privacy: 'Ochrana súkromia',
+  terms: 'Podmienky používania',
+  cookies: 'Cookies',
+  settings: 'Nastavenia',
+  notifications: 'Notifikácie',
+  bookmarks: 'Záložky',
+  profile: 'Môj profil',
+  'profile.edit': 'Upraviť profil',
+  'post-detail': 'Príspevok',
+  'tag-feed': 'Tag',
+  'hashtag-feed': 'Hashtag',
+  'user-profile': 'Profil používateľa',
+  onboarding: 'Onboarding',
+  login: 'Prihlásenie',
+  register: 'Registrácia',
+  'forgot-password': 'Zabudnuté heslo',
+  'reset-password': 'Obnova hesla',
+  'verify-email.deprecated': 'Overenie e-mailu',
+  'verify-email.link-deprecated': 'Overenie e-mailu',
+  'not-found': 'Stránka sa nenašla',
+})
+
+function firstParam(value) {
+  if (Array.isArray(value)) {
+    return String(value[0] || '')
+  }
+  return String(value || '')
+}
+
+function trimRouteLabel(value, maxLength = 70) {
+  const normalized = String(value || '').trim()
+  if (!normalized) return ''
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength).trim()}…` : normalized
+}
+
+function resolveRoutePageTitle(route) {
+  const explicitTitle = route?.meta?.title
+  if (typeof explicitTitle === 'string' && explicitTitle.trim()) {
+    return explicitTitle.trim()
+  }
+
+  if (typeof explicitTitle === 'function') {
+    const computedTitle = explicitTitle(route)
+    if (typeof computedTitle === 'string' && computedTitle.trim()) {
+      return computedTitle.trim()
+    }
+  }
+
+  const routeName = typeof route?.name === 'string' ? route.name : ''
+  const pageTitle = PAGE_TITLE_BY_ROUTE_NAME[routeName]
+  if (pageTitle) {
+    if (routeName === 'search') {
+      const q = trimRouteLabel(firstParam(route?.query?.q), 42)
+      return q ? `Vyhľadávanie: ${q}` : pageTitle
+    }
+
+    if (routeName === 'user-profile') {
+      const username = trimRouteLabel(firstParam(route?.params?.username), 42).replace(/^@+/, '')
+      return username ? `@${username}` : pageTitle
+    }
+
+    if (routeName === 'tag-feed') {
+      const tag = trimRouteLabel(firstParam(route?.params?.tag), 42).replace(/^#/, '')
+      return tag ? `#${tag}` : pageTitle
+    }
+
+    if (routeName === 'hashtag-feed') {
+      const hashtag = trimRouteLabel(firstParam(route?.params?.name), 42).replace(/^#/, '')
+      return hashtag ? `#${hashtag}` : pageTitle
+    }
+
+    return pageTitle
+  }
+
+  if (routeName.startsWith('settings.')) {
+    return 'Nastavenia'
+  }
+
+  if (routeName.startsWith('admin.')) {
+    return 'Administrácia'
+  }
+
+  return ''
+}
+
+function composeDocumentTitle(pageTitle) {
+  const normalized = trimRouteLabel(pageTitle, 120)
+  if (!normalized) {
+    return DEFAULT_DOCUMENT_TITLE
+  }
+  if (normalized === SITE_NAME || normalized.endsWith(`| ${SITE_NAME}`)) {
+    return normalized
+  }
+  return `${normalized} | ${SITE_NAME}`
+}
 
 function resolveLegacySettingsSectionRedirect(to) {
   const sectionCandidate = Array.isArray(to.query?.section) ? to.query.section[0] : to.query?.section
@@ -745,6 +854,15 @@ export function applyAuthGuards(routerInstance) {
   })
 }
 
+export function applyDocumentTitleGuard(routerInstance) {
+  routerInstance.afterEach((to) => {
+    if (typeof document === 'undefined') return
+    const pageTitle = resolveRoutePageTitle(to)
+    document.title = composeDocumentTitle(pageTitle)
+  })
+}
+
 applyAuthGuards(router)
+applyDocumentTitleGuard(router)
 
 export default router

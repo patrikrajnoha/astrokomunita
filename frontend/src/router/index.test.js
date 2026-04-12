@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import { applyAuthGuards } from './index'
+import { applyAuthGuards, applyDocumentTitleGuard } from './index'
 const prefetchHomeFeedMock = vi.hoisted(() => vi.fn())
 
 const authState = {
@@ -47,6 +47,8 @@ function makeRouter() {
     routes: [
       { path: '/', name: 'home', component: { template: '<div>home</div>' }, meta: { requiresAuth: false } },
       { path: '/events', name: 'events', component: { template: '<div>events</div>' }, meta: { requiresAuth: false } },
+      { path: '/search', name: 'search', component: { template: '<div>search</div>' }, meta: { requiresAuth: false } },
+      { path: '/u/:username', name: 'user-profile', component: { template: '<div>profile</div>' }, meta: { requiresAuth: false } },
       { path: '/privacy', name: 'privacy', component: { template: '<div>privacy</div>' }, meta: { requiresAuth: false } },
       { path: '/terms', name: 'terms', component: { template: '<div>terms</div>' }, meta: { requiresAuth: false } },
       { path: '/cookies', name: 'cookies', component: { template: '<div>cookies</div>' }, meta: { requiresAuth: false } },
@@ -63,6 +65,7 @@ function makeRouter() {
   })
 
   applyAuthGuards(router)
+  applyDocumentTitleGuard(router)
   return router
 }
 
@@ -299,5 +302,21 @@ describe('router auth guard', () => {
 
     expect(router.currentRoute.value.name).toBe('events')
     expect(router.currentRoute.value.path).toBe('/events')
+  })
+
+  it('updates document title for search route and query', async () => {
+    const router = makeRouter()
+    await router.push('/search?q=meteoricky+roj')
+    await router.isReady()
+
+    expect(document.title).toBe('Vyhľadávanie: meteoricky roj | Astrokomunita')
+  })
+
+  it('uses route params in document title for public profile', async () => {
+    const router = makeRouter()
+    await router.push('/u/astro_fan')
+    await router.isReady()
+
+    expect(document.title).toBe('@astro_fan | Astrokomunita')
   })
 })
