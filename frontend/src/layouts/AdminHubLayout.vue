@@ -4,7 +4,11 @@
       <AdminSubNav />
     </div>
 
-    <RouterView />
+    <RouterView v-slot="{ Component, route: childRoute }">
+      <transition name="adminRoute" mode="out-in">
+        <component :is="Component" :key="childRoute.path" />
+      </transition>
+    </RouterView>
   </section>
 </template>
 
@@ -83,6 +87,17 @@ import AdminSubNav from '@/components/admin/AdminSubNav.vue'
 
 .adminHub > * {
   min-width: 0;
+}
+
+.adminRoute-enter-active,
+.adminRoute-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.adminRoute-enter-from,
+.adminRoute-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 @container (max-width: 760px) {

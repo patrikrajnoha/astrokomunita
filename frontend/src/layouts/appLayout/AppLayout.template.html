@@ -96,7 +96,11 @@
             data-testid="layout-center"
           >
             <div :class="mainContentClass">
-              <RouterView />
+              <RouterView v-slot="{ Component }">
+                <transition name="appRoute" mode="out-in">
+                  <component :is="Component" />
+                </transition>
+              </RouterView>
             </div>
           </main>
         </div>
@@ -109,7 +113,7 @@
         >
           <div
             data-testid="right-rail"
-            data-tour="conditions"
+            data-tour="conditions-sidebar"
             :class="[
               'rightRail h-screen overflow-y-auto overflow-x-hidden bg-[var(--bg-app)] xl:sticky xl:top-0',
               'w-[20.5rem] px-3.5 pb-3.5 pt-0',

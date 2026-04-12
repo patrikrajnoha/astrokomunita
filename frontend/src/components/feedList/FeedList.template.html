@@ -23,7 +23,8 @@
       :aria-labelledby="tab.tabId"
       :hidden="activeTab !== tab.id"
     >
-      <template v-if="activeTab === tab.id">
+      <Transition name="feedTab" mode="out-in">
+      <div v-if="activeTab === tab.id" :key="tab.id">
         <!-- Error -->
         <div v-if="err" class="error-message">
           <InlineStatus
@@ -64,7 +65,7 @@
         />
 
         <!-- Feed -->
-        <div v-else class="feed-list ui-stream">
+        <TransitionGroup v-else name="feedItem" tag="div" class="feed-list ui-stream">
           <article
             v-for="p in items"
             :key="p.id"
@@ -263,7 +264,7 @@
               />
             </div>
           </article>
-        </div>
+        </TransitionGroup>
 
         <!-- Load more -->
         <div class="load-more">
@@ -271,7 +272,8 @@
             {{ loading ? 'Načítavam...' : 'Načítať ďalšie' }}
           </button>
         </div>
-      </template>
+      </div>
+      </Transition>
     </section>
     <!-- Report modal -->
     <div v-if="reportTarget" class="report-modal" @click.self="closeReport">

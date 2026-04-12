@@ -11,7 +11,7 @@
       </h2>
 
       <div class="settings-nav-block">
-        <ul class="settings-nav-list">
+        <TransitionGroup name="settingsNavItem" tag="ul" class="settings-nav-list">
           <SettingsListItem
             v-for="item in group.items"
             :key="item.key"
@@ -20,7 +20,7 @@
             :icon-paths="item.iconPaths"
             :to="{ name: item.routeName }"
           />
-        </ul>
+        </TransitionGroup>
       </div>
     </section>
 

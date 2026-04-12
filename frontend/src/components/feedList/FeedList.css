@@ -42,6 +42,32 @@
   min-width: 0;
 }
 
+.feedTab-enter-active,
+.feedTab-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.feedTab-enter-from,
+.feedTab-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.feedItem-enter-active,
+.feedItem-leave-active {
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+}
+
+.feedItem-enter-from,
+.feedItem-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.feedItem-move {
+  transition: transform var(--motion-base);
+}
+
 .feed-composer-slot {
   width: 100%;
 }

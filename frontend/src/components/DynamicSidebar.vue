@@ -1,16 +1,18 @@
 <template>
   <aside v-if="isDesktop && activeScope && renderedSections.length > 0" class="rightCol sidebar-dense">
-    <section
-      v-for="section in renderedSections"
-      :key="resolveItemKey(section)"
-      class="sidebarSection"
-    >
-      <component
-        :is="resolveSidebarComponent(section)"
-        class="sidebarSection__content sidebarDenseCard"
-        v-bind="propsForSection(section)"
-      />
-    </section>
+    <TransitionGroup name="sidebarSection" tag="div">
+      <section
+        v-for="section in renderedSections"
+        :key="resolveItemKey(section)"
+        class="sidebarSection"
+      >
+        <component
+          :is="resolveSidebarComponent(section)"
+          class="sidebarSection__content sidebarDenseCard"
+          v-bind="propsForSection(section)"
+        />
+      </section>
+    </TransitionGroup>
   </aside>
 </template>
 
@@ -285,6 +287,21 @@ onBeforeUnmount(() => {
 .sidebarSection + .sidebarSection {
   border-top: 1px solid var(--divider-color);
   padding-top: var(--sb-gap-md, 0.75rem);
+}
+
+.sidebarSection-enter-active,
+.sidebarSection-leave-active {
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+}
+
+.sidebarSection-enter-from,
+.sidebarSection-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.sidebarSection-move {
+  transition: transform var(--motion-base);
 }
 
 .sidebarSection__content {

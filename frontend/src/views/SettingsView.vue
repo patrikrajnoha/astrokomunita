@@ -7,13 +7,17 @@
       description="Správa účtu, bezpečnosti a súkromia."
     />
 
-    <router-view />
+    <RouterView v-slot="{ Component, route: childRoute }">
+      <transition name="settingsDetail" mode="out-in">
+        <component :is="Component" :key="childRoute.path" />
+      </transition>
+    </RouterView>
   </div>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, provide } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import { settingsContextKey } from '@/composables/settingsContext'
 import { useSettingsState } from '@/composables/useSettingsState'
@@ -47,3 +51,16 @@ onBeforeUnmount(() => {
   removeScrollbarClass()
 })
 </script>
+
+<style scoped>
+.settingsDetail-enter-active,
+.settingsDetail-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.settingsDetail-enter-from,
+.settingsDetail-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+</style>

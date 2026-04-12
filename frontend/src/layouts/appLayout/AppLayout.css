@@ -424,6 +424,17 @@
   min-width: 0;
 }
 
+.appRoute-enter-active,
+.appRoute-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.appRoute-enter-from,
+.appRoute-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
 @media (max-width: 640px) {
   .appMobileHeader__logo {
     height: clamp(24px, 6vw, 30px);

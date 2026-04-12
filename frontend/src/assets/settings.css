@@ -54,6 +54,21 @@
   padding: 0;
 }
 
+.settings-page .settingsNavItem-enter-active,
+.settings-page .settingsNavItem-leave-active {
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+}
+
+.settings-page .settingsNavItem-enter-from,
+.settings-page .settingsNavItem-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.settings-page .settingsNavItem-move {
+  transition: transform var(--motion-base);
+}
+
 .settings-page .settings-nav-button {
   width: 100%;
   min-height: 44px;

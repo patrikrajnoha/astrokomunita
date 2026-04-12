@@ -29,7 +29,8 @@
         </PageHeader>
       </div>
 
-      <div v-if="isInitialLoading" class="mx-auto w-full max-w-3xl space-y-3 px-5 py-7 sm:px-8" data-testid="notifications-page-loading">
+      <Transition name="notificationsState" mode="out-in">
+      <div v-if="isInitialLoading" key="notifications-loading" class="mx-auto w-full max-w-3xl space-y-3 px-5 py-7 sm:px-8" data-testid="notifications-page-loading">
         <div
           v-for="index in 5"
           :key="`notification-list-skeleton-${index}`"
@@ -37,7 +38,7 @@
         ></div>
       </div>
 
-      <div v-else-if="error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
+      <div v-else-if="error" key="notifications-error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
         <InlineStatus
           variant="error"
           :message="error || 'Nastala chyba pri načítaní notifikacii.'"
@@ -47,7 +48,7 @@
         />
       </div>
 
-      <div v-else-if="!items.length" class="flex flex-1 flex-col items-center px-5 py-16 text-center">
+      <div v-else-if="!items.length" key="notifications-empty" class="flex flex-1 flex-col items-center px-5 py-16 text-center">
         <div class="mt-8 flex h-full min-h-[60vh] flex-col items-center pt-16" data-testid="notifications-page-empty">
           <svg viewBox="0 0 24 24" class="h-14 w-14 text-[rgba(171,184,201,0.6)]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z"></path>
@@ -65,8 +66,12 @@
         </div>
       </div>
 
-      <div v-else class="mx-auto w-full max-w-3xl flex-1 px-5 py-7 sm:px-8">
-        <div class="overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(28,39,54,0.4)]">
+      <div v-else key="notifications-list" class="mx-auto w-full max-w-3xl flex-1 px-5 py-7 sm:px-8">
+        <TransitionGroup
+          name="notificationItem"
+          tag="div"
+          class="overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(28,39,54,0.4)]"
+        >
           <button
             v-for="item in items"
             :key="item.id"
@@ -85,7 +90,7 @@
               <span aria-hidden="true" class="opacity-30 transition-opacity group-hover:opacity-60">›</span>
             </span>
           </button>
-        </div>
+        </TransitionGroup>
 
         <div v-if="isPaginating" class="px-2 py-4 text-xs text-muted" data-testid="notifications-page-paginating">
           Načítavam ďalšie...
@@ -101,6 +106,7 @@
           {{ isPaginating ? 'Načítavam...' : 'Načítať ďalšie' }}
         </button>
       </div>
+      </Transition>
     </div>
   </section>
 
@@ -575,3 +581,31 @@ const formatClock = (iso) => {
   return value.toLocaleTimeString('sk-SK', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 </script>
+
+<style scoped>
+.notificationsState-enter-active,
+.notificationsState-leave-active {
+  transition: opacity var(--motion-base), transform var(--motion-base);
+}
+
+.notificationsState-enter-from,
+.notificationsState-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.notificationItem-enter-active,
+.notificationItem-leave-active {
+  transition: opacity var(--motion-fast), transform var(--motion-fast);
+}
+
+.notificationItem-enter-from,
+.notificationItem-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.notificationItem-move {
+  transition: transform var(--motion-base);
+}
+</style>
