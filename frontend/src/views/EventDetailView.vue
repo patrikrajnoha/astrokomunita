@@ -3,6 +3,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { usePageMeta } from '@/composables/usePageMeta'
 import InviteTicketModal from '@/components/events/InviteTicketModal.vue'
 import EventViewingWindowForecast from '@/components/events/EventViewingWindowForecast.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
@@ -46,6 +47,7 @@ const router = useRouter()
 const auth = useAuthStore()
 const eventFollows = useEventFollowsStore()
 const toast = useToast()
+const { setMeta, setJsonLd, clearJsonLd, resetMeta } = usePageMeta()
 
 const event = ref(null)
 const loading = ref(true)
@@ -267,6 +269,38 @@ const {
   swipeTouchActive,
 })
 
+function applyEventMeta(ev) {
+  if (!ev) return
+
+  const pageTitle = eventDisplayTitle(ev)
+  const pageDesc = (ev.short || eventDisplayDescription(ev) || '').slice(0, 160)
+  const pageUrl = `https://astrokomunita.sk/events/${ev.id}`
+
+  setMeta({
+    title: pageTitle !== '-' ? pageTitle : null,
+    description: pageDesc || null,
+    url: pageUrl,
+    type: 'website',
+  })
+
+  // schema.org/Event — consumed by Google, Bing rich results
+  setJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'Event',
+    name: pageTitle !== '-' ? pageTitle : 'Astronomická udalosť',
+    description: pageDesc || undefined,
+    startDate: ev.start_at ?? ev.starts_at ?? undefined,
+    endDate: ev.end_at ?? ev.ends_at ?? ev.max_at ?? undefined,
+    url: pageUrl,
+    eventStatus: 'https://schema.org/EventScheduled',
+    organizer: {
+      '@type': 'Organization',
+      name: 'Astrokomunita',
+      url: 'https://astrokomunita.sk',
+    },
+  })
+}
+
 function createInitialViewingState() {
   return {
     loading: false,
@@ -311,6 +345,7 @@ async function loadEvent() {
     event.value = res?.data?.data ?? res?.data ?? null
     syncPlanFormFromEvent(planForm, event.value)
     void loadAdjacentEvents(event.value)
+    applyEventMeta(event.value)
 
     if (auth.isAuthed) {
       await eventFollows.syncFollowState(eventId.value)
@@ -587,6 +622,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleWindowKeydown)
   adjacentLoadToken += 1
+  resetMeta()
 })
 
 watch(

@@ -3,6 +3,7 @@
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { usePageMeta } from '@/composables/usePageMeta'
 import HashtagText from '@/components/HashtagText.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import PostActionBar from '@/components/PostActionBar.vue'
@@ -39,6 +40,7 @@ const ReplyComposer = defineAsyncComponent(() => import('@/components/ReplyCompo
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { setMeta, setJsonLd, resetMeta } = usePageMeta()
 const bookmarks = useBookmarksStore()
 const { confirm } = useConfirm()
 const { info: toastInfo, error: toastError, success: toastSuccess } = useToast()
@@ -81,6 +83,61 @@ const attachmentDownloadSrc = (item) => resolveAttachmentDownloadSrc(item, apiBa
 const postGifUrl = (item) => resolvePostGifUrl(item, apiBaseUrl)
 const isBotPost = (item) => resolveIsBotPost(item)
 const canAdminEditBotPost = (item) => resolveCanAdminEditBotPost(item, auth.user)
+
+function extractPostTitle(p) {
+  const explicit = p?.translated_title || p?.original_title
+  if (explicit) return String(explicit).trim().slice(0, 80)
+  const text = String(p?.content || '').replace(/<[^>]+>/g, '').replace(/#\w+/g, '').trim()
+  const first = text.split('\n')[0].trim()
+  return first.length > 10 ? first.slice(0, 80) : null
+}
+
+function extractPostExcerpt(p) {
+  return String(p?.content || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160) || null
+}
+
+function applyPostMeta(p) {
+  if (!p) return
+
+  const postTitle = extractPostTitle(p)
+  const postDesc = extractPostExcerpt(p)
+  const authorName = p.user?.name || p.user?.username || 'Používateľ'
+  const pageUrl = `https://astrokomunita.sk/posts/${p.id}`
+  const image = p.attachment_web_path
+    ? `${api?.defaults?.baseURL || ''}${p.attachment_web_path}`
+    : null
+
+  setMeta({
+    title: postTitle || `Príspevok od ${authorName}`,
+    description: postDesc,
+    image,
+    url: pageUrl,
+    type: 'article',
+  })
+
+  // schema.org/SocialMediaPosting for community posts
+  setJsonLd({
+    '@context': 'https://schema.org',
+    '@type': 'SocialMediaPosting',
+    headline: postTitle || `Príspevok od ${authorName}`,
+    text: postDesc || undefined,
+    datePublished: p.created_at ?? undefined,
+    url: pageUrl,
+    author: {
+      '@type': 'Person',
+      name: authorName,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Astrokomunita',
+      url: 'https://astrokomunita.sk',
+    },
+  })
+}
 
 function goBack() {
   if (window.history.length > 1) {
@@ -572,6 +629,7 @@ async function loadPost() {
     if (root.value?.id) {
       bookmarks.hydrateFromPosts([root.value])
     }
+    applyPostMeta(root.value)
 
     if (Array.isArray(payload.replies) && payload.replies.length > 0) {
       replies.value = payload.replies
@@ -614,6 +672,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearReplyHighlightTimer()
+  resetMeta()
 })
 
 watch(

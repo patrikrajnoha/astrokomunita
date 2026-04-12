@@ -41,13 +41,33 @@ function setMeta({ title, description, image }) {
     return tag
   }
 
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : ''
+
   ensure('description', false).setAttribute('content', description)
   ensure('og:title', true).setAttribute('content', title)
   ensure('og:description', true).setAttribute('content', description)
+  ensure('og:url', true).setAttribute('content', pageUrl)
+  ensure('og:type', true).setAttribute('content', 'article')
+  ensure('og:site_name', true).setAttribute('content', 'Astrokomunita')
 
   if (image) {
     ensure('og:image', true).setAttribute('content', image)
   }
+
+  ensure('twitter:card', false).setAttribute('content', 'summary_large_image')
+  ensure('twitter:title', false).setAttribute('content', title)
+  ensure('twitter:description', false).setAttribute('content', description)
+  if (image) {
+    ensure('twitter:image', false).setAttribute('content', image)
+  }
+
+  let canonical = document.querySelector('link[rel="canonical"]')
+  if (!canonical) {
+    canonical = document.createElement('link')
+    canonical.setAttribute('rel', 'canonical')
+    document.head.appendChild(canonical)
+  }
+  canonical.setAttribute('href', pageUrl)
 }
 
 function formatDate(value) {
@@ -199,11 +219,44 @@ async function load() {
     const payload = await blogPosts.getPublic(slug.value)
     post.value = payload
 
+    const metaTitle = `${payload?.title || 'Článok'} | Astrokomunita`
+    const metaDesc = excerpt(payload?.content || '', 160) || 'Článok o astronómii a pozorovaní oblohy.'
+
     setMeta({
-      title: `${payload?.title || 'Článok'} | Astrokomunita`,
-      description: excerpt(payload?.content || '', 160) || 'Článok o astronómii a pozorovaní oblohy.',
+      title: metaTitle,
+      description: metaDesc,
       image: payload?.cover_image_url || null,
     })
+
+    // schema.org/Article — enables Google rich results for blog posts
+    if (typeof document !== 'undefined') {
+      const id = 'page-json-ld'
+      let ld = document.getElementById(id)
+      if (!ld) {
+        ld = document.createElement('script')
+        ld.id = id
+        ld.type = 'application/ld+json'
+        document.head.appendChild(ld)
+      }
+      ld.textContent = JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        headline: payload?.title || 'Článok',
+        description: metaDesc,
+        datePublished: payload?.published_at ?? undefined,
+        image: payload?.cover_image_url ?? undefined,
+        url: typeof window !== 'undefined' ? window.location.href : undefined,
+        author: {
+          '@type': 'Person',
+          name: payload?.user?.name || 'Redakcia',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Astrokomunita',
+          url: 'https://astrokomunita.sk',
+        },
+      })
+    }
 
     loadComments()
     loadRelated()
@@ -262,6 +315,11 @@ function nextComments() {
 }
 
 onMounted(load)
+
+onBeforeUnmount(() => {
+  const ld = document.getElementById('page-json-ld')
+  if (ld) ld.remove()
+})
 
 watch(
   () => route.params.slug,

@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Block admin and API routes — no SEO value, prevents unnecessary crawl budget use
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://astrokomunita.sk/sitemap.xml

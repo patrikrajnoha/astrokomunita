@@ -2,11 +2,14 @@
 
 use App\Http\Controllers\BotAvatarAssetController;
 use App\Http\Controllers\NewsletterUnsubscribeController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 
 Route::get('/assets/bots/{username}/{file}', BotAvatarAssetController::class)
     ->where([
