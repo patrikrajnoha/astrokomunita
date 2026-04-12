@@ -32,6 +32,10 @@ Astrokomunita na tento problém reaguje viacvrstvovou webovou aplikáciou postav
 
 Repozitár obsahuje implementáciu funkčného prototypu a jeho ďalší vývoj. Jadro systému zahŕňa správu udalostí, komunitný obsah, používateľské pozorovania, administračné workflow a automatizované spracovanie vybraných externých zdrojov.
 
+## Bezpečnosť
+
+Bezpečnostné guard-raily a postup pre nahlasovanie zraniteľností sú popísané v [SECURITY.md](SECURITY.md).
+
 ## Hlavné funkcionality
 
 - prehľad a kalendár astronomických udalostí,
