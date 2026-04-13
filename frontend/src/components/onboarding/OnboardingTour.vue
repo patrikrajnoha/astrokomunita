@@ -25,29 +25,29 @@
         aria-label="Zatvoriť prehliadku"
         @click="skipTour"
       >
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         </svg>
       </button>
 
-      <!-- Progress -->
+      <!-- Progress row -->
       <div class="tourMeta">
-        <span class="tourStep">Krok {{ currentStepIndex + 1 }} / {{ steps.length }}</span>
+        <span class="tourStep">{{ currentStepIndex + 1 }} / {{ steps.length }}</span>
         <div class="tourProgressBar" role="progressbar" :aria-valuenow="progressPercent" aria-valuemin="0" aria-valuemax="100">
           <span class="tourProgressFill" :style="{ width: `${progressPercent}%` }"></span>
         </div>
       </div>
 
-      <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
-      <p class="tourBody">{{ currentStep.body }}</p>
+      <!-- Content (animated on step change) -->
+      <transition name="tourContent" mode="out-in">
+        <div :key="currentStep.id" class="tourContent">
+          <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
+          <p class="tourBody">{{ currentStep.body }}</p>
+          <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
+        </div>
+      </transition>
 
-      <p v-if="currentStep.tip" class="tourTip">{{ currentStep.tip }}</p>
-
-      <OnboardingWidgetPreview v-if="showWidgetPreview" size="compact" />
-
-      <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
-
-      <!-- Dots -->
+      <!-- Step dots -->
       <div class="tourDots" role="tablist" aria-label="Kroky prehliadky">
         <button
           v-for="(step, index) in steps"
@@ -99,7 +99,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useOnboardingTourStore } from '@/stores/onboardingTour'
-import OnboardingWidgetPreview from '@/components/onboarding/OnboardingWidgetPreview.vue'
 
 const tourStore = useOnboardingTourStore()
 const router = useRouter()
@@ -111,32 +110,39 @@ const steps = [
     id: 'feed',
     selector: '[data-tour="feed"]',
     title: 'Komunitný feed',
-    body: 'Tu nájdeš nové príspevky, diskusie a pozorovania od komunity.',
-    tip: 'Skús prepnúť kartu alebo otvoriť detail príspevku.',
+    body: 'Tu nájdeš príspevky, fotografie a pozorovania od ostatných členov komunity.',
     missingHint: 'Feed sa teraz nenašiel. Skús prejsť na domovskú stránku a pokračovať.',
-    nextLabel: 'Na kalendár',
+    nextLabel: 'AstroFeed',
     route: { name: 'home' },
   },
   {
-    id: 'calendar',
-    selector: '[data-tour="calendar"]',
-    title: 'Kalendár udalostí',
-    body: 'V kalendári vidíš astronomické úkazy podľa dátumu a vyhľadávania.',
-    tip: 'Otvor detail udalosti a pridaj ju do svojho kalendára.',
-    missingHint: 'Kalendár sa teraz nenašiel. Skontroluj, či je zapnuté zobrazenie Kalendár.',
-    nextLabel: 'Na podmienky',
-    route: { name: 'calendar' },
+    id: 'astrofeed',
+    selector: '[data-tour="astrofeed"]',
+    title: 'AstroFeed',
+    body: 'Najnovšie správy zo sveta astronómie. Môžeš tu zdieľať vlastné pozorovania a dozvedieť sa novinky.',
+    missingHint: 'AstroFeed záložka sa teraz nenašla. Skús prejsť na domovskú stránku.',
+    nextLabel: 'Widgety',
+    route: { name: 'home' },
   },
   {
     id: 'conditions',
     selector: '[data-tour="conditions"]',
     desktopSelector: '[data-tour="conditions-sidebar"]',
     mobileSelector: '[data-tour="conditions-fab"]',
-    title: 'Pozorovacie podmienky',
-    body: 'Na jednom mieste máš počasie, seeing a ďalšie užitočné widgety.',
-    tip: 'Na mobile otvoríš widgety tlačidlom vpravo dole, na desktope ich nájdeš v pravom paneli. Vzhľad a poradie widgetov si vieš upraviť v Nastaveniach > Sidebar widgety.',
-    missingHint: 'Panel podmienok sa teraz nenašiel. Pokračuj na ďalší krok alebo skús obnoviť stránku.',
+    title: 'Tvoje widgety',
+    body: 'Tu máš prehľad podmienok a widgety, ktoré si vybral. Zmeniť ich môžeš v Nastaveniach → Sidebar widgety.',
+    missingHint: 'Panel widgetov sa teraz nenašiel. Pokračuj na ďalší krok alebo skús obnoviť stránku.',
+    nextLabel: 'Kalendár',
     route: { name: 'home' },
+  },
+  {
+    id: 'calendar',
+    selector: '[data-tour="calendar"]',
+    title: 'Kalendár udalostí',
+    body: 'Nepremešk žiadnu astronomickú udalosť — zatmenia, meteority, konjunkcie a ďalšie úkazy na jednom mieste.',
+    missingHint: 'Kalendár sa teraz nenašiel. Skontroluj, či je zapnuté zobrazenie Kalendár.',
+    nextLabel: 'Hotovo',
+    route: { name: 'calendar' },
   },
 ]
 
@@ -170,7 +176,7 @@ let rafHandle = 0
 
 const currentStep = computed(() => steps[currentStepIndex.value] || steps[0])
 const isLastStep = computed(() => currentStepIndex.value >= steps.length - 1)
-const showWidgetPreview = computed(() => currentStep.value?.id === 'conditions')
+const showWidgetPreview = computed(() => false)
 const progressPercent = computed(() => {
   if (steps.length === 0) return 0
   return Math.round(((currentStepIndex.value + 1) / steps.length) * 100)
@@ -521,7 +527,9 @@ onBeforeUnmount(() => {
   --tour-hover: #1c2736;
   --tour-primary: #0f73ff;
   --tour-secondary-btn: #222e3f;
-  --tour-danger: #eb2452;
+  --tour-border: rgb(171 184 201 / 0.12);
+  --tour-spotlight-color: rgb(15 115 255 / 0.85);
+  --tour-overlay-color: rgb(11 18 28 / 0.72);
 
   position: fixed;
   inset: 0;
@@ -529,46 +537,60 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+/* ── Overlay ── */
 .tourOverlay {
   position: absolute;
   inset: 0;
-  background: rgb(21 29 40 / 0.7);
+  background: var(--tour-overlay-color);
+  animation: tourOverlayIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   pointer-events: none;
 }
 
+@keyframes tourOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Spotlight ── */
 .tourSpotlight {
   position: fixed;
   z-index: 2101;
-  border: 1.5px solid rgb(15 115 255 / 0.9);
-  border-radius: 12px;
+  border: 1.5px solid var(--tour-spotlight-color);
+  border-radius: 14px;
   box-shadow:
-    0 0 0 9999px rgb(21 29 40 / 0.44),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    0 0 0 9999px var(--tour-overlay-color),
+    0 0 24px rgb(15 115 255 / 0.18),
+    inset 0 0 0 1px rgb(255 255 255 / 0.03);
   pointer-events: none;
-  transition: top 260ms cubic-bezier(0.22, 1, 0.36, 1), left 260ms cubic-bezier(0.22, 1, 0.36, 1), width 260ms cubic-bezier(0.22, 1, 0.36, 1), height 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    top    300ms cubic-bezier(0.22, 1, 0.36, 1),
+    left   300ms cubic-bezier(0.22, 1, 0.36, 1),
+    width  300ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Tooltip card ── */
 .tourTooltip {
   position: fixed;
   z-index: 2102;
   pointer-events: auto;
-  width: min(340px, calc(100vw - 24px));
-  max-height: min(78vh, 520px);
-  overflow: auto;
-  border-radius: 18px;
+  width: min(348px, calc(100vw - 24px));
+  max-height: min(80vh, 540px);
+  overflow: hidden auto;
+  border-radius: 20px;
   background: var(--tour-bg);
-  border: 1px solid rgb(171 184 201 / 0.15);
-  padding: 1rem;
+  border: 1px solid var(--tour-border);
+  padding: 1.1rem 1.1rem 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  animation: tourIn 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 0.55rem;
+  animation: tourCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes tourIn {
+@keyframes tourCardIn {
   from {
     opacity: 0;
-    transform: translateY(6px) scale(0.995);
+    transform: translateY(10px) scale(0.97);
   }
   to {
     opacity: 1;
@@ -576,12 +598,13 @@ onBeforeUnmount(() => {
   }
 }
 
+/* ── Close button ── */
 .tourClose {
   position: absolute;
-  top: 0.6rem;
-  right: 0.6rem;
-  width: 1.65rem;
-  height: 1.65rem;
+  top: 0.7rem;
+  right: 0.7rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 999px;
   border: none;
   background: var(--tour-secondary-btn);
@@ -590,35 +613,38 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 140ms ease;
+  transition: background 150ms ease, color 150ms ease;
+  flex-shrink: 0;
 }
 
 .tourClose:hover {
   background: var(--tour-hover);
+  color: var(--tour-text);
 }
 
+/* ── Progress row ── */
 .tourMeta {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding-right: 1.8rem;
+  gap: 0.55rem;
+  padding-right: 2rem;
 }
 
 .tourStep {
   flex-shrink: 0;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--tour-muted);
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .tourProgressBar {
   flex: 1;
-  height: 3px;
+  height: 2.5px;
   border-radius: 999px;
-  background: rgba(171, 184, 201, 0.18);
+  background: rgb(171 184 201 / 0.14);
   overflow: hidden;
 }
 
@@ -627,77 +653,98 @@ onBeforeUnmount(() => {
   height: 100%;
   background: var(--tour-primary);
   border-radius: 999px;
-  transition: width 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── Content transition ── */
+.tourContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.tourContent-enter-active {
+  transition: opacity 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tourContent-leave-active {
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+
+.tourContent-enter-from {
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.tourContent-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* ── Content ── */
 .tourTitle {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.02rem;
+  font-weight: 700;
   color: var(--tour-text);
-  line-height: 1.3;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
 }
 
 .tourBody {
   margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.55;
+  font-size: 0.86rem;
+  line-height: 1.58;
   color: var(--tour-muted);
-}
-
-.tourTip {
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: rgb(15 115 255 / 0.92);
-  border-left: 2px solid rgb(15 115 255 / 0.5);
-  padding-left: 0.5rem;
 }
 
 .tourMissing {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.77rem;
   color: #fe8311;
-  background: rgb(254 131 17 / 0.12);
-  border: 1px solid rgb(254 131 17 / 0.34);
-  border-radius: 8px;
-  padding: 0.4rem 0.5rem;
+  background: rgb(254 131 17 / 0.1);
+  border: 1px solid rgb(254 131 17 / 0.28);
+  border-radius: 10px;
+  padding: 0.4rem 0.55rem;
 }
 
+/* ── Step dots ── */
 .tourDots {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
 }
 
 .tourDot {
-  width: 5px;
   height: 5px;
+  width: 5px;
   border-radius: 999px;
   border: none;
-  background: rgb(171 184 201 / 0.34);
+  background: rgb(171 184 201 / 0.28);
   padding: 0;
   cursor: pointer;
-  transition: background 220ms ease, width 220ms ease;
+  transition: background 220ms ease, width 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .tourDot.active {
-  width: 14px;
+  width: 18px;
   background: var(--tour-primary);
 }
 
+/* ── Action row ── */
 .tourActions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-top: 0.1rem;
+  margin-top: 0.25rem;
 }
 
 .tourActionsRight {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
 }
 
 .tourBtnGhost,
@@ -707,9 +754,10 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.56rem 1rem;
+  padding: 0.52rem 1.05rem;
   cursor: pointer;
-  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  white-space: nowrap;
 }
 
 .tourBtnGhost {
@@ -719,6 +767,7 @@ onBeforeUnmount(() => {
 
 .tourBtnGhost:hover {
   background: var(--tour-hover);
+  color: var(--tour-text);
 }
 
 .tourBtnPrimary {
@@ -732,27 +781,41 @@ onBeforeUnmount(() => {
 
 .tourBtnGhost:focus-visible,
 .tourBtnPrimary:focus-visible {
-  outline: 2px solid rgba(15, 115, 255, 0.7);
+  outline: 2px solid rgb(15 115 255 / 0.65);
   outline-offset: 2px;
 }
 
+/* ── Responsive ── */
 @media (max-width: 480px) {
   .tourTooltip {
     width: calc(100vw - 16px);
-    padding: 0.85rem;
+    padding: 0.9rem 0.9rem 0.75rem;
+    border-radius: 18px;
+  }
+
+  .tourTitle {
+    font-size: 0.96rem;
   }
 
   .tourActions {
     flex-wrap: wrap;
+    gap: 0.4rem;
   }
 
   .tourActionsRight {
     width: 100%;
     justify-content: flex-end;
   }
+
+  .tourBtnGhost,
+  .tourBtnPrimary {
+    padding: 0.52rem 0.9rem;
+  }
 }
 
+/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
+  .tourOverlay,
   .tourSpotlight,
   .tourTooltip,
   .tourProgressFill,

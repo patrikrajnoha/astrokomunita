@@ -817,7 +817,7 @@ export function applyAuthGuards(routerInstance) {
       if (!preferences.isOnboardingCompleted && !isOnboardingRoute && !isVerifyEmailRoute) {
         return {
           name: 'onboarding',
-          query: { redirect: redirectTarget },
+          query: { redirect: redirectTarget, start_tour: '1' },
         }
       }
 

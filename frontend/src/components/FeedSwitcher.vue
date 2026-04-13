@@ -29,6 +29,7 @@
         :tabindex="modelValue === tab.id ? 0 : -1"
         :aria-controls="tab.panelId"
         :aria-selected="modelValue === tab.id ? 'true' : 'false'"
+        :data-tour="tab.dataTour || undefined"
         @click="activateTab(index)"
         @focus="focusedIndex = index"
         @keydown="onTabKeydown($event, index)"

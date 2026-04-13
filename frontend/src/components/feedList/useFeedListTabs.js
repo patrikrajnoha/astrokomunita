@@ -11,6 +11,7 @@ const HOME_TABS = [
     label: 'AstroFeed ✨',
     tabId: 'feed-tab-astrobot',
     panelId: 'feed-panel-astrobot',
+    dataTour: 'astrofeed',
   },
 ]
 
