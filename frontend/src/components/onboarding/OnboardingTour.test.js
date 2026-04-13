@@ -81,6 +81,7 @@ describe('OnboardingTour', () => {
     setViewportWidth(1280)
     window.localStorage.removeItem(ONBOARDING_TOUR_STORAGE_KEY)
     appendTourTarget('feed')
+    appendTourTarget('astrofeed')
     appendTourTarget('conditions-sidebar')
   })
 
@@ -88,19 +89,17 @@ describe('OnboardingTour', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders rotating widget preview on the conditions step', async () => {
+  it('renders widgets step with correct title and body', async () => {
     const wrapper = await mountTour(2)
 
-    expect(normalizeText(wrapper.get('.tourTitle').text())).toBe('pozorovacie podmienky')
-    expect(wrapper.find('.widgetPreview').exists()).toBe(true)
-    expect(wrapper.findAll('.widgetSlide').length).toBeGreaterThanOrEqual(3)
+    expect(normalizeText(wrapper.get('.tourTitle').text())).toBe('tvoje widgety')
+    expect(wrapper.find('.widgetPreview').exists()).toBe(false)
 
     const text = normalizeText(wrapper.text())
-    expect(text).toContain('pocasie')
     expect(text).toContain('widgety')
   })
 
-  it('does not render widget preview on non-widget steps', async () => {
+  it('renders community feed step with correct title', async () => {
     const wrapper = await mountTour(0)
 
     expect(normalizeText(wrapper.get('.tourTitle').text())).toBe('komunitny feed')
