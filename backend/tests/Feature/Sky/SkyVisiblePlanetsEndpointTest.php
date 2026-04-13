@@ -486,8 +486,8 @@ class SkyVisiblePlanetsEndpointTest extends TestCase
 
         $this->assertSame('20:15-01:10', $rowsByName->get('mars')['best_time_window'] ?? null);
         $this->assertSame('19:40-23:10', $rowsByName->get('jupiter')['best_time_window'] ?? null);
-        $this->assertSame('18:20-19:10', $rowsByName->get('venusa')['best_time_window'] ?? null);
-        $this->assertSame('18:10-18:45', $rowsByName->get('merkur')['best_time_window'] ?? null);
+        $this->assertSame('18:20-19:10', $rowsByName->get('venuša')['best_time_window'] ?? null);
+        $this->assertSame('18:10-18:45', $rowsByName->get('merkúr')['best_time_window'] ?? null);
     }
 
     public function test_it_parses_jpl_horizons_rows_with_solar_and_lunar_presence_flags(): void
