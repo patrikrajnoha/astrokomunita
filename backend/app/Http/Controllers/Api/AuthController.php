@@ -91,6 +91,11 @@ class AuthController extends Controller
             'requires_email_verification' => $requiresEmailVerification,
         ]);
 
+        if (! $requiresEmailVerification) {
+            $user->email_verified_at = now();
+            $user->saveQuietly();
+        }
+
         Auth::login($user, false);
 
         if ($request->hasSession()) {
