@@ -1,5 +1,6 @@
 
 <AdminPageShell title="Odporúčané udalosti" subtitle="Správa odporúčaných udalostí pre popup Mark your calendar.">
+  <div v-if="!settings.enabled" class="rounded-xl bg-amber-500/10 text-amber-400 px-3 py-2 text-[12.5px] mb-3">Popup je momentálne vypnutý — používatelia ho neuvidia.</div>
   <div v-if="error" class="rounded-xl bg-danger/10 text-danger px-3 py-2 text-[12.5px] mb-3">{{ error }}</div>
   <div v-if="success" class="rounded-xl bg-[#22C55E]/10 text-[#22C55E] px-3 py-2 text-[12.5px] mb-3">{{ success }}</div>
 
@@ -44,7 +45,7 @@
           <path d="M10 3v10m0 0-3.5-3.5M10 13l3.5-3.5M4 16h12"/>
         </svg>
       </a>
-      <label class="toggle" for="toggle-popup" title="Zapnúť / vypnúť popup">
+      <label class="toggle" for="toggle-popup">
         <input
           id="toggle-popup"
           :checked="Boolean(settings.enabled)"
@@ -53,6 +54,7 @@
           @change="toggleEnabled($event.target.checked)"
         />
         <span class="toggle__track"></span>
+        <span class="toggle__label">{{ settings.enabled ? 'Popup zap.' : 'Popup vyp.' }}</span>
       </label>
     </div>
   </div>

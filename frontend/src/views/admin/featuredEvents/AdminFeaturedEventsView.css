@@ -105,6 +105,18 @@
   background: #0F73FF;
 }
 
+.toggle__label {
+  margin-left: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(171, 184, 201, 0.8);
+  white-space: nowrap;
+}
+
+.toggle input:checked ~ .toggle__label {
+  color: #0F73FF;
+}
+
 .toggle__track::after {
   content: '';
   position: absolute;
