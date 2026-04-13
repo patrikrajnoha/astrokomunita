@@ -40,18 +40,16 @@
 
 .feed-panel {
   min-width: 0;
-  overflow: hidden;
 }
 
 .feedTab-enter-active,
 .feedTab-leave-active {
-  transition: opacity var(--motion-base), transform var(--motion-base);
+  transition: opacity var(--motion-base);
 }
 
 .feedTab-enter-from,
 .feedTab-leave-to {
   opacity: 0;
-  transform: translateY(8px);
 }
 
 .feedItem-enter-active,
