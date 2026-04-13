@@ -383,7 +383,7 @@ class AuthRegistrationTest extends TestCase
 
         $user = User::query()->where('email', 'verify-disabled@example.com')->firstOrFail();
 
-        $this->assertNull($user->email_verified_at);
+        $this->assertNotNull($user->email_verified_at, 'User should be auto-verified when verification is not required');
         $this->assertFalse((bool) $user->requires_email_verification);
         Notification::assertNothingSent();
     }
