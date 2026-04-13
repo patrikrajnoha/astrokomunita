@@ -2,8 +2,8 @@
     $title = 'Obnova hesla';
     $intro = 'Použi tento jednorazový kód vo formulári na obnovu hesla.';
     $appName = (string) config('app.name', 'Astrokomunita');
-    $appUrl = rtrim((string) config('app.url', 'http://localhost'), '/');
-    $logoUrl = $appUrl . '/logo.png';
+    $frontendUrl = rtrim((string) env('FRONTEND_URL', config('app.url', 'http://localhost')), '/');
+    $logoUrl = $frontendUrl . '/logo.png';
     $ttlMinutes = max(5, (int) config('password_reset.code_ttl_minutes', 20));
 @endphp
 <!doctype html>
@@ -24,9 +24,6 @@
                 <tr>
                     <td style="padding:22px 24px;background:linear-gradient(135deg,#1d4ed8,#0f766e);text-align:center;">
                         <img src="{{ $logoUrl }}" width="148" alt="{{ $appName }}" style="display:block;margin:0 auto;max-width:148px;height:auto;border:0;outline:none;text-decoration:none;">
-                        <p style="margin:12px 0 0;font-size:11px;line-height:1;letter-spacing:0.16em;text-transform:uppercase;color:#dbeafe;">
-                            Astrokomunita
-                        </p>
                     </td>
                 </tr>
                 <tr>
