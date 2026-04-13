@@ -578,7 +578,10 @@ export default {
   left: 50%;
   transform: translateX(-50%);
   font-size: 15px;
-  white-space: nowrap;
+  max-width: min(90vw, 320px);
+  white-space: normal;
+  text-wrap: balance;
+  line-height: 1.25;
   text-align: center;
   animation: sorry-appear 760ms ease-out 280ms both;
 }
@@ -678,6 +681,12 @@ export default {
 @media screen and (max-height: 600px) {
   .center {
     transform: translate(-50%, -50%) scale(0.75);
+  }
+}
+
+@media screen and (max-width: 560px) {
+  .center {
+    transform: translate(-50%, -50%) scale(0.82);
   }
 }
 

@@ -644,6 +644,7 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(28, 39, 54, 0.72);
+  max-width: 100%;
 }
 
 .eventSegment {
@@ -962,9 +963,30 @@
   .copyBtn {
     display: none;
   }
+
+  .eventSegments {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .eventSegments::-webkit-scrollbar {
+    display: none;
+  }
+
+  .eventSegment {
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 479px) {
+  .metaItem {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
   .avatarIconGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
