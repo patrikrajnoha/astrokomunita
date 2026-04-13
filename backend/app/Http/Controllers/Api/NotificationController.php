@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\NotificationResource;
 use App\Services\NotificationService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -50,7 +51,7 @@ class NotificationController extends Controller
     {
         try {
             $notification = $this->notifications->markRead($id, $request->user()->id);
-        } catch (\Throwable) {
+        } catch (ModelNotFoundException) {
             throw new NotFoundHttpException('Notification not found');
         }
 
@@ -65,6 +66,30 @@ class NotificationController extends Controller
         $count = $this->notifications->markAllRead($request->user()->id);
 
         return response()->json(['updated' => $count]);
+    }
+
+    /**
+     * DELETE /api/notifications/{id}
+     */
+    public function destroy(Request $request, int $id)
+    {
+        try {
+            $this->notifications->delete($id, $request->user()->id);
+        } catch (ModelNotFoundException) {
+            throw new NotFoundHttpException('Notification not found');
+        }
+
+        return response()->noContent();
+    }
+
+    /**
+     * DELETE /api/notifications
+     */
+    public function destroyAll(Request $request)
+    {
+        $count = $this->notifications->deleteAll($request->user()->id);
+
+        return response()->json(['deleted' => $count]);
     }
 
     /**

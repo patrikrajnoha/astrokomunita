@@ -23,6 +23,7 @@ vi.mock('@/services/api', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
+    delete: vi.fn(),
     defaults: { baseURL: 'http://127.0.0.1:8000/api' },
   },
 }))
@@ -49,6 +50,7 @@ describe('notifications store realtime handler', () => {
     infoToast.mockClear()
     http.get.mockReset()
     http.post.mockReset()
+    http.delete.mockReset()
     authState.bootstrapDone = true
     authState.isAuthed = true
     authState.user = { id: 7 }
@@ -356,5 +358,103 @@ describe('notifications store realtime handler', () => {
     expect(http.get).toHaveBeenCalledWith('/notifications/unread-count', {
       meta: { skipErrorToast: true, skipAuthRedirect: true },
     })
+  })
+
+  it('deleteNotification removes unread notification and updates unread count', async () => {
+    const store = useNotificationsStore()
+    store.items = [
+      {
+        id: 1201,
+        type: 'event_invite',
+        data: { event_title: 'A' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+      {
+        id: 1202,
+        type: 'contest_winner',
+        data: { contest_name: 'B' },
+        read_at: '2026-03-05T10:05:00Z',
+        created_at: '2026-03-05T09:00:00Z',
+      },
+    ]
+    store.latestItems = [...store.items]
+    store.unreadCount = 1
+
+    http.delete.mockResolvedValue({ status: 204 })
+
+    await store.deleteNotification(1201)
+
+    expect(authState.csrf).toHaveBeenCalled()
+    expect(http.delete).toHaveBeenCalledWith('/notifications/1201', {
+      meta: { skipErrorToast: true },
+    })
+    expect(store.items.map((item) => item.id)).toEqual([1202])
+    expect(store.latestItems.map((item) => item.id)).toEqual([1202])
+    expect(store.unreadCount).toBe(0)
+    expect(store.isDeleting(1201)).toBe(false)
+  })
+
+  it('deleteNotification restores state when backend delete fails', async () => {
+    const store = useNotificationsStore()
+    store.items = [
+      {
+        id: 1301,
+        type: 'event_invite',
+        data: { event_title: 'A' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+    ]
+    store.latestItems = [...store.items]
+    store.unreadCount = 1
+
+    http.delete.mockRejectedValue(new Error('delete failed'))
+
+    await store.deleteNotification(1301)
+
+    expect(store.items.map((item) => item.id)).toEqual([1301])
+    expect(store.latestItems.map((item) => item.id)).toEqual([1301])
+    expect(store.unreadCount).toBe(1)
+    expect(store.isDeleting(1301)).toBe(false)
+  })
+
+  it('deleteAllNotifications clears the list and unread count', async () => {
+    const store = useNotificationsStore()
+    store.items = [
+      {
+        id: 1401,
+        type: 'event_invite',
+        data: { event_title: 'A' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+      {
+        id: 1402,
+        type: 'contest_winner',
+        data: { contest_name: 'B' },
+        read_at: null,
+        created_at: '2026-03-05T09:00:00Z',
+      },
+    ]
+    store.latestItems = [...store.items]
+    store.unreadCount = 2
+    store.page = 2
+    store.lastPage = 2
+
+    http.delete.mockResolvedValue({ data: { deleted: 2 } })
+
+    await store.deleteAllNotifications()
+
+    expect(authState.csrf).toHaveBeenCalled()
+    expect(http.delete).toHaveBeenCalledWith('/notifications', {
+      meta: { skipErrorToast: true },
+    })
+    expect(store.items).toEqual([])
+    expect(store.latestItems).toEqual([])
+    expect(store.unreadCount).toBe(0)
+    expect(store.page).toBe(1)
+    expect(store.lastPage).toBe(1)
+    expect(store.deletingAll).toBe(false)
   })
 })

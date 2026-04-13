@@ -132,6 +132,21 @@ function applyReadState(list, id, readAt) {
   return changed ? next : list
 }
 
+function removeNotificationById(list, id) {
+  const normalizedId = normalizeNotificationId(id)
+  if (!normalizedId || !Array.isArray(list) || list.length === 0) return list
+
+  const next = list.filter((item) => normalizeNotificationId(item?.id) !== normalizedId)
+  return next.length === list.length ? list : next
+}
+
+function syncLatestItems(items, latestItems, limit) {
+  return mergeNotificationsById(
+    Array.isArray(items) ? items.slice(0, limit) : [],
+    Array.isArray(latestItems) ? latestItems : [],
+  ).slice(0, limit)
+}
+
 async function waitForAuthBootstrap(auth) {
   if (auth?.bootstrapDone) {
     return
@@ -164,6 +179,8 @@ export const useNotificationsStore = defineStore('notifications', {
     unreadCountFetchedAt: 0,
     unreadCountFetchSeq: 0,
     markAllReading: false,
+    deletingIds: [],
+    deletingAll: false,
     fetchingPages: [],
     page: 1,
     lastPage: 1,
@@ -195,6 +212,8 @@ export const useNotificationsStore = defineStore('notifications', {
       this.unreadCountFetchedAt = 0
       this.unreadCountFetchSeq = 0
       this.markAllReading = false
+      this.deletingIds = []
+      this.deletingAll = false
       this.fetchingPages = []
       this.page = 1
       this.lastPage = 1
@@ -204,6 +223,12 @@ export const useNotificationsStore = defineStore('notifications', {
       const target = Number(page || 0)
       if (!Number.isInteger(target) || target <= 0) return false
       return this.fetchingPages.includes(target)
+    },
+
+    isDeleting(id) {
+      const normalizedId = normalizeNotificationId(id)
+      if (!normalizedId) return false
+      return this.deletingIds.includes(normalizedId)
     },
 
     async fetchList(page = 1, options = {}) {
@@ -528,7 +553,7 @@ export const useNotificationsStore = defineStore('notifications', {
       const auth = useAuthStore()
       await waitForAuthBootstrap(auth)
       if (!auth.isAuthed) return
-      if (this.markAllReading) return
+      if (this.markAllReading || this.deletingAll) return
       this.markAllReading = true
       const hadUnread = this.items.filter((item) => !item.read_at)
       const prevCount = this.unreadCount
@@ -555,6 +580,84 @@ export const useNotificationsStore = defineStore('notifications', {
         this.unreadCount = prevCount
       } finally {
         this.markAllReading = false
+      }
+    },
+
+    async deleteNotification(id) {
+      const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
+      if (!auth.isAuthed) return
+
+      const normalizedId = normalizeNotificationId(id)
+      if (!normalizedId || this.deletingAll || this.isDeleting(normalizedId)) return
+
+      const target = this.items.find((item) => normalizeNotificationId(item?.id) === normalizedId)
+        || this.latestItems.find((item) => normalizeNotificationId(item?.id) === normalizedId)
+      const wasUnread = target ? !target.read_at : false
+      const previousItems = this.items
+      const previousLatestItems = this.latestItems
+      const previousUnreadCount = this.unreadCount
+
+      this.deletingIds = [...this.deletingIds, normalizedId]
+      this.items = removeNotificationById(this.items, normalizedId)
+      this.latestItems = syncLatestItems(this.items, removeNotificationById(this.latestItems, normalizedId), this.latestLimit)
+      if (wasUnread) {
+        this.unreadCount = Math.max(0, this.unreadCount - 1)
+        this.unreadCountHydrated = true
+        this.unreadCountFetchedAt = Date.now()
+      }
+
+      try {
+        await auth.csrf()
+        await http.delete(`/notifications/${normalizedId}`, {
+          meta: { skipErrorToast: true },
+        })
+      } catch (err) {
+        console.warn('Delete notification failed:', err?.message || err)
+        this.items = previousItems
+        this.latestItems = previousLatestItems
+        this.unreadCount = previousUnreadCount
+      } finally {
+        this.deletingIds = this.deletingIds.filter((entry) => entry !== normalizedId)
+      }
+    },
+
+    async deleteAllNotifications() {
+      const auth = useAuthStore()
+      await waitForAuthBootstrap(auth)
+      if (!auth.isAuthed) return
+      if (this.deletingAll || this.markAllReading) return
+
+      const previousItems = this.items
+      const previousLatestItems = this.latestItems
+      const previousUnreadCount = this.unreadCount
+      const previousPage = this.page
+      const previousLastPage = this.lastPage
+
+      this.deletingAll = true
+      this.deletingIds = []
+      this.items = []
+      this.latestItems = []
+      this.page = 1
+      this.lastPage = 1
+      this.unreadCount = 0
+      this.unreadCountHydrated = true
+      this.unreadCountFetchedAt = Date.now()
+
+      try {
+        await auth.csrf()
+        await http.delete('/notifications', {
+          meta: { skipErrorToast: true },
+        })
+      } catch (err) {
+        console.warn('Delete all notifications failed:', err?.message || err)
+        this.items = previousItems
+        this.latestItems = previousLatestItems
+        this.page = previousPage
+        this.lastPage = previousLastPage
+        this.unreadCount = previousUnreadCount
+      } finally {
+        this.deletingAll = false
       }
     },
   },

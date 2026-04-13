@@ -336,6 +336,27 @@ class NotificationService
             ->update(['read_at' => now()]);
     }
 
+    public function delete(int $notificationId, int $userId): void
+    {
+        $notification = Notification::query()
+            ->where('id', $notificationId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$notification) {
+            throw new ModelNotFoundException('Notification not found');
+        }
+
+        $notification->delete();
+    }
+
+    public function deleteAll(int $userId): int
+    {
+        return Notification::query()
+            ->where('user_id', $userId)
+            ->delete();
+    }
+
     public function unreadCount(int $userId): int
     {
         return Notification::query()

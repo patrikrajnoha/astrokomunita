@@ -648,6 +648,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::middleware('throttle:30,1')->group(function () {
             Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
             Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+            Route::delete('/notifications', [NotificationController::class, 'destroyAll']);
+            Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
         });
 
         // Event reminders

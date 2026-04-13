@@ -9,9 +9,27 @@
               v-if="items.length"
               type="button"
               class="rounded-full bg-[#222E3F] px-3 py-1.5 text-xs font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95"
+              :disabled="deletingAll || markAllReading"
               @click="markAll"
             >
               Označiť všetko
+            </button>
+            <button
+              v-if="items.length"
+              type="button"
+              data-testid="delete-all-notifications"
+              class="inline-flex items-center gap-1.5 rounded-full bg-[rgba(185,28,28,0.18)] px-3 py-1.5 text-xs font-semibold text-[rgba(252,165,165,0.94)] transition hover:bg-[rgba(185,28,28,0.24)] hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              :disabled="deletingAll || markAllReading"
+              @click="deleteAll"
+            >
+              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 7h16" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+              {{ deletingAll ? 'Mazem...' : 'Vymazat vsetko' }}
             </button>
             <button
               data-testid="open-notification-settings"
@@ -72,14 +90,18 @@
           tag="div"
           class="overflow-hidden rounded-2xl bg-[#1c2736]"
         >
-          <button
+          <div
             v-for="item in items"
             :key="item.id"
-            type="button"
-            class="group flex w-full items-center gap-3 border-b border-[rgba(255,255,255,0.07)] px-5 py-3.5 text-left transition hover:bg-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF] last:border-b-0"
+            class="group flex items-center gap-3 border-b border-[rgba(255,255,255,0.07)] px-5 py-3.5 transition hover:bg-hover last:border-b-0"
             :class="item.read_at ? 'opacity-75' : 'border-l-[3px] border-l-[rgba(15,115,255,0.65)] bg-[rgba(28,39,54,0.38)]'"
-            @click="openNotification(item)"
           >
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF]"
+              :disabled="isDeleting(item.id) || deletingAll"
+              @click="openNotification(item)"
+            >
             <span class="flex-none text-base leading-none" aria-hidden="true">{{ formatIcon(item) }}</span>
             <span class="min-w-0 flex-1">
               <span class="block text-sm font-semibold text-white">{{ formatTitle(item) }}</span>
@@ -89,7 +111,24 @@
               <span>{{ formatTime(item) }}</span>
               <span aria-hidden="true" class="opacity-30 transition-opacity group-hover:opacity-60">›</span>
             </span>
-          </button>
+            </button>
+            <button
+              type="button"
+              :data-testid="`delete-notification-${item.id}`"
+              class="notificationDeleteButton"
+              :disabled="isDeleting(item.id) || deletingAll"
+              @click.stop="deleteOne(item)"
+            >
+              <span class="sr-only">Vymazat notifikaciu</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+                <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </button>
+          </div>
         </TransitionGroup>
 
         <div v-if="isPaginating" class="px-2 py-4 text-xs text-muted" data-testid="notifications-page-paginating">
@@ -260,6 +299,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useConfirm } from '@/composables/useConfirm'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
@@ -282,6 +322,7 @@ const store = useNotificationsStore()
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const { confirm } = useConfirm()
 const eventReminderPreferenceRows = EVENT_REMINDER_PREFERENCE_ROWS
 
 const items = computed(() => store.items)
@@ -290,6 +331,8 @@ const loadingMore = computed(() => store.loadingMore)
 const error = computed(() => store.error)
 const page = computed(() => store.page)
 const lastPage = computed(() => store.lastPage)
+const markAllReading = computed(() => store.markAllReading)
+const deletingAll = computed(() => store.deletingAll)
 const isSettingsModalOpen = ref(false)
 const isInitialLoading = computed(() => loading.value && items.value.length === 0)
 const isPaginating = computed(() => loadingMore.value || (loading.value && items.value.length > 0))
@@ -352,6 +395,7 @@ const markAll = () => store.markAllRead()
 const retry = () => store.fetchList(1)
 const retrySkyPreferences = () => fetchPreferences()
 const retryDeliveryPreferences = () => fetchDeliveryPreferences()
+const isDeleting = (id) => store.isDeleting(id)
 
 function openSettingsModal() {
   isSettingsModalOpen.value = true
@@ -453,6 +497,36 @@ const openNotification = async (item) => {
   if (target?.url) {
     router.push(target.url)
   }
+}
+
+async function deleteOne(item) {
+  if (!item?.id || isDeleting(item.id) || deletingAll.value) return
+
+  const approved = await confirm({
+    title: 'Vymazat notifikaciu?',
+    message: 'Tato notifikacia sa odstrani z tvojho zoznamu.',
+    confirmText: 'Vymazat',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+  await store.deleteNotification(item.id)
+}
+
+async function deleteAll() {
+  if (!items.value.length || deletingAll.value || markAllReading.value) return
+
+  const approved = await confirm({
+    title: 'Vymazat vsetky notifikacie?',
+    message: 'Tato akcia odstrani vsetky notifikacie z tvojho uctu.',
+    confirmText: 'Vymazat vsetko',
+    cancelText: 'Zrusit',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+  await store.deleteAllNotifications()
 }
 
 const formatIcon = (item) => {
@@ -799,5 +873,39 @@ const formatClock = (iso) => {
 
 .notificationItem-move {
   transition: transform var(--motion-base);
+}
+
+.notificationDeleteButton {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.04);
+  color: #abb8c9;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.notificationDeleteButton:hover:not(:disabled) {
+  background: rgb(185 28 28 / 0.18);
+  color: #fecaca;
+}
+
+.notificationDeleteButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notificationDeleteButton svg {
+  width: 1rem;
+  height: 1rem;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 }
 </style>

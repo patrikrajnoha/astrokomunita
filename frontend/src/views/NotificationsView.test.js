@@ -7,6 +7,7 @@ import NotificationsView from './NotificationsView.vue'
 const getMock = vi.hoisted(() => vi.fn())
 const postMock = vi.hoisted(() => vi.fn())
 const putMock = vi.hoisted(() => vi.fn())
+const confirmMock = vi.hoisted(() => vi.fn(async () => true))
 
 const notificationsStoreMock = vi.hoisted(() => ({
   items: [],
@@ -15,10 +16,15 @@ const notificationsStoreMock = vi.hoisted(() => ({
   error: '',
   page: 1,
   lastPage: 1,
+  markAllReading: false,
+  deletingAll: false,
   fetchList: vi.fn(),
   fetchUnreadCount: vi.fn(),
   markAllRead: vi.fn(),
   markRead: vi.fn(),
+  deleteNotification: vi.fn(),
+  deleteAllNotifications: vi.fn(),
+  isDeleting: vi.fn(() => false),
 }))
 
 const authMock = vi.hoisted(() => ({
@@ -31,6 +37,12 @@ vi.mock('@/stores/notifications', () => ({
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authMock,
+}))
+
+vi.mock('@/composables/useConfirm', () => ({
+  useConfirm: () => ({
+    confirm: confirmMock,
+  }),
 }))
 
 vi.mock('@/services/api', () => ({
@@ -83,7 +95,11 @@ describe('NotificationsView', () => {
     notificationsStoreMock.error = ''
     notificationsStoreMock.page = 1
     notificationsStoreMock.lastPage = 1
+    notificationsStoreMock.markAllReading = false
+    notificationsStoreMock.deletingAll = false
     authMock.isAuthed = true
+    notificationsStoreMock.isDeleting.mockReset()
+    notificationsStoreMock.isDeleting.mockReturnValue(false)
 
     getMock.mockImplementation(async (url) => {
       if (url === '/me/notifications/preferences') {
@@ -114,6 +130,7 @@ describe('NotificationsView', () => {
     putMock.mockImplementation(async (_url, payload) => ({
       data: payload,
     }))
+    confirmMock.mockClear()
   })
 
   it('click on settings button opens modal', async () => {
@@ -218,6 +235,58 @@ describe('NotificationsView', () => {
     }), {
       meta: { requiresAuth: true },
     })
+
+    wrapper.unmount()
+  })
+
+  it('deletes a single notification after confirmation', async () => {
+    notificationsStoreMock.items = [
+      {
+        id: 77,
+        type: 'event_invite',
+        data: { event_title: 'Lunar eclipse' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+    ]
+
+    const { wrapper } = await mountView()
+
+    await wrapper.get('[data-testid="delete-notification-77"]').trigger('click')
+    await flush()
+
+    expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Vymazat notifikaciu?',
+      confirmText: 'Vymazat',
+      variant: 'danger',
+    }))
+    expect(notificationsStoreMock.deleteNotification).toHaveBeenCalledWith(77)
+
+    wrapper.unmount()
+  })
+
+  it('deletes all notifications after confirmation', async () => {
+    notificationsStoreMock.items = [
+      {
+        id: 77,
+        type: 'event_invite',
+        data: { event_title: 'Lunar eclipse' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+    ]
+
+    const { wrapper } = await mountView()
+
+    await wrapper.get('[data-testid="delete-all-notifications"]').trigger('click')
+    await flush()
+
+    expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Vymazat vsetky notifikacie?',
+      confirmText: 'Vymazat vsetko',
+      variant: 'danger',
+    }))
+    expect(notificationsStoreMock.deleteAllNotifications).toHaveBeenCalledTimes(1)
 
     wrapper.unmount()
   })
