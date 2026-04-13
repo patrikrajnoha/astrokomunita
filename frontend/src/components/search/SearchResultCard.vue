@@ -148,23 +148,22 @@ const iconPaths = computed(() => {
 <style scoped>
 .searchResultCard {
   display: block;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  background: rgba(21, 29, 40, 0.42);
+  border: none;
+  border-radius: 1rem;
+  background: #151d28;
   padding: 0.72rem;
   color: inherit;
   text-decoration: none;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition: background 140ms ease;
 }
 
 .searchResultCard:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(21, 29, 40, 0.56);
+  background: #1c2736;
 }
 
 .searchResultCard:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #0F73FF;
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 0;
 }
 
 .searchResultCard__row {
@@ -181,10 +180,10 @@ const iconPaths = computed(() => {
   flex-shrink: 0;
   width: 2rem;
   height: 2rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.5rem;
-  color: rgba(171, 184, 201, 0.94);
-  background: rgba(21, 29, 40, 0.58);
+  border: none;
+  border-radius: 0.75rem;
+  color: #ABB8C9;
+  background: #222e3f;
 }
 
 .searchResultCard__content {

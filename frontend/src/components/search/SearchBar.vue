@@ -110,29 +110,29 @@ const clearQuery = () => {
 
 .searchBar__input {
   width: 100%;
-  min-height: 42px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  background: rgba(21, 29, 40, 0.48);
+  min-height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: #151d28;
   color: #ffffff;
-  padding: 0.6rem 4.3rem 0.6rem 2.2rem;
-  font-size: 0.875rem;
+  padding: 0.6rem 4.3rem 0.6rem 2.4rem;
+  font-size: 0.88rem;
   line-height: 1.4;
-  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  outline: none;
+  transition: background 140ms ease;
 }
 
 .searchBar__input::placeholder {
-  color: rgba(171, 184, 201, 0.74);
+  color: rgb(171 184 201 / 60%);
 }
 
 .searchBar__input:hover {
-  border-color: rgba(255, 255, 255, 0.16);
+  background: #131a23;
 }
 
 .searchBar__input:focus-visible {
-  outline: none;
-  border-color: rgba(15, 115, 255, 0.84);
-  box-shadow: 0 0 0 2px #0F73FF;
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 0;
 }
 
 .searchBar__actions {
@@ -148,7 +148,7 @@ const clearQuery = () => {
 .searchBar__clear {
   width: 28px;
   height: 28px;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 999px;
   background: transparent;
   color: #ABB8C9;
@@ -156,18 +156,17 @@ const clearQuery = () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+  transition: color 140ms ease, background 140ms ease;
 }
 
 .searchBar__clear:hover {
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(21, 29, 40, 0.72);
+  background: #222e3f;
 }
 
 .searchBar__clear:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #0F73FF;
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 1px;
 }
 
 .searchBar__spinner {

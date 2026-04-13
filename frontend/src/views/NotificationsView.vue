@@ -8,14 +8,14 @@
             <button
               v-if="items.length"
               type="button"
-              class="rounded-full border border-white/[0.08] px-3 py-1.5 text-xs text-muted transition hover:border-white/[0.16] hover:text-white"
+              class="rounded-full bg-[#222E3F] px-3 py-1.5 text-xs font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95"
               @click="markAll"
             >
               Označiť všetko
             </button>
             <button
               data-testid="open-notification-settings"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.08] text-muted transition hover:border-white/[0.16] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF]"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#222E3F] text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF]"
               type="button"
               @click="openSettingsModal"
             >
@@ -58,7 +58,7 @@
           <p class="mt-2 text-sm text-muted">Keď nastane aktivita, zobrazí sa tu.</p>
           <button
             type="button"
-            class="mt-6 rounded-full border border-white/[0.08] px-4 py-2 text-sm text-muted transition hover:border-white/[0.16] hover:text-white"
+            class="mt-6 rounded-full bg-[#222E3F] px-5 py-2.5 text-sm font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95"
             @click="openSettingsModal"
           >
             Nastaviť upozornenia
@@ -70,7 +70,7 @@
         <TransitionGroup
           name="notificationItem"
           tag="div"
-          class="overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgba(28,39,54,0.4)]"
+          class="overflow-hidden rounded-2xl bg-[#1c2736]"
         >
           <button
             v-for="item in items"
@@ -98,7 +98,7 @@
 
         <button
           v-if="page < lastPage"
-          class="mt-4 w-full rounded-xl border border-white/[0.08] py-2.5 text-sm text-muted transition hover:border-white/[0.16] hover:text-white"
+          class="mt-4 w-full rounded-full bg-[#222E3F] py-3 text-sm font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           type="button"
           :disabled="isPaginating"
           @click="loadMore"

@@ -10,16 +10,17 @@
   z-index: 20;
   display: grid;
   gap: 0.72rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.85rem;
+  border: none;
+  border-radius: 1.15rem;
   background: #1c2736;
-  padding: 0.72rem;
-  backdrop-filter: blur(8px);
+  padding: 0.78rem;
+  backdrop-filter: blur(10px);
 }
 
+/* ── Tabs ─────────────────────────────────────────────────────────── */
 .searchPage__tabs {
   display: flex;
-  gap: 0.45rem;
+  gap: 0.4rem;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -34,16 +35,16 @@
   gap: 0.35rem;
   flex: 0 0 auto;
   min-height: 34px;
-  padding: 0.4rem 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  background: rgba(21, 29, 40, 0.45);
+  padding: 0.4rem 0.88rem;
+  border: none;
+  border-radius: 999px;
+  background: #222e3f;
   color: #ABB8C9;
-  font-size: 0.875rem;
+  font-size: 0.86rem;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition: background 140ms ease, color 140ms ease;
 }
 
 .searchPage__tabIcon {
@@ -51,32 +52,32 @@
 }
 
 .searchPage__tab:hover {
-  border-color: rgba(255, 255, 255, 0.16);
+  background: #2a3848;
   color: #ffffff;
-  background: rgba(21, 29, 40, 0.62);
 }
 
 .searchPage__tab.is-active {
-  border-color: rgba(15, 115, 255, 0.52);
+  background: rgb(15 115 255 / 20%);
   color: #ffffff;
-  background: rgba(15, 115, 255, 0.18);
 }
 
 .searchPage__tab:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #0F73FF;
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 1px;
 }
 
+/* ── Content ──────────────────────────────────────────────────────── */
 .searchPage__content {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.72rem;
 }
 
 .searchSectionStack {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.72rem;
 }
 
+/* ── Transitions ──────────────────────────────────────────────────── */
 .searchMode-enter-active,
 .searchMode-leave-active {
   transition: opacity var(--motion-base), transform var(--motion-base);
@@ -103,11 +104,12 @@
   transition: transform var(--motion-base);
 }
 
+/* ── Notice / error ───────────────────────────────────────────────── */
 .searchPage__notice {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  background: rgba(21, 29, 40, 0.86);
-  padding: 0.9rem;
+  border: none;
+  border-radius: 1.1rem;
+  background: #1c2736;
+  padding: 0.9rem 1rem;
   display: grid;
   gap: 0.7rem;
   color: #ABB8C9;
@@ -115,41 +117,41 @@
 }
 
 .searchPage__notice--error {
-  border-color: rgba(235, 36, 82, 0.42);
-  background: rgba(235, 36, 82, 0.1);
+  background: rgb(235 36 82 / 10%);
 }
 
 .searchPage__retry {
   width: fit-content;
-  min-height: 32px;
-  padding: 0.35rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
-  background: rgba(21, 29, 40, 0.55);
-  color: #ffffff;
-  font-size: 0.875rem;
+  min-height: 34px;
+  padding: 0 0.88rem;
+  border: none;
+  border-radius: 999px;
+  background: #222e3f;
+  color: #ABB8C9;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition: background 140ms ease, color 140ms ease;
 }
 
 .searchPage__retry:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(21, 29, 40, 0.72);
+  background: #2a3848;
+  color: #ffffff;
 }
 
 .searchPage__retry:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #0F73FF;
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 1px;
 }
 
+/* ── Section card ─────────────────────────────────────────────────── */
 .searchSection {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.75rem;
+  border: none;
+  border-radius: 1.1rem;
   background: #1c2736;
-  padding: 0.78rem;
+  padding: 0.82rem;
   display: grid;
-  gap: 0.65rem;
+  gap: 0.62rem;
   min-width: 0;
 }
 
@@ -168,8 +170,7 @@
   margin: 0;
   color: #ffffff;
   font-size: 0.95rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 700;
   min-width: 0;
 }
 
@@ -181,12 +182,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.8rem;
+  min-width: 1.7rem;
   height: 1.3rem;
   padding: 0 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none;
   border-radius: 999px;
-  background: rgba(21, 29, 40, 0.48);
+  background: #222e3f;
   color: #ABB8C9;
   font-size: 0.7rem;
   font-weight: 600;
@@ -196,61 +197,62 @@
 
 .searchSection__list {
   display: grid;
-  gap: 0.48rem;
+  gap: 0.4rem;
 }
 
+/* ── Keyword chips ────────────────────────────────────────────────── */
 .searchSection__keywords {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.48rem;
+  gap: 0.45rem;
 }
 
 .searchChip {
   min-height: 30px;
-  padding: 0.25rem 0.68rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.25rem 0.75rem;
+  border: none;
   border-radius: 999px;
-  background: rgba(21, 29, 40, 0.34);
+  background: #222e3f;
   color: #ABB8C9;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+  transition: background 140ms ease, color 140ms ease;
 }
 
 .searchChip:hover {
-  border-color: rgba(15, 115, 255, 0.5);
+  background: rgb(15 115 255 / 18%);
   color: #ffffff;
-  background: rgba(15, 115, 255, 0.14);
 }
 
 .searchChip:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px #0F73FF;
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 1px;
 }
 
+/* ── Responsive ───────────────────────────────────────────────────── */
 @media (min-width: 640px) {
   .searchPage__toolbar {
     top: 0.72rem;
-    padding: 0.85rem;
+    padding: 0.9rem;
   }
 }
 
 @media (max-width: 639px) {
   .searchSection {
-    padding: 0.7rem;
+    padding: 0.72rem;
   }
 
   .searchPage__tab {
-    min-height: 40px;
-    padding: 0.5rem 0.75rem;
+    min-height: 38px;
+    padding: 0.45rem 0.75rem;
   }
 
   .searchPage__toolbar {
     top: 0.25rem;
     gap: 0.55rem;
-    padding: 0.6rem;
+    padding: 0.65rem;
   }
 }
 
@@ -258,9 +260,7 @@
   .searchPage__toolbar {
     top: 0;
     border-radius: 0;
-    border-left: none;
-    border-right: none;
     margin: 0 -1rem;
-    padding: 0.6rem 1rem;
+    padding: 0.65rem 1rem;
   }
 }
