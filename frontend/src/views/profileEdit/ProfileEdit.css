@@ -1,5 +1,16 @@
 
+/* ── Brand tokens ──────────────────────────────────────────────────── */
 .wrap {
+  --pe-bg:        #151d28;
+  --pe-card:      #1c2736;
+  --pe-input:     #222e3f;
+  --pe-primary:   #0F73FF;
+  --pe-secondary: #222E3F;
+  --pe-text:      #ffffff;
+  --pe-muted:     #ABB8C9;
+  --pe-danger:    #EB2452;
+  --pe-success:   #73DF84;
+
   max-width: 660px;
   margin: 0 auto;
   padding: 1rem;
@@ -11,20 +22,20 @@
   max-width: none;
   margin: 0;
   padding: 0;
-  gap: 0.5rem;
+  gap: 0.62rem;
 }
 
 .wrap.embedded .card {
   background: transparent;
-  padding: 0.35rem 0;
-  border-radius: 0;
+  padding: 0;
 }
 
 .wrap.embedded .locationCard {
-  padding: 0.62rem;
+  padding: 0.75rem;
   gap: 0.5rem;
 }
 
+/* ── Standalone header ─────────────────────────────────────────────── */
 .top {
   display: flex;
   align-items: center;
@@ -34,38 +45,52 @@
 .iconBtn {
   width: 36px;
   height: 36px;
-  border-radius: 999px;
   border: none;
-  background: rgb(var(--color-bg-rgb) / 0.38);
-  color: var(--color-surface);
+  border-radius: 999px;
+  background: var(--pe-secondary);
+  color: var(--pe-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  display: grid;
+  place-items: center;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.iconBtn:hover {
+  background: var(--pe-card);
+  color: var(--pe-text);
 }
 
 .title {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--color-surface);
+  color: var(--pe-text);
 }
 
+/* ── States ────────────────────────────────────────────────────────── */
 .state {
-  border: none;
-  border-radius: 0.9rem;
-  padding: 0.8rem 0.95rem;
-  background: rgb(var(--color-bg-rgb) / 0.42);
+  border-radius: 1rem;
+  padding: 0.8rem 1rem;
+  background: var(--pe-card);
+  color: var(--pe-muted);
+  font-size: 0.9rem;
 }
 
+/* ── Card / form wrapper ───────────────────────────────────────────── */
 .card {
   border: none;
-  border-radius: 1rem;
-  padding: 0.88rem;
-  background: rgb(var(--color-bg-rgb) / 0.5);
+  border-radius: 1.15rem;
+  padding: 0.92rem;
+  background: var(--pe-card);
 }
 
 .form {
   display: grid;
-  gap: 0.72rem;
+  gap: 0.82rem;
 }
 
+/* ── Profile grid (name + bio) ─────────────────────────────────────── */
 .profileGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -76,9 +101,10 @@
   grid-column: 1 / -1;
 }
 
+/* ── Fields ────────────────────────────────────────────────────────── */
 .field {
   display: grid;
-  gap: 0.28rem;
+  gap: 0.3rem;
 }
 
 .labelRow {
@@ -90,49 +116,69 @@
 
 .field label {
   font-size: 0.82rem;
-  color: var(--color-surface);
+  font-weight: 600;
+  color: var(--pe-muted);
+  line-height: 1.35;
 }
 
+/* ── Inputs / textarea ─────────────────────────────────────────────── */
 .input {
   width: 100%;
-  padding: 0.58rem 0.68rem;
-  border-radius: 0.75rem;
+  min-height: 3rem;
+  padding: 0 0.9rem;
   border: none;
-  background: rgb(var(--color-bg-rgb) / 0.42);
-  color: var(--color-surface);
+  border-radius: 1.1rem;
+  background: var(--pe-input);
+  color: var(--pe-text);
+  font-size: 0.9rem;
   outline: none;
+  box-shadow: none;
+  transition: background 140ms ease, opacity 140ms ease;
+  box-sizing: border-box;
 }
 
-.input[readonly] {
-  opacity: 0.75;
+.input::placeholder {
+  color: rgb(171 184 201 / 55%);
 }
 
 .input:focus-visible {
-  box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.38);
+  outline: 2px solid rgb(15 115 255 / 50%);
+  outline-offset: 0;
+}
+
+.input[readonly],
+.input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .textarea {
+  min-height: 6rem;
+  padding: 0.72rem 0.9rem;
   resize: vertical;
 }
 
+/* ── Location card ─────────────────────────────────────────────────── */
 .locationCard {
   border: none;
-  border-radius: 0.9rem;
-  padding: 0.75rem;
+  border-radius: 1.1rem;
+  padding: 0.82rem;
   display: grid;
   gap: 0.62rem;
-  background: rgb(var(--color-bg-rgb) / 0.28);
-  transition: box-shadow 180ms ease;
+  background: var(--pe-bg);
+  transition: outline 180ms ease;
 }
 
 .locationCard.locationHighlight {
-  box-shadow: 0 0 0 2px rgb(var(--color-primary-rgb) / 0.2);
+  outline: 2px solid rgb(15 115 255 / 30%);
+  outline-offset: 0;
 }
 
 .sectionTitle {
   margin: 0;
-  font-size: 1rem;
-  color: var(--color-surface);
+  font-size: 0.97rem;
+  font-weight: 700;
+  color: var(--pe-text);
 }
 
 .sectionHead {
@@ -142,20 +188,7 @@
   gap: 0.6rem;
 }
 
-.modeBadge {
-  border-radius: 999px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.76rem;
-  color: var(--color-surface);
-  background: rgb(var(--color-bg-rgb) / 0.45);
-}
-
-.quickActions {
-  display: flex;
-  gap: 0.45rem;
-  flex-wrap: wrap;
-}
-
+/* ── Location autocomplete ─────────────────────────────────────────── */
 .locationNameRow {
   display: flex;
   gap: 0.45rem;
@@ -168,48 +201,51 @@
 
 .locationSuggestions {
   margin: 0;
-  padding: 0.28rem;
+  padding: 0.25rem;
   list-style: none;
-  border-radius: 0.75rem;
   border: none;
-  background: rgb(var(--color-bg-rgb) / 0.46);
-  max-height: 13.5rem;
+  border-radius: 1rem;
+  background: var(--pe-input);
+  max-height: 13rem;
   overflow-y: auto;
 }
 
 .locationSuggestionItem {
   width: 100%;
   border: none;
-  border-radius: 0.62rem;
+  border-radius: 0.75rem;
   background: transparent;
-  color: var(--color-surface);
-  padding: 0.5rem 0.56rem;
+  color: var(--pe-text);
+  padding: 0.52rem 0.62rem;
   display: grid;
   justify-items: start;
-  gap: 0.12rem;
+  gap: 0.1rem;
   text-align: left;
   cursor: pointer;
+  transition: background 120ms ease;
 }
 
 .locationSuggestionItem:hover,
 .locationSuggestionItem:focus-visible {
-  background: rgb(var(--color-primary-rgb) / 0.18);
+  background: rgb(15 115 255 / 16%);
 }
 
 .locationSuggestionTitle {
   font-size: 0.86rem;
   line-height: 1.2;
+  color: var(--pe-text);
 }
 
 .locationSuggestionMeta {
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: var(--pe-muted);
 }
 
 .fillLocationBtn {
   flex-shrink: 0;
 }
 
+/* ── Actions bar ───────────────────────────────────────────────────── */
 .actionsBar {
   display: flex;
   justify-content: space-between;
@@ -228,61 +264,67 @@
   margin-left: auto;
 }
 
+/* ── Buttons ───────────────────────────────────────────────────────── */
 .btn {
-  padding: 0.54rem 0.88rem;
-  border-radius: 999px;
+  appearance: none;
   border: none;
-  background: rgb(var(--color-primary-rgb) / 0.2);
-  color: var(--color-surface);
+  border-radius: 999px;
+  padding: 0 1.1rem;
+  min-height: 3rem;
+  font-size: 0.9rem;
   font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: none;
+  background: var(--pe-primary);
+  color: #ffffff;
+  transition: background 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: #1185fe;
+}
+
+.btn:focus-visible {
+  outline: 2px solid rgb(15 115 255 / 55%);
+  outline-offset: 1px;
 }
 
 .btn:disabled {
-  opacity: 0.62;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn.ghost {
-  background: rgb(var(--color-bg-rgb) / 0.32);
+  background: var(--pe-secondary);
+  color: var(--pe-muted);
 }
 
+.btn.ghost:hover:not(:disabled) {
+  background: var(--pe-card);
+  color: var(--pe-text);
+}
+
+/* ── Hint / error / muted ──────────────────────────────────────────── */
 .hint {
-  color: var(--color-text-secondary);
+  color: var(--pe-muted);
   font-size: 0.82rem;
+  line-height: 1.4;
+  margin: 0;
 }
 
 .fieldErr {
   font-size: 0.82rem;
-  color: var(--color-danger);
-}
-
-.msg {
-  border-radius: 0.8rem;
-  padding: 0.6rem 0.75rem;
-  font-size: 0.9rem;
-}
-
-.msg.ok {
-  border: none;
-  background: rgb(var(--color-success-rgb) / 0.12);
-  color: var(--color-success);
-}
-
-.msg.err {
-  border: none;
-  background: rgb(var(--color-danger-rgb) / 0.12);
-  color: var(--color-danger);
+  color: var(--pe-danger);
+  margin: 0;
 }
 
 .muted {
   margin: 0;
-  color: var(--color-text-secondary);
+  color: var(--pe-muted);
 }
 
-.err {
-  color: var(--color-danger);
-}
-
+/* ── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .locationNameRow {
     flex-direction: column;
@@ -310,7 +352,7 @@
   }
 
   .actionsButtons .btn {
-    width: 100%;
+    flex: 1;
   }
 }
 
@@ -320,8 +362,7 @@
   }
 
   .btn {
-    min-height: 44px;
-    padding: 0.65rem 1rem;
+    min-height: 3.1rem;
     font-size: 0.92rem;
   }
 }

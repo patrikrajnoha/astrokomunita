@@ -69,7 +69,7 @@
             v-model.trim="emailForm.newEmail"
             type="email"
             autocomplete="email"
-            placeholder="vas@priklad.sk"
+            placeholder="vas@email.sk"
             class="field-input"
             :disabled="emailState.requestingChange"
           />

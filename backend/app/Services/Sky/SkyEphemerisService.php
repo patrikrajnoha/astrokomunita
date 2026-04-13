@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Log;
 class SkyEphemerisService
 {
     private const PLANET_TARGETS = [
-        ['name' => 'Merkur', 'command' => '199'],
-        ['name' => 'Venusa', 'command' => '299'],
+        ['name' => 'Merkúr', 'command' => '199'],
+        ['name' => 'Venuša', 'command' => '299'],
         ['name' => 'Mars', 'command' => '499'],
         ['name' => 'Jupiter', 'command' => '599'],
         ['name' => 'Saturn', 'command' => '699'],
