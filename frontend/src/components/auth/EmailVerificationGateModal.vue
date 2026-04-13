@@ -8,7 +8,7 @@
       >
         <section
           ref="cardRef"
-          class="vgate-card w-full max-w-[420px]"
+          class="vgate-card"
           role="dialog"
           aria-modal="true"
           aria-labelledby="email-gate-title"
@@ -29,15 +29,11 @@
             </svg>
           </div>
 
-          <h2 id="email-gate-title" class="vgate-title">
-            Potvrď svoju identitu ✨
-          </h2>
+          <h2 id="email-gate-title" class="vgate-title">Over svoj e-mail</h2>
           <p class="vgate-description">
-            Overovací kód sme poslali na
-            <span class="vgate-email">{{ account.email || 'tvoj e-mail' }}</span>
-          </p>
-          <p class="vgate-description vgate-description--secondary">
-            Zadaj ho a vstúp do Astrokomunity.
+            Poslali sme overovací kód na
+            <span class="vgate-email">{{ displayEmail }}</span>.
+            Kým kód nepotvrdíš, aplikáciu nie je možné používať.
           </p>
 
           <transition name="vgate-alert">
@@ -61,9 +57,7 @@
           </transition>
 
           <div class="vgate-field">
-            <label class="vgate-label" for="email-gate-code">
-              Overovací kód
-            </label>
+            <label class="vgate-label" for="email-gate-code">Overovací kód</label>
             <input
               id="email-gate-code"
               v-model.trim="form.code"
@@ -75,6 +69,7 @@
               :disabled="state.loading || state.confirming"
             />
             <p v-if="state.fieldError" class="vgate-fieldError">{{ state.fieldError }}</p>
+            <p class="vgate-meta">Kód má obmedzenú platnosť.</p>
           </div>
 
           <button
@@ -83,7 +78,7 @@
             :disabled="state.loading || state.sending || state.confirming || !form.code"
             @click="confirmCode"
           >
-            Pokračovať
+            {{ state.confirming ? 'Potvrdzujem...' : 'Potvrdiť kód' }}
           </button>
 
           <button
@@ -144,14 +139,26 @@ let initialSendTriggered = false
 
 function formatResendTime(seconds) {
   const clamped = Math.max(0, Number(seconds || 0))
-  return `${clamped}s`
+  return `${clamped} s`
 }
 
 const sendButtonLabel = computed(() => {
   if (state.loading) return 'Načítavam...'
   if (state.sending) return 'Odosielam...'
-  if (account.secondsToResend > 0) return `Znova vyslať kód o ${formatResendTime(account.secondsToResend)}`
-  return 'Znova vyslať kód'
+  if (account.secondsToResend > 0) return `Opakovať za ${formatResendTime(account.secondsToResend)}`
+  return 'Poslať kód znova'
+})
+
+const displayEmail = computed(() => {
+  const raw = String(account.email || auth.user?.email || '').trim()
+  if (!raw) return 'tvoj e-mail'
+
+  const [local, domain] = raw.split('@')
+  if (!local || !domain) return raw
+
+  const visible = local.slice(0, Math.min(2, local.length))
+  const hidden = '\u2022'.repeat(Math.max(3, Math.min(6, local.length - visible.length)))
+  return `${visible}${hidden}@${domain}`
 })
 
 function extractFirstError(errorsObject, field) {
@@ -251,7 +258,7 @@ async function sendCode() {
     await auth.csrf()
     const response = await http.post('/account/email/verification/send', {})
     applyStatus(response?.data?.data || {})
-    state.success = 'Kód bol odoslaný ✉️'
+    state.success = 'Overovací kód bol odoslaný.'
     initialSendTriggered = true
   } catch (error) {
     const resolved = resolveRequestError(error, 'Nepodarilo sa odoslať overovací kód.')
@@ -399,28 +406,40 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .vgate-overlay {
+  --vgate-bg: #151d28;
+  --vgate-title: #ffffff;
+  --vgate-muted: #abb8c9;
+  --vgate-highlight: #0f73ff;
+  --vgate-surface-hover: #1c2736;
+  --vgate-secondary: #222e3f;
+  --vgate-danger: #eb2452;
+  --vgate-success: #73df84;
+
   background: rgb(4 8 14 / 82%);
   backdrop-filter: blur(8px);
 }
 
 .vgate-card {
-  background: #151d28;
+  width: min(100%, 440px);
+  max-height: calc(100dvh - 24px);
+  overflow: auto;
+  background: var(--vgate-bg);
   border: 0;
-  border-radius: 24px;
+  border-radius: 28px;
   box-shadow: none;
-  padding: 24px;
+  padding: 26px;
 }
 
 .vgate-icon {
   display: flex;
   width: 44px;
   height: 44px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgb(15 115 255 / 14%);
-  color: #0f73ff;
+  background: rgb(17 133 254 / 14%);
+  color: #1185fe;
 }
 
 .vgate-icon__glyph {
@@ -430,8 +449,8 @@ onBeforeUnmount(() => {
 
 .vgate-title {
   margin: 0;
-  color: #ffffff;
-  font-size: 1.42rem;
+  color: var(--vgate-title);
+  font-size: clamp(1.34rem, 2.8vw, 1.56rem);
   font-weight: 700;
   line-height: 1.22;
   letter-spacing: -0.01em;
@@ -439,55 +458,58 @@ onBeforeUnmount(() => {
 
 .vgate-description {
   margin: 10px 0 0;
-  color: #abb8c9;
-  font-size: 0.95rem;
-  line-height: 1.5;
-}
-
-.vgate-description--secondary {
-  margin-top: 8px;
+  color: var(--vgate-muted);
+  font-size: clamp(0.92rem, 2.2vw, 0.98rem);
+  line-height: 1.58;
 }
 
 .vgate-email {
-  color: #0f73ff;
+  color: var(--vgate-highlight);
   font-weight: 600;
-  word-break: break-all;
+  word-break: break-word;
 }
 
 .vgate-pill {
   margin-top: 14px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 999px;
-  font-size: 0.81rem;
+  font-size: 0.82rem;
   line-height: 1.35;
 }
 
 .vgate-pill--success {
   background: rgb(115 223 132 / 14%);
-  color: #73df84;
+  color: var(--vgate-success);
 }
 
 .vgate-pill--error {
-  background: rgb(245 84 84 / 14%);
-  color: #eb2452;
+  background: rgb(235 36 82 / 14%);
+  color: var(--vgate-danger);
 }
 
 .vgate-field {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .vgate-label {
   display: block;
   margin-bottom: 8px;
-  color: #abb8c9;
+  color: var(--vgate-muted);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
+.vgate-meta {
+  margin: 8px 0 0;
+  color: var(--vgate-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .vgate-fieldError {
   margin-top: 7px;
-  color: #eb2452;
+  color: var(--vgate-danger);
   font-size: 0.76rem;
   line-height: 1.35;
 }
@@ -542,66 +564,69 @@ onBeforeUnmount(() => {
 
 .vgate-input {
   width: 100%;
-  padding: 12px 14px;
+  min-height: 54px;
+  padding: 0 16px;
   border: 0;
-  border-radius: 16px;
-  background: #1c2736;
-  color: #ffffff;
+  border-radius: 18px;
+  background: var(--vgate-surface-hover);
+  color: var(--vgate-title);
   font-size: 1rem;
   letter-spacing: 0.12em;
   line-height: 1.4;
   outline: none;
-  transition: box-shadow 140ms ease, background-color 140ms ease, opacity 140ms ease;
+  transition: background-color 140ms ease, opacity 140ms ease, outline-color 140ms ease;
 }
 
 .vgate-input::placeholder {
-  color: rgb(171 184 201 / 62%);
+  color: rgb(171 184 201 / 64%);
 }
 
 .vgate-input:focus {
-  box-shadow: 0 0 0 3px rgb(15 115 255 / 34%);
+  outline: 2px solid rgb(15 115 255 / 42%);
+  outline-offset: 0;
 }
 
 .vgate-input:disabled {
-  opacity: 0.54;
+  opacity: 0.56;
   cursor: not-allowed;
 }
 
 .vgate-button {
   width: 100%;
   margin-top: 10px;
+  min-height: 54px;
   padding: 12px 16px;
   border: 0;
   border-radius: 999px;
   box-shadow: none;
-  font-size: 0.94rem;
+  font-size: 0.96rem;
   font-weight: 600;
   line-height: 1.2;
   transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
 }
 
 .vgate-button--primary {
-  background: #0f73ff;
-  color: #ffffff;
+  background: var(--vgate-highlight);
+  color: var(--vgate-title);
 }
 
 .vgate-button--primary:hover {
-  background: #0d65e6;
+  background: #0d68e6;
 }
 
 .vgate-button--secondary {
-  background: #222e3f;
-  color: #abb8c9;
+  background: var(--vgate-secondary);
+  color: var(--vgate-muted);
 }
 
 .vgate-button--secondary:hover {
-  background: #1c2736;
-  color: #abb8c9;
+  background: var(--vgate-surface-hover);
+  color: var(--vgate-muted);
 }
 
 .vgate-button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgb(15 115 255 / 34%);
+  outline: 2px solid rgb(15 115 255 / 42%);
+  outline-offset: 1px;
 }
 
 .vgate-button:disabled {
@@ -611,21 +636,28 @@ onBeforeUnmount(() => {
 
 @media (max-width: 480px) {
   .vgate-overlay {
-    padding: 16px;
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom));
     align-items: flex-end;
   }
 
   .vgate-card {
-    border-radius: 20px;
+    max-width: 100%;
+    max-height: calc(100dvh - 12px - env(safe-area-inset-bottom));
+    border-radius: 24px;
     padding: 20px 16px 16px;
   }
 
   .vgate-title {
-    font-size: 1.32rem;
+    font-size: 1.28rem;
   }
 
   .vgate-description {
-    font-size: 0.91rem;
+    font-size: 0.9rem;
+  }
+
+  .vgate-input,
+  .vgate-button {
+    min-height: 52px;
   }
 }
 </style>
