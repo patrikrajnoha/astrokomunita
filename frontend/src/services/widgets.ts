@@ -124,7 +124,14 @@ function normalizeSidebarWidgetBundleSections(sections: string[] = []): string[]
 function normalizeSidebarWidgetBundleQuery(
   query: SidebarWidgetBundleQuery = {},
 ): Record<string, string | number> {
-  return normalizeMoonQuery(query)
+  const moonQuery: MoonPhasesWidgetQuery = {}
+  const lat = toFiniteCoordinate(query.lat)
+  const lon = toFiniteCoordinate(query.lon)
+  if (lat !== null) moonQuery.lat = lat
+  if (lon !== null) moonQuery.lon = lon
+  if (query.tz) moonQuery.tz = query.tz
+  if (query.date) moonQuery.date = query.date
+  return normalizeMoonQuery(moonQuery)
 }
 
 function buildSidebarWidgetBundleCacheKey(

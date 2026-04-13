@@ -34,6 +34,8 @@ export default defineConfig([
     files: ['**/*.vue'],
     rules: {
       'no-unused-vars': 'off',
+      // vue/no-v-model-argument targets Vue 2; named v-model arguments (v-model:open) are valid Vue 3 syntax
+      'vue/no-v-model-argument': 'off',
     },
   },
 

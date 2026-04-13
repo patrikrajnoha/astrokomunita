@@ -340,7 +340,6 @@ export function useEmailSettings() {
     }
 
     if (auth.user) {
-      applyEmailStatus()
       await loadEmailStatus()
     }
   })
