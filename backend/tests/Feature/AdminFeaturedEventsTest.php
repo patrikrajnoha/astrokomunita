@@ -63,6 +63,25 @@ class AdminFeaturedEventsTest extends TestCase
         $this->assertSame('2026-02-17T12:00:00+00:00', AppSetting::getString('calendar_popup_force_at'));
     }
 
+    public function test_admin_can_disable_popup_globally(): void
+    {
+        $admin = User::factory()->create([
+            'is_admin' => true,
+            'role' => 'admin',
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($admin);
+
+        AppSetting::put('calendar_popup_enabled', '1');
+
+        $this->patchJson('/api/admin/featured-events/popup-settings', [
+            'enabled' => false,
+        ])->assertOk()
+            ->assertJsonPath('data.enabled', false);
+
+        $this->assertFalse(AppSetting::getBool('calendar_popup_enabled', true));
+    }
+
     private function createEvent(string $title): Event
     {
         return Event::query()->create([

@@ -94,6 +94,16 @@ describe('AdminFeaturedEventsView', () => {
         },
       },
     })
+
+    updateFeaturedPopupSettingsMock.mockResolvedValue({
+      data: {
+        data: {
+          enabled: false,
+          force_version: 2,
+          force_at: null,
+        },
+      },
+    })
   })
 
   it('renders mode badge from selection_mode', async () => {
@@ -127,5 +137,18 @@ describe('AdminFeaturedEventsView', () => {
     const payload = applyFallbackAsFeaturedMock.mock.calls[0]?.[0] || {}
     expect(payload.month).toMatch(/^\d{4}-\d{2}$/)
     expect(getFeaturedEventsMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('updates global popup enabled setting from the toggle', async () => {
+    const wrapper = mount(AdminFeaturedEventsView)
+    await flush()
+    await flush()
+
+    const checkbox = wrapper.get('#toggle-popup')
+    await checkbox.setValue(false)
+    await flush()
+
+    expect(updateFeaturedPopupSettingsMock).toHaveBeenCalledWith({ enabled: false })
+    expect(normalizeText(wrapper.text())).toContain('popup vyp')
   })
 })

@@ -431,11 +431,11 @@ Route::middleware(['auth:sanctum', 'active', 'verified', 'admin'])
         // Mark your calendar popup (admin)
         Route::get('/featured-events', [FeaturedEventController::class, 'index']);
         Route::post('/featured-events', [FeaturedEventController::class, 'store']);
+        Route::patch('/featured-events/popup-settings', [FeaturedEventController::class, 'updatePopupSettings']);
         Route::patch('/featured-events/{featuredEvent}', [FeaturedEventController::class, 'update']);
         Route::delete('/featured-events/{featuredEvent}', [FeaturedEventController::class, 'destroy']);
         Route::post('/featured-events/apply-fallback', [FeaturedEventController::class, 'applyFallback']);
         Route::post('/featured-events/force-popup', [FeaturedEventController::class, 'forcePopup']);
-        Route::patch('/featured-events/popup-settings', [FeaturedEventController::class, 'updatePopupSettings']);
 
         /*
         |----------------------------------------------------------------------

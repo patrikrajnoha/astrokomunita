@@ -185,6 +185,33 @@ class MarkYourCalendarPopupTest extends TestCase
         $this->assertSame(0, (int) $admin->calendar_popup_last_force_version);
     }
 
+    public function test_disabled_setting_hides_popup_for_regular_users(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-02-28 10:00:00', 'UTC'));
+        AppSetting::put('calendar_popup_enabled', '0');
+
+        $user = User::factory()->create([
+            'last_calendar_popup_at' => null,
+            'calendar_popup_last_force_version' => 0,
+        ]);
+        Sanctum::actingAs($user);
+
+        $event = $this->createEvent('Alpha');
+        MonthlyFeaturedEvent::query()->create([
+            'event_id' => $event->id,
+            'month_key' => '2026-03',
+            'position' => 0,
+            'is_active' => true,
+        ]);
+
+        $this->getJson('/api/popup/mark-your-calendar')
+            ->assertOk()
+            ->assertJsonPath('should_show', false)
+            ->assertJsonPath('reason', 'disabled')
+            ->assertJsonPath('selection_mode', 'admin')
+            ->assertJsonPath('items.0.id', $event->id);
+    }
+
     public function test_admin_payload_uses_event_timezone_for_month_key(): void
     {
         config([
