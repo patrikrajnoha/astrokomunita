@@ -9,42 +9,42 @@ export const EVENT_REMINDER_PREFERENCE_ROWS = [
   {
     key: 'event_reminder',
     label: 'Všetky uložené udalosti',
-    description: 'Zakladne pripomienky pre eventy, ktore sledujes alebo si si ulozil.',
+    description: 'Základné pripomienky pre udalosti, ktoré sleduješ alebo si si uložil.',
   },
   {
     key: 'event_reminder_meteors',
     label: 'Meteory a roje',
-    description: 'Maximum rojov, aktivne meteoricke noci a podobne ukazy.',
+    description: 'Maximum rojov, aktívne meteoritické noci a podobné úkazy.',
   },
   {
     key: 'event_reminder_eclipses',
     label: 'Zatmenia',
-    description: 'Slnecne aj mesacne zatmenia a ich lokalne pripomienky.',
+    description: 'Slnečné aj mesačné zatmenia a ich lokálne pripomienky.',
   },
   {
     key: 'event_reminder_planetary',
     label: 'Planety a konjunkcie',
-    description: 'Planetarne javy, opozicie a tesne stretnutia objektov.',
+    description: 'Planetárne javy, opozície a tesné stretnutia objektov.',
   },
   {
     key: 'event_reminder_small_bodies',
     label: 'Komety a asteroidy',
-    description: 'Prelety komet, asteroidy a ine male telesa.',
+    description: 'Prelety komét, asteroidy a iné malé telesá.',
   },
   {
     key: 'event_reminder_aurora',
-    label: 'Polarna ziara',
-    description: 'Eventy a highlights spojene s aurorou.',
+    label: 'Polárna žiara',
+    description: 'Udalosti a aktivity spojené s aurorou.',
   },
   {
     key: 'event_reminder_space',
-    label: 'Misie a starty',
-    description: 'Vesmírne misie, štarty a iné space eventy.',
+    label: 'Misie a štarty',
+    description: 'Vesmírne misie, štarty a iné kozmické udalosti.',
   },
   {
     key: 'event_reminder_observing',
-    label: 'Pozorovacie okna',
-    description: 'Specialne casove okna vhodne na pozorovanie oblohy.',
+    label: 'Pozorovacie okná',
+    description: 'Špeciálne časové okná vhodné na pozorovanie oblohy.',
   },
 ]
 

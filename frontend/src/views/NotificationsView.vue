@@ -41,7 +41,7 @@
       <div v-else-if="error" key="notifications-error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
         <InlineStatus
           variant="error"
-          :message="error || 'Nastala chyba pri načítaní notifikacii.'"
+          :message="error || 'Nastala chyba pri načítaní notifikácií.'"
           action-label="Skúsiť znova"
           class="w-full max-w-lg"
           @action="retry"
@@ -122,148 +122,114 @@
 
     </template>
 
-    <div id="notification-settings" class="space-y-4">
-      <section class="overflow-hidden rounded-2xl bg-[rgba(28,39,54,0.32)]">
-        <div class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3">
-          <p class="text-sm font-semibold text-white">Tipy na oblohu</p>
-          <p class="mt-1 text-xs text-muted">Rýchle upozornenia na lokálne podmienky a ISS prelety.</p>
+    <div id="notification-settings" class="ns-wrap">
+      <section class="ns-section">
+        <div class="ns-section-header">
+          <p class="ns-section-title">Tipy na oblohu</p>
+          <p class="ns-section-desc">Rýchle upozornenia na lokálne podmienky a ISS prelety.</p>
         </div>
 
-        <button
-          v-if="preferencesError"
-          type="button"
-          class="mx-4 mt-4 ui-pill ui-pill--secondary text-xs uppercase tracking-wide"
-          @click="retrySkyPreferences"
-        >
-          Skúsiť znova
-        </button>
-
-        <div v-if="preferencesLoading" class="space-y-3 px-4 py-4" aria-hidden="true">
-          <div
-            v-for="index in 2"
-            :key="`preference-skeleton-${index}`"
-            class="h-16 animate-pulse rounded-2xl bg-[rgba(171,184,201,0.15)]"
-          ></div>
+        <div v-if="preferencesLoading" class="ns-skeletons" aria-hidden="true">
+          <div v-for="index in 2" :key="`preference-skeleton-${index}`" class="ns-skeleton"></div>
         </div>
 
         <div v-else>
-          <p
-            v-if="preferencesError"
-            class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3 text-sm text-white"
-            role="status"
-          >
-            Nastavenia sky alertov sú dočasne nedostupné. Skús znova.
+          <p v-if="preferencesError" class="ns-error-text" role="status">
+            Nastavenia upozornení na oblohu sú dočasne nedostupné.
           </p>
+          <button v-if="preferencesError" type="button" class="ns-retry-btn" @click="retrySkyPreferences">
+            Skúsiť znova
+          </button>
 
-          <label
-            class="flex items-center justify-between gap-4 border-b border-[rgba(255,255,255,0.07)] bg-[rgba(28,39,54,0.32)] px-4 py-4"
-          >
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-white">Upozorniť ma pri výborných podmienkach</p>
-              <p class="mt-1 text-xs text-muted">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
+          <label class="ns-row ns-row--border">
+            <div class="ns-row-text">
+              <p class="ns-row-title">Výborné podmienky na pozorovanie</p>
+              <p class="ns-row-desc">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
             </div>
             <button
               type="button"
-              class="inline-flex h-11 w-14 items-center rounded-full border border-white/[0.08] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
-              :class="preferences.good_conditions_alerts ? 'justify-end bg-[rgba(15,115,255,0.32)]' : 'justify-start bg-[rgba(255,255,255,0.05)]'"
+              class="ns-toggle"
+              :class="preferences.good_conditions_alerts ? 'ns-toggle--on' : 'ns-toggle--off'"
               :disabled="isSkyPreferenceToggleDisabled"
               :aria-pressed="preferences.good_conditions_alerts"
               @click="toggleSkyPreference('good_conditions_alerts')"
             >
-              <span class="h-6 w-6 rounded-full bg-white"></span>
+              <span class="ns-toggle-knob"></span>
             </button>
           </label>
 
-          <label
-            class="flex items-center justify-between gap-4 bg-[rgba(28,39,54,0.32)] px-4 py-4"
-          >
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-white">Upozorniť ma na ISS prelet</p>
-              <p class="mt-1 text-xs text-muted">Dostaneš upozornenie pred ďalším dobré viditeľným preletom ISS.</p>
+          <label class="ns-row">
+            <div class="ns-row-text">
+              <p class="ns-row-title">ISS prelet</p>
+              <p class="ns-row-desc">Dostaneš upozornenie pred ďalším dobre viditeľným preletom ISS.</p>
             </div>
             <button
               type="button"
-              class="inline-flex h-11 w-14 items-center rounded-full border border-white/[0.08] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
-              :class="preferences.iss_alerts ? 'justify-end bg-[rgba(15,115,255,0.32)]' : 'justify-start bg-[rgba(255,255,255,0.05)]'"
+              class="ns-toggle"
+              :class="preferences.iss_alerts ? 'ns-toggle--on' : 'ns-toggle--off'"
               :disabled="isSkyPreferenceToggleDisabled"
               :aria-pressed="preferences.iss_alerts"
               @click="toggleSkyPreference('iss_alerts')"
             >
-              <span class="h-6 w-6 rounded-full bg-white"></span>
+              <span class="ns-toggle-knob"></span>
             </button>
           </label>
         </div>
       </section>
 
-      <section class="overflow-hidden rounded-2xl bg-[rgba(28,39,54,0.32)]">
-        <div class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3">
-          <p class="text-sm font-semibold text-white">Pripomienky udalostí</p>
-          <p class="mt-1 text-xs text-muted">Vyber si, pre aké typy udalostí chceš app notifikácie a e-maily.</p>
+      <section class="ns-section">
+        <div class="ns-section-header">
+          <p class="ns-section-title">Pripomienky udalostí</p>
+          <p class="ns-section-desc">Vyber si, pre aké typy udalostí chceš appku notifikácie a e-maily.</p>
         </div>
 
-        <div class="border-b border-[rgba(255,255,255,0.07)] bg-[rgba(28,39,54,0.32)] px-4 py-4">
-          <div class="flex items-center justify-between gap-4">
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-white">Povoliť e-mailové upozornenia</p>
-              <p class="mt-1 text-xs text-muted">E-mail sa odošle len pre riadky, ktoré máš zapnuté v stĺpci Email.</p>
-            </div>
-            <button
-              type="button"
-              data-testid="delivery-email-enabled-toggle"
-              class="inline-flex h-11 w-14 items-center rounded-full border border-white/[0.08] px-1 transition disabled:cursor-not-allowed disabled:opacity-50"
-              :class="deliveryPreferences.email_enabled ? 'justify-end bg-[rgba(15,115,255,0.32)]' : 'justify-start bg-[rgba(255,255,255,0.05)]'"
-              :disabled="deliveryPreferencesLoading"
-              :aria-pressed="deliveryPreferences.email_enabled"
-              @click="toggleDeliveryEmailEnabled"
-            >
-              <span class="h-6 w-6 rounded-full bg-white"></span>
-            </button>
+        <div class="ns-row ns-row--border">
+          <div class="ns-row-text">
+            <p class="ns-row-title">E-mailové upozornenia</p>
+            <p class="ns-row-desc">E-mail sa odošle len pre riadky, ktoré máš zapnuté v stĺpci Email.</p>
           </div>
+          <button
+            type="button"
+            data-testid="delivery-email-enabled-toggle"
+            class="ns-toggle"
+            :class="deliveryPreferences.email_enabled ? 'ns-toggle--on' : 'ns-toggle--off'"
+            :disabled="deliveryPreferencesLoading"
+            :aria-pressed="deliveryPreferences.email_enabled"
+            @click="toggleDeliveryEmailEnabled"
+          >
+            <span class="ns-toggle-knob"></span>
+          </button>
         </div>
 
-        <button
-          v-if="deliveryPreferencesError"
-          type="button"
-          class="mx-4 mt-4 ui-pill ui-pill--secondary text-xs uppercase tracking-wide"
-          @click="retryDeliveryPreferences"
-        >
-          Skúsiť znova
-        </button>
-
-        <div v-if="deliveryPreferencesLoading" class="space-y-3 px-4 py-4" aria-hidden="true">
-          <div
-            v-for="index in 4"
-            :key="`delivery-preference-skeleton-${index}`"
-            class="h-20 animate-pulse rounded-2xl bg-[rgba(171,184,201,0.15)]"
-          ></div>
+        <div v-if="deliveryPreferencesLoading" class="ns-skeletons" aria-hidden="true">
+          <div v-for="index in 4" :key="`delivery-preference-skeleton-${index}`" class="ns-skeleton ns-skeleton--tall"></div>
         </div>
 
         <div v-else>
-          <p
-            v-if="deliveryPreferencesError"
-            class="border-b border-[rgba(255,255,255,0.07)] px-4 py-3 text-sm text-white"
-            role="status"
-          >
-            Event reminder nastavenia sú dočasne nedostupné. Skús znova.
+          <p v-if="deliveryPreferencesError" class="ns-error-text" role="status">
+            Nastavenia pripomienok udalostí sú dočasne nedostupné.
           </p>
+          <button v-if="deliveryPreferencesError" type="button" class="ns-retry-btn" @click="retryDeliveryPreferences">
+            Skúsiť znova
+          </button>
 
-          <div v-else class="divide-y divide-[rgba(255,255,255,0.07)]">
+          <div v-else class="ns-rows">
             <div
               v-for="row in eventReminderPreferenceRows"
               :key="row.key"
-              class="flex items-center justify-between gap-4 bg-[rgba(28,39,54,0.32)] px-4 py-4"
+              class="ns-row"
             >
-              <div class="min-w-0">
-                <p class="text-sm font-semibold text-white">{{ row.label }}</p>
-                <p class="mt-1 text-xs text-muted">{{ row.description }}</p>
+              <div class="ns-row-text">
+                <p class="ns-row-title">{{ row.label }}</p>
+                <p class="ns-row-desc">{{ row.description }}</p>
               </div>
 
-              <div class="flex shrink-0 items-center gap-2">
+              <div class="ns-pill-group">
                 <button
                   type="button"
                   :data-testid="`delivery-in-app-${row.key}`"
-                  class="inline-flex min-w-[58px] justify-center rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-50"
-                  :class="deliveryPreferences.in_app[row.key] ? activePreferenceButtonClass : inactivePreferenceButtonClass"
+                  class="ns-pill"
+                  :class="deliveryPreferences.in_app[row.key] ? 'ns-pill--active' : 'ns-pill--inactive'"
                   :disabled="deliveryPreferencesLoading"
                   :aria-pressed="deliveryPreferences.in_app[row.key]"
                   @click="toggleDeliveryPreference('in_app', row.key)"
@@ -273,8 +239,8 @@
                 <button
                   type="button"
                   :data-testid="`delivery-email-${row.key}`"
-                  class="inline-flex min-w-[68px] justify-center rounded-full border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] transition disabled:cursor-not-allowed disabled:opacity-50"
-                  :class="deliveryPreferences.email[row.key] ? activePreferenceButtonClass : inactivePreferenceButtonClass"
+                  class="ns-pill"
+                  :class="deliveryPreferences.email[row.key] ? 'ns-pill--active' : 'ns-pill--inactive'"
                   :disabled="deliveryPreferencesLoading"
                   :aria-pressed="deliveryPreferences.email[row.key]"
                   @click="toggleDeliveryPreference('email', row.key)"
@@ -327,8 +293,6 @@ const lastPage = computed(() => store.lastPage)
 const isSettingsModalOpen = ref(false)
 const isInitialLoading = computed(() => loading.value && items.value.length === 0)
 const isPaginating = computed(() => loadingMore.value || (loading.value && items.value.length > 0))
-const activePreferenceButtonClass = 'border-[rgba(15,115,255,0.42)] bg-[rgba(15,115,255,0.2)] text-white'
-const inactivePreferenceButtonClass = 'border-white/[0.08] bg-[rgba(255,255,255,0.04)] text-muted'
 
 const {
   preferences,
@@ -416,7 +380,7 @@ async function fetchDeliveryPreferences() {
     deliveryPreferencesError.value =
       error?.response?.data?.message ||
       error?.message ||
-      'Nepodarilo sa načítať event reminder nastavenia.'
+      'Nepodarilo sa načítať nastavenia pripomienok.'
   } finally {
     deliveryPreferencesLoading.value = false
   }
@@ -433,7 +397,7 @@ async function persistDeliveryPreferences(nextPreferences) {
     deliveryPreferencesError.value =
       error?.response?.data?.message ||
       error?.message ||
-      'Nepodarilo sa uložiť event reminder nastavenia.'
+      'Nepodarilo sa uložiť nastavenia pripomienok.'
   } finally {
     deliveryPreferencesLoading.value = false
   }
@@ -583,6 +547,234 @@ const formatClock = (iso) => {
 </script>
 
 <style scoped>
+/* ── Notification settings ── */
+.ns-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ns-section {
+  overflow: hidden;
+  border-radius: 20px;
+  background: #151d28;
+}
+
+.ns-section-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.ns-section-title {
+  margin: 0;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.ns-section-desc {
+  margin: 3px 0 0;
+  color: #abb8c9;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.ns-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: #151d28;
+}
+
+.ns-row--border {
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.ns-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.ns-rows .ns-row {
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+}
+
+.ns-rows .ns-row:last-child {
+  border-bottom: none;
+}
+
+.ns-row-text {
+  min-width: 0;
+}
+
+.ns-row-title {
+  margin: 0;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ns-row-desc {
+  margin: 3px 0 0;
+  color: #abb8c9;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* Toggle switch */
+.ns-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  width: 52px;
+  height: 30px;
+  border: none;
+  border-radius: 999px;
+  padding: 3px;
+  cursor: pointer;
+  transition: background-color 180ms ease;
+}
+
+.ns-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ns-toggle--on {
+  justify-content: flex-end;
+  background: #0f73ff;
+}
+
+.ns-toggle--off {
+  justify-content: flex-start;
+  background: #222e3f;
+}
+
+.ns-toggle-knob {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* App / Email pill buttons */
+.ns-pill-group {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.ns-pill {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 54px;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.ns-pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ns-pill--active {
+  background: #0f73ff;
+  color: #fff;
+}
+
+.ns-pill--inactive {
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+/* Retry button */
+.ns-retry-btn {
+  display: block;
+  margin: 12px 16px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: 999px;
+  background: #222e3f;
+  color: #abb8c9;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.ns-retry-btn:hover {
+  background: #1c2736;
+  color: #fff;
+}
+
+/* Skeletons */
+.ns-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.ns-skeleton {
+  height: 52px;
+  border-radius: 14px;
+  background: rgb(171 184 201 / 0.1);
+  animation: nsPulse 1.4s ease-in-out infinite;
+}
+
+.ns-skeleton--tall {
+  height: 68px;
+}
+
+.ns-error-text {
+  margin: 0;
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 0.875rem;
+  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+}
+
+@keyframes nsPulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .ns-row {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .ns-pill {
+    min-width: 46px;
+    padding: 6px 10px;
+    font-size: 0.65rem;
+  }
+
+  .ns-toggle {
+    width: 46px;
+    height: 27px;
+  }
+
+  .ns-toggle-knob {
+    width: 21px;
+    height: 21px;
+  }
+}
+
+/* ── Animations ── */
 .notificationsState-enter-active,
 .notificationsState-leave-active {
   transition: opacity var(--motion-base), transform var(--motion-base);
