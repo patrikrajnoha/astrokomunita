@@ -38,14 +38,12 @@
         </div>
       </div>
 
-      <!-- Content (animated on step change) -->
-      <transition name="tourContent" mode="out-in">
-        <div :key="currentStep.id" class="tourContent">
-          <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
-          <p class="tourBody">{{ currentStep.body }}</p>
-          <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
-        </div>
-      </transition>
+      <!-- Content -->
+      <div class="tourContent">
+        <h2 :id="titleId" class="tourTitle">{{ currentStep.title }}</h2>
+        <p class="tourBody">{{ currentStep.body }}</p>
+        <p v-if="!isTargetAvailable" class="tourMissing">{{ currentStep.missingHint }}</p>
+      </div>
 
       <!-- Step dots -->
       <div class="tourDots" role="tablist" aria-label="Kroky prehliadky">
@@ -575,8 +573,6 @@ onBeforeUnmount(() => {
   z-index: 2102;
   pointer-events: auto;
   width: min(348px, calc(100vw - 24px));
-  max-height: min(80vh, 540px);
-  overflow: hidden auto;
   border-radius: 20px;
   background: var(--tour-bg);
   border: 1px solid var(--tour-border);
@@ -656,29 +652,11 @@ onBeforeUnmount(() => {
   transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* ── Content transition ── */
+/* ── Content ── */
 .tourContent {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-
-.tourContent-enter-active {
-  transition: opacity 200ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.tourContent-leave-active {
-  transition: opacity 130ms ease, transform 130ms ease;
-}
-
-.tourContent-enter-from {
-  opacity: 0;
-  transform: translateY(5px);
-}
-
-.tourContent-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 
 /* ── Content ── */
