@@ -199,4 +199,32 @@ describe('eventPreferences sidebar widget getters', () => {
       }),
     )
   })
+
+  it('keeps onboarding widget selection in local store when response omits sidebar fields', async () => {
+    const store = useEventPreferencesStore()
+    const selectedKeys = ['search', 'nasa_apod', 'next_event']
+
+    updateMyPreferencesMock.mockResolvedValue({
+      data: {
+        data: {
+          onboarding_completed_at: '2026-04-10T10:00:00Z',
+          has_preferences: true,
+        },
+        meta: {},
+      },
+    })
+
+    await store.saveOnboarding({
+      sidebar_widget_keys: selectedKeys,
+      sidebar_widget_overrides: {
+        home: selectedKeys,
+      },
+    })
+
+    expect(store.sidebarWidgetKeys).toEqual(selectedKeys)
+    expect(store.sidebarWidgetOverrides).toEqual({
+      home: selectedKeys,
+    })
+    expect(store.hasSidebarWidgetOverrideForScope('home')).toBe(true)
+  })
 })

@@ -256,14 +256,20 @@ export const useEventPreferencesStore = defineStore('eventPreferences', {
         this.bortleClass = Number.isInteger(Number(data.bortle_class))
           ? Math.min(9, Math.max(1, Number(data.bortle_class)))
           : this.bortleClass
-        const nextOverrides = normalizeSidebarWidgetOverrides(data.sidebar_widget_overrides)
-        const hasOverridesPayload = Object.prototype.hasOwnProperty.call(data, 'sidebar_widget_overrides')
-        this.sidebarWidgetOverrides = hasOverridesPayload
-          ? nextOverrides
-          : this.sidebarWidgetOverrides
+        const responseOverrides = normalizeSidebarWidgetOverrides(data.sidebar_widget_overrides)
+        const hasResponseOverrides = Object.prototype.hasOwnProperty.call(data, 'sidebar_widget_overrides')
+        const hasRequestOverrides = Object.prototype.hasOwnProperty.call(payload || {}, 'sidebar_widget_overrides')
+        if (hasResponseOverrides) {
+          this.sidebarWidgetOverrides = responseOverrides
+        } else if (hasRequestOverrides) {
+          this.sidebarWidgetOverrides = normalizeSidebarWidgetOverrides(payload?.sidebar_widget_overrides)
+        }
+        const fallbackSidebarWidgetKeys = Array.isArray(data.sidebar_widget_keys)
+          ? data.sidebar_widget_keys
+          : (Array.isArray(payload?.sidebar_widget_keys) ? payload.sidebar_widget_keys : this.sidebarWidgetKeys)
         this.sidebarWidgetKeys = normalizeSidebarWidgetKeys(
           this.sidebarWidgetOverrides.home
-            ?? (Array.isArray(data.sidebar_widget_keys) ? data.sidebar_widget_keys : this.sidebarWidgetKeys),
+            ?? fallbackSidebarWidgetKeys,
         )
         this.onboardingCompletedAt = typeof data.onboarding_completed_at === 'string' && data.onboarding_completed_at
           ? data.onboarding_completed_at
