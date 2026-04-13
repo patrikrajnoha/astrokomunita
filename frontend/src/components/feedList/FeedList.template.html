@@ -30,7 +30,7 @@
           <InlineStatus
             variant="error"
             :message="err"
-            action-label="Skusit znova"
+            action-label="Skúsiť znova"
             @action="retryCurrentTab"
           />
         </div>
@@ -91,12 +91,12 @@
                     <button class="author-name" type="button" @click.stop="openProfile(p)">
                       {{ p?.user?.name ?? 'Používateľ' }}
                     </button>
-                    <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Overeny bot">BOT</span>
+                    <span v-if="isBotPost(p)" class="author-bot-badge" aria-label="Overený bot">BOT</span>
                     <span class="author-username">@{{ p?.user?.username }}</span>
                     <span class="author-time">{{ fmt(p?.created_at) }}</span>
                     <span v-if="p.pinned_at" class="pinned-badge">
                       <span aria-hidden="true">&#128204;</span>
-                      Pripnute
+                      Pripnuté
                     </span>
                   </div>
                   <div v-if="isBotPost(p)" class="bot-meta-row">

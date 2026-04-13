@@ -4,7 +4,7 @@
       <transition name="sheet-slide">
         <section v-if="open" class="sheet" role="dialog" aria-modal="true">
           <div class="sheet-handle"></div>
-          <button type="button" class="sheet-close" @click="$emit('close')">Zavriet</button>
+          <button type="button" class="sheet-close" @click="$emit('close')">Zavrieť</button>
 
           <h3 class="sheet-title">{{ displayTitle !== '-' ? displayTitle : 'Detail udalosti' }}</h3>
           <p class="sheet-description">{{ displayDescription !== '-' ? displayDescription : 'Bez popisu.' }}</p>
@@ -17,7 +17,7 @@
           </div>
 
           <div v-if="!authIsAuthed" class="notify-box">
-            <p class="notify-copy">Neprihlasenym vieme poslat email upozornenie.</p>
+            <p class="notify-copy">Neprihláseným vieme poslať e-mail upozornenie.</p>
             <div class="notify-row">
               <input
                 :value="notifyEmail"
@@ -27,7 +27,7 @@
                 @input="$emit('update:notifyEmail', $event.target.value)"
               />
               <button type="button" class="notify-btn" :disabled="notifyLoading || !notifyEmail?.trim()" @click="$emit('send-notify')">
-                {{ notifyLoading ? 'Odosielam...' : 'Poslat' }}
+                {{ notifyLoading ? 'Odosielam...' : 'Poslať' }}
               </button>
             </div>
             <p v-if="notifyMsg" class="notify-msg ok">{{ notifyMsg }}</p>

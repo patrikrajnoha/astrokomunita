@@ -6,7 +6,7 @@
           <section v-if="open" class="prefs-card" role="dialog" aria-modal="true" aria-labelledby="prefs-title">
             <header class="prefs-header">
               <h2 id="prefs-title" class="prefs-title">Nastavenia notifikácií</h2>
-              <button type="button" class="prefs-close" aria-label="Zavriet" @click="close">
+              <button type="button" class="prefs-close" aria-label="Zavrieť" @click="close">
                 <svg viewBox="0 0 20 20" fill="none">
                   <path d="M5 5l10 10" />
                   <path d="M15 5 5 15" />

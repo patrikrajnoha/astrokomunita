@@ -80,7 +80,7 @@ const showRightSidebar = computed(() => isAdminRoute.value || Boolean(currentSid
 const mobileFabLabel = computed(() => (isAdminRoute.value ? 'Admin sekcie' : 'Widgety'))
 const mobileFabMenuTitle = computed(() => (isAdminRoute.value ? 'Admin sekcie' : 'Widgety'))
 const mobileFabMenuCloseLabel = computed(() => (
-  isAdminRoute.value ? 'Zavriet menu admin sekcii' : 'Zavriet menu widgetov'
+  isAdminRoute.value ? 'Zavrieť menu admin sekcií' : 'Zavrieť menu widgetov'
 ))
 const isProfileRoute = computed(() => String(route.path || '').startsWith('/profile'))
 const isHomeFeedRoute = computed(() => route.name === 'home')

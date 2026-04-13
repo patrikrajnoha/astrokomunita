@@ -1,7 +1,7 @@
 <template>
   <div class="pollDurationPicker">
     <button type="button" class="durationTrigger" :disabled="disabled" @click="toggleOpen">
-      <span>Dlzka hlasovania</span>
+      <span>Dĺžka hlasovania</span>
       <strong>{{ label }}</strong>
     </button>
 
@@ -35,8 +35,8 @@
       </div>
 
       <div class="menuActions">
-        <button type="button" class="menuBtn" @click="close">Zavriet</button>
-        <button type="button" class="menuBtn menuBtn--primary" @click="applyCustom">Pouzit</button>
+        <button type="button" class="menuBtn" @click="close">Zavrieť</button>
+        <button type="button" class="menuBtn menuBtn--primary" @click="applyCustom">Použiť</button>
       </div>
     </div>
   </div>
@@ -219,4 +219,3 @@ function clampSeconds(value) {
   }
 }
 </style>
-

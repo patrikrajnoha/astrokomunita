@@ -518,7 +518,7 @@ export function useSkyWidget(options = {}) {
   })
 
   const lightPollutionEstimateLine = computed(() => (
-    isLightPollutionEstimate.value ? 'Pouzivame odhad svetelneho znečistenia podľa lokality' : ''
+    isLightPollutionEstimate.value ? 'Používame odhad svetelného znečistenia podľa lokality' : ''
   ))
   const lightPollutionImpactLine = computed(() => (
     sanitizeLabel(bortlePresentation.value?.impactText)
@@ -1306,4 +1306,3 @@ export function useSkyWidget(options = {}) {
     return requestTokens[block]
   }
 }
-
