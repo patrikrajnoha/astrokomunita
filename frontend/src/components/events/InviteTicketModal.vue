@@ -6,6 +6,7 @@ import api from '@/services/api'
 import { useToast } from '@/composables/useToast'
 import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
 import { createEventInvite } from '@/services/invites'
+import { eventDisplayTitle, repairUtf8Mojibake } from '@/utils/translatedFields'
 
 const props = defineProps({
   open: {
@@ -46,10 +47,14 @@ const attendeeNameError = computed(() => {
 
 const isSubmitDisabled = computed(() => sending.value || !props.event?.id)
 
-const eventTitle = computed(() => props.event?.title || 'Astronomické podujatie')
+const eventTitle = computed(() => {
+  const normalized = eventDisplayTitle(props.event)
+  if (normalized && normalized !== '-') return normalized
+  return 'Astronomické podujatie'
+})
 
 const eventPlace = computed(() => {
-  const maybePlace = String(props.event?.short || '').trim()
+  const maybePlace = repairUtf8Mojibake(String(props.event?.short || '').trim())
   return maybePlace || ''
 })
 
@@ -72,7 +77,7 @@ const eventDateTime = computed(() => {
 })
 
 const attendeeNamePreview = computed(() => {
-  const value = String(attendeeName.value || '').trim()
+  const value = repairUtf8Mojibake(String(attendeeName.value || '').trim())
   return value || 'Tvoje meno'
 })
 

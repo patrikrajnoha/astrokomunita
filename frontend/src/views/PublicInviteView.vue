@@ -67,6 +67,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchPublicInviteByToken } from '@/services/invites'
 import { EVENT_TIMEZONE, formatEventDate, resolveEventTimeContext } from '@/utils/eventTime'
+import { eventDisplayTitle, repairUtf8Mojibake } from '@/utils/translatedFields'
 
 const route = useRoute()
 const loading = ref(true)
@@ -76,12 +77,16 @@ const invite = ref(null)
 const token = computed(() => String(route.params.token || '').trim())
 const event = computed(() => invite.value?.event || null)
 const eventId = computed(() => Number(event.value?.id || 0) || null)
-const eventTitle = computed(() => String(event.value?.title || 'Astronomické podujatie'))
-const attendeeName = computed(() => String(invite.value?.attendee_name || 'Host'))
-const eventPlace = computed(() => String(event.value?.short || '').trim())
+const eventTitle = computed(() => {
+  const normalized = eventDisplayTitle(event.value)
+  if (normalized && normalized !== '-') return normalized
+  return 'Astronomické podujatie'
+})
+const attendeeName = computed(() => repairUtf8Mojibake(String(invite.value?.attendee_name || 'Host')))
+const eventPlace = computed(() => repairUtf8Mojibake(String(event.value?.short || '').trim()))
 const inviterName = computed(() => {
   const inviter = invite.value?.inviter || null
-  return String(inviter?.name || inviter?.username || '').trim()
+  return repairUtf8Mojibake(String(inviter?.name || inviter?.username || '').trim())
 })
 const eventDateTime = computed(() => {
   const raw = event.value?.start_at || event.value?.max_at || event.value?.end_at
