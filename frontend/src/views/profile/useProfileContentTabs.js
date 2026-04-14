@@ -14,7 +14,7 @@ export function useProfileContentTabs({
     { key: 'events', label: 'Udalosti', kind: 'events' },
     { key: 'bookmarks', label: 'Záložky', kind: 'bookmarks' },
     { key: 'media', label: 'Médiá', kind: 'media' },
-    { key: 'likes', label: 'Páči sa', kind: 'likes' },
+    { key: 'likes', label: 'Páči sa mi', kind: 'likes' },
   ]
   const eventSegments = [
     { key: 'planned', label: 'Plánované' },
@@ -318,14 +318,6 @@ export function useProfileContentTabs({
         return
       }
 
-      if (tab.kind === 'likes') {
-        state.items = []
-        state.next = null
-        state.total = '0'
-        state.loaded = true
-        return
-      }
-
       const url = reset
         ? tab.kind === 'bookmarks'
           ? '/me/bookmarks'
@@ -342,6 +334,8 @@ export function useProfileContentTabs({
               ? { per_page: 10 }
               : tab.kind === 'events'
                 ? { per_page: 10 }
+                : tab.kind === 'likes'
+                  ? { kind: 'likes', per_page: 10 }
                 : { scope: 'me', kind: tab.kind, per_page: 10 }
             : undefined,
         meta: reset && url === '/posts'

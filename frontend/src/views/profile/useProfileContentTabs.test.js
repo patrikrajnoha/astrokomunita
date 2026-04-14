@@ -97,4 +97,22 @@ describe('useProfileContentTabs', () => {
       )),
     ).toBe(true)
   })
+
+  it('loads liked posts for likes tab', async () => {
+    const tabs = useProfileContentTabs({
+      auth,
+      http,
+      eventFollows,
+      confirm,
+    })
+
+    await tabs.initializeProfileContent()
+    tabs.setActiveTab('likes')
+    await tabs.loadTab('likes', true)
+
+    expect(http.get).toHaveBeenCalledWith('/posts', expect.objectContaining({
+      params: { kind: 'likes', per_page: 10 },
+      meta: { skipAuthRedirect: true },
+    }))
+  })
 })
