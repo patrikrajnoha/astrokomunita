@@ -114,6 +114,9 @@
             placeholder="vas@email.sk"
             class="authControl"
           />
+          <span v-if="emailServerError" class="mt-2 block text-xs text-[#EB2452]">
+            {{ emailServerError }}
+          </span>
         </label>
 
         <label class="block">

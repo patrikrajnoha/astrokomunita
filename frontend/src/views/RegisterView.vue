@@ -25,6 +25,7 @@ const email = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
 const formError = ref(null)
+const emailServerError = ref('')
 const turnstileContainer = ref(null)
 const turnstileToken = ref('')
 const turnstileWidgetId = ref(null)
@@ -122,6 +123,21 @@ const usernameHint = computed(() => {
 
   return ''
 })
+
+watch(
+  () => email.value,
+  () => {
+    if (!emailServerError.value) {
+      return
+    }
+
+    if (formError.value === emailServerError.value) {
+      formError.value = null
+    }
+
+    emailServerError.value = ''
+  }
+)
 
 watch(
   () => username.value,
@@ -274,7 +290,7 @@ function validateStepOne() {
 }
 
 function validateStepTwo() {
-  const emailError = validateEmail(email.value)
+  const emailError = validateEmail(email.value) || emailServerError.value
   if (emailError) {
     return emailError
   }
@@ -312,6 +328,7 @@ function validateStepThree() {
 
 const submit = async () => {
   formError.value = null
+  emailServerError.value = ''
 
   if (!isLastStep.value) {
     goToNextStep()
@@ -340,6 +357,11 @@ const submit = async () => {
     const errors = e?.response?.data?.errors
     if (errors?.turnstile_token?.length) {
       formError.value = 'Bezpečnostné overenie zlyhalo. Skúste to prosím znova.'
+    } else if (errors?.email?.length) {
+      emailServerError.value = errors.email[0]
+      currentStep.value = 2
+      await nextTick()
+      formError.value = emailServerError.value
     } else if (errors) {
       const firstKey = Object.keys(errors)[0]
       formError.value = errors[firstKey]?.[0] || msg || 'Registrácia zlyhala.'

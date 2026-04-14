@@ -87,6 +87,27 @@ class AuthRegistrationTest extends TestCase
             ->assertJsonValidationErrors(['username']);
     }
 
+    public function test_registration_returns_explicit_error_for_existing_email(): void
+    {
+        User::factory()->create([
+            'email' => 'existing-user@example.com',
+        ]);
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'Tester',
+            'email' => 'existing-user@example.com',
+            'username' => 'fresh_username',
+            'date_of_birth' => now()->subYears(20)->toDateString(),
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email'])
+            ->assertJsonPath('errors.email.0', 'Používateľ s týmto e-mailom už existuje.');
+    }
+
     public function test_registration_fails_for_reserved_username(): void
     {
         $response = $this->postJson('/api/auth/register', [

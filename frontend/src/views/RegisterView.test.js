@@ -132,4 +132,28 @@ describe('RegisterView', () => {
 
     expect(pushMock).toHaveBeenCalledWith('/')
   })
+
+  it('shows duplicate email error on account step', async () => {
+    authMock.register.mockRejectedValueOnce({
+      response: {
+        data: {
+          errors: {
+            email: ['Používateľ s týmto e-mailom už existuje.'],
+          },
+        },
+      },
+    })
+
+    const wrapper = mountRegisterView()
+    await flush()
+
+    await completeRegisterWizard(wrapper, {
+      username: 'valid_user_three',
+      email: 'existing@example.com',
+    })
+
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Používateľ s týmto e-mailom už existuje.')
+    expect(wrapper.find('input[autocomplete="email"]').exists()).toBe(true)
+  })
 })

@@ -59,10 +59,11 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'email.unique' => 'Používateľ s týmto e-mailom už existuje.',
             'username.required' => 'Používateľské meno je povinné.',
             'username.min' => 'Používateľské meno musí mať aspoň 3 znaky.',
             'username.max' => 'Používateľské meno môže mať najviac 20 znakov.',
-            'username.regex' => 'Používateľské meno môže obsahovať iba malé písmená, čísla a podčiarknik a musí začínať písmenom.',
+            'username.regex' => 'Používateľské meno môže obsahovať iba malé písmená, čísla a podčiarkovník a musí začínať písmenom.',
             'username.unique' => 'Toto používateľské meno je už obsadené.',
             'date_of_birth.required' => 'Dátum narodenia je povinný.',
             'date_of_birth.date' => 'Dátum narodenia musí byť platný dátum.',
