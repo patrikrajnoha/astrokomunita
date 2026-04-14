@@ -142,6 +142,7 @@ onMounted(() => {
 .publicInviteHead h1 {
   margin: 0;
   font-size: clamp(1.4rem, 4.6vw, 2rem);
+  color: #ffffff;
 }
 
 .publicInviteHead p {
@@ -159,6 +160,7 @@ onMounted(() => {
 .publicInviteState h1 {
   margin: 0;
   font-size: 1.15rem;
+  color: #ffffff;
 }
 
 .publicInviteState p {
