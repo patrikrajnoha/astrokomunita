@@ -6,7 +6,9 @@
     $event = $invite->event;
     $inviter = $invite->inviter;
 
-    $eventTitle = $event ? (string) $event->title : 'Astronomické podujatie';
+    $eventTitle = isset($event_title) && is_string($event_title) && trim($event_title) !== ''
+        ? trim($event_title)
+        : ($event ? (string) $event->title : 'Astronomické podujatie');
     $inviterName = $inviter ? (string) ($inviter->name ?: $inviter->username) : $appName;
     $attendeeName = (string) $invite->attendee_name;
     $personalMessage = $invite->message ? trim((string) $invite->message) : null;
@@ -69,7 +71,7 @@
                         @if ($personalMessage)
                         <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#ABB8C9;">Osobná správa:</p>
                         <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#ffffff;font-style:italic;">
-                            „{{ $personalMessage }}"
+                            „{{ $personalMessage }}“
                         </p>
                         @endif
 
