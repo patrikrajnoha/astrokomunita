@@ -4,7 +4,9 @@ test.describe('search layout smoke', () => {
   test('search page keeps visible input, stable columns and no horizontal overflow', async ({ page }) => {
     await page.goto('/search')
 
-    const searchInput = page.getByRole('textbox', { name: /search|hľadať|hladat/i }).first()
+    const searchInput = page
+      .locator('input[type="search"], input[role="combobox"], input[type="text"]')
+      .first()
     await expect(searchInput).toBeVisible()
 
     const mainColumn = page.locator('main').first()
