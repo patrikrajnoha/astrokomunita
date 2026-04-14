@@ -134,7 +134,16 @@
         </div>
 
         <div v-else class="postList ui-stream">
-          <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem ui-stream-item">
+          <article
+            v-for="p in tabState[activeTab].items"
+            :key="p.id"
+            class="postItem postItem--clickable ui-stream-item"
+            role="button"
+            tabindex="0"
+            @click="openPost(p)"
+            @keydown.enter.prevent="openPost(p)"
+            @keydown.space.prevent="openPost(p)"
+          >
             <div class="avatar sm">
               <UserAvatar class="avatarImg" :user="avatarUser" :alt="displayName" />
             </div>
@@ -151,25 +160,27 @@
                 <span class="replyText">{{ shorten(p.parent.content) }}</span>
               </div>
 
-              <ObservationCard
-                v-if="observationForPost(p)"
-                :observation="observationForPost(p)"
-                :clickable="true"
-                :show-author="false"
-                @open="openObservation"
-              />
+              <div v-if="observationForPost(p)" @click.stop>
+                <ObservationCard
+                  :observation="observationForPost(p)"
+                  :clickable="true"
+                  :show-author="false"
+                  @open="openObservation"
+                />
+              </div>
               <HashtagText v-else class="postContent ui-stream-item__body" :content="p.content" />
 
-              <PollCard
-                v-if="!observationForPost(p) && p.poll"
-                :poll="p.poll"
-                :post-id="p.id"
-                :is-authed="Boolean(auth.user)"
-                @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
-                @login-required="onPollLoginRequired"
-              />
+              <div v-if="!observationForPost(p) && p.poll" @click.stop>
+                <PollCard
+                  :poll="p.poll"
+                  :post-id="p.id"
+                  :is-authed="Boolean(auth.user)"
+                  @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                  @login-required="onPollLoginRequired"
+                />
+              </div>
 
-              <div v-if="!observationForPost(p) && p.attachment_url" class="attachment">
+              <div v-if="!observationForPost(p) && p.attachment_url" class="attachment" @click.stop>
                 <img
                   v-if="isImage(p)"
                   class="attachmentImg"
@@ -181,13 +192,57 @@
                 </a>
               </div>
 
-              <div class="postActions ui-stream-item__actions">
-                <button class="ui-btn ui-btn--ghost ui-btn--icon-sm" :aria-label="`Zobraziť vlákno`" @click="openPost(p)">
-                  <svg viewBox="0 0 24 24" fill="none" width="16" height="16" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </button>
+              <div class="postActions ui-stream-item__actions" @click.stop>
+                <PostActionBar
+                  :item="p"
+                  :reply-count="Number(p.replies_count ?? 0)"
+                  :like-count="Number(p.likes_count ?? 0)"
+                  :like-loading="isLikeLoading(p)"
+                  :bookmark-loading="isBookmarkLoading(p)"
+                  :like-bump="likeBumpId === p.id"
+                  :is-authed="isAuthed"
+                  :menu-items="menuItemsForPost(p)"
+                  @reply="openPost(p)"
+                  @like="toggleLike(p)"
+                  @bookmark="toggleBookmark(p)"
+                  @share="openShareModal(p)"
+                  @menu-select="(item) => onPostMenuAction(item, p)"
+                />
               </div>
             </div>
           </article>
+        </div>
+
+        <div v-if="reportTarget" class="report-modal" @click.self="closeReport">
+          <div class="report-content" role="dialog" aria-modal="true" aria-labelledby="report-dialog-title">
+            <div class="report-header">
+              <h3 class="report-title" id="report-dialog-title">Nahlásiť príspevok</h3>
+              <button class="report-close" type="button" aria-label="Zavrieť" @click="closeReport">×</button>
+            </div>
+
+            <div class="report-form">
+              <label class="form-label" for="report-reason">Dôvod</label>
+              <select id="report-reason" v-model="reportReason" class="report-select">
+                <option v-for="option in reportOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+
+              <label class="form-label" for="report-message">Správa (voliteľná)</label>
+              <textarea
+                id="report-message"
+                v-model="reportMessage"
+                class="ui-textarea form-textarea"
+                rows="3"
+                placeholder="Opíš problém podrobnejšie..."
+              ></textarea>
+
+              <div class="report-actions">
+                <button class="ui-btn ui-btn--ghost reportBtn" type="button" @click="closeReport">Zrušiť</button>
+                <button class="ui-btn ui-btn--primary reportBtn" type="button" @click="submitReport">Nahlásiť</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="loadMore">
@@ -200,6 +255,8 @@
             {{ tabState[activeTab].loading ? 'Načítavam...' : 'Načítať viac' }}
           </button>
         </div>
+
+        <ShareModal v-if="shareTarget" :open="true" :post="shareTarget" @close="closeShareModal" />
       </section>
     </template>
   </div>

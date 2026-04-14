@@ -66,6 +66,24 @@ function makePostsResponse(rows = [], total = rows.length) {
   }
 }
 
+function mountOptions(router, stubs = {}) {
+  return {
+    global: {
+      plugins: [router],
+      stubs: {
+        ObservationCard: { template: '<div class="obs-stub"></div>' },
+        PollCard: { template: '<div class="poll-stub"></div>' },
+        HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
+        PostActionBar: {
+          template: '<div class="post-action-bar-stub"><button data-testid="post-reply" @click="$emit(\'reply\')">reply</button></div>',
+        },
+        ShareModal: { template: '<div class="share-modal-stub"></div>' },
+        ...stubs,
+      },
+    },
+  }
+}
+
 describe('PublicProfileView media fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -116,15 +134,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/kozmobot')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    const wrapper = mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -174,15 +184,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/stellarbot')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    const wrapper = mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -225,15 +227,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/astro')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    const wrapper = mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -274,15 +268,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/astro')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    const wrapper = mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -323,15 +309,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/astro')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    const wrapper = mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -366,15 +344,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/astro')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    const wrapper = mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -415,15 +385,7 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/astro')
     await router.isReady()
 
-    mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: { template: '<div class="obs-stub"></div>' },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
-      },
-    })
+    mount(PublicProfileView, mountOptions(router))
 
     await flush()
     await flush()
@@ -498,22 +460,16 @@ describe('PublicProfileView media fallback', () => {
     await router.push('/u/astro')
     await router.isReady()
 
-    const wrapper = mount(PublicProfileView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ObservationCard: {
-            props: ['observation'],
-            template: '<div data-testid="public-observation-stub">{{ observation.title }}</div>',
-          },
-          PollCard: {
-            props: ['poll'],
-            template: '<div data-testid="public-poll-stub">{{ poll.id }}</div>',
-          },
-          HashtagText: { props: ['content'], template: '<p>{{ content }}</p>' },
-        },
+    const wrapper = mount(PublicProfileView, mountOptions(router, {
+      ObservationCard: {
+        props: ['observation'],
+        template: '<div data-testid="public-observation-stub">{{ observation.title }}</div>',
       },
-    })
+      PollCard: {
+        props: ['poll'],
+        template: '<div data-testid="public-poll-stub">{{ poll.id }}</div>',
+      },
+    }))
 
     await flush()
     await flush()
@@ -521,10 +477,10 @@ describe('PublicProfileView media fallback', () => {
     expect(wrapper.find('[data-testid="public-poll-stub"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="public-observation-stub"]').text()).toContain('First Light')
 
-    const openButtons = wrapper.findAll('.postActions .ui-btn')
-    expect(openButtons).toHaveLength(2)
+    const postItems = wrapper.findAll('.postItem')
+    expect(postItems).toHaveLength(2)
 
-    await openButtons[1].trigger('click')
+    await postItems[1].trigger('click')
     await flush()
 
     expect(router.currentRoute.value.fullPath).toBe('/observations/55')

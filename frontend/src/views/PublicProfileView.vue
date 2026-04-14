@@ -1,28 +1,45 @@
 <template src="./publicProfile/PublicProfileView.template.html"></template>
 
 <script setup>
-import { computed, reactive, ref, onMounted, watch } from 'vue'
+import { computed, defineAsyncComponent, reactive, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UserAvatar from '@/components/UserAvatar.vue'
 import PollCard from '@/components/PollCard.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import HashtagText from '@/components/HashtagText.vue'
+import PostActionBar from '@/components/PostActionBar.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import http from '@/services/api'
 import { listObservations } from '@/services/observations'
 import { useAuthStore } from '@/stores/auth'
+import { useBookmarksStore } from '@/stores/bookmarks'
+import { useToast } from '@/composables/useToast'
+import { useConfirm } from '@/composables/useConfirm'
 import { formatDateTimeCompact } from '@/utils/dateUtils'
 import { resolveUserProfileMedia } from '@/utils/profileMedia'
+import { canDeletePost, canReportPost } from '@/utils/postPermissions'
 import {
+  buildBasePostMenuItems,
+  buildPinPostMenuItem,
+  handleCommonPostMenuAction,
+} from '@/utils/postMenu'
+import { hasOriginalDownload } from '@/components/feedList/feedListMedia.utils'
+import {
+  absoluteUrl as resolveAbsoluteUrl,
   attachmentSrc as resolveAttachmentSrc,
   isImage as isProfileImage,
   observationForPost,
 } from './profileView.utils'
 
+const ShareModal = defineAsyncComponent(() => import('@/components/share/ShareModal.vue'))
+
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const bookmarks = useBookmarksStore()
+const { error: toastError, info: toastInfo, success: toastSuccess } = useToast()
+const { confirm } = useConfirm()
 
 const user = ref(null)
 const loading = ref(true)
@@ -46,10 +63,27 @@ const tabState = reactive({
 })
 
 const copyLabel = ref('Zdieľať')
+const shareTarget = ref(null)
+const reportTarget = ref(null)
+const reportReason = ref('spam')
+const reportMessage = ref('')
+const likeLoadingIds = ref(new Set())
+const likeBumpId = ref(null)
+const pinLoadingId = ref(null)
+const deleteLoadingId = ref(null)
+
+const reportOptions = [
+  { value: 'spam', label: 'Spam' },
+  { value: 'abuse', label: 'Nevhodný obsah' },
+  { value: 'misinfo', label: 'Dezinformácie' },
+  { value: 'harassment', label: 'Obťažovanie' },
+  { value: 'other', label: 'Iné' },
+]
 
 const username = computed(() => String(route.params.username || '').trim())
 const encodedUsername = computed(() => encodeURIComponent(username.value))
 const hasUsername = computed(() => username.value.length > 0)
+const isAuthed = computed(() => Boolean(auth.user))
 const isOwnProfile = computed(() => {
   const authUser = auth.user
   if (!authUser || typeof authUser !== 'object') return false
@@ -200,6 +234,294 @@ async function copyProfileLink() {
   }, 1500)
 }
 
+function canDelete(post) {
+  return canDeletePost(post, auth.user)
+}
+
+function canReport(post) {
+  return canReportPost(post, auth.user)
+}
+
+function setActiveTabError(message) {
+  const state = tabState[activeTab.value]
+  if (!state) return
+  state.err = String(message || '')
+}
+
+function clearActiveTabError() {
+  setActiveTabError('')
+}
+
+function isLikeLoading(post) {
+  const postId = Number(post?.id || 0)
+  return likeLoadingIds.value.has(postId)
+}
+
+function setLikeLoading(postId, enabled) {
+  const id = Number(postId || 0)
+  if (!Number.isInteger(id) || id <= 0) return
+
+  const next = new Set(likeLoadingIds.value)
+  if (enabled) next.add(id)
+  else next.delete(id)
+  likeLoadingIds.value = next
+}
+
+function bumpLike(postId) {
+  likeBumpId.value = postId
+  window.setTimeout(() => {
+    if (likeBumpId.value === postId) likeBumpId.value = null
+  }, 220)
+}
+
+function isBookmarkLoading(post) {
+  return bookmarks.isLoading(post?.id)
+}
+
+function openShareModal(post) {
+  if (!post?.id) return
+  shareTarget.value = post
+}
+
+function closeShareModal() {
+  shareTarget.value = null
+}
+
+function menuItemsForPost(post) {
+  const baseItems = buildBasePostMenuItems({
+    hasOriginalDownload: hasOriginalDownload(post),
+    canReport: canReport(post),
+    canDelete: canDelete(post),
+  })
+
+  if (auth.user?.is_admin && post?.id) {
+    baseItems.push(buildPinPostMenuItem(post))
+  }
+
+  return baseItems.filter(Boolean)
+}
+
+function downloadOriginalAttachment(post) {
+  const url = resolveAbsoluteUrl(post?.attachment_download_url, http?.defaults?.baseURL || '')
+  if (!url) return
+
+  toastInfo('Sťahujem...')
+  try {
+    window.open(url, '_blank', 'noopener')
+  } catch {
+    toastError('Stiahnutie zlyhalo.')
+  }
+}
+
+async function toggleLike(post) {
+  if (!post?.id || isLikeLoading(post)) return
+  if (!isAuthed.value) {
+    setActiveTabError('Prihlás sa pre lajkovanie.')
+    return
+  }
+
+  clearActiveTabError()
+  const prevLiked = !!post.liked_by_me
+  const prevCount = Number(post.likes_count ?? 0) || 0
+
+  post.liked_by_me = !prevLiked
+  post.likes_count = Math.max(0, prevCount + (prevLiked ? -1 : 1))
+  bumpLike(post.id)
+  setLikeLoading(post.id, true)
+
+  try {
+    if (typeof auth.csrf === 'function') {
+      await auth.csrf()
+    }
+
+    const response = prevLiked
+      ? await http.delete(`/posts/${post.id}/like`)
+      : await http.post(`/posts/${post.id}/like`)
+
+    const payload = response?.data || {}
+    if (payload.likes_count !== undefined) post.likes_count = Number(payload.likes_count || 0)
+    if (payload.liked_by_me !== undefined) post.liked_by_me = Boolean(payload.liked_by_me)
+  } catch (error) {
+    post.liked_by_me = prevLiked
+    post.likes_count = prevCount
+    const status = Number(error?.response?.status || 0)
+    if (status === 401) setActiveTabError('Prihlás sa.')
+    else setActiveTabError(error?.response?.data?.message || 'Lajk zlyhal.')
+  } finally {
+    setLikeLoading(post.id, false)
+  }
+}
+
+async function toggleBookmark(post) {
+  if (!post?.id || isBookmarkLoading(post)) return
+  if (!isAuthed.value) {
+    setActiveTabError('Prihlás sa pre záložky.')
+    return
+  }
+
+  clearActiveTabError()
+  const previousState = Boolean(post.is_bookmarked)
+  const previousBookmarkedAt = post.bookmarked_at || null
+  const nextState = !previousState
+
+  post.is_bookmarked = nextState
+  post.bookmarked_at = nextState ? new Date().toISOString() : null
+  bookmarks.setBookmarked(post.id, nextState)
+
+  try {
+    if (typeof auth.csrf === 'function') {
+      await auth.csrf()
+    }
+
+    const state = await bookmarks.toggleBookmark(post.id, previousState)
+    post.is_bookmarked = state
+    post.bookmarked_at = state ? (post.bookmarked_at || new Date().toISOString()) : null
+  } catch (error) {
+    post.is_bookmarked = previousState
+    post.bookmarked_at = previousBookmarkedAt
+    bookmarks.setBookmarked(post.id, previousState)
+    setActiveTabError(error?.response?.data?.message || 'Uloženie záložky zlyhalo.')
+    toastError('Uloženie záložky zlyhalo.')
+  }
+}
+
+function openReport(post) {
+  if (!post?.id || !canReport(post)) return
+  reportTarget.value = post
+}
+
+function closeReport() {
+  reportTarget.value = null
+  reportReason.value = 'spam'
+  reportMessage.value = ''
+}
+
+async function submitReport() {
+  const post = reportTarget.value
+  if (!post?.id) return
+
+  try {
+    if (typeof auth.csrf === 'function') {
+      await auth.csrf()
+    }
+
+    await http.post('/reports', {
+      target_id: post.id,
+      reason: reportReason.value,
+      message: reportMessage.value || null,
+    })
+
+    clearActiveTabError()
+    toastSuccess('Ďakujeme, nahlásenie sme prijali.')
+  } catch (error) {
+    const status = Number(error?.response?.status || 0)
+    if (status === 401) setActiveTabError('Prihlás sa.')
+    else if (status === 409) setActiveTabError('Už si reportoval tento príspevok.')
+    else setActiveTabError(error?.response?.data?.message || 'Nahlásenie zlyhalo.')
+  } finally {
+    closeReport()
+  }
+}
+
+function removePostFromAllTabs(postId) {
+  const id = Number(postId || 0)
+  if (!Number.isInteger(id) || id <= 0) return
+
+  Object.keys(tabState).forEach((tabKey) => {
+    const state = tabState[tabKey]
+    state.items = state.items.filter((item) => Number(item?.id || 0) !== id)
+  })
+}
+
+async function deletePost(post) {
+  if (!post?.id || deleteLoadingId.value) return
+  if (!canDelete(post)) return
+
+  clearActiveTabError()
+  deleteLoadingId.value = post.id
+
+  try {
+    if (typeof auth.csrf === 'function') {
+      await auth.csrf()
+    }
+    await http.delete(`/posts/${post.id}`)
+    removePostFromAllTabs(post.id)
+    toastSuccess('Príspevok bol zmazaný.')
+  } catch (error) {
+    const status = Number(error?.response?.status || 0)
+    if (status === 401) setActiveTabError('Prihlás sa.')
+    else if (status === 403) setActiveTabError('Nemáš oprávnenie.')
+    else setActiveTabError(error?.response?.data?.message || 'Mazanie zlyhalo.')
+  } finally {
+    deleteLoadingId.value = null
+  }
+}
+
+async function confirmDelete(post) {
+  if (!post?.id || !canDelete(post) || deleteLoadingId.value) return
+
+  const approved = await confirm({
+    title: 'Zmazať príspevok?',
+    message: 'Túto akciu už nie je možné vrátiť.',
+    confirmText: 'Zmazať',
+    cancelText: 'Zrušiť',
+    variant: 'danger',
+  })
+
+  if (!approved) return
+  await deletePost(post)
+}
+
+async function togglePin(post) {
+  if (!post?.id || pinLoadingId.value) return
+  if (!auth.user?.is_admin) {
+    setActiveTabError('Akcia je dostupná len pre admina.')
+    return
+  }
+
+  clearActiveTabError()
+  pinLoadingId.value = post.id
+  const wasPinned = Boolean(post.pinned_at)
+
+  try {
+    if (typeof auth.csrf === 'function') {
+      await auth.csrf()
+    }
+
+    if (wasPinned) {
+      await http.patch(`/admin/posts/${post.id}/unpin`)
+      post.pinned_at = null
+      toastSuccess('Príspevok bol odopnutý.')
+    } else {
+      await http.patch(`/admin/posts/${post.id}/pin`)
+      post.pinned_at = new Date().toISOString()
+      toastSuccess('Príspevok bol pripnutý.')
+    }
+  } catch (error) {
+    const status = Number(error?.response?.status || 0)
+    if (status === 401) setActiveTabError('Prihlás sa.')
+    else if (status === 403) setActiveTabError('Nemáš oprávnenie.')
+    else setActiveTabError(error?.response?.data?.message || 'Zmena pripnutia zlyhala.')
+  } finally {
+    pinLoadingId.value = null
+  }
+}
+
+function onPostMenuAction(item, post) {
+  if (!item?.key || !post?.id) return
+
+  handleCommonPostMenuAction(item, post, {
+    downloadOriginalAttachment,
+    openReport,
+    confirmDelete: (nextPost) => {
+      void confirmDelete(nextPost)
+    },
+    togglePin: (nextPost) => {
+      void togglePin(nextPost)
+    },
+  })
+}
+
 async function loadUser() {
   loading.value = true
   err.value = ''
@@ -316,6 +638,7 @@ async function loadTab(key, reset = true) {
     })
 
     const rows = data?.data ?? []
+    bookmarks.hydrateFromPosts(rows)
     if (reset) state.items = rows
     else state.items = [...state.items, ...rows]
 

@@ -239,8 +239,17 @@
   transition: background-color var(--motion-fast);
 }
 
+.postItem--clickable {
+  cursor: pointer;
+}
+
 .postItem:hover {
   background: var(--interactive-hover);
+}
+
+.postItem--clickable:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
 }
 
 .postBody {
@@ -296,6 +305,83 @@
 
 .postActions {
   margin-top: var(--space-1);
+}
+
+.report-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  background: rgb(6 10 16 / 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.report-content {
+  width: min(460px, 100%);
+  background: #151d28;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+}
+
+.report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.report-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.report-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: rgb(var(--bg-app-rgb) / 0.62);
+  color: var(--text-secondary);
+}
+
+.report-form {
+  display: grid;
+  gap: 10px;
+}
+
+.form-label {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.report-select {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: rgb(var(--bg-app-rgb) / 0.58);
+  color: var(--text-primary);
+  padding: 0.55rem 0.65rem;
+}
+
+.form-textarea {
+  width: 100%;
+}
+
+.report-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 4px;
+}
+
+.reportBtn {
+  min-height: 2.25rem;
 }
 
 .loadMore {

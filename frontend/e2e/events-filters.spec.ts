@@ -22,7 +22,10 @@ test.describe('events filters ux', () => {
     await page.getByRole('button', { name: 'Tento rok' }).click()
     await expect(page).toHaveURL(/\/events\?.*period=year/i)
 
-    await page.getByRole('button', { name: /Minulé|Minule/i }).click()
+    await page
+      .getByRole('tablist', { name: /Časový rozsah udalostí|Casovy rozsah udalosti/i })
+      .getByRole('button', { name: /Minulé|Minule/i })
+      .click()
     await expect(page).toHaveURL(/\/events\?.*scope=past/i)
 
     const searchInput = page.getByRole('searchbox', { name: /hľadaj|hladaj/i })
