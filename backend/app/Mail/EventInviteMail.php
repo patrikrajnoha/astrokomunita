@@ -59,16 +59,17 @@ class EventInviteMail extends Mailable
             return trim($value);
         }
 
-        // Repair double-encoded UTF-8: UTF-8 bytes were mis-read as Latin-1 and
-        // re-encoded, garbling diacritics. Converting back via UTF-8 to Latin-1
-        // recovers the original byte sequence, which is valid UTF-8.
-        // Up to two rounds to handle inputs encoded more than once.
+        // Repair double-encoded UTF-8: UTF-8 bytes were mis-read as Windows-1252
+        // and re-encoded, garbling diacritics. CP1252 is required (not ISO-8859-1)
+        // because the triple-encoded form contains U+0192 which has no Latin-1 mapping
+        // but maps to byte 0x83 in CP1252, preserving the byte sequence needed to recover
+        // the original character. Up to two rounds cover both double- and triple-encoded inputs.
         $current = trim($value);
         for ($i = 0; $i < 2; $i++) {
             if (!preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $current)) {
                 break;
             }
-            $bytes = @iconv('UTF-8', 'ISO-8859-1//IGNORE', $current);
+            $bytes = @iconv('UTF-8', 'CP1252//IGNORE', $current);
             if (!is_string($bytes) || $bytes === '' || !mb_check_encoding($bytes, 'UTF-8')) {
                 break;
             }
