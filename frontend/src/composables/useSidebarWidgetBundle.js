@@ -79,8 +79,12 @@ export function useSidebarWidgetBundle({
     pendingBundleSignature = ''
   }
 
-  const syncBundle = async (nextSectionKeys = normalizedSectionKeys.value) => {
+  const syncBundle = async (
+    nextSectionKeys = normalizedSectionKeys.value,
+    options = {},
+  ) => {
     const nextNormalizedSectionKeys = normalizeSidebarWidgetBundleSectionKeys(nextSectionKeys)
+    const force = options?.force === true
 
     if (!enabled?.value || nextNormalizedSectionKeys.length === 0) {
       resetBundle()
@@ -88,7 +92,7 @@ export function useSidebarWidgetBundle({
     }
 
     const signature = `${nextNormalizedSectionKeys.join('|')}::${querySignature.value}`
-    if (signature === loadedBundleSignature || signature === pendingBundleSignature) {
+    if (!force && (signature === loadedBundleSignature || signature === pendingBundleSignature)) {
       return
     }
 

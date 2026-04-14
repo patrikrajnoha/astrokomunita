@@ -137,6 +137,7 @@ const {
   bundledSectionPayloads,
   bundlePending: sidebarBundlePending,
   resetBundle: resetSidebarBundle,
+  syncBundle: syncSidebarBundle,
 } = useSidebarWidgetBundle({
   enabled: computed(() => isDesktop.value && Boolean(activeScope.value)),
   query: sidebarBundleQuery,
@@ -235,6 +236,14 @@ watch(
     await syncScope(scope)
   },
   { immediate: true },
+)
+
+watch(
+  () => route.fullPath,
+  async () => {
+    if (!isDesktop.value || !activeScope.value) return
+    await syncSidebarBundle(preloadableSectionKeys.value, { force: true })
+  },
 )
 
 // Re-fetch when the admin invalidates the scope cache (delete byScope[scope]).
