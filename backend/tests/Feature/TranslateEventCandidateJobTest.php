@@ -228,10 +228,10 @@ class TranslateEventCandidateJobTest extends TestCase
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
         $this->assertNull($candidate->translation_error);
-        $this->assertSame('Meteoricky roj Perzeid', $candidate->translated_title);
+        $this->assertSame('Meteorický roj Perzeid', $candidate->translated_title);
         $this->assertNotNull($candidate->translated_description);
         $this->assertStringContainsString('Perzeid', (string) $candidate->translated_description);
-        $this->assertStringNotContainsString('Meteoricky roj Meteoricky roj', (string) $candidate->translated_description);
+        $this->assertStringNotContainsString('Meteorický roj Meteorický roj', (string) $candidate->translated_description);
         $this->assertStringNotContainsString('Meteor Sprcha', (string) $candidate->translated_description);
     }
 
@@ -711,7 +711,7 @@ class TranslateEventCandidateJobTest extends TestCase
 
         $candidate->refresh();
         $this->assertSame(EventCandidate::TRANSLATION_DONE, $candidate->translation_status);
-        $this->assertSame('Meteoricky roj Geminid', $candidate->translated_title);
+        $this->assertSame('Meteorický roj Geminid', $candidate->translated_title);
         $this->assertStringContainsStringIgnoringCase('meteorick', (string) $candidate->short);
     }
 

@@ -162,12 +162,12 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $normalizer = app(AstronomyPhraseNormalizer::class);
 
         $result = $normalizer->normalize('Geminid Meteor Sprcha', 'sk');
-        $this->assertSame('Meteoricky roj Geminid', $result);
+        $this->assertSame('Meteorický roj Geminid', $result);
 
         $second = $normalizer->normalize("Eta-Aquarid meteorick\u{00E1} sprcha", 'sk');
-        $this->assertSame('Meteoricky roj Eta-Akvarid', $second);
+        $this->assertSame('Meteorický roj Eta-Akvarid', $second);
 
         $third = $normalizer->normalize('Leonids (LEO) meteor shower', 'sk');
-        $this->assertSame('Meteoricky roj Leonid', $third);
+        $this->assertSame('Meteorický roj Leonid', $third);
     }
 }
