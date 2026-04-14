@@ -2,32 +2,21 @@
   <AuthSplitLayout>
     <template #hero>
       <AuthHeroPanel
-        eyebrow="Obnova hesla"
-        title="Potvrďte kód a nastavte si nové heslo."
-        subtitle="Dokončite obnovu účtu zadaním kódu z e-mailu a nového hesla."
+        eyebrow=""
+        title="Astrokomunita"
       >
         <template #top>
           <div class="authHero__brand">
             <img src="/logo.png" alt="Astrokomunita" class="authHero__brandLogo" />
-            <div class="authHero__brandText">
-              <span class="authHero__brandTitle">Astrokomunita</span>
-              <span class="authHero__brandMeta">Bezpečný reset hesla</span>
-            </div>
           </div>
         </template>
-
-        <div class="authHero__highlights">
-          <span class="authHero__chip">Kód z e-mailu</span>
-          <span class="authHero__chip">Nové heslo</span>
-          <span class="authHero__chip">Rýchly návrat do účtu</span>
-        </div>
+        <template #title><span></span></template>
       </AuthHeroPanel>
     </template>
 
     <AuthFormSection
-      kicker="Obnova"
+      kicker=""
       title="Zadajte kód a nové heslo"
-      description="Skontrolujte e-mailovú schránku pre obnovovací kód a odošlite ho spolu s novým heslom."
     >
       <form class="authForm" @submit.prevent="submit" novalidate>
         <p v-if="prefilledEmailLabel" class="authPrefill">
@@ -101,13 +90,16 @@
 
         <p v-if="sentMessage" class="authField__meta">{{ sentMessage }}</p>
 
-        <AuthActions
-          :back-to="{ name: 'forgot-password', query: emailQuery }"
-          back-label="Späť"
-          submit-label="Ďalej"
-          loading-label="Aktualizujem..."
-          :loading="loading"
-        />
+        <div class="authActions">
+          <button
+            type="submit"
+            class="authButton authButton--primary"
+            :disabled="loading"
+            style="grid-column: 1 / -1"
+          >
+            {{ loading ? 'Aktualizujem...' : 'Nastaviť nové heslo' }}
+          </button>
+        </div>
       </form>
     </AuthFormSection>
   </AuthSplitLayout>
@@ -116,7 +108,6 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AuthActions from '@/components/auth/AuthActions.vue'
 import AuthAlert from '@/components/auth/AuthAlert.vue'
 import AuthField from '@/components/auth/AuthField.vue'
 import AuthFormSection from '@/components/auth/AuthFormSection.vue'

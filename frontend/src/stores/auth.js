@@ -110,10 +110,10 @@ export const useAuthStore = defineStore('auth', {
       await refreshCsrfCookie()
     },
 
-    async postWithCsrfRetry(url, payload) {
+    async postWithCsrfRetry(url, payload, config = {}) {
       try {
         await this.csrf()
-        return await http.post(url, payload)
+        return await http.post(url, payload, config)
       } catch (error) {
         if (!isCsrfMismatch(error)) {
           throw error
@@ -124,7 +124,7 @@ export const useAuthStore = defineStore('auth', {
         }
 
         await this.csrf()
-        return http.post(url, payload)
+        return http.post(url, payload, config)
       }
     },
 
@@ -415,7 +415,7 @@ export const useAuthStore = defineStore('auth', {
           payload && typeof payload === 'object'
             ? { ...payload, remember: payload.remember ?? true }
             : { remember: true }
-        const response = await this.postWithCsrfRetry('/auth/login', requestPayload)
+        const response = await this.postWithCsrfRetry('/auth/login', requestPayload, { meta: { skipErrorToast: true } })
         const loginUser = response?.data || null
 
         if (!loginUser) {
