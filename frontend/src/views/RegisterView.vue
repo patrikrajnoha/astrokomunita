@@ -65,7 +65,8 @@ const turnstileHint = computed(() => {
 const submitTurnstileMessage = computed(() => {
   if (!turnstileEnabled.value) return 'Bezpečnostné overenie nie je nastavené. Skúste to prosím neskôr.'
   if (turnstileToken.value) return ''
-  if (turnstileState.value === 'loading' || turnstileState.value === 'idle') return 'Načítavam overenie...'
+  if (turnstileState.value === 'loading') return 'Načítavam overenie...'
+  if (turnstileState.value === 'idle') return 'Potvrďte overenie proti botom.'
   return ''
 })
 const isSubmitDisabled = computed(() => {
@@ -209,9 +210,27 @@ watch(
 
     if (nextStep === stepItems.length && turnstileEnabled.value) {
       await nextTick()
-      void mountTurnstileWidget()
+      setTimeout(() => {
+        void mountTurnstileWidget()
+      }, 0)
     }
   }
+)
+
+watch(
+  () => turnstileContainer.value,
+  async (container) => {
+    if (!container) return
+    if (currentStep.value !== stepItems.length) return
+    if (!turnstileEnabled.value) return
+    if (turnstileWidgetId.value !== null) return
+
+    await nextTick()
+    setTimeout(() => {
+      void mountTurnstileWidget()
+    }, 0)
+  },
+  { flush: 'post' }
 )
 
 watch(
@@ -418,6 +437,9 @@ async function mountTurnstileWidget() {
         turnstileState.value = 'expired'
       },
     })
+    if (!turnstileToken.value) {
+      turnstileState.value = 'idle'
+    }
   } catch {
     turnstileToken.value = ''
     turnstileState.value = 'error'
