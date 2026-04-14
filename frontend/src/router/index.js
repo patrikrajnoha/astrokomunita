@@ -701,6 +701,13 @@ const appShellChildren = [
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+
+    return { left: 0, top: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -750,6 +757,24 @@ const router = createRouter({
       component: () => import('../views/OnboardingView.vue'),
     },
   ],
+})
+
+const LAZY_CHUNK_ERROR_PATTERN =
+  /Failed to fetch dynamically imported module|Importing a module script failed|Loading CSS chunk|ChunkLoadError/i
+let hardReloadTriggeredForChunkError = false
+
+router.onError((error, to) => {
+  if (typeof window === 'undefined') return
+  if (hardReloadTriggeredForChunkError) return
+
+  const message = String(error?.message || '')
+  if (!LAZY_CHUNK_ERROR_PATTERN.test(message)) return
+
+  hardReloadTriggeredForChunkError = true
+  const fallbackTarget = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  const target = typeof to?.fullPath === 'string' && to.fullPath.trim() ? to.fullPath : fallbackTarget
+
+  window.location.assign(target)
 })
 
 export function applyAuthGuards(routerInstance) {

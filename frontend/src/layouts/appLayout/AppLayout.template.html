@@ -96,9 +96,9 @@
             data-testid="layout-center"
           >
             <div :class="mainContentClass">
-              <RouterView v-slot="{ Component }">
-                <transition name="appRoute" mode="out-in">
-                  <component :is="Component" />
+              <RouterView v-slot="{ Component, route: activeRoute }">
+                <transition name="appRoute">
+                  <component :is="Component" :key="activeRoute.fullPath" />
                 </transition>
               </RouterView>
             </div>
