@@ -19,7 +19,6 @@
   </template>
 
   <AuthFormSection
-    kicker="ÚČET"
     title="Vytvoriť účet"
     :description="`Krok ${currentStep} z ${stepItems.length}: ${currentStepMeta.subtitle}`"
   >
@@ -156,7 +155,7 @@
 
         <div v-if="turnstileEnabled" class="block">
           <span class="mb-2 block text-[0.83rem] font-semibold text-[#ABB8C9]">Overenie proti botom</span>
-          <div class="turnstileShell overflow-x-auto p-3" :class="{ 'outline outline-2 outline-[#EB2452]/40': turnstileState === 'error' || turnstileState === 'expired' }">
+          <div class="turnstileShell turnstileShell--compact overflow-x-auto p-3" :class="{ 'outline outline-2 outline-[#EB2452]/40': turnstileState === 'error' || turnstileState === 'expired' }">
             <div ref="turnstileContainer"></div>
           </div>
           <span v-if="turnstileHint" class="mt-2 block text-xs text-[#EB2452]">{{ turnstileHint }}</span>

@@ -530,6 +530,19 @@
   background: rgb(34 46 63 / 1);
 }
 
+.turnstileShell--compact {
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.turnstileShell--compact > div {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .authSummary {
   display: grid;
   gap: 0.55rem;
@@ -758,5 +771,22 @@
     min-height: 34px;
     padding-inline: 0.32rem;
     font-size: 0.68rem;
+  }
+
+  .turnstileShell--compact {
+    padding: 0.45rem 0.25rem;
+  }
+
+  .turnstileShell--compact > div {
+    transform: scale(0.86);
+    transform-origin: top center;
+    min-height: 58px;
+  }
+}
+
+@media (max-width: 400px) {
+  .turnstileShell--compact > div {
+    transform: scale(0.78);
+    min-height: 52px;
   }
 }
