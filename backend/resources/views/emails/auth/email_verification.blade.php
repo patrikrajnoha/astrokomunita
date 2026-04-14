@@ -2,8 +2,8 @@
     $isEmailChange = $purpose === 'email_change_current';
     $title = $isEmailChange ? 'Potvrdenie zmeny e-mailu' : 'Overenie e-mailovej adresy';
     $intro = $isEmailChange
-        ? 'Použi tento jednorazový kód na potvrdenie zmeny e-mailu pre tvoj účet.'
-        : 'Použi tento jednorazový kód na overenie e-mailovej adresy pre tvoj účet.';
+        ? 'Použite tento jednorazový kód na potvrdenie zmeny e-mailu pre váš účet.'
+        : 'Použite tento jednorazový kód na overenie e-mailovej adresy pre váš účet.';
     $appName = (string) config('app.name', 'Astrokomunita');
     $frontendUrl = rtrim((string) env('FRONTEND_URL', config('app.url', 'http://localhost')), '/');
     $logoUrl = $frontendUrl . '/logo.png';
@@ -18,7 +18,7 @@
 </head>
 <body style="margin:0;padding:0;background:#151d28;font-family:Arial,Helvetica,sans-serif;">
 <span style="display:none !important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">
-    Tvoj jednorazový kód na dokončenie overenia e-mailu.
+    Váš jednorazový kód na dokončenie overenia e-mailu.
 </span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px;background:#151d28;">
     <tr>
@@ -56,10 +56,10 @@
                         </p>
 
                         <p style="margin:0 0 8px;font-size:14px;line-height:1.6;font-weight:600;color:#ffffff;">
-                            Ak si túto akciu nevyžiadal/a ty, tento e-mail môžeš bezpečne ignorovať.
+                            Ak ste túto akciu nevyžiadali, tento e-mail môžete bezpečne ignorovať.
                         </p>
                         <p style="margin:0;font-size:13px;line-height:1.6;color:#ABB8C9;">
-                            Ak e-mail nevidíš v doručenej pošte, skontroluj prosím aj spam alebo priečinok Reklama.
+                            Ak e-mail nevidíte v doručenej pošte, skontrolujte prosím aj spam alebo priečinok Reklama.
                         </p>
 
                     </td>

@@ -137,7 +137,7 @@ const steps = [
     id: 'calendar',
     selector: '[data-tour="calendar"]',
     title: 'Kalendár udalostí',
-    body: 'Nepremešk žiadnu astronomickú udalosť — zatmenia, meteority, konjunkcie a ďalšie úkazy na jednom mieste.',
+    body: 'Nepremeškaj žiadnu astronomickú udalosť — zatmenia, meteority, konjunkcie a ďalšie úkazy na jednom mieste.',
     missingHint: 'Kalendár sa teraz nenašiel. Skontroluj, či je zapnuté zobrazenie Kalendár.',
     nextLabel: 'Hotovo',
     route: { name: 'calendar' },
