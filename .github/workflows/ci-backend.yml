@@ -101,7 +101,7 @@ jobs:
           should_skip_path() {
             case "$1" in
               vendor/*|node_modules/*|storage/*|docs/*|.pytest_cache/*) return 0 ;;
-              README.md|security.md|requirements.txt) return 0 ;;
+              README.md|SECURITY.md|security.md|requirements.txt) return 0 ;;
               *) return 1 ;;
             esac
           }
