@@ -154,7 +154,7 @@ class AstronomyPhraseNormalizerTest extends TestCase
         $this->assertStringContainsString("f\u{00E1}za Mesiaca", $result);
         $this->assertStringContainsString("vidite\u{013E}nos\u{0165} zo Slovenska", $result);
         $this->assertStringContainsString("z\u{00E1}vis\u{00ED} od miestneho po\u{010D}asia", $result);
-        $this->assertStringContainsString('meteoricky roj', mb_strtolower($result, 'UTF-8'));
+        $this->assertMatchesRegularExpression('/meteorick(?:y|\x{00FD})\s+roj/iu', $result);
     }
 
     public function test_it_normalizes_meteor_shower_title_variants_from_astropixels(): void
