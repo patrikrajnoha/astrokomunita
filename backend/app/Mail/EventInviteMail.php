@@ -60,13 +60,15 @@ class EventInviteMail extends Mailable
             return '';
         }
 
-        if (!preg_match('/[ÂÃÄÅ]/u', $input)) {
+        // Detect double-encoded UTF-8 by looking for U+00C2/C3/C4/C5 code points.
+        if (!preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $input)) {
             return $input;
         }
 
+        // Collapse triple-encoded sequences (byte patterns C3 83 C6 92 C3 82/84/85).
         $collapsed = str_replace(
-            ['ÃƒÂ', 'ÃƒÄ', 'ÃƒÅ'],
-            ['Ã', 'Ä', 'Å'],
+            ["\xC3\x83\xC6\x92\xC3\x82", "\xC3\x83\xC6\x92\xC3\x84", "\xC3\x83\xC6\x92\xC3\x85"],
+            ["\xC3\x83", "\xC3\x84", "\xC3\x85"],
             $input
         );
 
@@ -84,6 +86,6 @@ class EventInviteMail extends Mailable
             return $collapsed;
         }
 
-        return preg_match('/[ÂÃÄÅ]/u', $repaired) ? $collapsed : $repaired;
+        return preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $repaired) ? $collapsed : $repaired;
     }
 }
