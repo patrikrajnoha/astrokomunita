@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SearchPage from '@/components/search/SearchPage.vue'
 import api from '@/services/api'
@@ -98,6 +98,8 @@ describe('SearchPage layout shell', () => {
   })
 
   it('repairs mojibake in top events titles', async () => {
+    const mojibakeTitle = `Meteorick${String.fromCharCode(0x00c3, 0x0192, 0x00c2, 0x00bd)} roj Lyrid`
+
     api.get.mockImplementation((url) => {
       if (url === '/search/discovery') {
         return Promise.resolve({
@@ -107,7 +109,7 @@ describe('SearchPage layout shell', () => {
                 events: [
                   {
                     id: 101,
-                    title: 'MeteorickÃƒÂ½ roj Lyrid',
+                    title: mojibakeTitle,
                     summary: 'Vrchol aktivity koncom apríla.',
                     start_at: '2026-04-22T19:00:00Z',
                   },
@@ -138,6 +140,6 @@ describe('SearchPage layout shell', () => {
     await flush()
 
     expect(wrapper.text()).toContain('Meteorický roj Lyrid')
-    expect(wrapper.text()).not.toContain('MeteorickÃƒÂ½ roj Lyrid')
+    expect(wrapper.text()).not.toContain(mojibakeTitle)
   })
 })
