@@ -24,6 +24,16 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authStoreMock,
 }))
 
+vi.mock('@/stores/bookmarks', () => ({
+  useBookmarksStore: () => ({
+    isLoading: () => false,
+    isBookmarked: () => false,
+    setBookmarked: vi.fn(),
+    toggleBookmark: vi.fn(async () => false),
+    hydrateFromPosts: vi.fn(),
+  }),
+}))
+
 function makeRouter() {
   return createRouter({
     history: createMemoryHistory(),

@@ -69,7 +69,7 @@ describe('auth store login resilience', () => {
       email: 'admin@example.com',
       password: 'secret',
       remember: true,
-    })
+    }, { meta: { skipErrorToast: true } })
     expect(refreshCsrfCookieMock).toHaveBeenCalledTimes(1)
     expect(http.get).not.toHaveBeenCalled()
   })

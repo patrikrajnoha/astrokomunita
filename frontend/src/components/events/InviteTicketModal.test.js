@@ -61,11 +61,11 @@ describe('InviteTicketModal', () => {
     const wrapper = makeWrapper()
 
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
-    expect(wrapper.text()).toContain('Meno na vstupenke je povinné.')
+    expect(wrapper.text()).toContain('Meno pozorovateľa je povinné.')
 
     await wrapper.find('[data-testid="attendee-name-input"]').setValue('A'.repeat(81))
     await wrapper.find('[data-testid="send-invite-btn"]').trigger('click')
-    expect(wrapper.text()).toContain('Meno na vstupenke môže mať najviac 80 znakov.')
+    expect(wrapper.text()).toContain('Meno pozorovateľa môže mať najviac 80 znakov.')
   })
 
   it('calls create invite endpoint with expected payload', async () => {
