@@ -1,59 +1,66 @@
 # Astrokomunita
 
-> Full-stack webová aplikácia na sledovanie vesmírnych udalostí, publikovanie astronomických pozorovaní a prepájanie externých dátových zdrojov s komunitným obsahom.
+> Praktická implementácia webovej aplikácie vytvorenej ako súčasť bakalárskej práce zameranej na sprístupňovanie astronomických udalostí, komunitného obsahu a používateľských pozorovaní v jednotnom webovom prostredí.
 
-## O projekte
+## Kontext projektu
 
-**Astrokomunita** je názov platformy a tohto repozitára. Projekt vychádza z bakalárskej práce **Nebeský sprievodca 1.0 – Aplikácia na zachytávanie vesmírnych udalostí**, ktorá tvorí jeho akademický základ.
+Tento repozitár obsahuje zdrojový kód systému **Astrokomunita**, ktorý predstavuje praktickú časť bakalárskej práce **Nebeský sprievodca 1.0 – Aplikácia na zachytávanie vesmírnych udalostí**.
 
-Aplikácia je navrhnutá ako jednotné webové prostredie pre:
+Projekt vznikol ako reakcia na absenciu jednotného webového riešenia, ktoré by v jednom prostredí spájalo:
 
-- sprístupňovanie astronomických udalostí,
-- prácu s komunitným obsahom,
-- evidenciu používateľských pozorovaní,
-- automatizované spracovanie externých dátových zdrojov,
-- správu a publikovanie obsahu v administrátorskej vrstve.
+- informácie o astronomických udalostiach,
+- komunitný obsah a používateľské interakcie,
+- evidenciu pozorovaní,
+- administráciu a publikačné workflow,
+- spracovanie vybraných externých dátových zdrojov.
 
-Cieľom projektu je prepojiť informačnú, komunitnú a administrátorskú vrstvu do jedného systému. Na rozdiel od nástrojov zameraných iba na vizualizáciu oblohy alebo izolované dátové výstupy spája Astrokomunita udalosti, obsah, pozorovania a správu údajov v jednom rozhraní.
+README slúži ako technická sprievodná dokumentácia k implementácii. Nenahrádza text bakalárskej práce, ale dopĺňa ho o praktické informácie potrebné na orientáciu v repozitári, lokálne spustenie a základné testovanie.
 
-## Prečo projekt vznikol
+## Cieľ a rozsah riešenia
 
-Mnohé astronomické aplikácie riešia iba jednu časť problému. Jedna sa sústreďuje na vizualizáciu oblohy, iná na vedecké dáta a ďalšia na spravodajský obsah. Chýba však jednotné prostredie, ktoré by spájalo:
+Cieľom systému je vytvoriť viacvrstvovú webovú aplikáciu, ktorá integruje informačnú, komunitnú a administrátorskú vrstvu do jedného rozhrania.
 
-- aktuálne a overené informácie o udalostiach,
-- zrozumiteľne spracovaný obsah,
-- komunitné zdieľanie pozorovaní,
-- automatizované spracovanie externých zdrojov,
-- používateľsky prístupné webové rozhranie.
-
-Astrokomunita na tento problém reaguje viacvrstvovou webovou aplikáciou postavenou na modernej architektúre.
-
-## Stav projektu
-
-Repozitár obsahuje implementáciu funkčného prototypu a jeho ďalší vývoj. Jadro systému zahŕňa správu udalostí, komunitný obsah, používateľské pozorovania, administračné workflow a automatizované spracovanie vybraných externých zdrojov.
-
-## Bezpečnosť
-
-Bezpečnostné guard-raily a postup pre nahlasovanie zraniteľností sú popísané v [SECURITY.md](SECURITY.md).
-
-## Hlavné funkcionality
+V aktuálnom rozsahu implementácia pokrýva najmä:
 
 - prehľad a kalendár astronomických udalostí,
-- detail udalosti s praktickými informáciami pre pozorovanie,
-- doplnková predpoveď vhodnosti pozorovania pri dostupnej lokalite,
-- sledovanie udalostí, plánovanie účasti, pripomienky a pozvánky,
-- export udalostí do kalendára vo formáte `ICS`,
-- evidencia vlastných pozorovaní vrátane času, miesta, techniky a fotografií,
-- komunitné príspevky a používateľské interakcie,
-- oddelený komunitný feed a `AstroFeed`,
-- bot účty pre pravidelne publikovaný astronomický obsah,
-- používateľské profily, onboarding, nastavenia a filtrovacie prvky,
-- podpora personalizácie vybraných častí aplikácie podľa lokality a nastavení používateľa,
-- administrátorský workflow na zber, kontrolu, preklad, deduplikáciu a publikovanie obsahu,
-- realtime notifikácie a živé aktualizácie vybraných častí aplikácie,
-- doplnkové moduly, ako sú články, newsletter, záložky, widgety a vyhľadávanie.
+- detail udalosti s doplnkovými informáciami pre pozorovanie,
+- komunitné príspevky a samostatný informačný tok `AstroFeed`,
+- evidenciu používateľských pozorovaní,
+- používateľské profily, onboarding a nastavenia personalizácie,
+- widgetový sidebar prispôsobený podľa preferencií používateľa,
+- administračné nástroje na správu udalostí, obsahu a kandidátov,
+- automatizované spracovanie vybraných externých zdrojov,
+- realtime notifikácie a živé aktualizácie vybraných častí rozhrania.
 
-## Použitý technologický stack
+## Funkčné celky systému
+
+Hlavné funkčné oblasti implementácie sú:
+
+- astronomické udalosti a ich kalendárne zobrazenie,
+- používateľské pozorovania vrátane času, miesta, techniky a fotografií,
+- komunitný obsah, reakcie a používateľské interakcie,
+- personalizácia rozhrania podľa lokality a preferencií,
+- administrátorské workflow pre zber, kontrolu, preklad, deduplikáciu a publikovanie obsahu,
+- pomocné widgety a doplnkové moduly, napríklad články, newsletter, záložky a vyhľadávanie.
+
+## Architektúra systému
+
+Aplikácia je navrhnutá ako viacvrstvový systém pozostávajúci z týchto častí:
+
+1. **Frontend**
+   Používateľské rozhranie implementované ako samostatná SPA aplikácia.
+2. **Backend**
+   Aplikačná logika, autentifikácia, autorizácia, API vrstva a administrácia.
+3. **Dátová vrstva**
+   Ukladanie aplikačných dát, vzťahov a prevádzkových záznamov.
+4. **Asynchrónne spracovanie**
+   Fronty úloh, scheduler a pomocné procesy pre synchronizáciu a spracovanie údajov.
+5. **Pomocné služby**
+   Samostatné služby pre astronomické výpočty a moderáciu obsahu.
+6. **Realtime komunikácia**
+   Distribúcia vybraných udalostí a notifikácií v reálnom čase.
+
+## Použité technológie
 
 | Vrstva | Technológie |
 | --- | --- |
@@ -61,26 +68,13 @@ Bezpečnostné guard-raily a postup pre nahlasovanie zraniteľností sú popísa
 | Backend | Laravel 12, PHP 8.2+, Laravel Sanctum, REST API |
 | Realtime komunikácia | Laravel Reverb, Laravel Echo |
 | Databáza | MySQL 8.4 |
-| Asynchrónne spracovanie | fronty úloh, scheduler, background workery |
-| Pomocné služby | Python/FastAPI sky service, moderation service, prekladové a AI služby |
+| Asynchrónne spracovanie | Laravel queue workers, scheduler |
+| Pomocné služby | Python/FastAPI sky service, moderation service |
 | Nasadenie | Docker, Docker Compose, Caddy |
-
-## Architektúra
-
-Aplikácia je navrhnutá ako viacvrstvový webový systém:
-
-1. Frontend zabezpečuje používateľské rozhranie a komunikáciu s backendom.
-2. Backend spracúva aplikačnú logiku, autentifikáciu, správu obsahu a integrácie.
-3. Dátová vrstva uchováva aplikačné dáta a vzťahy medzi jednotlivými entitami.
-4. Plánované úlohy a background workery zabezpečujú synchronizáciu externých zdrojov a ďalšie asynchrónne operácie.
-5. Pomocné služby riešia špecializované úlohy, napríklad astronomické výpočty, moderáciu alebo jazykové spracovanie.
-6. Administrátorská vrstva kontroluje kvalitu a životný cyklus externého aj komunitného obsahu.
 
 ## Externé dáta a automatizácia
 
-Projekt pracuje s kombináciou externých astronomických zdrojov a interného používateľského obsahu.
-
-V aktuálnej implementácii sa využívajú najmä:
+Systém pracuje s kombináciou interného používateľského obsahu a vybraných externých astronomických zdrojov. V aktuálnej implementácii sú využívané najmä:
 
 - `NASA RSS`,
 - `NASA APOD`,
@@ -88,63 +82,9 @@ V aktuálnej implementácii sa využívajú najmä:
 - vybrané crawling zdroje pre astronomické udalosti,
 - import a spracovanie údajov zo zdrojov ako `Astropixels` a `IMO`.
 
-Systém tieto dáta synchronizuje, filtruje, deduplikuje, prekladá a pripravuje na publikovanie v aplikácii. Súčasťou riešenia je aj admin workflow pre kandidátov udalostí pred ich finálnym zverejnením.
+Tieto dáta sú následne synchronizované, filtrované, deduplikované a pripravované na publikovanie v aplikácii. Súčasťou riešenia je aj administrátorský workflow pre kandidátov udalostí pred ich finálnym zverejnením.
 
-## Ukážka
-
-Verejné demo projektu:
-
-- https://astrokomunita.sk
-
-## Lokálne spustenie
-
-Projekt je pripravený na lokálny vývoj pomocou Docker Compose.
-
-### Požiadavky
-
-- Docker
-- Docker Compose
-
-### Postup
-
-1. Skopíruj lokálne konfiguračné súbory podľa vzorov v repozitári.
-2. Vygeneruj aplikačný kľúč pre backend.
-3. Spusť lokálny stack.
-
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-docker compose run --rm backend php artisan key:generate
-docker compose up -d --build
-```
-
-Pri štarte Docker stacku sa v aktuálnej konfigurácii automaticky spúšťajú aj migrácie databázy a inicializačné úlohy backendu.
-
-### Lokálne URL
-
-| Služba | URL |
-| --- | --- |
-| Frontend | http://127.0.0.1:5174 |
-| Backend API | http://127.0.0.1:8001 |
-| Mailpit | http://127.0.0.1:8025 |
-| Adminer | http://127.0.0.1:8086 |
-
-### Voliteľné
-
-Ak chceš používať funkcionalitu napojenú na `Ollama`, môžeš dodatočne stiahnuť lokálny model:
-
-```bash
-docker compose exec ollama ollama pull mistral:latest
-```
-
-## Testovanie
-
-```bash
-docker compose exec backend php artisan test
-docker compose exec frontend npx vitest run
-```
-
-## Štruktúra projektu
+## Štruktúra repozitára
 
 ```text
 .
@@ -156,18 +96,139 @@ docker compose exec frontend npx vitest run
 ├── docs/                   # doplnková dokumentácia
 ├── scripts/                # pomocné a prevádzkové skripty
 ├── docker-compose.yml      # lokálne vývojové prostredie
-└── docker-compose.prod.yml # produkčné nasadenie
+├── docker-compose.prod.yml # produkčné nasadenie
+├── Caddyfile               # produkčná reverzná proxy
+└── SECURITY.md             # bezpečnostné zásady a postup nahlasovania
 ```
+
+## Požiadavky na spustenie
+
+Podporované sú dve základné formy lokálneho vývoja:
+
+- vývoj cez Docker Compose,
+- natívny vývoj na Windows pomocou pomocných PowerShell skriptov.
+
+### Minimálne požiadavky
+
+- Docker a Docker Compose pre kontajnerový vývoj,
+- PHP `^8.2` pre backend,
+- Node.js `^20.19.0 || >=22.12.0` pre frontend,
+- Python 3 pre `services/sky`,
+- `curl` a `docker` v `PATH` pri použití produkčných skriptov.
+
+## Lokálne spustenie cez Docker Compose
+
+Odporúčaná forma lokálneho vývoja je kontajnerové prostredie.
+
+### Postup
+
+1. Skopíruj lokálne konfiguračné súbory podľa vzorov.
+2. Vygeneruj aplikačný kľúč backendu.
+3. Spusť lokálny stack.
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+docker compose run --rm backend php artisan key:generate
+docker compose up -d --build
+```
+
+Pri štarte lokálneho stacku sa v aktuálnej konfigurácii automaticky spúšťajú aj migrácie databázy a inicializačné úlohy backendu.
+
+### Lokálne URL pre Docker režim
+
+| Služba | URL |
+| --- | --- |
+| Frontend | http://127.0.0.1:5174 |
+| Backend API | http://127.0.0.1:8001 |
+| Mailpit | http://127.0.0.1:8025 |
+| Adminer | http://127.0.0.1:8086 |
+
+### Voliteľné
+
+Ak je potrebné testovať funkcionalitu závislú od `Ollama`, je možné dodatočne stiahnuť lokálny model:
+
+```bash
+docker compose exec ollama ollama pull mistral:latest
+```
+
+## Alternatívny natívny vývoj na Windows
+
+Repozitár obsahuje aj pomocné skripty pre natívne spustenie frontendovej, backendovej a sky služby mimo Dockeru:
+
+- [scripts/dev-up.ps1](scripts/dev-up.ps1)
+- [scripts/dev-status.ps1](scripts/dev-status.ps1)
+- [scripts/dev-down.ps1](scripts/dev-down.ps1)
+
+V tomto režime sa štandardne používajú tieto porty:
+
+| Služba | URL |
+| --- | --- |
+| Frontend | http://127.0.0.1:5173 |
+| Backend | http://127.0.0.1:8000 |
+| Sky service | http://127.0.0.1:8010 |
+
+## Testovanie
+
+### Testovanie v Docker režime
+
+```bash
+docker compose exec backend php artisan test
+docker compose exec frontend npx vitest run
+```
+
+### Testovanie mimo Dockeru
+
+Frontend:
+
+```bash
+cd frontend
+npm run test:unit
+npm run test:e2e:smoke
+npm run lint
+```
+
+Backend:
+
+```bash
+cd backend
+php artisan test
+```
+
+## Prevádzkové skripty
+
+Repozitár obsahuje aj skripty určené pre prevádzku a údržbu:
+
+- [scripts/prod-deploy.sh](scripts/prod-deploy.sh) – aktualizácia kódu a nasadenie produkčného stacku,
+- [scripts/prod-db-backup.sh](scripts/prod-db-backup.sh) – záloha produkčnej databázy,
+- [scripts/prod-db-restore.sh](scripts/prod-db-restore.sh) – obnova databázy zo zálohy,
+- [scripts/prod-safe-docker-prune.sh](scripts/prod-safe-docker-prune.sh) – bezpečné čistenie Docker artefaktov.
+
+Táto časť predstavuje prevádzkovú dokumentáciu projektu a nie je jadrom textu bakalárskej práce.
+
+## Bezpečnosť
+
+Bezpečnostné guard-raily a postup pre nahlasovanie zraniteľností sú popísané v [SECURITY.md](SECURITY.md).
+
+## Obmedzenia súčasnej implementácie
+
+Aktuálna implementácia predstavuje funkčný prototyp a vývojovú bázu systému. Z pohľadu akademického a praktického využitia je vhodné počítať s týmito obmedzeniami:
+
+- nie všetky moduly sú navrhnuté ako finálna produkčná verzia,
+- časť externých zdrojov závisí od dostupnosti tretích strán,
+- výstupy pomocných služieb sú limitované kvalitou vstupných dát a konfigurácie prostredia,
+- systém sa priebežne vyvíja, preto sa môže meniť interná štruktúra modulov, testov a prevádzkových skriptov.
 
 ## Budúci rozvoj
 
+Pri ďalšom rozvoji systému sa predpokladá najmä:
+
 - rozšírenie vizualizácií astronomických javov,
-- interaktívnejšia práca s oblohou a udalosťami,
 - rozšírenie mobilného používania a PWA prvkov,
 - pokročilejšia personalizácia vybraných častí aplikácie,
 - integrácia ďalších dátových zdrojov,
 - výkonové optimalizácie a stabilizácia prevádzky,
-- rozšírenie komunitných funkcií,
+- rozšírenie komunitných a administračných workflow,
 - ďalšie využitie AI pri spracovaní, preklade alebo generovaní obsahu.
 
 ## Autor a pôvod projektu
@@ -177,6 +238,12 @@ Autorom projektu je **Patrik Rajnoha**.
 Projekt vychádza z bakalárskej práce **Nebeský sprievodca 1.0 – Aplikácia na zachytávanie vesmírnych udalostí** na **Univerzite Konštantína Filozofa v Nitre**, Fakulte prírodných vied a informatiky.
 
 Repozitár predstavuje praktickú implementáciu riešenia a jeho ďalší vývoj mimo akademického textu.
+
+## Ukážka nasadenia
+
+Verejne dostupná inštancia projektu:
+
+- https://astrokomunita.sk
 
 ## Licencia
 

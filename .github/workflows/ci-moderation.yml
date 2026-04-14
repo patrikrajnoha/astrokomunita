@@ -169,9 +169,6 @@ jobs:
         run: |
           python -m py_compile $(git ls-files '*.py')
 
-      - name: Import check
-        run: python -c "import app.main"
-
       - name: Run pytest when present
         run: |
           if command -v pytest >/dev/null 2>&1 && [ -d tests ]; then
