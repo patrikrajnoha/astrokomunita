@@ -194,7 +194,7 @@ class EventFollowTest extends TestCase
             ->assertJsonPath('data.0.plan.has_planned_time', true)
             ->assertJsonPath('data.0.plan.has_planned_location', true)
             ->assertJsonPath('data.0.plan.planned_location_label', 'Luka pri meste')
-            ->assertJsonPath('data.0.recommended_viewing_label', 'Odporucany cas okolo 22:00');
+            ->assertJsonPath('data.0.recommended_viewing_label', 'Odporúčaný čas okolo 22:00');
     }
 
     public function test_event_detail_for_authenticated_user_exposes_follow_plan_context(): void

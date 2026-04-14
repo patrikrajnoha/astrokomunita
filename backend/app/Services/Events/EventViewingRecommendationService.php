@@ -25,14 +25,14 @@ class EventViewingRecommendationService
 
         if ($start !== null && $precision !== EventTime::PRECISION_UNKNOWN) {
             $localStart = $start->setTimezone($timezone);
-            $label = 'Odporucany cas okolo '.$localStart->format('H:i');
+            $label = 'Odporúčaný čas okolo '.$localStart->format('H:i');
             $recommendedEnd = null;
 
             if ($end !== null) {
                 $localEnd = $end->setTimezone($timezone);
                 if ($localEnd->gt($localStart) && $localStart->toDateString() === $localEnd->toDateString()) {
                     $label = sprintf(
-                        'Odporucane okno %s - %s',
+                        'Odporúčané okno %s - %s',
                         $localStart->format('H:i'),
                         $localEnd->format('H:i')
                     );
@@ -68,19 +68,19 @@ class EventViewingRecommendationService
             ->value();
 
         if ($this->containsAny($text, ['po zotmeni', 'after dark', 'after dusk', 'v noci', 'nocne'])) {
-            return 'Najlepsie po zotmeni';
+            return 'Najlepšie po zotmení';
         }
 
         if ($event->type === 'meteor_shower') {
-            return 'Najlepsie po zotmeni';
+            return 'Najlepšie po zotmení';
         }
 
         if ($this->containsAny($text, ['vecer', 'vecerne', 'evening'])) {
-            return 'Najlepsie vecer';
+            return 'Najlepšie večer';
         }
 
         if ($this->containsAny($text, ['nad ranom', 'pred svitanim', 'rano', 'dawn'])) {
-            return 'Najlepsie nadranom';
+            return 'Najlepšie nad ránom';
         }
 
         return null;
