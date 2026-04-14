@@ -165,11 +165,27 @@ class AuthLoginTest extends TestCase
         $this->postJson('/api/auth/login', [
             'email' => 'missing-user@example.com',
             'password' => 'missing-password',
-        ])->assertStatus(422);
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Používateľ s týmto e-mailom neexistuje.');
 
         $this->assertSame(0, User::query()->count());
         $this->assertDatabaseMissing('users', ['username' => 'astrokomunita']);
         $this->assertDatabaseMissing('users', ['username' => 'kozmobot']);
         $this->assertDatabaseMissing('users', ['username' => 'stellarbot']);
+    }
+
+    public function test_login_returns_generic_message_for_existing_email_with_wrong_password(): void
+    {
+        User::factory()->create([
+            'email' => 'existing@example.com',
+            'password' => 'correct-password',
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'existing@example.com',
+            'password' => 'wrong-password',
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'Nesprávny e-mail alebo heslo.');
     }
 }

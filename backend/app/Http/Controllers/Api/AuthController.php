@@ -140,7 +140,13 @@ class AuthController extends Controller
             ->whereRaw('LOWER(email) = ?', [$email])
             ->first();
 
-        if (! $user || $user->is_bot || ! $this->credentialsMatchWithoutUserWrite($user, $password)) {
+        if (! $user) {
+            return response()->json([
+                'message' => 'Používateľ s týmto e-mailom neexistuje.',
+            ], 422);
+        }
+
+        if ($user->is_bot || ! $this->credentialsMatchWithoutUserWrite($user, $password)) {
             return response()->json([
                 'message' => 'Nesprávny e-mail alebo heslo.',
             ], 422);
