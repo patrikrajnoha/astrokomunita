@@ -847,19 +847,12 @@
 
   .authSplit__hero,
   .authSplit__form {
-    padding: 1rem;
-  }
-
-  .authSplit__form {
-    align-items: flex-start;
+    padding: 0.75rem;
   }
 
   .authSplit__panel {
-    border-radius: 26px;
-    padding: 1rem;
-    max-height: calc(100dvh - 2rem);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    border-radius: 24px;
+    padding: 0.85rem;
   }
 
   .authHero__brand {
@@ -876,56 +869,64 @@
   }
 
   .authButton {
+    min-height: 42px;
+  }
+
+  .authControl {
     min-height: 44px;
   }
 
+  .authSelect {
+    min-height: 40px;
+  }
+
   .authFormSection {
-    gap: 0.85rem;
+    gap: 0.6rem;
   }
 
   .authFormSection__header {
-    gap: 0.25rem;
+    gap: 0.2rem;
   }
 
   .authFormSection__title {
-    font-size: 1.55rem;
+    font-size: 1.1rem;
   }
 
   .authFormSection__description {
-    font-size: 0.86rem;
+    font-size: 0.78rem;
   }
 
   .authForm {
-    gap: 0.8rem;
+    gap: 0.6rem;
   }
 
   .authSummary {
-    padding: 0.72rem;
-    gap: 0.38rem;
+    padding: 0.55rem;
+    gap: 0.28rem;
   }
 
   .authSummary__row {
-    font-size: 0.84rem;
+    font-size: 0.8rem;
   }
 
   .authProgress {
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
 
   .authProgress__step {
-    min-height: 34px;
+    min-height: 30px;
     padding-inline: 0.32rem;
     font-size: 0.68rem;
   }
 
   .turnstileShell--compact {
-    padding: 0.45rem 0.25rem;
+    padding: 0.3rem 0.2rem;
   }
 
   .turnstileShell--compact > div {
-    transform: scale(0.86);
+    transform: scale(0.84);
     transform-origin: top center;
-    min-height: 58px;
+    min-height: 54px;
   }
 }
 
