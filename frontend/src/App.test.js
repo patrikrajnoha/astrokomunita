@@ -53,7 +53,13 @@ vi.mock('@/stores/eventPreferences', () => ({
 vi.mock('@/components/auth/EmailVerificationGateModal.vue', () => ({
   default: {
     props: ['open'],
-    template: '<div v-if="open" class="email-modal-stub">email modal</div>',
+    emits: ['verified'],
+    template: `
+      <div v-if="open" class="email-modal-stub">
+        email modal
+        <button class="email-modal-verify" @click="$emit('verified')">verify</button>
+      </div>
+    `,
   },
 }))
 
@@ -102,5 +108,34 @@ describe('App bootstrap gate', () => {
     const wrapper = mount(App)
 
     expect(wrapper.find('.router-view-stub').exists()).toBe(true)
+  })
+
+  it('forces preferences refresh and redirects to onboarding after email verification', async () => {
+    authState.isAuthed = true
+    authState.user = { id: 15, email: 'new@example.com', email_verified_at: null }
+    preferencesState.loaded = true
+    preferencesState.isOnboardingCompleted = false
+    authState.fetchUser.mockImplementationOnce(async () => {
+      authState.user = { ...authState.user, email_verified_at: '2026-04-14T19:45:00Z' }
+      return authState.user
+    })
+
+    const wrapper = mount(App)
+    await wrapper.get('.email-modal-verify').trigger('click')
+
+    expect(authState.fetchUser).toHaveBeenCalledWith({
+      source: 'email-gate-verified',
+      retry: false,
+      markBootstrap: false,
+      preserveStateOnError: true,
+    })
+    expect(preferencesState.fetchPreferences).toHaveBeenCalledWith(true)
+    expect(routerPushMock).toHaveBeenCalledWith({
+      name: 'onboarding',
+      query: {
+        redirect: '/admin/dashboard',
+        start_tour: '1',
+      },
+    })
   })
 })

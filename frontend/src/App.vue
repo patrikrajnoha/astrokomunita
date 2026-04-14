@@ -118,14 +118,12 @@ async function handleEmailVerified() {
     return
   }
 
-  let onboardingCompleted = preferences.isOnboardingCompleted
-  if (!preferences.loaded && !preferences.loading) {
-    try {
-      await preferences.fetchPreferences()
-      onboardingCompleted = preferences.isOnboardingCompleted
-    } catch {
-      onboardingCompleted = false
-    }
+  let onboardingCompleted = false
+  try {
+    await preferences.fetchPreferences(true)
+    onboardingCompleted = preferences.isOnboardingCompleted
+  } catch {
+    onboardingCompleted = false
   }
 
   if (!onboardingCompleted && route.name !== 'onboarding') {
