@@ -183,7 +183,7 @@ class AdminEventSourceControllerTest extends TestCase
         $response->assertJsonPath('results.0.source_key', EventSourceEnum::ASTROPIXELS->value);
         $response->assertJsonPath('results.0.status', 'skipped');
         $this->assertStringContainsString(
-            'este nie je publikovany',
+            'ešte nie je publikovaný',
             (string) $response->json('results.0.message')
         );
 
@@ -323,7 +323,7 @@ class AdminEventSourceControllerTest extends TestCase
         ]);
 
         $response->assertStatus(422);
-        $response->assertJsonPath('message', 'Jeden alebo viac zdrojov nie je v tomto prostredi dostupnych.');
+        $response->assertJsonPath('message', 'Jeden alebo viac zdrojov nie je v tomto prostredí dostupných.');
         $response->assertJsonPath('errors.source_keys.0', 'Source key(s) not allowed: go_astronomy');
     }
 

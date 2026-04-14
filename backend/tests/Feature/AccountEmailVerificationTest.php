@@ -27,7 +27,7 @@ class AccountEmailVerificationTest extends TestCase
 
         $this->postJson('/api/account/email/verification/send')
             ->assertOk()
-            ->assertJsonPath('message', 'Overovaci kod bol odoslany.');
+            ->assertJsonPath('message', 'Overovací kód bol odoslaný.');
 
         $verification = EmailVerification::query()->firstOrFail();
         $this->assertSame($user->id, $verification->user_id);
@@ -59,7 +59,7 @@ class AccountEmailVerificationTest extends TestCase
             'code' => $code,
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'E-mail bol uspesne overeny.')
+            ->assertJsonPath('message', 'E-mail bol úspešne overený.')
             ->assertJsonPath('data.verified', true);
 
         $this->assertNotNull($user->fresh()->email_verified_at);
