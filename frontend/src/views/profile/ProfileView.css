@@ -700,8 +700,18 @@
   border-radius: 0;
   transition: background-color 150ms ease;
 }
+
+.postItem--clickable {
+  cursor: pointer;
+}
+
 .postItem:hover {
   background: #1c2736;
+}
+
+.postItem--clickable:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px #0F73FF;
 }
 .postItem.pinned {
   background: rgba(15, 115, 255, 0.08);

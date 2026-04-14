@@ -150,9 +150,19 @@ function goToProfileEdit() {
   profileEditModalOpen.value = true
 }
 
-function openPost(post) {
+function openPost(post, triggerEvent = null) {
+  if (shouldIgnorePostOpen(triggerEvent)) return
   if (!post?.id) return
   router.push(`/posts/${post.id}`)
+}
+
+function shouldIgnorePostOpen(triggerEvent) {
+  const target = triggerEvent?.target
+  if (!(target instanceof Element)) return false
+
+  return Boolean(target.closest(
+    'a,button,input,textarea,select,option,label,[role="button"],.dropdownRoot,.postActions',
+  ))
 }
 
 function profilePostMenuItems(post) {
@@ -297,5 +307,4 @@ onMounted(async () => {
 </script>
 
 <style scoped src="./profile/ProfileView.css"></style>
-
 

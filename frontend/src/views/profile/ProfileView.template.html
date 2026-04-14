@@ -481,7 +481,17 @@
           </div>
 
           <div v-else class="postList">
-            <article v-for="p in tabState[activeTab].items" :key="p.id" class="postItem" :class="{ pinned: isPinnedOnProfile(p) }">
+            <article
+              v-for="p in tabState[activeTab].items"
+              :key="p.id"
+              class="postItem postItem--clickable"
+              :class="{ pinned: isPinnedOnProfile(p) }"
+              role="button"
+              tabindex="0"
+              @click="openPost(p, $event)"
+              @keydown.enter.prevent="openPost(p, $event)"
+              @keydown.space.prevent="openPost(p, $event)"
+            >
               <div class="avatar sm">
                 <UserAvatar
                   class="avatarImg"
@@ -502,25 +512,27 @@
                   <span class="replyText">{{ shorten(p.parent.content) }}</span>
                 </div>
 
-                <ObservationCard
-                  v-if="observationForPost(p)"
-                  :observation="observationForPost(p)"
-                  :clickable="true"
-                  :show-author="false"
-                  @open="openObservation"
-                />
+                <div v-if="observationForPost(p)" @click.stop>
+                  <ObservationCard
+                    :observation="observationForPost(p)"
+                    :clickable="true"
+                    :show-author="false"
+                    @open="openObservation"
+                  />
+                </div>
                 <HashtagText v-else class="postContent" :content="p.content" />
 
-                <PollCard
-                  v-if="!observationForPost(p) && p.poll"
-                  :poll="p.poll"
-                  :post-id="p.id"
-                  :is-authed="Boolean(auth.user)"
-                  @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
-                  @login-required="onPollLoginRequired"
-                />
+                <div v-if="!observationForPost(p) && p.poll" @click.stop>
+                  <PollCard
+                    :poll="p.poll"
+                    :post-id="p.id"
+                    :is-authed="Boolean(auth.user)"
+                    @updated="(nextPoll) => updatePostPoll(p, nextPoll)"
+                    @login-required="onPollLoginRequired"
+                  />
+                </div>
 
-                <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attachedEventCard">
+                <div v-if="!observationForPost(p) && attachedEventForPost(p)" class="attachedEventCard" @click.stop>
                   <div class="attachedEventCopy">
                     <p class="attachedEventTitle">{{ attachedEventForPost(p).title || 'Udalosť' }}</p>
                     <p class="attachedEventDate">
@@ -536,11 +548,11 @@
                   </button>
                 </div>
 
-                <div v-if="!observationForPost(p) && postGifUrl(p)" class="attachment">
+                <div v-if="!observationForPost(p) && postGifUrl(p)" class="attachment" @click.stop>
                   <img class="attachmentImg" :src="postGifUrl(p)" :alt="postGifTitle(p)" />
                 </div>
 
-                <div v-if="!observationForPost(p) && p.attachment_url" class="attachment">
+                <div v-if="!observationForPost(p) && p.attachment_url" class="attachment" @click.stop>
                   <img
                     v-if="isImage(p)"
                     class="attachmentImg"
