@@ -3,7 +3,7 @@
     <section class="inviteModalCard" role="dialog" aria-modal="true" aria-labelledby="invite-ticket-title">
       <header class="modalHead">
         <div>
-          <h2 id="invite-ticket-title">Pozvánka / Vstupenka</h2>
+          <h2 id="invite-ticket-title">Pozvánka</h2>
           <p>Pošli personalizovanú pozvánku na astronomické podujatie.</p>
         </div>
         <button type="button" class="closeBtn" aria-label="Zavrieť" @click="close">×</button>
@@ -12,7 +12,7 @@
       <div class="modalBody">
         <section class="formPanel">
           <label class="field">
-            <span>Meno na vstupenke</span>
+            <span>Meno pozorovateľa</span>
             <input
               v-model.trim="attendeeName"
               type="text"
@@ -92,7 +92,7 @@
 
             <div class="ticketFooter">
               <div class="nameRow">
-                <span class="nameRow__label">Meno návštevníka</span>
+                <span class="nameRow__label">Meno pozorovateľa</span>
                 <strong class="nameRow__value">{{ attendeeNamePreview }}</strong>
               </div>
             </div>

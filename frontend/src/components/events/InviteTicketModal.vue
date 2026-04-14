@@ -34,8 +34,8 @@ const submitSuccess = ref('')
 
 const attendeeNameValidation = computed(() => {
   const value = String(attendeeName.value || '').trim()
-  if (!value) return 'Meno na vstupenke je povinné.'
-  if (value.length > 80) return 'Meno na vstupenke môže mať najviac 80 znakov.'
+  if (!value) return 'Meno pozorovateľa je povinné.'
+  if (value.length > 80) return 'Meno pozorovateľa môže mať najviac 80 znakov.'
   return ''
 })
 

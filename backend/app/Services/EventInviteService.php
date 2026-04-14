@@ -3,11 +3,14 @@
 namespace App\Services;
 
 use App\Enums\EventInviteStatus;
+use App\Mail\EventInviteMail;
 use App\Models\Event;
 use App\Models\EventInvite;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -23,7 +26,7 @@ class EventInviteService
 
     public function createInvite(User $inviter, Event $event, array $payload): EventInvite
     {
-        return DB::transaction(function () use ($inviter, $event, $payload) {
+        $invite = DB::transaction(function () use ($inviter, $event, $payload) {
             $inviteeUserId = isset($payload['invitee_user_id']) ? (int) $payload['invitee_user_id'] : null;
             $inviteeEmail = isset($payload['invitee_email']) ? strtolower(trim((string) $payload['invitee_email'])) : null;
 
@@ -75,6 +78,20 @@ class EventInviteService
 
             return $invite->load(['event', 'inviter', 'invitee']);
         });
+
+        if ($invite->invitee_email) {
+            try {
+                Mail::to($invite->invitee_email)->send(new EventInviteMail($invite));
+            } catch (\Throwable $e) {
+                Log::warning('EventInviteService: failed to send invite email', [
+                    'invite_id' => $invite->id,
+                    'invitee_email' => $invite->invitee_email,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $invite;
     }
 
     public function listForUser(User $user, ?string $status = null): Collection
