@@ -72,6 +72,10 @@
   box-shadow: none;
 }
 
+.eventCard {
+  animation: eventCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .eventCard--swipeReady {
   touch-action: pan-y;
 }
@@ -140,7 +144,13 @@
   gap: 0.58rem;
   padding: 1rem 0;
   border-top: 1px solid rgb(34 46 63 / 0.82);
+  animation: eventSectionIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+.eventSection:nth-of-type(1) { animation-delay: 40ms; }
+.eventSection:nth-of-type(2) { animation-delay: 80ms; }
+.eventSection:nth-of-type(3) { animation-delay: 120ms; }
+.eventSection:nth-of-type(4) { animation-delay: 160ms; }
 
 .eventSection__label {
   margin: 0;
@@ -313,12 +323,13 @@
   line-height: 1;
   padding: 0 0.86rem;
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease, transform 140ms ease;
 }
 
 .secondaryAction:hover {
   background: var(--event-hover);
   color: var(--event-heading);
+  transform: translateY(-1px);
 }
 
 .secondaryAction:focus-visible {
@@ -337,7 +348,7 @@
   font-size: 0.9rem;
   font-weight: 650;
   padding: 0 1rem;
-  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease, transform 140ms ease;
 }
 
 .planButton--primary {
@@ -348,6 +359,7 @@
 
 .planButton--primary:hover:not(:disabled) {
   background: #0d65e6;
+  transform: translateY(-1px);
 }
 
 .followButton {
@@ -359,6 +371,7 @@
 .followButton:hover:not(:disabled) {
   background: var(--event-hover);
   color: var(--event-heading);
+  transform: translateY(-1px);
 }
 
 .followButton--active {
@@ -665,6 +678,28 @@
 
   100% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes eventCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes eventSectionIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

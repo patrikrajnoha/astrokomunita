@@ -271,13 +271,14 @@
         </button>
       </div>
 
-      <div class="events-grid">
+      <TransitionGroup name="eventCardReveal" tag="div" class="events-grid">
         <RouterLink
-          v-for="eventItem in events"
+          v-for="(eventItem, eventIndex) in events"
           :key="eventItem.id"
           :to="`/events/${eventItem.id}`"
           class="event-card"
           :class="{ 'event-card-new': isEventFresh(eventItem.id) }"
+          :style="{ '--event-index': eventIndex }"
         >
           <div class="card-content">
             <div class="card-header">
@@ -327,7 +328,7 @@
 
           </div>
         </RouterLink>
-      </div>
+      </TransitionGroup>
 
       <div v-if="hasPagination" class="pager">
         <p class="pager-meta">
