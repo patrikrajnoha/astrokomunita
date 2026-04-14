@@ -10,6 +10,7 @@ import SearchResultCard from '@/components/search/SearchResultCard.vue'
 import SearchSkeleton from '@/components/search/SearchSkeleton.vue'
 import api from '@/services/api'
 import { EVENT_TIMEZONE, formatEventDate as formatEventDay, resolveEventTimeContext } from '@/utils/eventTime'
+import { eventDisplayDescription, eventDisplayTitle, repairUtf8Mojibake } from '@/utils/translatedFields'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,14 +55,18 @@ const hasAnyGlobalResults = computed(() => (
   globalSections.value.length > 0 || globalResults.value.keywords.length > 0
 ))
 
+const normalizeDisplayText = (value) => repairUtf8Mojibake(String(value || '').trim())
+
 const postSnippet = (content, limit = 150) => {
-  const text = String(content || '').replace(/\s+/g, ' ').trim()
+  const text = normalizeDisplayText(content).replace(/\s+/g, ' ').trim()
   if (!text) return '(Bez textu)'
   return text.length > limit ? `${text.slice(0, limit)}...` : text
 }
 
 const eventSnippet = (event) => {
-  const raw = event?.description || event?.summary || event?.excerpt || ''
+  const translatedDescription = eventDisplayDescription(event)
+  const fallback = event?.summary || event?.excerpt || ''
+  const raw = translatedDescription !== '-' ? translatedDescription : fallback
   return postSnippet(raw, 120)
 }
 
@@ -88,16 +93,16 @@ const toUserItem = (user) => ({
   key: `u-${user.id}`,
   to: { name: 'user-profile', params: { username: user.username } },
   kind: 'user',
-  title: user.name || user.username || 'Používateľ',
+  title: normalizeDisplayText(user.name || user.username || 'Používateľ'),
   excerpt: user.username ? `@${user.username}` : '',
-  meta: user.location || '',
+  meta: normalizeDisplayText(user.location || ''),
 })
 
 const toPostItem = (post, prefix = 'Príspevok') => ({
   key: `p-${post.id}`,
   to: { name: 'post-detail', params: { id: post.id } },
   kind: 'post',
-  title: post.user?.name || prefix,
+  title: normalizeDisplayText(post.user?.name || prefix),
   excerpt: postSnippet(post.content),
   meta: [
     formatCount(post.likes_count, 'reakcií'),
@@ -110,7 +115,7 @@ const toEventItem = (event) => ({
   key: `e-${event.id}`,
   to: { name: 'event-detail', params: { id: event.id } },
   kind: 'event',
-  title: event.title || 'Udalosť',
+  title: eventDisplayTitle(event),
   excerpt: eventSnippet(event),
   meta: formatEventDate(event),
 })
@@ -119,7 +124,7 @@ const toArticleItem = (article) => ({
   key: `a-${article.id}`,
   to: `/articles/${article.slug || article.id}`,
   kind: 'article',
-  title: article.title || 'Článok',
+  title: normalizeDisplayText(article.title || 'Článok'),
   excerpt: postSnippet(article.excerpt || article.summary || '', 140),
   meta: formatCount(article.views, 'zobrazení'),
 })

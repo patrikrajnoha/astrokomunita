@@ -6,6 +6,10 @@ import api from '@/services/api'
 const routerReplace = vi.fn()
 
 vi.mock('vue-router', () => ({
+  RouterLink: {
+    props: ['to'],
+    template: '<a><slot /></a>',
+  },
   useRoute: () => ({
     query: {},
   }),
@@ -91,5 +95,49 @@ describe('SearchPage layout shell', () => {
     expect(shell.classes()).toContain('sm:px-4')
     expect(shell.classes()).toContain('sm:py-5')
     expect(shell.classes()).not.toContain('max-w-[920px]')
+  })
+
+  it('repairs mojibake in top events titles', async () => {
+    api.get.mockImplementation((url) => {
+      if (url === '/search/discovery') {
+        return Promise.resolve({
+          data: {
+            data: {
+              trending: {
+                events: [
+                  {
+                    id: 101,
+                    title: 'MeteorickÃƒÂ½ roj Lyrid',
+                    summary: 'Vrchol aktivity koncom apríla.',
+                    start_at: '2026-04-22T19:00:00Z',
+                  },
+                ],
+                posts: [],
+              },
+              news: { posts: [], articles: [] },
+              events: { events: [], posts: [] },
+              keywords: [],
+            },
+          },
+        })
+      }
+      if (url === '/search/global') return Promise.resolve(globalResponse)
+      return Promise.resolve({ data: { data: {} } })
+    })
+
+    const wrapper = mount(SearchPage, {
+      global: {
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await flush()
+
+    expect(wrapper.text()).toContain('Meteorický roj Lyrid')
+    expect(wrapper.text()).not.toContain('MeteorickÃƒÂ½ roj Lyrid')
   })
 })
