@@ -452,10 +452,30 @@
 
 .authButton--primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
+  transform: translateY(-1px);
 }
 
 .authButton:active:not(:disabled) {
   transform: translateY(1px);
+}
+
+.authButton--withArrow::after {
+  content: '\2192';
+  margin-left: 0.4rem;
+  font-size: 0.9em;
+  line-height: 1;
+  transform: translateX(0);
+  transition: transform 180ms ease, opacity 180ms ease;
+  opacity: 0.9;
+}
+
+.authButton--withArrow:hover:not(:disabled)::after {
+  transform: translateX(2px);
+  opacity: 1;
+}
+
+.authButton--withArrow:active:not(:disabled)::after {
+  transform: translateX(1px);
 }
 
 .authDivider {
@@ -598,16 +618,110 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease, opacity 180ms ease;
 }
 
 .authProgress__step.is-current {
   background: var(--auth-accent);
   color: var(--auth-text);
+  animation: authProgressPulse 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform: translateY(-1px);
 }
 
 .authProgress__step.is-complete {
   background: rgb(34 46 63 / 0.96);
   color: var(--auth-text);
+  transform: scale(0.985);
+}
+
+.authStepSlide-enter-active,
+.authStepSlide-leave-active {
+  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.authStepSlide-enter-from {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.authStepSlide-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.authErrorBanner {
+  animation: authErrorEnter 260ms ease, authErrorShake 340ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.authErrorPop-enter-active,
+.authErrorPop-leave-active {
+  transition: opacity 170ms ease;
+}
+
+.authErrorPop-enter-from,
+.authErrorPop-leave-to {
+  opacity: 0;
+}
+
+.authInlineError {
+  animation: authInlineErrorIn 190ms ease;
+}
+
+.authInlineHint--success {
+  animation: authHintSuccessPulse 360ms ease;
+}
+
+@keyframes authProgressPulse {
+  from {
+    transform: translateY(0) scale(0.98);
+    opacity: 0.82;
+  }
+  to {
+    transform: translateY(-1px) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes authErrorEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes authErrorShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+@keyframes authInlineErrorIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes authHintSuccessPulse {
+  0% {
+    filter: brightness(0.95);
+  }
+  50% {
+    filter: brightness(1.25);
+  }
+  100% {
+    filter: brightness(1);
+  }
 }
 
 @media (max-width: 1080px) {

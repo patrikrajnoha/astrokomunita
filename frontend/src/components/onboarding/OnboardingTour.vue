@@ -10,6 +10,7 @@
 
     <section
       ref="tooltipRef"
+      :key="currentStep.id"
       class="tourTooltip"
       :style="computedTooltipStyle"
       role="dialog"
