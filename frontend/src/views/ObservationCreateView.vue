@@ -73,7 +73,7 @@
 
       <label class="field">
         <span>Fotografie *</span>
-        <input type="file" accept="image/*" multiple required :disabled="saving || processingImages" @change="onFilesChange">
+        <input type="file" accept="image/*" multiple :disabled="saving || processingImages" @change="onFilesChange">
       </label>
 
       <div v-if="imagePreviews.length > 0" class="preview-grid">

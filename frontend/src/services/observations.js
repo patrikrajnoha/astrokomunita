@@ -122,7 +122,7 @@ function appendImages(formData, images) {
 
   images.forEach((image) => {
     if (image instanceof Blob) {
-      formData.append('images[]', image)
+      formData.append('images', image)
     }
   })
 }
