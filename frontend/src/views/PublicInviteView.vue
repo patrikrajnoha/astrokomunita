@@ -1,35 +1,35 @@
 <template>
   <main class="publicInvitePage">
     <section v-if="loading" class="publicInviteState">
-      <h1>Nacitavam pozvanku</h1>
-      <p>Prosim chvilu pockaj.</p>
+      <h1>Načítavam pozvánku</h1>
+      <p>Prosím chvíľu počkaj.</p>
     </section>
 
     <section v-else-if="error" class="publicInviteState publicInviteState--error">
-      <h1>Pozvanka nie je dostupna</h1>
+      <h1>Pozvánka nie je dostupná</h1>
       <p>{{ error }}</p>
       <div class="publicInviteActions">
         <RouterLink class="publicInviteBtn publicInviteBtn--ghost" to="/">Domov</RouterLink>
         <button type="button" class="publicInviteBtn publicInviteBtn--primary" @click="loadInvite">
-          Skusit znova
+          Skúsiť znova
         </button>
       </div>
     </section>
 
     <section v-else class="publicInviteShell">
       <div class="publicInviteHead">
-        <h1>Tvoja pozvanka</h1>
-        <p>Vstupenka do nebeskeho divadla</p>
+        <h1>Tvoja pozvánka</h1>
+        <p>Vstupenka do nebeského divadla</p>
       </div>
 
-      <article class="ticketPreview" aria-label="Nahlad pozvanky">
+      <article class="ticketPreview" aria-label="Náhľad pozvánky">
         <div class="ticketHeader" aria-hidden="true">
           <span class="ticketBrand">Astrokomunita</span>
           <span class="ticketHeaderIcon">*</span>
         </div>
 
         <div class="ticketBody">
-          <p class="ticketKicker">Vstupenka do nebeskeho divadla</p>
+          <p class="ticketKicker">Vstupenka do nebeského divadla</p>
           <h2 class="ticketTitle">{{ eventTitle }}</h2>
           <p class="ticketMeta">{{ eventDateTime }}</p>
           <p v-if="eventPlace" class="ticketMeta ticketMeta--place">{{ eventPlace }}</p>
@@ -39,23 +39,23 @@
 
         <div class="ticketFooter">
           <div class="nameRow">
-            <span class="nameRow__label">Meno pozorovatela</span>
+            <span class="nameRow__label">Meno pozorovateľa</span>
             <strong class="nameRow__value">{{ attendeeName }}</strong>
           </div>
-          <p v-if="inviterName" class="ticketHint">Pozyva: {{ inviterName }}</p>
+          <p v-if="inviterName" class="ticketHint">Pozýva: {{ inviterName }}</p>
         </div>
       </article>
 
       <div class="publicInviteActions">
         <button type="button" class="publicInviteBtn publicInviteBtn--primary" @click="printTicket">
-          Vytlacit / ulozit ako PDF
+          Vytlačiť / uložiť ako PDF
         </button>
         <RouterLink
           v-if="eventId"
           class="publicInviteBtn publicInviteBtn--ghost"
           :to="`/events/${eventId}`"
         >
-          Otvorit udalost
+          Otvoriť udalosť
         </RouterLink>
       </div>
     </section>
@@ -76,7 +76,7 @@ const invite = ref(null)
 const token = computed(() => String(route.params.token || '').trim())
 const event = computed(() => invite.value?.event || null)
 const eventId = computed(() => Number(event.value?.id || 0) || null)
-const eventTitle = computed(() => String(event.value?.title || 'Astronomicke podujatie'))
+const eventTitle = computed(() => String(event.value?.title || 'Astronomické podujatie'))
 const attendeeName = computed(() => String(invite.value?.attendee_name || 'Host'))
 const eventPlace = computed(() => String(event.value?.short || '').trim())
 const inviterName = computed(() => {
@@ -85,7 +85,7 @@ const inviterName = computed(() => {
 })
 const eventDateTime = computed(() => {
   const raw = event.value?.start_at || event.value?.max_at || event.value?.end_at
-  if (!raw) return 'Termin bude upresneny'
+  if (!raw) return 'Termín bude upresnený'
   const dateLabel = formatEventDate(raw, EVENT_TIMEZONE, {
     day: 'numeric',
     month: 'long',
@@ -106,8 +106,8 @@ async function loadInvite() {
   } catch (err) {
     const status = Number(err?.response?.status || 0)
     error.value = status === 404
-      ? 'Platnost odkazu vyprsala alebo pozvanka neexistuje.'
-      : (err?.response?.data?.message || 'Nepodarilo sa nacitat pozvanku.')
+      ? 'Platnosť odkazu vypršala alebo pozvánka neexistuje.'
+      : (err?.response?.data?.message || 'Nepodarilo sa načítať pozvánku.')
   } finally {
     loading.value = false
   }
@@ -130,6 +130,8 @@ onMounted(() => {
   padding: 1rem;
   display: grid;
   gap: 1rem;
+  color: #abb8c9;
+  background: #151d28;
 }
 
 .publicInviteShell {
@@ -144,13 +146,13 @@ onMounted(() => {
 
 .publicInviteHead p {
   margin: 0.3rem 0 0;
-  color: rgb(var(--color-text-secondary-rgb) / 0.95);
+  color: #abb8c9;
 }
 
 .publicInviteState {
   border-radius: 1rem;
-  border: 1px solid var(--border-default);
-  background: rgb(var(--color-bg-rgb) / 0.84);
+  border: 0;
+  background: #1c2736;
   padding: 1rem;
 }
 
@@ -161,12 +163,17 @@ onMounted(() => {
 
 .publicInviteState p {
   margin: 0.45rem 0 0;
+  color: #abb8c9;
+}
+
+.publicInviteState--error h1 {
+  color: #eb2452;
 }
 
 .ticketPreview {
   overflow: hidden;
   border-radius: 1rem;
-  border: 1px solid rgb(var(--color-text-secondary-rgb) / 0.26);
+  border: 0;
   background: #1c2736;
   display: grid;
 }
@@ -280,13 +287,15 @@ onMounted(() => {
 .publicInviteBtn {
   min-height: 42px;
   border-radius: 999px;
-  padding: 0 0.95rem;
+  padding: 0 1rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  border: 1px solid transparent;
+  border: 0;
+  box-shadow: none;
   font-weight: 650;
+  transition: background-color 0.18s ease;
 }
 
 .publicInviteBtn--primary {
@@ -295,9 +304,61 @@ onMounted(() => {
 }
 
 .publicInviteBtn--ghost {
-  background: transparent;
-  border-color: rgb(var(--color-text-secondary-rgb) / 0.44);
-  color: rgb(var(--color-text-rgb) / 0.92);
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+.publicInviteBtn:hover,
+.publicInviteBtn:focus-visible {
+  background: #1c2736;
+}
+
+.publicInviteBtn--primary:hover,
+.publicInviteBtn--primary:focus-visible {
+  background: #0f73ff;
+  color: #ffffff;
+  filter: brightness(1.04);
+}
+
+.publicInviteBtn:focus-visible {
+  outline: 2px solid #0f73ff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .publicInvitePage {
+    width: 100%;
+    padding: 0.9rem;
+    gap: 0.9rem;
+  }
+
+  .publicInviteActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .publicInviteBtn {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 0.9rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .ticketBody,
+  .ticketFooter,
+  .ticketHeader {
+    padding-left: 0.82rem;
+    padding-right: 0.82rem;
+  }
+
+  .ticketTitle {
+    font-size: 1rem;
+  }
+
+  .ticketMeta {
+    font-size: 0.78rem;
+  }
 }
 
 @media print {
