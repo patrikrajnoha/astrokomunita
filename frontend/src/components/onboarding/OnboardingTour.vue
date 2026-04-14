@@ -525,9 +525,10 @@ onBeforeUnmount(() => {
   --tour-hover: #1c2736;
   --tour-primary: #0f73ff;
   --tour-secondary-btn: #222e3f;
-  --tour-border: rgb(171 184 201 / 0.12);
-  --tour-spotlight-color: rgb(15 115 255 / 0.85);
-  --tour-overlay-color: rgb(11 18 28 / 0.72);
+  --tour-focus: rgb(15 115 255 / 0.42);
+  --tour-border: rgb(171 184 201 / 0.08);
+  --tour-spotlight-color: rgb(15 115 255 / 0.44);
+  --tour-overlay-color: rgb(8 14 22 / 0.58);
 
   position: fixed;
   inset: 0;
@@ -540,7 +541,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   background: var(--tour-overlay-color);
-  animation: tourOverlayIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tourOverlayIn 220ms ease both;
   pointer-events: none;
 }
 
@@ -553,18 +554,19 @@ onBeforeUnmount(() => {
 .tourSpotlight {
   position: fixed;
   z-index: 2101;
-  border: 1.5px solid var(--tour-spotlight-color);
-  border-radius: 14px;
+  border: 1px solid var(--tour-spotlight-color);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgb(15 115 255 / 0.05), rgb(15 115 255 / 0.02));
   box-shadow:
     0 0 0 9999px var(--tour-overlay-color),
-    0 0 24px rgb(15 115 255 / 0.18),
-    inset 0 0 0 1px rgb(255 255 255 / 0.03);
+    inset 0 0 0 1px rgb(255 255 255 / 0.04);
   pointer-events: none;
   transition:
-    top    300ms cubic-bezier(0.22, 1, 0.36, 1),
-    left   300ms cubic-bezier(0.22, 1, 0.36, 1),
-    width  300ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 300ms cubic-bezier(0.22, 1, 0.36, 1);
+    top 220ms ease,
+    left 220ms ease,
+    width 220ms ease,
+    height 220ms ease,
+    border-color 220ms ease;
 }
 
 /* ── Tooltip card ── */
@@ -572,21 +574,23 @@ onBeforeUnmount(() => {
   position: fixed;
   z-index: 2102;
   pointer-events: auto;
-  width: min(348px, calc(100vw - 24px));
+  width: min(356px, calc(100vw - 24px));
   border-radius: 20px;
-  background: var(--tour-bg);
+  background:
+    linear-gradient(180deg, rgb(28 39 54 / 0.68), transparent 30%),
+    var(--tour-bg);
   border: 1px solid var(--tour-border);
-  padding: 1.1rem 1.1rem 0.9rem;
+  padding: 1.05rem 1.05rem 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  animation: tourCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  gap: 0.6rem;
+  animation: tourCardIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes tourCardIn {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.97);
+    transform: translateY(8px) scale(0.992);
   }
   to {
     opacity: 1;
@@ -609,13 +613,19 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 150ms ease, color 150ms ease;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
   flex-shrink: 0;
 }
 
-.tourClose:hover {
+.tourClose:hover,
+.tourClose:focus-visible {
   background: var(--tour-hover);
   color: var(--tour-text);
+}
+
+.tourClose:focus-visible {
+  outline: 2px solid var(--tour-focus);
+  outline-offset: 2px;
 }
 
 /* ── Progress row ── */
@@ -649,7 +659,7 @@ onBeforeUnmount(() => {
   height: 100%;
   background: var(--tour-primary);
   border-radius: 999px;
-  transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 220ms ease;
 }
 
 /* ── Content ── */
@@ -695,18 +705,18 @@ onBeforeUnmount(() => {
 }
 
 .tourDot {
-  height: 5px;
-  width: 5px;
+  height: 6px;
+  width: 6px;
   border-radius: 999px;
   border: none;
   background: rgb(171 184 201 / 0.28);
   padding: 0;
   cursor: pointer;
-  transition: background 220ms ease, width 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background-color 180ms ease, width 180ms ease, opacity 180ms ease;
 }
 
 .tourDot.active {
-  width: 18px;
+  width: 16px;
   background: var(--tour-primary);
 }
 
@@ -732,7 +742,8 @@ onBeforeUnmount(() => {
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.52rem 1.05rem;
+  min-height: 2.4rem;
+  padding: 0.56rem 1rem;
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
   white-space: nowrap;
@@ -758,8 +769,9 @@ onBeforeUnmount(() => {
 }
 
 .tourBtnGhost:focus-visible,
-.tourBtnPrimary:focus-visible {
-  outline: 2px solid rgb(15 115 255 / 0.65);
+.tourBtnPrimary:focus-visible,
+.tourDot:focus-visible {
+  outline: 2px solid var(--tour-focus);
   outline-offset: 2px;
 }
 
@@ -808,5 +820,7 @@ onBeforeUnmount(() => {
 :global(.onboarding-tour-target) {
   position: relative;
   z-index: auto;
+  scroll-margin-block: 6rem;
+  transition: filter 180ms ease, background-color 180ms ease;
 }
 </style>

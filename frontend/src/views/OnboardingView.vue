@@ -138,7 +138,7 @@ async function handleFinish(payload) {
       onboardingTour.restartTour()
     }
   } catch (error) {
-    warn(error?.userMessage || preferences.error || 'Nepodarilo sa uložiť onboarding.')
+    warn(error?.userMessage || preferences.error || 'Nepodarilo sa uložiť úvodné nastavenie.')
   } finally {
     saving.value = false
   }
@@ -155,7 +155,7 @@ async function handleSkip() {
       onboardingTour.restartTour()
     }
   } catch (error) {
-    warn(error?.userMessage || preferences.error || 'Nepodarilo sa preskočiť onboarding.')
+    warn(error?.userMessage || preferences.error || 'Nepodarilo sa preskočiť úvodné nastavenie.')
   } finally {
     saving.value = false
   }

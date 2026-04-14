@@ -30,6 +30,13 @@ function mountModal(props = {}) {
       ],
       ...props,
     },
+    global: {
+      stubs: {
+        OnboardingWidgetPreview: {
+          template: '<div class="onbShowcasePreview"></div>',
+        },
+      },
+    },
     attachTo: document.body,
   })
 }
@@ -58,6 +65,19 @@ describe('OnboardingModal', () => {
 
     expect(normalizeText(wrapper.text())).toContain('lokalita zlepsi presnost widgetov.')
     expect(wrapper.find('.onbShowcasePreview').exists()).toBe(true)
+  })
+
+  it('uses dynamic widget count copy when fewer widgets are available', () => {
+    const wrapper = mountModal({
+      widgetCatalog: [
+        { key: 'search', label: 'Hľadaj', description: 'Rýchle vyhľadávanie obsahu.' },
+        { key: 'nasa_apod', label: 'Astrofoto dňa', description: 'Denná dávka astrofotografie.' },
+      ],
+      initialWidgetKeys: ['search', 'nasa_apod'],
+    })
+
+    expect(wrapper.get('#onboarding-title').text()).toBe('Vyber si 2 widgety')
+    expect(normalizeText(wrapper.text())).toContain('vyber presne 2 widgety')
   })
 
   it('emits finish payload with selected widgets and location', async () => {

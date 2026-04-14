@@ -22,14 +22,10 @@
           </div>
 
           <h1 id="onboarding-title" class="onbTitle">
-            {{ step === 1 ? 'Vyber si 3 widgety' : 'Nastav lokalitu pre widgety' }}
+            {{ stepTitle }}
           </h1>
           <p class="onbSubtitle">
-            {{
-              step === 1
-                ? 'Predvolené widgety sú od admina, tu si nastavíš svoje vlastné pre domovskú stránku.'
-                : 'Lokalita pomôže widgetom s počasím a pozorovaním oblohy.'
-            }}
+            {{ stepSubtitle }}
           </p>
         </header>
 
@@ -39,7 +35,7 @@
               <section v-if="step === 1" key="step-1" class="onbSection">
                 <div class="onbSelectionHeader">
                   <p class="onbHint">
-                    Vyber presne {{ requiredWidgetCount }} widgety, ktoré chceš začať používať.
+                    {{ widgetSelectionHint }}
                   </p>
                   <span class="onbCounter" :class="{ 'is-full': selectedWidgetKeys.length >= requiredWidgetCount }">
                     {{ selectedWidgetKeys.length }}/{{ requiredWidgetCount }}
@@ -54,6 +50,8 @@
                     type="button"
                     class="onbWidgetCard"
                     :class="{ 'is-selected': isSelected(widget.key) }"
+                    :aria-label="isSelected(widget.key) ? `Odobrať ${widget.label}` : `Vybrať ${widget.label}`"
+                    :aria-pressed="isSelected(widget.key) ? 'true' : 'false'"
                     @click="toggleWidget(widget.key)"
                   >
                     <span class="onbWidgetTitle">{{ widget.label }}</span>
@@ -205,6 +203,14 @@ const suppressLocationFieldWatch = ref(false)
 let debounceTimer = null
 let locationRequestId = 0
 
+function formatWidgetWord(count) {
+  const normalizedCount = Math.abs(Number(count) || 0)
+
+  if (normalizedCount === 1) return 'widget'
+  if (normalizedCount >= 2 && normalizedCount <= 4) return 'widgety'
+  return 'widgetov'
+}
+
 const widgetCatalogNormalized = computed(() => {
   return (Array.isArray(props.widgetCatalog) ? props.widgetCatalog : [])
     .map((item) => {
@@ -229,6 +235,35 @@ const requiredWidgetCount = computed(() => {
 const canContinueFromWidgets = computed(() => {
   if (requiredWidgetCount.value === 0) return true
   return selectedWidgetKeys.value.length === requiredWidgetCount.value
+})
+
+const requiredWidgetCopy = computed(() => `${requiredWidgetCount.value} ${formatWidgetWord(requiredWidgetCount.value)}`)
+const stepTitle = computed(() => {
+  if (step.value !== 1) {
+    return 'Nastav lokalitu pre widgety'
+  }
+
+  if (requiredWidgetCount.value === 0) {
+    return 'Prispôsob si widgety'
+  }
+
+  return `Vyber si ${requiredWidgetCopy.value}`
+})
+
+const stepSubtitle = computed(() => {
+  if (step.value === 1) {
+    return 'Predvolené widgety spravuje administrácia. Tu si vyberieš vlastné pre svoju domovskú stránku.'
+  }
+
+  return 'Lokalita pomôže widgetom so seeingom, počasím a pozorovaním oblohy.'
+})
+
+const widgetSelectionHint = computed(() => {
+  if (requiredWidgetCount.value === 0) {
+    return 'Momentálne nie sú dostupné žiadne widgety. Pokračovať môžeš aj bez výberu.'
+  }
+
+  return `Vyber presne ${requiredWidgetCopy.value}, ktoré chceš mať hneď po prihlásení.`
 })
 
 const showcaseContent = computed(() => {
@@ -293,7 +328,7 @@ function toggleWidget(key) {
   }
 
   if (selectedWidgetKeys.value.length >= MAX_WIDGETS) {
-    widgetSelectionError.value = `Môžeš vybrať najviac ${MAX_WIDGETS} widgety.`
+    widgetSelectionError.value = `Môžeš vybrať najviac ${MAX_WIDGETS} ${formatWidgetWord(MAX_WIDGETS)}.`
     return
   }
 
@@ -406,8 +441,8 @@ watch(step, async () => {
 watch(canContinueFromWidgets, (value) => {
   if (value) {
     widgetSelectionError.value = ''
-  } else if (step.value === 1) {
-    widgetSelectionError.value = `Vyber presne ${requiredWidgetCount.value} widgety.`
+  } else if (step.value === 1 && requiredWidgetCount.value > 0) {
+    widgetSelectionError.value = `Vyber presne ${requiredWidgetCopy.value}.`
   }
 }, { immediate: true })
 
@@ -436,6 +471,7 @@ onBeforeUnmount(() => {
   --onb-muted: #abb8c9;
   --onb-secondary-btn: #222e3f;
   --onb-danger: #eb2452;
+  --onb-focus: rgb(15 115 255 / 0.38);
 
   position: fixed;
   inset: 0;
@@ -445,8 +481,8 @@ onBeforeUnmount(() => {
   justify-content: center;
   overflow-y: auto;
   padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
-  background: rgb(21 29 40 / 0.78);
-  backdrop-filter: blur(8px);
+  background: rgb(12 18 27 / 0.72);
+  backdrop-filter: blur(10px);
 }
 
 .onbCard {
@@ -456,11 +492,12 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   border-radius: 24px;
-  background: var(--onb-bg);
+  background:
+    linear-gradient(180deg, rgb(28 39 54 / 0.72), transparent 28%),
+    var(--onb-bg);
   color: var(--onb-text);
-  border: 1px solid rgb(171 184 201 / 0.16);
   overflow: hidden;
-  animation: onbCardIn 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: onbCardIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .onbHeader {
@@ -485,11 +522,11 @@ onBeforeUnmount(() => {
   height: 0.42rem;
   border-radius: 999px;
   background: rgb(171 184 201 / 0.35);
-  transition: width 140ms ease, background 140ms ease;
+  transition: width 180ms ease, background-color 180ms ease, opacity 180ms ease;
 }
 
 .onbStepDot.is-active {
-  width: 1.4rem;
+  width: 1.25rem;
   background: #0f73ff;
 }
 
@@ -553,11 +590,12 @@ onBeforeUnmount(() => {
 
 .onbCounter {
   border-radius: 999px;
-  padding: 0.25rem 0.65rem;
-  background: var(--onb-secondary-btn);
+  padding: 0.28rem 0.68rem;
+  background: rgb(34 46 63 / 0.94);
   color: var(--onb-muted);
   font-size: 0.78rem;
   font-weight: 600;
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 .onbCounter.is-full {
@@ -574,32 +612,53 @@ onBeforeUnmount(() => {
 .onbWidgetGrid {
   margin-top: 0.85rem;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.6rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .onbWidgetCard {
+  position: relative;
   border: none;
   box-shadow: none;
   border-radius: 20px;
-  background: var(--onb-secondary-btn);
+  background: rgb(34 46 63 / 0.92);
   color: var(--onb-muted);
   text-align: left;
-  padding: 0.84rem 0.9rem;
+  padding: 0.92rem 0.95rem;
   display: grid;
-  gap: 0.3rem;
+  gap: 0.38rem;
   cursor: pointer;
-  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
 }
 
-.onbWidgetCard:hover {
+.onbWidgetCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.04), transparent 46%);
+  opacity: 0.9;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.onbWidgetCard:hover,
+.onbWidgetCard:focus-visible {
   background: var(--onb-surface-hover);
-  transform: translateY(-1px);
+}
+
+.onbWidgetCard:focus-visible {
+  outline: 2px solid var(--onb-focus);
+  outline-offset: 3px;
 }
 
 .onbWidgetCard.is-selected {
-  background: var(--onb-primary);
+  background: linear-gradient(180deg, #1185fe, var(--onb-primary));
   color: var(--onb-text);
+}
+
+.onbWidgetCard.is-selected::after {
+  opacity: 0.22;
 }
 
 .onbWidgetTitle {
@@ -618,10 +677,22 @@ onBeforeUnmount(() => {
 }
 
 .onbWidgetState {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 4.5rem;
+  margin-top: 0.08rem;
+  padding: 0.3rem 0.62rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
   font-size: 0.72rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
+}
+
+.onbWidgetCard:not(.is-selected) .onbWidgetState {
+  background: rgb(255 255 255 / 0.04);
 }
 
 .onbField {
@@ -646,16 +717,18 @@ onBeforeUnmount(() => {
   padding: 0.82rem 0.95rem;
   font-size: 0.9rem;
   box-sizing: border-box;
-  outline: none;
-  transition: background-color 160ms ease;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: background-color 160ms ease, outline-color 160ms ease;
 }
 
 .onbInput::placeholder {
   color: rgb(171 184 201 / 0.68);
 }
 
-.onbInput:focus {
+.onbInput:focus-visible {
   background: var(--onb-surface-hover);
+  outline-color: var(--onb-focus);
 }
 
 .onbSuggestions {
@@ -667,7 +740,7 @@ onBeforeUnmount(() => {
   z-index: 12;
   overflow: hidden;
   border-radius: 16px;
-  background: var(--onb-secondary-btn);
+  background: rgb(34 46 63 / 0.98);
   max-height: min(14rem, 42vh);
   overflow-y: auto;
 }
@@ -681,10 +754,17 @@ onBeforeUnmount(() => {
   text-align: left;
   padding: 0.68rem 0.85rem;
   cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
 }
 
-.onbSuggestionBtn:hover {
+.onbSuggestionBtn:hover,
+.onbSuggestionBtn:focus-visible {
   background: var(--onb-surface-hover);
+}
+
+.onbSuggestionBtn:focus-visible {
+  outline: 2px solid var(--onb-focus);
+  outline-offset: -2px;
 }
 
 .onbSuggestionPrimary {
@@ -703,8 +783,10 @@ onBeforeUnmount(() => {
 .onbShowcase {
   border-radius: 20px;
   padding: 0.95rem;
-  background: var(--onb-surface-hover);
+  background: rgb(28 39 54 / 0.86);
   align-self: start;
+  position: sticky;
+  top: 0;
 }
 
 .onbShowcaseEyebrow {
@@ -753,7 +835,8 @@ onBeforeUnmount(() => {
   border: none;
   box-shadow: none;
   border-radius: 999px;
-  padding: 0.72rem 1.2rem;
+  min-height: 2.7rem;
+  padding: 0.72rem 1.18rem;
   font-size: 0.87rem;
   font-weight: 600;
   line-height: 1.1;
@@ -784,12 +867,17 @@ onBeforeUnmount(() => {
   background: #1185fe;
 }
 
+.onbBtn:focus-visible {
+  outline: 2px solid var(--onb-focus);
+  outline-offset: 3px;
+}
+
 .onbFade-enter-active {
-  transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 240ms ease;
 }
 
 .onbFade-leave-active {
-  transition: opacity 220ms ease;
+  transition: opacity 180ms ease;
 }
 
 .onbFade-enter-from,
@@ -799,23 +887,23 @@ onBeforeUnmount(() => {
 
 .onbStep-enter-active,
 .onbStep-leave-active {
-  transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 220ms ease, transform 220ms ease;
 }
 
 .onbStep-enter-from {
   opacity: 0;
-  transform: translateX(6px);
+  transform: translateX(4px);
 }
 
 .onbStep-leave-to {
   opacity: 0;
-  transform: translateX(-6px);
+  transform: translateX(-4px);
 }
 
 @keyframes onbCardIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.995);
+    transform: translateY(8px) scale(0.992);
   }
 
   to {

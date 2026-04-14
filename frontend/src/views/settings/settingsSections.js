@@ -41,8 +41,8 @@ export const settingsGroups = [
       {
         key: 'onboarding',
         routeName: 'settings.onboarding',
-        title: 'Onboarding sprievodca',
-        description: 'Spustite interaktívny tour feedu, kalendára a panelu pozorovacích podmienok.',
+        title: 'Úvodný sprievodca',
+        description: 'Spustite krátku prehliadku feedu, kalendára a panelu widgetov.',
         iconPaths: [
           'M12 3.5v4',
           'M12 16.5v4',

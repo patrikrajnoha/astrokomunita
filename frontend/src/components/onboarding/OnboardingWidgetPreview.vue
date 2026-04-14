@@ -41,7 +41,6 @@ const previewWidgets = [
 
   position: relative;
   border-radius: 1rem;
-  border: 1px solid rgb(171 184 201 / 0.22);
   background:
     radial-gradient(140% 100% at 0% 0%, rgb(15 115 255 / 0.12), transparent 62%),
     linear-gradient(180deg, var(--preview-hover), var(--preview-bg));
@@ -63,22 +62,22 @@ const previewWidgets = [
   inset: 0.75rem;
   overflow: hidden;
   opacity: 0;
-  transform: translateY(5px) scale(0.994);
-  animation: widgetPreviewCycle 16s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-  animation-delay: calc(var(--widget-index) * -4s);
+  transform: translateY(3px) scale(0.996);
+  animation: widgetPreviewCycle 20s ease-in-out infinite;
+  animation-delay: calc(var(--widget-index) * -5s);
 }
 
 @keyframes widgetPreviewCycle {
   0%,
-  18% {
+  16% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 
-  24%,
+  22%,
   100% {
     opacity: 0;
-    transform: translateY(5px) scale(0.994);
+    transform: translateY(3px) scale(0.996);
   }
 }
 

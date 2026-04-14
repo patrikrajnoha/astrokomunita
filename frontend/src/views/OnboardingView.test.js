@@ -144,7 +144,7 @@ describe('OnboardingView', () => {
     await router.isReady()
 
     mockPreferences.markOnboardingComplete.mockRejectedValueOnce({
-      userMessage: 'Relacia nie je pripravena.',
+      userMessage: 'Relácia nie je pripravená.',
     })
 
     const wrapper = mount(OnboardingView, {
@@ -160,7 +160,7 @@ describe('OnboardingView', () => {
 
     await wrapper.find('.skip').trigger('click')
     await vi.waitFor(() => {
-      expect(warnMock).toHaveBeenCalledWith('Relacia nie je pripravena.')
+      expect(warnMock).toHaveBeenCalledWith('Relácia nie je pripravená.')
     })
     expect(router.currentRoute.value.name).toBe('onboarding')
   })

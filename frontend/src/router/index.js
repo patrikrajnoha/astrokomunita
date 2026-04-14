@@ -35,7 +35,7 @@ const PAGE_TITLE_BY_ROUTE_NAME = Object.freeze({
   'tag-feed': 'Tag',
   'hashtag-feed': 'Hashtag',
   'user-profile': 'Profil používateľa',
-  onboarding: 'Onboarding',
+  onboarding: 'Úvodné nastavenie',
   login: 'Prihlásenie',
   register: 'Registrácia',
   'forgot-password': 'Zabudnuté heslo',
