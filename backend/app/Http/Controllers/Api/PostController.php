@@ -27,8 +27,9 @@ class PostController extends Controller
     public function index(Request $request)
     {
         $viewer = $request->user() ?? $request->user('sanctum');
+        $kind = (string) $request->query('kind', 'roots');
 
-        if ($request->query('scope') === 'me' && !$viewer) {
+        if (($request->query('scope') === 'me' || $kind === 'likes') && !$viewer) {
             return response()->json([
                 'message' => 'Neprihlásený používateľ.',
             ], 401);
@@ -36,7 +37,7 @@ class PostController extends Controller
 
         $result = $this->posts->getPaginatedFeed([
             'per_page' => $request->query('per_page', 20),
-            'kind' => $request->query('kind', 'roots'),
+            'kind' => $kind,
             'with_counts' => $request->query('with') === 'counts',
             'include_hidden' => $request->boolean('include_hidden'),
             'scope' => $request->query('scope'),

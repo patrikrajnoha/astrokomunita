@@ -239,6 +239,13 @@ class PostThreadsTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_likes_kind_requires_authentication(): void
+    {
+        $response = $this->getJson('/api/posts?kind=likes');
+
+        $response->assertStatus(401);
+    }
+
     public function test_scope_me_accepts_sanctum_token_and_returns_only_my_posts(): void
     {
         $me = User::factory()->create();
@@ -267,6 +274,48 @@ class PostThreadsTest extends TestCase
         $response->assertOk();
         $response->assertJsonCount(1, 'data');
         $response->assertJsonPath('data.0.user_id', $me->id);
+    }
+
+    public function test_likes_kind_returns_only_posts_liked_by_authenticated_user(): void
+    {
+        $me = User::factory()->create();
+        $other = User::factory()->create();
+
+        $likedRoot = Post::create([
+            'user_id' => $other->id,
+            'content' => 'Liked post',
+            'parent_id' => null,
+            'root_id' => null,
+            'depth' => 0,
+        ]);
+
+        $notLikedRoot = Post::create([
+            'user_id' => $other->id,
+            'content' => 'Not liked post',
+            'parent_id' => null,
+            'root_id' => null,
+            'depth' => 0,
+        ]);
+
+        $reply = Post::create([
+            'user_id' => $other->id,
+            'content' => 'Liked reply should not be listed',
+            'parent_id' => $likedRoot->id,
+            'root_id' => $likedRoot->id,
+            'depth' => 1,
+        ]);
+
+        $likedRoot->likes()->attach($me->id, ['created_at' => now()->subMinute()]);
+        $reply->likes()->attach($me->id, ['created_at' => now()]);
+
+        Sanctum::actingAs($me);
+
+        $response = $this->getJson('/api/posts?kind=likes&per_page=10');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.id', $likedRoot->id);
+        $response->assertJsonPath('total', 1);
     }
 
     public function test_attached_event_is_included_in_post_payloads(): void

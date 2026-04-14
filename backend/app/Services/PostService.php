@@ -54,6 +54,18 @@ class PostService
             'order' => $order,
         ], $user);
 
+        if ($kind === 'likes' && $user) {
+            $query->whereHas('likes', fn ($likesQuery) => $likesQuery->where('user_id', $user->id));
+
+            $query->reorder()->orderByDesc(
+                DB::table('post_likes')
+                    ->select('created_at')
+                    ->whereColumn('post_likes.post_id', 'posts.id')
+                    ->where('post_likes.user_id', $user->id)
+                    ->limit(1)
+            )->orderBy('posts.id', 'desc');
+        }
+
         if ($scope === 'me' && $user) {
             $query->where('user_id', $user->id);
         }
