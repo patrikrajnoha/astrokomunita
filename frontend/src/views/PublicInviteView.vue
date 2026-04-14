@@ -364,14 +364,71 @@ onMounted(() => {
 }
 
 @media print {
-  .publicInvitePage {
-    width: 100%;
-    max-width: none;
-    padding: 0;
+  :global(body *) {
+    visibility: hidden !important;
   }
 
-  .publicInviteActions {
-    display: none;
+  .ticketPreview,
+  .ticketPreview * {
+    visibility: visible !important;
+  }
+
+  .ticketPreview {
+    position: fixed;
+    top: 12mm;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(180mm, calc(100vw - 20mm));
+    border: 1px solid rgb(221 221 221);
+    background: #ffffff;
+    color: rgb(17 17 17);
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ticketHeader {
+    background: rgb(240 245 255);
+    border-bottom-color: rgb(200 215 240);
+  }
+
+  .ticketBrand,
+  .ticketKicker {
+    color: rgb(40 80 160);
+  }
+
+  .ticketTitle,
+  .nameRow__value {
+    color: rgb(17 17 17);
+  }
+
+  .ticketMeta,
+  .ticketHint,
+  .nameRow__label {
+    color: rgb(80 80 80);
+  }
+
+  .nameRow {
+    border-color: rgb(200 215 240);
+    background: rgb(245 248 255);
+  }
+
+  .ticketPerforated {
+    background: repeating-linear-gradient(
+      to right,
+      rgb(180 200 230) 0,
+      rgb(180 200 230) 6px,
+      transparent 6px,
+      transparent 12px
+    );
+  }
+
+  .ticketPerforated::before,
+  .ticketPerforated::after {
+    background: #ffffff;
+    border-color: rgb(200 215 240);
   }
 }
 </style>
