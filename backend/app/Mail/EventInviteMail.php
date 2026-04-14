@@ -59,10 +59,10 @@ class EventInviteMail extends Mailable
             return trim($value);
         }
 
-        // Repair double-encoding: bytes of a UTF-8 char were mis-read as Latin-1
-        // and then re-encoded as UTF-8, producing e.g. "Ã½" instead of "ý".
-        // Fix: UTF-8 → Latin-1 recovers the original byte sequence, which IS
-        // valid UTF-8. Apply up to two rounds to handle triple-encoded inputs.
+        // Repair double-encoded UTF-8: UTF-8 bytes were mis-read as Latin-1 and
+        // re-encoded, garbling diacritics. Converting back via UTF-8 to Latin-1
+        // recovers the original byte sequence, which is valid UTF-8.
+        // Up to two rounds to handle inputs encoded more than once.
         $current = trim($value);
         for ($i = 0; $i < 2; $i++) {
             if (!preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $current)) {
