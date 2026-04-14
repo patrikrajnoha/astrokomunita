@@ -22,7 +22,7 @@
     title="Vytvoriť účet"
     :description="`Krok ${currentStep} z ${stepItems.length}: ${currentStepMeta.subtitle}`"
   >
-    <form class="authForm" @submit.prevent="submit" novalidate>
+    <form class="authForm authRegisterForm" @submit.prevent="submit" novalidate>
       <ol class="authProgress" aria-label="Priebeh registrácie">
         <li
           v-for="step in stepItems"
@@ -145,8 +145,8 @@
         </label>
       </section>
 
-      <section v-else key="step-3" class="grid gap-4" aria-label="Overenie">
-        <div class="authSummary">
+      <section v-else key="step-3" class="authRegisterStep authRegisterStep--verify grid gap-4" aria-label="Overenie">
+        <div class="authSummary authRegisterSummary">
           <p class="authSummary__kicker">Kontrola údajov</p>
           <p class="authSummary__row"><span class="authSummary__label">Meno:</span> {{ name || '-' }}</p>
           <p class="authSummary__row"><span class="authSummary__label">Používateľ:</span> {{ username || '-' }}</p>
@@ -157,9 +157,9 @@
           </p>
         </div>
 
-        <div v-if="turnstileEnabled" class="block">
-          <span class="mb-2 block text-[0.83rem] font-semibold text-[#ABB8C9]">Overenie proti botom</span>
-          <div class="turnstileShell turnstileShell--compact overflow-x-auto p-3" :class="{ 'outline outline-2 outline-[#EB2452]/40': turnstileState === 'error' || turnstileState === 'expired' }">
+        <div v-if="turnstileEnabled" class="authRegisterTurnstile block">
+          <span class="authRegisterTurnstileLabel mb-2 block text-[0.83rem] font-semibold text-[#ABB8C9]">Overenie proti botom</span>
+          <div class="turnstileShell turnstileShell--compact authRegisterTurnstileShell p-3" :class="{ 'outline outline-2 outline-[#EB2452]/40': turnstileState === 'error' || turnstileState === 'expired' }">
             <div ref="turnstileContainer"></div>
           </div>
           <span v-if="turnstileHint" class="mt-2 block text-xs text-[#EB2452] authInlineError">{{ turnstileHint }}</span>
@@ -175,7 +175,7 @@
       </section>
       </Transition>
 
-      <div class="grid grid-cols-2 gap-2 pt-1">
+      <div class="authRegisterActions grid grid-cols-2 gap-2 pt-1">
         <button
           v-if="currentStep > 1"
           type="button"

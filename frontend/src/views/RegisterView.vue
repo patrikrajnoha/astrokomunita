@@ -420,6 +420,7 @@ async function mountTurnstileWidget() {
     turnstileWidgetId.value = api.render(turnstileContainer.value, {
       sitekey: turnstileSiteKey,
       theme: 'auto',
+      size: 'flexible',
       callback: (token) => {
         turnstileToken.value = token
         turnstileState.value = 'ready'
@@ -534,3 +535,77 @@ function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate()
 }
 </script>
+
+<style scoped>
+.authRegisterForm,
+.authRegisterStep,
+.authRegisterTurnstile,
+.authRegisterSummary,
+.authRegisterActions {
+  min-width: 0;
+}
+
+.authRegisterTurnstile {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.authRegisterTurnstileLabel {
+  margin-bottom: 0;
+}
+
+.authRegisterTurnstileShell {
+  overflow: hidden;
+  padding: 0.75rem;
+  border-radius: 20px;
+}
+
+.authRegisterTurnstileShell.turnstileShell--compact > div {
+  max-width: 100%;
+  min-width: 0;
+  min-height: 68px;
+  transform: none;
+}
+
+.authRegisterTurnstileShell.turnstileShell--compact :deep(iframe) {
+  max-width: 100%;
+}
+
+@media (max-width: 560px) {
+  .authRegisterForm {
+    gap: 0.5rem;
+  }
+
+  .authRegisterStep {
+    gap: 0.7rem;
+  }
+
+  .authRegisterSummary {
+    padding: 0.65rem;
+    gap: 0.35rem;
+  }
+
+  .authRegisterTurnstile {
+    gap: 0.35rem;
+  }
+
+  .authRegisterTurnstileShell {
+    padding: 0.5rem;
+    border-radius: 16px;
+  }
+
+  .authRegisterTurnstileShell.turnstileShell--compact > div {
+    min-height: 62px;
+  }
+
+  .authRegisterActions {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+    padding-top: 0.1rem;
+  }
+
+  .authRegisterActions .authButton {
+    width: 100%;
+  }
+}
+</style>
