@@ -55,37 +55,26 @@ class EventInviteMail extends Mailable
 
     private function repairUtf8Mojibake(string $value): string
     {
-        $input = trim($value);
-        if ($input === '') {
-            return '';
-        }
-
-        // Detect double-encoded UTF-8 by looking for U+00C2/C3/C4/C5 code points.
-        if (!preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $input)) {
-            return $input;
-        }
-
-        // Collapse triple-encoded sequences (byte patterns C3 83 C6 92 C3 82/84/85).
-        $collapsed = str_replace(
-            ["\xC3\x83\xC6\x92\xC3\x82", "\xC3\x83\xC6\x92\xC3\x84", "\xC3\x83\xC6\x92\xC3\x85"],
-            ["\xC3\x83", "\xC3\x84", "\xC3\x85"],
-            $input
-        );
-
         if (!function_exists('iconv')) {
-            return $collapsed;
+            return trim($value);
         }
 
-        $asLatin1 = @iconv('UTF-8', 'ISO-8859-1//IGNORE', $collapsed);
-        if (!is_string($asLatin1) || $asLatin1 === '') {
-            return $collapsed;
+        // Repair double-encoding: bytes of a UTF-8 char were mis-read as Latin-1
+        // and then re-encoded as UTF-8, producing e.g. "Ã½" instead of "ý".
+        // Fix: UTF-8 → Latin-1 recovers the original byte sequence, which IS
+        // valid UTF-8. Apply up to two rounds to handle triple-encoded inputs.
+        $current = trim($value);
+        for ($i = 0; $i < 2; $i++) {
+            if (!preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $current)) {
+                break;
+            }
+            $bytes = @iconv('UTF-8', 'ISO-8859-1//IGNORE', $current);
+            if (!is_string($bytes) || $bytes === '' || !mb_check_encoding($bytes, 'UTF-8')) {
+                break;
+            }
+            $current = $bytes;
         }
 
-        $repaired = @mb_convert_encoding($asLatin1, 'UTF-8', 'ISO-8859-1');
-        if (!is_string($repaired) || $repaired === '') {
-            return $collapsed;
-        }
-
-        return preg_match('/[\x{00C2}\x{00C3}\x{00C4}\x{00C5}]/u', $repaired) ? $collapsed : $repaired;
+        return $current;
     }
 }
