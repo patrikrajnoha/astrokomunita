@@ -239,7 +239,7 @@ describe('NotificationsView', () => {
     wrapper.unmount()
   })
 
-  it('deletes a single notification after confirmation', async () => {
+  it('deletes a single notification without confirmation', async () => {
     notificationsStoreMock.items = [
       {
         id: 77,
@@ -255,11 +255,48 @@ describe('NotificationsView', () => {
     await wrapper.get('[data-testid="delete-notification-77"]').trigger('click')
     await flush()
 
-    expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Vymazat notifikaciu?',
-      confirmText: 'Vymazat',
-      variant: 'danger',
-    }))
+    expect(confirmMock).not.toHaveBeenCalled()
+    expect(notificationsStoreMock.deleteNotification).toHaveBeenCalledWith(77)
+
+    wrapper.unmount()
+  })
+
+  it('deletes a notification with a left swipe gesture', async () => {
+    notificationsStoreMock.items = [
+      {
+        id: 77,
+        type: 'event_invite',
+        data: { event_title: 'Lunar eclipse' },
+        read_at: null,
+        created_at: '2026-03-05T10:00:00Z',
+      },
+    ]
+
+    const { wrapper } = await mountView()
+    const surface = wrapper.get('[data-testid="notification-surface-77"]')
+
+    await surface.trigger('pointerdown', {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 220,
+      clientY: 30,
+      button: 0,
+    })
+    await surface.trigger('pointermove', {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 60,
+      clientY: 34,
+    })
+    await surface.trigger('pointerup', {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 60,
+      clientY: 34,
+    })
+    await flush()
+
+    expect(confirmMock).not.toHaveBeenCalled()
     expect(notificationsStoreMock.deleteNotification).toHaveBeenCalledWith(77)
 
     wrapper.unmount()
@@ -282,8 +319,8 @@ describe('NotificationsView', () => {
     await flush()
 
     expect(confirmMock).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'Vymazat vsetky notifikacie?',
-      confirmText: 'Vymazat vsetko',
+      title: 'Vymazať všetky notifikácie?',
+      confirmText: 'Vymazať všetko',
       variant: 'danger',
     }))
     expect(notificationsStoreMock.deleteAllNotifications).toHaveBeenCalledTimes(1)

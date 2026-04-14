@@ -1,150 +1,206 @@
 <template>
-  <div>
-  <section class="min-h-screen bg-app text-white">
-    <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col">
-      <div class="px-5 pt-6 pb-2 sm:px-8">
+  <section class="min-h-screen bg-[#151d28] text-white">
+    <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-8 pt-5 sm:px-6 lg:px-8">
+      <div class="mb-5">
         <PageHeader title="Notifikácie">
           <template #actions>
-            <button
-              v-if="items.length"
-              type="button"
-              class="rounded-full bg-[#222E3F] px-3 py-1.5 text-xs font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95"
-              :disabled="deletingAll || markAllReading"
-              @click="markAll"
-            >
-              Označiť všetko
-            </button>
-            <button
-              v-if="items.length"
-              type="button"
-              data-testid="delete-all-notifications"
-              class="inline-flex items-center gap-1.5 rounded-full bg-[rgba(185,28,28,0.18)] px-3 py-1.5 text-xs font-semibold text-[rgba(252,165,165,0.94)] transition hover:bg-[rgba(185,28,28,0.24)] hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-              :disabled="deletingAll || markAllReading"
-              @click="deleteAll"
-            >
-              <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 7h16" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-                <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
-                <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
-              {{ deletingAll ? 'Mazem...' : 'Vymazat vsetko' }}
-            </button>
-            <button
-              data-testid="open-notification-settings"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#222E3F] text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF]"
-              type="button"
-              @click="openSettingsModal"
-            >
-              <span class="sr-only">Otvoriť nastavenia notifikácií</span>
-              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="3.2"></circle>
-                <path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V20.5a2 2 0 0 1-4 0v-.08a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3.5a2 2 0 0 1 0-4h.08a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.56V3.5a2 2 0 0 1 4 0v.08a1.7 1.7 0 0 0 1 1.56h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H20.5a2 2 0 0 1 0 4h-.08a1.7 1.7 0 0 0-1.56 1z"></path>
-              </svg>
-            </button>
+            <div class="flex flex-wrap items-center justify-end gap-3">
+              <button
+                v-if="items.length"
+                type="button"
+                class="btn btn--secondary"
+                :disabled="deletingAll || markAllReading"
+                @click="markAll"
+              >
+                Označiť všetko
+              </button>
+
+              <button
+                v-if="items.length"
+                type="button"
+                data-testid="delete-all-notifications"
+                class="btn btn--danger"
+                :disabled="deletingAll || markAllReading"
+                @click="deleteAll"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                  <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+                <span>{{ deletingAll ? 'Mažem...' : 'Vymazať všetko' }}</span>
+              </button>
+
+              <button
+                data-testid="open-notification-settings"
+                class="icon-btn"
+                type="button"
+                @click="openSettingsModal"
+              >
+                <span class="sr-only">Otvoriť nastavenia notifikácií</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3.2" />
+                  <path d="M19.4 14.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.56V20.5a2 2 0 0 1-4 0v-.08a1.7 1.7 0 0 0-1-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1H3.5a2 2 0 0 1 0-4h.08a1.7 1.7 0 0 0 1.56-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.56V3.5a2 2 0 0 1 4 0v.08a1.7 1.7 0 0 0 1 1.56h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.56 1H20.5a2 2 0 0 1 0 4h-.08a1.7 1.7 0 0 0-1.56 1z" />
+                </svg>
+              </button>
+            </div>
           </template>
         </PageHeader>
       </div>
 
       <Transition name="notificationsState" mode="out-in">
-      <div v-if="isInitialLoading" key="notifications-loading" class="mx-auto w-full max-w-3xl space-y-3 px-5 py-7 sm:px-8" data-testid="notifications-page-loading">
         <div
-          v-for="index in 5"
-          :key="`notification-list-skeleton-${index}`"
-          class="h-16 animate-pulse rounded-2xl bg-[rgba(28,39,54,0.5)]"
-        ></div>
-      </div>
-
-      <div v-else-if="error" key="notifications-error" class="flex flex-1 flex-col items-center justify-center px-5 py-12 text-center" data-testid="notifications-page-error">
-        <InlineStatus
-          variant="error"
-          :message="error || 'Nastala chyba pri načítaní notifikácií.'"
-          action-label="Skúsiť znova"
-          class="w-full max-w-lg"
-          @action="retry"
-        />
-      </div>
-
-      <div v-else-if="!items.length" key="notifications-empty" class="flex flex-1 flex-col items-center px-5 py-16 text-center">
-        <div class="mt-8 flex h-full min-h-[60vh] flex-col items-center pt-16" data-testid="notifications-page-empty">
-          <svg viewBox="0 0 24 24" class="h-14 w-14 text-[rgba(171,184,201,0.6)]" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z"></path>
-            <path d="M9.5 18a2.5 2.5 0 0 0 5 0"></path>
-          </svg>
-          <p class="mt-4 text-xl font-semibold tracking-tight text-[rgba(171,184,201,0.88)] sm:text-2xl">Zatiaľ žiadne notifikácie.</p>
-          <p class="mt-2 text-sm text-muted">Keď nastane aktivita, zobrazí sa tu.</p>
-          <button
-            type="button"
-            class="mt-6 rounded-full bg-[#222E3F] px-5 py-2.5 text-sm font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-95"
-            @click="openSettingsModal"
-          >
-            Nastaviť upozornenia
-          </button>
-        </div>
-      </div>
-
-      <div v-else key="notifications-list" class="mx-auto w-full max-w-3xl flex-1 px-5 py-7 sm:px-8">
-        <TransitionGroup
-          name="notificationItem"
-          tag="div"
-          class="overflow-hidden rounded-2xl bg-[#1c2736]"
+          v-if="isInitialLoading"
+          key="notifications-loading"
+          class="mx-auto w-full max-w-3xl space-y-3"
+          data-testid="notifications-page-loading"
         >
           <div
-            v-for="item in items"
-            :key="item.id"
-            class="group flex items-center gap-3 border-b border-[rgba(255,255,255,0.07)] px-5 py-3.5 transition hover:bg-hover last:border-b-0"
-            :class="item.read_at ? 'opacity-75' : 'border-l-[3px] border-l-[rgba(15,115,255,0.65)] bg-[rgba(28,39,54,0.38)]'"
-          >
-            <button
-              type="button"
-              class="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F73FF]"
-              :disabled="isDeleting(item.id) || deletingAll"
-              @click="openNotification(item)"
-            >
-            <span class="flex-none text-base leading-none" aria-hidden="true">{{ formatIcon(item) }}</span>
-            <span class="min-w-0 flex-1">
-              <span class="block text-sm font-semibold text-white">{{ formatTitle(item) }}</span>
-              <span class="mt-0.5 block text-xs text-muted">{{ formatSubtitle(item) }}</span>
-            </span>
-            <span class="shrink-0 flex items-center gap-1.5 text-xs text-muted">
-              <span>{{ formatTime(item) }}</span>
-              <span aria-hidden="true" class="opacity-30 transition-opacity group-hover:opacity-60">›</span>
-            </span>
-            </button>
-            <button
-              type="button"
-              :data-testid="`delete-notification-${item.id}`"
-              class="notificationDeleteButton"
-              :disabled="isDeleting(item.id) || deletingAll"
-              @click.stop="deleteOne(item)"
-            >
-              <span class="sr-only">Vymazat notifikaciu</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 7h16" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-                <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
-                <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-              </svg>
-            </button>
-          </div>
-        </TransitionGroup>
-
-        <div v-if="isPaginating" class="px-2 py-4 text-xs text-muted" data-testid="notifications-page-paginating">
-          Načítavam ďalšie...
+            v-for="index in 5"
+            :key="`notification-skeleton-${index}`"
+            class="h-[84px] animate-pulse rounded-[28px] bg-[#1c2736]"
+          ></div>
         </div>
 
-        <button
-          v-if="page < lastPage"
-          class="mt-4 w-full rounded-full bg-[#222E3F] py-3 text-sm font-semibold text-[#ABB8C9] transition hover:bg-[#1c2736] hover:text-white active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-          type="button"
-          :disabled="isPaginating"
-          @click="loadMore"
+        <div
+          v-else-if="error"
+          key="notifications-error"
+          class="flex flex-1 items-center justify-center py-10"
+          data-testid="notifications-page-error"
         >
-          {{ isPaginating ? 'Načítavam...' : 'Načítať ďalšie' }}
-        </button>
-      </div>
+          <InlineStatus
+            variant="error"
+            :message="error || 'Nastala chyba pri načítaní notifikácií.'"
+            action-label="Skúsiť znova"
+            class="w-full max-w-lg"
+            @action="retry"
+          />
+        </div>
+
+        <div
+          v-else-if="!items.length"
+          key="notifications-empty"
+          class="flex flex-1 items-center justify-center py-12"
+          data-testid="notifications-page-empty"
+        >
+          <div class="flex w-full max-w-md flex-col items-center gap-3 text-center">
+            <svg
+              viewBox="0 0 24 24"
+              class="h-14 w-14 text-[#ABB8C9]"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M6.5 8a5.5 5.5 0 1 1 11 0c0 2.6.7 4.4 1.8 5.8.5.6.1 1.2-.7 1.2H5.4c-.8 0-1.2-.7-.7-1.2C5.8 12.4 6.5 10.6 6.5 8Z" />
+              <path d="M9.5 18a2.5 2.5 0 0 0 5 0" />
+            </svg>
+            <p class="text-[1.45rem] font-semibold tracking-[-0.02em] text-white">Zatiaľ žiadne notifikácie.</p>
+            <p class="max-w-sm text-sm leading-6 text-[#ABB8C9]">Keď nastane aktivita, zobrazí sa tu.</p>
+            <button type="button" class="btn btn--secondary" @click="openSettingsModal">
+              Nastaviť upozornenia
+            </button>
+          </div>
+        </div>
+
+        <div v-else key="notifications-list" class="mx-auto w-full max-w-3xl flex-1">
+          <TransitionGroup name="notificationItem" tag="div" class="notification-list">
+            <div
+              v-for="item in items"
+              :key="item.id"
+              class="notification-row"
+              :class="{ 'notification-row--deleting': isDeleting(item.id) }"
+              :data-testid="`notification-row-${item.id}`"
+            >
+              <button
+                type="button"
+                class="notification-delete-swipe"
+                :data-testid="`swipe-delete-notification-${item.id}`"
+                :disabled="isDeleting(item.id) || deletingAll"
+                @click="deleteOne(item, { confirm: false, closeSwipe: true })"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                  <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+                <span>Vymazať</span>
+              </button>
+
+              <button
+                type="button"
+                class="notification-surface"
+                :class="{ 'notification-surface--unread': !item.read_at }"
+                :data-testid="`notification-surface-${item.id}`"
+                :disabled="isDeleting(item.id) || deletingAll"
+                :style="notificationSurfaceStyle(item.id)"
+                @pointerdown="onRowPointerDown(item, $event)"
+                @pointermove="onRowPointerMove(item, $event)"
+                @pointerup="onRowPointerEnd(item, $event)"
+                @pointercancel="onRowPointerCancel(item, $event)"
+                @click="openNotification(item)"
+              >
+                <span class="notification-surface__tone" :style="{ backgroundColor: notificationTone(item) }"></span>
+
+                <span class="min-w-0 flex-1">
+                  <span class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <span class="min-w-0 inline-flex items-center gap-2">
+                      <span class="truncate text-[0.96rem] font-semibold leading-6 text-white">
+                        {{ formatTitle(item) }}
+                      </span>
+                      <span v-if="!item.read_at" class="h-2 w-2 shrink-0 rounded-full bg-[#0F73FF]"></span>
+                    </span>
+                    <span class="shrink-0 text-xs font-medium text-[#ABB8C9]">{{ formatTime(item) }}</span>
+                  </span>
+                  <span class="mt-1 block text-sm leading-6 text-[#ABB8C9]">
+                    {{ formatSubtitle(item) }}
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                :data-testid="`delete-notification-${item.id}`"
+                class="notification-quick-delete"
+                :disabled="isDeleting(item.id) || deletingAll"
+                @click.stop="deleteOne(item, { confirm: false, closeSwipe: true })"
+              >
+                <span class="sr-only">Vymazať notifikáciu</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                  <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+            </div>
+          </TransitionGroup>
+
+          <div
+            v-if="isPaginating"
+            class="px-1 pt-4 text-xs font-medium text-[#ABB8C9]"
+            data-testid="notifications-page-paginating"
+          >
+            Načítavam ďalšie...
+          </div>
+
+          <button
+            v-if="page < lastPage"
+            type="button"
+            class="btn btn--secondary mt-4 w-full"
+            :disabled="isPaginating"
+            @click="loadMore"
+          >
+            {{ isPaginating ? 'Načítavam...' : 'Načítať ďalšie' }}
+          </button>
+        </div>
       </Transition>
     </div>
   </section>
@@ -157,118 +213,122 @@
     @close="handleModalClose"
   >
     <template #description>
-      <p class="mt-2 text-sm text-muted">Vyber si upozornenia pre pozorovanie oblohy.</p>
-
+      <p class="mt-2 text-sm leading-6 text-[#ABB8C9]">Vyber si upozornenia pre pozorovanie oblohy.</p>
     </template>
 
-    <div id="notification-settings" class="ns-wrap">
-      <section class="ns-section">
-        <div class="ns-section-header">
-          <p class="ns-section-title">Tipy na oblohu</p>
-          <p class="ns-section-desc">Rýchle upozornenia na lokálne podmienky a ISS prelety.</p>
+    <div id="notification-settings" class="settings-stack">
+      <section class="settings-card">
+        <div class="settings-head">
+          <p class="settings-title">Tipy na oblohu</p>
+          <p class="settings-desc">Rýchle upozornenia na lokálne podmienky a ISS prelety.</p>
         </div>
 
-        <div v-if="preferencesLoading" class="ns-skeletons" aria-hidden="true">
-          <div v-for="index in 2" :key="`preference-skeleton-${index}`" class="ns-skeleton"></div>
+        <div v-if="preferencesLoading" class="space-y-3 p-4" aria-hidden="true">
+          <div v-for="index in 2" :key="`preference-skeleton-${index}`" class="settings-skeleton"></div>
         </div>
 
         <div v-else>
-          <p v-if="preferencesError" class="ns-error-text" role="status">
+          <p v-if="preferencesError" class="px-4 pt-4 text-sm text-white" role="status">
             Nastavenia upozornení na oblohu sú dočasne nedostupné.
           </p>
-          <button v-if="preferencesError" type="button" class="ns-retry-btn" @click="retrySkyPreferences">
+          <button v-if="preferencesError" type="button" class="btn btn--secondary m-4" @click="retrySkyPreferences">
             Skúsiť znova
           </button>
 
-          <label class="ns-row ns-row--border">
-            <div class="ns-row-text">
-              <p class="ns-row-title">Výborné podmienky na pozorovanie</p>
-              <p class="ns-row-desc">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
+          <label class="settings-row settings-row--border">
+            <div class="min-w-0">
+              <p class="settings-row__title">Výborné podmienky na pozorovanie</p>
+              <p class="settings-row__desc">Dostaneš upozornenie, keď bude obloha vhodná na pozorovanie.</p>
             </div>
             <button
               type="button"
-              class="ns-toggle"
-              :class="preferences.good_conditions_alerts ? 'ns-toggle--on' : 'ns-toggle--off'"
+              class="toggle"
+              :class="preferences.good_conditions_alerts ? 'toggle--on' : 'toggle--off'"
               :disabled="isSkyPreferenceToggleDisabled"
               :aria-pressed="preferences.good_conditions_alerts"
               @click="toggleSkyPreference('good_conditions_alerts')"
             >
-              <span class="ns-toggle-knob"></span>
+              <span class="toggle__knob"></span>
             </button>
           </label>
 
-          <label class="ns-row">
-            <div class="ns-row-text">
-              <p class="ns-row-title">ISS prelet</p>
-              <p class="ns-row-desc">Dostaneš upozornenie pred ďalším dobre viditeľným preletom ISS.</p>
+          <label class="settings-row">
+            <div class="min-w-0">
+              <p class="settings-row__title">ISS prelet</p>
+              <p class="settings-row__desc">Dostaneš upozornenie pred ďalším dobre viditeľným preletom ISS.</p>
             </div>
             <button
               type="button"
-              class="ns-toggle"
-              :class="preferences.iss_alerts ? 'ns-toggle--on' : 'ns-toggle--off'"
+              class="toggle"
+              :class="preferences.iss_alerts ? 'toggle--on' : 'toggle--off'"
               :disabled="isSkyPreferenceToggleDisabled"
               :aria-pressed="preferences.iss_alerts"
               @click="toggleSkyPreference('iss_alerts')"
             >
-              <span class="ns-toggle-knob"></span>
+              <span class="toggle__knob"></span>
             </button>
           </label>
         </div>
       </section>
 
-      <section class="ns-section">
-        <div class="ns-section-header">
-          <p class="ns-section-title">Pripomienky udalostí</p>
-          <p class="ns-section-desc">Vyber si, pre aké typy udalostí chceš appku notifikácie a e-maily.</p>
+      <section class="settings-card">
+        <div class="settings-head">
+          <p class="settings-title">Pripomienky udalostí</p>
+          <p class="settings-desc">Vyber si, pre aké typy udalostí chceš appku notifikácie a e-maily.</p>
         </div>
 
-        <div class="ns-row ns-row--border">
-          <div class="ns-row-text">
-            <p class="ns-row-title">E-mailové upozornenia</p>
-            <p class="ns-row-desc">E-mail sa odošle len pre riadky, ktoré máš zapnuté v stĺpci Email.</p>
+        <div class="settings-row settings-row--border">
+          <div class="min-w-0">
+            <p class="settings-row__title">E-mailové upozornenia</p>
+            <p class="settings-row__desc">E-mail sa odošle len pre riadky, ktoré máš zapnuté v stĺpci Email.</p>
           </div>
           <button
             type="button"
             data-testid="delivery-email-enabled-toggle"
-            class="ns-toggle"
-            :class="deliveryPreferences.email_enabled ? 'ns-toggle--on' : 'ns-toggle--off'"
+            class="toggle"
+            :class="deliveryPreferences.email_enabled ? 'toggle--on' : 'toggle--off'"
             :disabled="deliveryPreferencesLoading"
             :aria-pressed="deliveryPreferences.email_enabled"
             @click="toggleDeliveryEmailEnabled"
           >
-            <span class="ns-toggle-knob"></span>
+            <span class="toggle__knob"></span>
           </button>
         </div>
 
-        <div v-if="deliveryPreferencesLoading" class="ns-skeletons" aria-hidden="true">
-          <div v-for="index in 4" :key="`delivery-preference-skeleton-${index}`" class="ns-skeleton ns-skeleton--tall"></div>
+        <div v-if="deliveryPreferencesLoading" class="space-y-3 p-4" aria-hidden="true">
+          <div v-for="index in 4" :key="`delivery-preference-skeleton-${index}`" class="settings-skeleton h-[72px]"></div>
         </div>
 
         <div v-else>
-          <p v-if="deliveryPreferencesError" class="ns-error-text" role="status">
+          <p v-if="deliveryPreferencesError" class="px-4 pt-4 text-sm text-white" role="status">
             Nastavenia pripomienok udalostí sú dočasne nedostupné.
           </p>
-          <button v-if="deliveryPreferencesError" type="button" class="ns-retry-btn" @click="retryDeliveryPreferences">
+          <button
+            v-if="deliveryPreferencesError"
+            type="button"
+            class="btn btn--secondary m-4"
+            @click="retryDeliveryPreferences"
+          >
             Skúsiť znova
           </button>
 
-          <div v-else class="ns-rows">
+          <div v-else>
             <div
               v-for="row in eventReminderPreferenceRows"
               :key="row.key"
-              class="ns-row"
+              class="settings-row settings-row--border"
             >
-              <div class="ns-row-text">
-                <p class="ns-row-title">{{ row.label }}</p>
-                <p class="ns-row-desc">{{ row.description }}</p>
+              <div class="min-w-0">
+                <p class="settings-row__title">{{ row.label }}</p>
+                <p class="settings-row__desc">{{ row.description }}</p>
               </div>
 
-              <div class="ns-pill-group">
+              <div class="flex shrink-0 gap-2">
                 <button
                   type="button"
                   :data-testid="`delivery-in-app-${row.key}`"
-                  class="ns-pill"
-                  :class="deliveryPreferences.in_app[row.key] ? 'ns-pill--active' : 'ns-pill--inactive'"
+                  class="pill"
+                  :class="deliveryPreferences.in_app[row.key] ? 'pill--active' : 'pill--inactive'"
                   :disabled="deliveryPreferencesLoading"
                   :aria-pressed="deliveryPreferences.in_app[row.key]"
                   @click="toggleDeliveryPreference('in_app', row.key)"
@@ -278,8 +338,8 @@
                 <button
                   type="button"
                   :data-testid="`delivery-email-${row.key}`"
-                  class="ns-pill"
-                  :class="deliveryPreferences.email[row.key] ? 'ns-pill--active' : 'ns-pill--inactive'"
+                  class="pill"
+                  :class="deliveryPreferences.email[row.key] ? 'pill--active' : 'pill--inactive'"
                   :disabled="deliveryPreferencesLoading"
                   :aria-pressed="deliveryPreferences.email[row.key]"
                   @click="toggleDeliveryPreference('email', row.key)"
@@ -293,7 +353,6 @@
       </section>
     </div>
   </BaseModal>
-  </div>
 </template>
 
 <script setup>
@@ -317,6 +376,12 @@ import {
 import { useAuthStore } from '@/stores/auth'
 
 const SETTINGS_HASH = '#notification-settings'
+const SWIPE_ACTION_WIDTH = 96
+const SWIPE_OPEN_THRESHOLD = 48
+const SWIPE_DELETE_THRESHOLD = 124
+const SWIPE_LOCK_THRESHOLD = 10
+const SWIPE_MAX_OFFSET = 148
+const CLICK_SUPPRESS_MS = 260
 
 const store = useNotificationsStore()
 const router = useRouter()
@@ -337,6 +402,17 @@ const isSettingsModalOpen = ref(false)
 const isInitialLoading = computed(() => loading.value && items.value.length === 0)
 const isPaginating = computed(() => loadingMore.value || (loading.value && items.value.length > 0))
 
+const swipeActiveId = ref(null)
+const swipeOpenId = ref(null)
+const swipeOffset = ref(0)
+
+let swipePointerId = null
+let swipeStartX = 0
+let swipeStartY = 0
+let swipeStartOffset = 0
+let swipeLocked = false
+let swipeSuppressedUntil = 0
+
 const {
   preferences,
   preferencesLoading,
@@ -356,6 +432,12 @@ const deliveryPreferencesLoading = ref(false)
 const deliveryPreferencesError = ref('')
 
 const isSkyPreferenceToggleDisabled = computed(() => preferencesLoading.value || preferencesError.value)
+const isDeleting = (id) => store.isDeleting(id)
+const loadMore = () => store.fetchList(page.value + 1)
+const markAll = () => store.markAllRead()
+const retry = () => store.fetchList(1)
+const retrySkyPreferences = () => fetchPreferences()
+const retryDeliveryPreferences = () => fetchDeliveryPreferences()
 
 watch(
   () => route.hash,
@@ -371,10 +453,7 @@ watch(isSettingsModalOpen, (isOpen) => {
   }
 
   if (isOpen) {
-    void Promise.all([
-      fetchPreferences(),
-      fetchDeliveryPreferences(),
-    ])
+    void Promise.all([fetchPreferences(), fetchDeliveryPreferences()])
   } else if (route.hash === SETTINGS_HASH) {
     void router.replace({ path: route.path, query: route.query, hash: '' })
   }
@@ -383,19 +462,9 @@ watch(isSettingsModalOpen, (isOpen) => {
 onMounted(() => {
   store.fetchList(1)
   if (route.hash === SETTINGS_HASH) {
-    void Promise.all([
-      fetchPreferences(),
-      fetchDeliveryPreferences(),
-    ])
+    void Promise.all([fetchPreferences(), fetchDeliveryPreferences()])
   }
 })
-
-const loadMore = () => store.fetchList(store.page + 1)
-const markAll = () => store.markAllRead()
-const retry = () => store.fetchList(1)
-const retrySkyPreferences = () => fetchPreferences()
-const retryDeliveryPreferences = () => fetchDeliveryPreferences()
-const isDeleting = (id) => store.isDeleting(id)
 
 function openSettingsModal() {
   isSettingsModalOpen.value = true
@@ -420,11 +489,11 @@ async function fetchDeliveryPreferences() {
   try {
     const response = await getNotificationPreferences()
     applyDeliveryPreferences(response?.data || {})
-  } catch (error) {
+  } catch (requestError) {
     deliveryPreferencesError.value =
-      error?.response?.data?.message ||
-      error?.message ||
-      'Nepodarilo sa načítať nastavenia pripomienok.'
+      requestError?.response?.data?.message ||
+      requestError?.message ||
+      'Nepodarilo sa nacitat nastavenia pripomienok.'
   } finally {
     deliveryPreferencesLoading.value = false
   }
@@ -437,11 +506,11 @@ async function persistDeliveryPreferences(nextPreferences) {
   try {
     const response = await updateNotificationPreferences(nextPreferences)
     applyDeliveryPreferences(response?.data || nextPreferences)
-  } catch (error) {
+  } catch (requestError) {
     deliveryPreferencesError.value =
-      error?.response?.data?.message ||
-      error?.message ||
-      'Nepodarilo sa uložiť nastavenia pripomienok.'
+      requestError?.response?.data?.message ||
+      requestError?.message ||
+      'Nepodarilo sa ulozit nastavenia pripomienok.'
   } finally {
     deliveryPreferencesLoading.value = false
   }
@@ -490,27 +559,161 @@ async function toggleDeliveryPreference(scope, key) {
   await persistDeliveryPreferences(nextPreferences)
 }
 
-const openNotification = async (item) => {
-  if (!item) return
-  if (!item.read_at) await store.markRead(item.id)
-  const target = item.target
-  if (target?.url) {
-    router.push(target.url)
+function clearSwipeTracking() {
+  swipeActiveId.value = null
+  swipeOffset.value = 0
+  swipePointerId = null
+  swipeStartX = 0
+  swipeStartY = 0
+  swipeStartOffset = 0
+  swipeLocked = false
+}
+
+function closeSwipe(id = null) {
+  if (id === null || swipeOpenId.value === id) {
+    swipeOpenId.value = null
+  }
+  clearSwipeTracking()
+}
+
+function notificationSurfaceStyle(id) {
+  const offset = swipeActiveId.value === id
+    ? swipeOffset.value
+    : swipeOpenId.value === id
+      ? -SWIPE_ACTION_WIDTH
+      : 0
+
+  return {
+    transform: `translateX(${offset}px)`,
+    transition: swipeActiveId.value === id ? 'none' : 'transform 180ms ease, background-color 160ms ease, opacity 160ms ease',
   }
 }
 
-async function deleteOne(item) {
+function notificationTone(item) {
+  if (item.type === 'post_liked') return '#EF75EA'
+  if (item.type === 'event_reminder') return '#FE8311'
+  if (item.type === 'contest_winner') return '#FED811'
+  if (item.type === 'event_invite') return '#1185FE'
+  if (item.type === 'account_restricted') return '#F55454'
+  if (item.type === 'iss_pass_alert') return '#0F73FF'
+  if (item.type === 'good_conditions_alert') return '#73DF84'
+  return '#ABB8C9'
+}
+
+function onRowPointerDown(item, event) {
+  if (!item?.id || deletingAll.value || isDeleting(item.id)) return
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+
+  if (swipeOpenId.value && swipeOpenId.value !== item.id) {
+    swipeOpenId.value = null
+  }
+
+  swipeActiveId.value = item.id
+  swipePointerId = event.pointerId ?? null
+  swipeStartX = event.clientX
+  swipeStartY = event.clientY
+  swipeStartOffset = swipeOpenId.value === item.id ? -SWIPE_ACTION_WIDTH : 0
+  swipeOffset.value = swipeStartOffset
+  swipeLocked = false
+  event.currentTarget?.setPointerCapture?.(swipePointerId)
+}
+
+function onRowPointerMove(item, event) {
+  if (!item?.id || swipeActiveId.value !== item.id) return
+  if (swipePointerId !== null && event.pointerId !== swipePointerId) return
+
+  const deltaX = event.clientX - swipeStartX
+  const deltaY = event.clientY - swipeStartY
+
+  if (!swipeLocked) {
+    if (Math.abs(deltaX) < SWIPE_LOCK_THRESHOLD && Math.abs(deltaY) < SWIPE_LOCK_THRESHOLD) {
+      return
+    }
+
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      closeSwipe()
+      return
+    }
+
+    swipeLocked = true
+  }
+
+  swipeOffset.value = Math.min(0, Math.max(-SWIPE_MAX_OFFSET, swipeStartOffset + deltaX))
+  event.preventDefault?.()
+}
+
+async function onRowPointerEnd(item, event) {
+  if (!item?.id || swipeActiveId.value !== item.id) return
+  if (swipePointerId !== null && event.pointerId !== swipePointerId) return
+
+  event.currentTarget?.releasePointerCapture?.(swipePointerId)
+
+  const finalOffset = swipeOffset.value
+  const shouldDelete = finalOffset <= -SWIPE_DELETE_THRESHOLD
+  const shouldOpen = finalOffset <= -SWIPE_OPEN_THRESHOLD
+
+  clearSwipeTracking()
+
+  if (shouldDelete) {
+    swipeSuppressedUntil = Date.now() + CLICK_SUPPRESS_MS
+    await deleteOne(item, { confirm: false, closeSwipe: true })
+    return
+  }
+
+  if (shouldOpen) {
+    swipeOpenId.value = item.id
+    swipeSuppressedUntil = Date.now() + CLICK_SUPPRESS_MS
+    return
+  }
+
+  swipeOpenId.value = null
+}
+
+function onRowPointerCancel(item, event) {
+  if (!item?.id || swipeActiveId.value !== item.id) return
+  if (swipePointerId !== null && event.pointerId !== swipePointerId) return
+  event.currentTarget?.releasePointerCapture?.(swipePointerId)
+  clearSwipeTracking()
+}
+
+async function openNotification(item) {
+  if (!item) return
+  if (Date.now() < swipeSuppressedUntil) return
+
+  if (swipeOpenId.value) {
+    closeSwipe()
+    return
+  }
+
+  if (!item.read_at) {
+    await store.markRead(item.id)
+  }
+
+  const target = item.target
+  if (target?.url) {
+    void router.push(target.url)
+  }
+}
+
+async function deleteOne(item, options = {}) {
   if (!item?.id || isDeleting(item.id) || deletingAll.value) return
 
-  const approved = await confirm({
-    title: 'Vymazat notifikaciu?',
-    message: 'Tato notifikacia sa odstrani z tvojho zoznamu.',
-    confirmText: 'Vymazat',
-    cancelText: 'Zrusit',
-    variant: 'danger',
-  })
+  if (options.closeSwipe) {
+    closeSwipe()
+  }
 
-  if (!approved) return
+  if (options.confirm === true) {
+    const approved = await confirm({
+      title: 'Vymazať notifikáciu?',
+      message: 'Táto notifikácia sa odstráni z tvojho zoznamu.',
+      confirmText: 'Vymazať',
+      cancelText: 'Zrušiť',
+      variant: 'danger',
+    })
+
+    if (!approved) return
+  }
+
   await store.deleteNotification(item.id)
 }
 
@@ -518,65 +721,46 @@ async function deleteAll() {
   if (!items.value.length || deletingAll.value || markAllReading.value) return
 
   const approved = await confirm({
-    title: 'Vymazat vsetky notifikacie?',
-    message: 'Tato akcia odstrani vsetky notifikacie z tvojho uctu.',
-    confirmText: 'Vymazat vsetko',
-    cancelText: 'Zrusit',
+    title: 'Vymazať všetky notifikácie?',
+    message: 'Táto akcia odstráni všetky notifikácie z tvojho účtu.',
+    confirmText: 'Vymazať všetko',
+    cancelText: 'Zrušiť',
     variant: 'danger',
   })
 
   if (!approved) return
+  closeSwipe()
   await store.deleteAllNotifications()
 }
 
-const formatIcon = (item) => {
-  if (item.type === 'post_liked') return '❤️'
-  if (item.type === 'event_reminder') return '🔔'
-  if (item.type === 'contest_winner') return '🏆'
-  if (item.type === 'event_invite') return '📅'
-  if (item.type === 'account_restricted') return '⚠️'
-  if (item.type === 'iss_pass_alert') return '🛰️'
-  if (item.type === 'good_conditions_alert') return '✨'
-  return '🔔'
-}
-
-const formatTitle = (item) => {
+function formatTitle(item) {
   if (item.type === 'post_liked') {
     const name = item.data?.actor_name || item.data?.actor_username || 'Niekto'
     return `${name} lajkol tvoj príspevok`
   }
-  if (item.type === 'event_reminder') {
-    return 'Pripomienka udalosti'
-  }
-  if (item.type === 'contest_winner') {
-    return 'Vyhral si súťaž'
-  }
-  if (item.type === 'event_invite') {
-    return 'Prišla ti pozvánka na udalosť'
-  }
-  if (item.type === 'account_restricted') {
-    return 'Účet bol obmedzený'
-  }
-  if (item.type === 'iss_pass_alert') {
-    return 'ISS prelet už čoskoro'
-  }
-  if (item.type === 'good_conditions_alert') {
-    return 'Výborné podmienky na pozorovanie'
-  }
+  if (item.type === 'event_reminder') return 'Pripomienka udalosti'
+  if (item.type === 'contest_winner') return 'Vyhral si súťaž'
+  if (item.type === 'event_invite') return 'Prišla ti pozvánka na udalosť'
+  if (item.type === 'account_restricted') return 'Účet bol obmedzený'
+  if (item.type === 'iss_pass_alert') return 'ISS prelet už čoskoro'
+  if (item.type === 'good_conditions_alert') return 'Výborné podmienky na pozorovanie'
   return 'Notifikácia'
 }
 
-const formatSubtitle = (item) => {
+function formatSubtitle(item) {
   if (item.type === 'post_liked') {
     const username = item.data?.actor_username ? `@${item.data.actor_username}` : ''
     return username || 'Aktivita v komunite'
   }
+
   if (item.type === 'event_reminder') {
     return item.data?.event_title || 'Udalosť sa začína už čoskoro'
   }
+
   if (item.type === 'contest_winner') {
     return item.data?.contest_name || 'Víťaz súťaže'
   }
+
   if (item.type === 'event_invite') {
     const inviter = item.data?.actor_name || item.data?.actor_username
     const title = item.data?.event_title
@@ -584,20 +768,28 @@ const formatSubtitle = (item) => {
     if (inviter) return `${inviter} ťa pozval na udalosť`
     return title || 'Bol si pozvaný na udalosť'
   }
+
   if (item.type === 'account_restricted') {
     return item.data?.reason || 'Pre viac informácií kontaktuj podporu.'
   }
+
   if (item.type === 'iss_pass_alert') {
-    return item.data?.next_pass_at ? `Ďalší prelet: ${formatClock(item.data.next_pass_at)}` : 'Prelet príde už čoskoro.'
+    return item.data?.next_pass_at
+      ? `Ďalší prelet: ${formatClock(item.data.next_pass_at)}`
+      : 'Prelet príde už čoskoro.'
   }
+
   if (item.type === 'good_conditions_alert') {
     const score = Number(item.data?.observing_score)
-    return Number.isFinite(score) ? `Skóre podmienok ${Math.round(score)}/100.` : 'Podmienky na oblohe vyzerajú dnes výborne.'
+    return Number.isFinite(score)
+      ? `Skóre podmienok ${Math.round(score)}/100.`
+      : 'Podmienky na oblohe vyzerajú dnes výborne.'
   }
+
   return 'Nová aktivita'
 }
 
-const formatTime = (item) => {
+function formatTime(item) {
   const createdHuman = String(item?.created_human || '').trim()
   if (createdHuman) return createdHuman
 
@@ -612,7 +804,7 @@ const formatTime = (item) => {
   return created.toLocaleDateString('sk-SK')
 }
 
-const formatClock = (iso) => {
+function formatClock(iso) {
   if (!iso) return ''
   const value = new Date(iso)
   if (Number.isNaN(value.getTime())) return ''
@@ -621,234 +813,327 @@ const formatClock = (iso) => {
 </script>
 
 <style scoped>
-/* ── Notification settings ── */
-.ns-wrap {
+.btn,
+.icon-btn,
+.notification-quick-delete,
+.toggle,
+.pill {
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
+  font: inherit;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.btn {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.btn--secondary,
+.icon-btn,
+.notification-quick-delete,
+.toggle--off,
+.pill--inactive {
+  background: #222e3f;
+  color: #abb8c9;
+}
+
+.btn--secondary:hover:not(:disabled),
+.icon-btn:hover:not(:disabled),
+.notification-quick-delete:hover:not(:disabled),
+.btn--secondary:focus-visible,
+.icon-btn:focus-visible,
+.notification-quick-delete:focus-visible,
+.pill--inactive:hover:not(:disabled),
+.pill--inactive:focus-visible {
+  background: #1c2736;
+  color: #ffffff;
+}
+
+.btn--danger {
+  background: #eb2452;
+  color: #ffffff;
+}
+
+.btn--danger:hover:not(:disabled),
+.btn--danger:focus-visible {
+  background: #f55454;
+}
+
+.icon-btn,
+.notification-quick-delete {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn svg,
+.icon-btn svg,
+.notification-quick-delete svg,
+.notification-delete-swipe svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.btn:disabled,
+.icon-btn:disabled,
+.notification-quick-delete:disabled,
+.notification-delete-swipe:disabled,
+.toggle:disabled,
+.pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn:active:not(:disabled),
+.icon-btn:active:not(:disabled),
+.notification-quick-delete:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.notification-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.9rem;
 }
 
-.ns-section {
+.notification-row {
+  position: relative;
+  display: grid;
   overflow: hidden;
-  border-radius: 20px;
-  background: #151d28;
+  border-radius: 1.75rem;
 }
 
-.ns-section-header {
-  padding: 14px 16px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+.notification-row--deleting {
+  opacity: 0.62;
 }
 
-.ns-section-title {
-  margin: 0;
-  color: #fff;
-  font-size: 0.875rem;
+.notification-delete-swipe,
+.notification-surface,
+.notification-quick-delete {
+  grid-area: 1 / 1;
+}
+
+.notification-delete-swipe {
+  width: 6rem;
+  justify-self: end;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border: none;
+  background: #eb2452;
+  color: #ffffff;
+  font-size: 0.76rem;
   font-weight: 700;
-  line-height: 1.3;
 }
 
-.ns-section-desc {
-  margin: 3px 0 0;
+.notification-surface {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  border: none;
+  border-radius: 1.75rem;
+  background: #1c2736;
+  padding: 1rem 1rem 1rem 1.1rem;
+  color: #ffffff;
+  text-align: left;
+  touch-action: pan-y;
+}
+
+.notification-surface:hover:not(:disabled),
+.notification-surface:focus-visible {
+  background: #223043;
+}
+
+.notification-surface--unread {
+  background:
+    linear-gradient(0deg, rgb(15 115 255 / 0.08), rgb(15 115 255 / 0.08)),
+    #1c2736;
+}
+
+.notification-surface__tone {
+  width: 0.72rem;
+  height: 0.72rem;
+  flex: none;
+  border-radius: 999px;
+}
+
+.notification-quick-delete {
+  z-index: 2;
+  align-self: center;
+  justify-self: end;
+  margin-right: 0.75rem;
+  display: none;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.settings-card {
+  overflow: hidden;
+  border-radius: 1.5rem;
+  background: #1c2736;
+}
+
+.settings-head {
+  padding: 1rem 1rem 0.9rem;
+}
+
+.settings-title {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.settings-desc {
+  margin: 0.28rem 0 0;
   color: #abb8c9;
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
-.ns-row {
+.settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  background: #151d28;
+  gap: 1rem;
+  padding: 1rem;
 }
 
-.ns-row--border {
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+.settings-row--border {
+  border-top: 1px solid rgb(171 184 201 / 0.08);
 }
 
-.ns-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.ns-rows .ns-row {
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
-}
-
-.ns-rows .ns-row:last-child {
-  border-bottom: none;
-}
-
-.ns-row-text {
-  min-width: 0;
-}
-
-.ns-row-title {
+.settings-row__title {
   margin: 0;
-  color: #fff;
-  font-size: 0.875rem;
+  color: #ffffff;
+  font-size: 0.9rem;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
-.ns-row-desc {
-  margin: 3px 0 0;
-  color: #abb8c9;
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-/* Toggle switch */
-.ns-toggle {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  width: 52px;
-  height: 30px;
-  border: none;
-  border-radius: 999px;
-  padding: 3px;
-  cursor: pointer;
-  transition: background-color 180ms ease;
-}
-
-.ns-toggle:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.ns-toggle--on {
-  justify-content: flex-end;
-  background: #0f73ff;
-}
-
-.ns-toggle--off {
-  justify-content: flex-start;
-  background: #222e3f;
-}
-
-.ns-toggle-knob {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #fff;
-}
-
-/* App / Email pill buttons */
-.ns-pill-group {
-  display: flex;
-  flex-shrink: 0;
-  gap: 6px;
-}
-
-.ns-pill {
-  display: inline-flex;
-  justify-content: center;
-  min-width: 54px;
-  border: none;
-  border-radius: 999px;
-  padding: 7px 12px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
-}
-
-.ns-pill:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.ns-pill--active {
-  background: #0f73ff;
-  color: #fff;
-}
-
-.ns-pill--inactive {
-  background: #222e3f;
-  color: #abb8c9;
-}
-
-/* Retry button */
-.ns-retry-btn {
-  display: block;
-  margin: 12px 16px;
-  padding: 8px 18px;
-  border: none;
-  border-radius: 999px;
-  background: #222e3f;
+.settings-row__desc {
+  margin: 0.25rem 0 0;
   color: #abb8c9;
   font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
+  line-height: 1.5;
 }
 
-.ns-retry-btn:hover {
-  background: #1c2736;
-  color: #fff;
-}
-
-/* Skeletons */
-.ns-skeletons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-}
-
-.ns-skeleton {
-  height: 52px;
-  border-radius: 14px;
+.settings-skeleton {
+  height: 3.4rem;
+  border-radius: 1rem;
   background: rgb(171 184 201 / 0.1);
-  animation: nsPulse 1.4s ease-in-out infinite;
+  animation: notificationPulse 1.4s ease-in-out infinite;
 }
 
-.ns-skeleton--tall {
-  height: 68px;
+.toggle {
+  width: 3.2rem;
+  height: 1.9rem;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem;
 }
 
-.ns-error-text {
-  margin: 0;
-  padding: 12px 16px;
-  color: #fff;
-  font-size: 0.875rem;
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
+.toggle--on,
+.pill--active {
+  background: #0f73ff;
+  color: #ffffff;
 }
 
-@keyframes nsPulse {
-  0%, 100% { opacity: 0.5; }
-  50%       { opacity: 1; }
+.toggle--on {
+  justify-content: flex-end;
 }
 
-@media (max-width: 480px) {
-  .ns-row {
-    gap: 10px;
-    padding: 12px 14px;
-  }
-
-  .ns-pill {
-    min-width: 46px;
-    padding: 6px 10px;
-    font-size: 0.65rem;
-  }
-
-  .ns-toggle {
-    width: 46px;
-    height: 27px;
-  }
-
-  .ns-toggle-knob {
-    width: 21px;
-    height: 21px;
-  }
+.toggle__knob {
+  display: block;
+  width: 1.52rem;
+  height: 1.52rem;
+  border-radius: 999px;
+  background: #ffffff;
 }
 
-/* ── Animations ── */
+.pill {
+  min-width: 3.4rem;
+  padding: 0.62rem 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+:deep(.page-header) {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+:deep(.page-header__title) {
+  color: #ffffff;
+  font-size: clamp(1.75rem, 2vw, 2.1rem);
+  letter-spacing: -0.03em;
+}
+
+:deep([data-testid='notification-settings-modal']) {
+  background: rgb(8 12 18 / 0.82);
+}
+
+:deep([data-testid='notification-settings-modal'] .modalCard) {
+  border: none;
+  border-radius: 1.75rem;
+  background: #151d28;
+  box-shadow: none;
+}
+
+:deep([data-testid='notification-settings-modal'] .modalHead) {
+  border-bottom: none;
+  padding: 1.4rem 1.4rem 0;
+}
+
+:deep([data-testid='notification-settings-modal'] .modalTitle) {
+  color: #ffffff;
+}
+
+:deep([data-testid='notification-settings-modal'] .modalBody) {
+  padding: 1rem 1.4rem 1.4rem;
+}
+
+:deep([data-testid='notification-settings-modal'] .modalClose) {
+  border: none;
+  background: #222e3f;
+  color: #abb8c9;
+  box-shadow: none;
+}
+
+:deep([data-testid='notification-settings-modal'] .modalClose:hover:not(:disabled)) {
+  background: #1c2736;
+  color: #ffffff;
+}
+
 .notificationsState-enter-active,
 .notificationsState-leave-active {
   transition: opacity var(--motion-base), transform var(--motion-base);
@@ -875,37 +1160,71 @@ const formatClock = (iso) => {
   transition: transform var(--motion-base);
 }
 
-.notificationDeleteButton {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border: none;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.04);
-  color: #abb8c9;
-  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
+.btn:focus-visible,
+.icon-btn:focus-visible,
+.notification-delete-swipe:focus-visible,
+.notification-quick-delete:focus-visible,
+.notification-surface:focus-visible,
+.toggle:focus-visible,
+.pill:focus-visible {
+  outline: 2px solid #0f73ff;
+  outline-offset: 2px;
 }
 
-.notificationDeleteButton:hover:not(:disabled) {
-  background: rgb(185 28 28 / 0.18);
-  color: #fecaca;
+@keyframes notificationPulse {
+  0%,
+  100% {
+    opacity: 0.52;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
-.notificationDeleteButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+@media (hover: hover) and (pointer: fine) {
+  .notification-quick-delete {
+    display: inline-flex;
+    opacity: 0;
+  }
+
+  .notification-row:hover .notification-quick-delete,
+  .notification-row:focus-within .notification-quick-delete {
+    opacity: 1;
+  }
 }
 
-.notificationDeleteButton svg {
-  width: 1rem;
-  height: 1rem;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  fill: none;
+@media (max-width: 767px) {
+  .notification-surface {
+    padding: 0.95rem 0.95rem 0.95rem 1rem;
+  }
+
+  .settings-row {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  :deep(.page-header--row) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  :deep(.page-header__actions) {
+    width: 100%;
+  }
+
+  .btn {
+    flex: 1 1 calc(50% - 0.375rem);
+  }
+
+  .icon-btn {
+    flex: none;
+  }
+
+  .settings-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 </style>
