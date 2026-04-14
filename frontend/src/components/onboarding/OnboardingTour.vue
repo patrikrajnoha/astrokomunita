@@ -117,7 +117,7 @@ const steps = [
     id: 'astrofeed',
     selector: '[data-tour="astrofeed"]',
     title: 'AstroFeed',
-    body: 'Najnovšie správy zo sveta astronómie. Môžeš tu zdieľať vlastné pozorovania a dozvedieť sa novinky.',
+    body: 'Najnovšie správy zo sveta astronómie a vesmíru na jednom mieste. Vlastné pozorovania zdieľaš v Komunitnom feede.',
     missingHint: 'AstroFeed záložka sa teraz nenašla. Skús prejsť na domovskú stránku.',
     nextLabel: 'Widgety',
     route: { name: 'home' },
@@ -128,7 +128,7 @@ const steps = [
     desktopSelector: '[data-tour="conditions-sidebar"]',
     mobileSelector: '[data-tour="conditions-fab"]',
     title: 'Tvoje widgety',
-    body: 'Tu máš prehľad podmienok a widgety, ktoré si vybral. Zmeniť ich môžeš v Nastaveniach → Sidebar widgety.',
+    body: 'Tu nájdeš podmienky pozorovania a widgety, ktoré si vybral. Zmeniť ich môžeš v Nastaveniach → Sidebar widgety.',
     missingHint: 'Panel widgetov sa teraz nenašiel. Pokračuj na ďalší krok alebo skús obnoviť stránku.',
     nextLabel: 'Kalendár',
     route: { name: 'home' },
@@ -562,10 +562,10 @@ onBeforeUnmount(() => {
     inset 0 0 0 1px rgb(255 255 255 / 0.04);
   pointer-events: none;
   transition:
-    top 220ms ease,
-    left 220ms ease,
-    width 220ms ease,
-    height 220ms ease,
+    top 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1),
     border-color 220ms ease;
 }
 
@@ -585,6 +585,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 0.6rem;
   animation: tourCardIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: top 220ms ease, left 220ms ease;
 }
 
 @keyframes tourCardIn {
@@ -659,7 +660,7 @@ onBeforeUnmount(() => {
   height: 100%;
   background: var(--tour-primary);
   border-radius: 999px;
-  transition: width 220ms ease;
+  transition: width 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* ── Content ── */
@@ -712,12 +713,13 @@ onBeforeUnmount(() => {
   background: rgb(171 184 201 / 0.28);
   padding: 0;
   cursor: pointer;
-  transition: background-color 180ms ease, width 180ms ease, opacity 180ms ease;
+  transition: background-color 180ms ease, width 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
 .tourDot.active {
   width: 16px;
   background: var(--tour-primary);
+  transform: scale(1.08);
 }
 
 /* ── Action row ── */

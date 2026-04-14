@@ -17,12 +17,18 @@ export function useMarkYourCalendarPopup({
   let activePopupCheckPromise = null
   let scheduledPopupCheckTimer = null
 
+  const isSettingsRoute = computed(() => {
+    const path = String(router?.currentRoute?.value?.path || '')
+    return path === '/settings' || path.startsWith('/settings/')
+  })
+
   const canCheckCalendarPopup = computed(() => {
     return (
       auth.bootstrapDone &&
       auth.isAuthed &&
       !auth.isAdmin &&
       Boolean(auth.user?.email_verified_at) &&
+      !isSettingsRoute.value &&
       !isOnboardingFlowActive.value &&
       !onboardingTour.isOpen &&
       preferences.isOnboardingCompleted &&
