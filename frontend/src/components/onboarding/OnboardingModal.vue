@@ -72,6 +72,7 @@
                   <label class="onbLabel" for="onb-location">Mesto alebo obec</label>
                   <input
                     id="onb-location"
+                    ref="locationInputRef"
                     v-model.trim="locationLabel"
                     class="onbInput"
                     type="text"
@@ -80,24 +81,27 @@
                     @focus="openSuggestions = true"
                   />
 
-                  <ul
-                    v-if="openSuggestions && suggestions.length > 0"
-                    class="onbSuggestions"
-                    role="listbox"
-                  >
-                    <li v-for="option in suggestions" :key="option.place_id">
-                      <button
-                        type="button"
-                        class="onbSuggestionBtn"
-                        @click="selectLocation(option)"
-                      >
-                        <span class="onbSuggestionPrimary">{{ option.label }}</span>
-                        <span v-if="option.country || option.timezone" class="onbSuggestionSecondary">
-                          {{ [option.country, option.timezone].filter(Boolean).join(' · ') }}
-                        </span>
-                      </button>
-                    </li>
-                  </ul>
+                  <Teleport to="body">
+                    <ul
+                      v-if="openSuggestions && suggestions.length > 0"
+                      class="onbSuggestions"
+                      role="listbox"
+                      :style="suggestionsFixedStyle"
+                    >
+                      <li v-for="option in suggestions" :key="option.place_id">
+                        <button
+                          type="button"
+                          class="onbSuggestionBtn"
+                          @click="selectLocation(option)"
+                        >
+                          <span class="onbSuggestionPrimary">{{ option.label }}</span>
+                          <span v-if="option.country || option.timezone" class="onbSuggestionSecondary">
+                            {{ [option.country, option.timezone].filter(Boolean).join(' · ') }}
+                          </span>
+                        </button>
+                      </li>
+                    </ul>
+                  </Teleport>
                 </div>
               </section>
             </transition>
@@ -199,6 +203,33 @@ const locationLon = ref(props.initialLocation?.location_lon ?? null)
 const suggestions = ref([])
 const openSuggestions = ref(false)
 const suppressLocationFieldWatch = ref(false)
+const locationInputRef = ref(null)
+const suggestionsAnchorRect = ref(null)
+
+const suggestionsFixedStyle = computed(() => {
+  const r = suggestionsAnchorRect.value
+  if (!r) return { position: 'fixed', top: '-9999px', left: '-9999px' }
+  return {
+    position: 'fixed',
+    top: `${r.bottom + 6}px`,
+    left: `${r.left}px`,
+    width: `${r.width}px`,
+    zIndex: 9999,
+  }
+})
+
+function updateSuggestionsAnchor() {
+  if (!locationInputRef.value) return
+  const rect = locationInputRef.value.getBoundingClientRect()
+  suggestionsAnchorRect.value = {
+    top: rect.top,
+    bottom: rect.bottom,
+    left: rect.left,
+    right: rect.right,
+    width: rect.width,
+    height: rect.height,
+  }
+}
 
 let debounceTimer = null
 let locationRequestId = 0
@@ -438,6 +469,15 @@ watch(step, async () => {
   firstFocusable?.focus()
 })
 
+watch(openSuggestions, async (open) => {
+  if (open) {
+    await nextTick()
+    updateSuggestionsAnchor()
+  } else {
+    suggestionsAnchorRect.value = null
+  }
+})
+
 watch(canContinueFromWidgets, (value) => {
   if (value) {
     widgetSelectionError.value = ''
@@ -448,6 +488,7 @@ watch(canContinueFromWidgets, (value) => {
 
 onMounted(async () => {
   document.addEventListener('keydown', handleKeydown)
+  window.addEventListener('resize', updateSuggestionsAnchor)
   await nextTick()
   const firstFocusable = modalRef.value?.querySelector(focusableSelector)
   firstFocusable?.focus()
@@ -459,6 +500,7 @@ onBeforeUnmount(() => {
     debounceTimer = null
   }
   document.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('resize', updateSuggestionsAnchor)
 })
 </script>
 
@@ -733,14 +775,12 @@ onBeforeUnmount(() => {
 
 .onbSuggestions {
   list-style: none;
-  margin: 0.4rem 0 0;
+  margin: 0;
   padding: 0;
-  position: absolute;
-  inset-inline: 0;
-  z-index: 12;
   overflow: hidden;
   border-radius: 16px;
   background: rgb(34 46 63 / 0.98);
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.36);
   max-height: min(14rem, 42vh);
   overflow-y: auto;
 }
