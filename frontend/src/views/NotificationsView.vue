@@ -1,10 +1,10 @@
 <template>
   <section class="min-h-screen bg-[#151d28] text-white">
     <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-8 pt-5 sm:px-6 lg:px-8">
-      <div class="mb-5">
+      <div class="mb-6 sm:mb-5">
         <PageHeader title="Notifikácie">
           <template #actions>
-            <div class="flex flex-wrap items-center justify-end gap-3">
+            <div class="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
               <button
                 v-if="items.length"
                 type="button"
@@ -151,14 +151,14 @@
                 <span class="min-w-0 flex-1">
                   <span class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <span class="min-w-0 inline-flex items-center gap-2">
-                      <span class="truncate text-[0.96rem] font-semibold leading-6 text-white">
+                      <span class="truncate text-[0.93rem] font-semibold leading-5 text-white">
                         {{ formatTitle(item) }}
                       </span>
                       <span v-if="!item.read_at" class="h-2 w-2 shrink-0 rounded-full bg-[#0F73FF]"></span>
                     </span>
                     <span class="shrink-0 text-xs font-medium text-[#ABB8C9]">{{ formatTime(item) }}</span>
                   </span>
-                  <span class="mt-1 block text-sm leading-6 text-[#ABB8C9]">
+                  <span class="mt-0.5 block text-sm leading-5 text-[#ABB8C9]">
                     {{ formatSubtitle(item) }}
                   </span>
                 </span>
@@ -827,12 +827,12 @@ function formatClock(iso) {
 
 .btn {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  padding: 0.8rem 1rem;
-  font-size: 0.92rem;
+  padding: 0.72rem 0.92rem;
+  font-size: 0.88rem;
   font-weight: 600;
   line-height: 1;
 }
@@ -870,8 +870,8 @@ function formatClock(iso) {
 
 .icon-btn,
 .notification-quick-delete {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -909,14 +909,14 @@ function formatClock(iso) {
 .notification-list {
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.72rem;
 }
 
 .notification-row {
   position: relative;
   display: grid;
   overflow: hidden;
-  border-radius: 1.75rem;
+  border-radius: 1.5rem;
 }
 
 .notification-row--deleting {
@@ -948,11 +948,11 @@ function formatClock(iso) {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.95rem;
+  gap: 0.8rem;
   border: none;
-  border-radius: 1.75rem;
+  border-radius: 1.5rem;
   background: #1c2736;
-  padding: 1rem 1rem 1rem 1.1rem;
+  padding: 0.9rem 0.95rem 0.9rem 1rem;
   color: #ffffff;
   text-align: left;
   touch-action: pan-y;
@@ -1196,7 +1196,7 @@ function formatClock(iso) {
 
 @media (max-width: 767px) {
   .notification-surface {
-    padding: 0.95rem 0.95rem 0.95rem 1rem;
+    padding: 0.86rem 0.88rem 0.86rem 0.94rem;
   }
 
   .settings-row {
@@ -1208,6 +1208,7 @@ function formatClock(iso) {
   :deep(.page-header--row) {
     flex-direction: column;
     align-items: flex-start;
+    gap: 0.75rem;
   }
 
   :deep(.page-header__actions) {
@@ -1215,7 +1216,9 @@ function formatClock(iso) {
   }
 
   .btn {
-    flex: 1 1 calc(50% - 0.375rem);
+    flex: 1 1 calc(50% - 0.3125rem);
+    min-height: 2.4rem;
+    padding-inline: 0.82rem;
   }
 
   .icon-btn {
@@ -1225,6 +1228,10 @@ function formatClock(iso) {
   .settings-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .notification-list {
+    gap: 0.65rem;
   }
 }
 </style>
