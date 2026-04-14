@@ -35,6 +35,7 @@ const PAGE_TITLE_BY_ROUTE_NAME = Object.freeze({
   'tag-feed': 'Tag',
   'hashtag-feed': 'Hashtag',
   'user-profile': 'Profil používateľa',
+  'public-invite': 'Pozvanka',
   onboarding: 'Úvodné nastavenie',
   login: 'Prihlásenie',
   register: 'Registrácia',
@@ -378,6 +379,12 @@ const appShellChildren = [
     name: 'user-profile',
     meta: { requiresAuth: false },
     component: () => import('../views/PublicProfileView.vue'),
+  },
+  {
+    path: 'invites/public/:token',
+    name: 'public-invite',
+    meta: { requiresAuth: false },
+    component: () => import('../views/PublicInviteView.vue'),
   },
   {
     path: 'admin',

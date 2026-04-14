@@ -260,6 +260,26 @@ class EventInvitesTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_public_token_endpoint_redirects_browser_requests_to_frontend_route(): void
+    {
+        $inviter = User::factory()->create();
+        $event = $this->createEvent('Invite redirect event');
+
+        EventInvite::query()->create([
+            'event_id' => $event->id,
+            'inviter_user_id' => $inviter->id,
+            'invitee_user_id' => null,
+            'invitee_email' => 'invitee@example.com',
+            'attendee_name' => 'Nina',
+            'status' => EventInviteStatus::Pending,
+            'token' => 'redirect-public-token',
+            'token_expires_at' => now()->addDay(),
+        ]);
+
+        $this->get('/api/invites/public/redirect-public-token')
+            ->assertRedirect(rtrim((string) env('FRONTEND_URL', config('app.url', 'http://localhost')), '/') . '/invites/public/redirect-public-token');
+    }
+
     private function createEvent(string $title = 'Meteor shower'): Event
     {
         return Event::query()->create([

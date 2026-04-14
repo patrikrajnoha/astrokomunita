@@ -89,8 +89,15 @@ class EventInviteController extends Controller
     /**
      * GET /api/invites/public/{token}
      */
-    public function publicShow(string $token)
+    public function publicShow(Request $request, string $token)
     {
+        if (! $request->expectsJson()) {
+            $frontendBase = rtrim((string) env('FRONTEND_URL', config('app.url', 'http://localhost')), '/');
+            $targetUrl = $frontendBase . '/invites/public/' . rawurlencode($token);
+
+            return redirect()->away($targetUrl);
+        }
+
         $invite = $this->service->findPublicByToken($token);
         abort_unless($invite, 404);
 

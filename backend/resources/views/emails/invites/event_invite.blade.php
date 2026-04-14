@@ -12,7 +12,7 @@
     $personalMessage = $invite->message ? trim((string) $invite->message) : null;
 
     $ticketUrl = $invite->token
-        ? $frontendUrl . '/api/invites/public/' . urlencode((string) $invite->token)
+        ? $frontendUrl . '/invites/public/' . urlencode((string) $invite->token)
         : null;
 @endphp
 <!doctype html>

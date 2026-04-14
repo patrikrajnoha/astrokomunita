@@ -167,7 +167,7 @@ function resolveShareUrl() {
   if (token) {
     const apiBase = String(api?.defaults?.baseURL || '').replace(/\/api\/?$/i, '')
     if (apiBase) {
-      return `${apiBase}/api/invites/public/${encodeURIComponent(token)}`
+      return `${apiBase}/invites/public/${encodeURIComponent(token)}`
     }
   }
 
