@@ -1,7 +1,7 @@
 <template>
   <section class="min-h-screen bg-[#151d28] text-white">
     <div class="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 pb-8 pt-5 sm:px-6 lg:px-8">
-      <div class="mb-6 sm:mb-5">
+      <div class="mb-8 sm:mb-7">
         <PageHeader title="Notifikácie">
           <template #actions>
             <div class="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3">
@@ -107,7 +107,7 @@
           </div>
         </div>
 
-        <div v-else key="notifications-list" class="mx-auto w-full max-w-3xl flex-1">
+        <div v-else key="notifications-list" class="mx-auto w-full max-w-3xl flex-1 pt-1 sm:pt-2">
           <TransitionGroup name="notificationItem" tag="div" class="notification-list">
             <div
               v-for="item in items"
