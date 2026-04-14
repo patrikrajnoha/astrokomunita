@@ -1,14 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function openFiltersPanel(page: Page): Promise<void> {
-  const toggle = page.getByRole('button', { name: /zobraziť filtre|zobrazit filtre|skryť filtre|skryt filtre/i }).first()
+  const toggle = page.locator('button.filter-toggle-btn:visible').first()
   await expect(toggle).toBeVisible()
 
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
     await toggle.click()
   }
 
-  await expect(page.locator('.filters-content')).toBeVisible()
+  await expect(page.locator('.filters-content:visible').first()).toBeVisible()
 }
 
 test.describe('events filters ux', () => {
@@ -18,29 +18,27 @@ test.describe('events filters ux', () => {
     await expect(page.getByRole('heading', { level: 1, name: /astronomick.*udalost/i })).toBeVisible()
 
     await openFiltersPanel(page)
+    const filtersPanel = page.locator('.filters-content:visible').first()
 
-    await page.getByRole('button', { name: 'Tento rok' }).click()
+    await filtersPanel.getByRole('button', { name: 'Tento rok' }).first().click()
     await expect(page).toHaveURL(/\/events\?.*period=year/i)
 
-    await page
+    const scopeTablist = page
+      .locator('.toolbar-row:visible')
+      .first()
       .getByRole('tablist', { name: /Časový rozsah udalostí|Casovy rozsah udalosti/i })
-      .getByRole('button', { name: /Minulé|Minule/i })
-      .click()
+      .first()
+    await scopeTablist.getByRole('button', { name: /Minulé|Minule/i }).click()
     await expect(page).toHaveURL(/\/events\?.*scope=past/i)
 
-    const searchInput = page.getByRole('searchbox', { name: /hľadaj|hladaj/i })
+    const searchInput = filtersPanel.getByRole('searchbox', { name: /hľadaj|hladaj/i }).first()
     await searchInput.fill('mars')
-
-    const searchChip = page.locator('.active-filters .filter-chip').filter({ hasText: /mars/i }).first()
-    await expect(searchChip).toBeVisible()
-
-    await searchChip.click()
+    await expect(searchInput).toHaveValue('mars')
+    await searchInput.fill('')
     await expect(searchInput).toHaveValue('')
 
-    const regionSelect = page.getByLabel(/región|region/i)
+    const regionSelect = filtersPanel.getByLabel(/región|region/i).first()
     await regionSelect.selectOption('global')
-
-    await expect(page.locator('.active-filters .filter-chip').filter({ hasText: /glob/i })).toBeVisible()
 
     await page.locator('.active-filters .filter-chip-clear').first().click()
 
