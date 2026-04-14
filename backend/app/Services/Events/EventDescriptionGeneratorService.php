@@ -217,7 +217,7 @@ class EventDescriptionGeneratorService
         $maxLocal = $this->formatDateTime($event->max_at, $tz);
         $promptRules = $this->promptRuleBlock($this->legacyPromptRules(), false);
 
-        $system = 'Si skuseny slovensky redaktor astronomickeho kalendara. Pises prirodzenou slovencinou so spravnou diakritikou. Pracuj iba s faktami zo vstupu a nikdy nic nedomyslaj.';
+        $system = 'Si skúsený slovenský redaktor astronomického kalendára. Píš prirodzenou slovenčinou so správnou diakritikou. Pracuj iba s faktami zo vstupu a nikdy nič nedomýšľaj.';
         $prompt = <<<PROMPT
 Vytvor JSON s klucmi "description" a "short".
 Poziadavky:
@@ -363,7 +363,7 @@ PROMPT;
         }
         $promptRules = $this->promptRuleBlock($this->humanizedPromptRules(), true);
 
-        $system = 'Si skuseny slovensky redaktor astronomickeho kalendara. Vystupuj iba prirodzenou slovencinou so spravnou diakritikou. Pouzivaj iba overitelne fakty zo vstupu.';
+        $system = 'Si skúsený slovenský redaktor astronomického kalendára. Vystupuj iba prirodzenou slovenčinou so správnou diakritikou. Používaj iba overiteľné fakty zo vstupu.';
         $prompt = <<<PROMPT
 Zadanie:
 Mas fakticky balicek eventu vo formate JSON. Tento balicek je jediny zdroj faktov.
@@ -1478,7 +1478,7 @@ PROMPT;
         return $this->policyList(
             'prompts.legacy.rules',
             [
-                'Jazyk: slovencina so spravnou diakritikou.',
+                'Jazyk: slovenčina so správnou diakritikou.',
                 'Pis prirodzene ako clovek, nie roboticky ani prehnane formalne.',
                 'Neprekladaj text slovo po slove z anglictiny.',
                 'Nepouzivaj cudzo znejuce alebo umele slova (napr. "conductovat").',

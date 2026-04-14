@@ -26,7 +26,7 @@ class AuthPasswordResetTest extends TestCase
             'email' => 'reset-me@example.com',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Ak ucet existuje, poslali sme obnovovaci kod na vas e-mail.');
+            ->assertJsonPath('message', 'Ak účet existuje, poslali sme obnovovací kód na váš e-mail.');
 
         $verification = EmailVerification::query()->firstOrFail();
         $this->assertSame($user->id, $verification->user_id);
@@ -53,7 +53,7 @@ class AuthPasswordResetTest extends TestCase
             'email' => 'missing-user@example.com',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Ak ucet existuje, poslali sme obnovovaci kod na vas e-mail.');
+            ->assertJsonPath('message', 'Ak účet existuje, poslali sme obnovovací kód na váš e-mail.');
 
         Mail::assertNothingSent();
         $this->assertDatabaseCount('email_verifications', 0);
@@ -79,7 +79,7 @@ class AuthPasswordResetTest extends TestCase
         ])
             ->assertStatus(503)
             ->assertJsonPath('error_code', 'PASSWORD_RESET_DELIVERY_FAILED')
-            ->assertJsonPath('message', 'Obnovovaci kod sa nepodarilo odoslat. Skuste to znova neskor.');
+            ->assertJsonPath('message', 'Obnovovací kód sa nepodarilo odoslať. Skúste to znova neskôr.');
 
         $this->assertDatabaseCount('email_verifications', 0);
     }
@@ -140,7 +140,7 @@ class AuthPasswordResetTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'PASSWORD_RESET_CODE_INVALID')
-            ->assertJsonPath('message', 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.');
+            ->assertJsonPath('message', 'Zadali ste neplatný kód. Mal by mať tvar XXXXX-XXXXX.');
 
         $this->postJson('/api/auth/password/reset', [
             'email' => 'invalid-code@example.com',
@@ -150,7 +150,7 @@ class AuthPasswordResetTest extends TestCase
         ])
             ->assertStatus(422)
             ->assertJsonPath('error_code', 'PASSWORD_RESET_CODE_INVALID')
-            ->assertJsonPath('message', 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.');
+            ->assertJsonPath('message', 'Zadali ste neplatný kód. Mal by mať tvar XXXXX-XXXXX.');
     }
 
     public function test_password_reset_mail_falls_back_to_global_from_address_when_verification_sender_is_missing(): void

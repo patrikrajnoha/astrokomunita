@@ -31,7 +31,7 @@ class MeDataExportJobTest extends TestCase
             'current_password' => 'wrong-password',
         ])
             ->assertStatus(422)
-            ->assertJsonPath('errors.current_password.0', 'Aktualne heslo nie je spravne.');
+            ->assertJsonPath('errors.current_password.0', 'Aktuálne heslo nie je správne.');
     }
 
     public function test_export_job_allows_retry_without_immediate_rate_limit(): void

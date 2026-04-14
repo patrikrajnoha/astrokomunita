@@ -38,7 +38,7 @@ class AccountEmailController extends Controller
 
         if ($user->hasVerifiedEmail()) {
             return response()->json([
-                'message' => 'E-mail je uz overeny.',
+                'message' => 'E-mail je už overený.',
                 'data' => $this->statusPayload($user),
             ]);
         }
@@ -65,7 +65,7 @@ class AccountEmailController extends Controller
         }
 
         return response()->json([
-            'message' => 'Overovaci kod bol odoslany.',
+            'message' => 'Overovací kód bol odoslaný.',
             'data' => array_merge(
                 $this->statusPayload($user->fresh()),
                 [
@@ -130,7 +130,7 @@ class AccountEmailController extends Controller
             ]);
 
         return response()->json([
-            'message' => 'E-mail bol uspesne overeny.',
+            'message' => 'E-mail bol úspešne overený.',
             'data' => $this->statusPayload($user->fresh()),
         ]);
     }
@@ -147,11 +147,11 @@ class AccountEmailController extends Controller
         $newEmail = $this->normalizeEmail((string) $validated['new_email']);
 
         if ($newEmail === '') {
-            return $this->errorResponse('Novy e-mail je povinny.', 'NEW_EMAIL_REQUIRED', 422);
+            return $this->errorResponse('Nový e-mail je povinný.', 'NEW_EMAIL_REQUIRED', 422);
         }
 
         if ($newEmail === $currentEmail) {
-            return $this->errorResponse('Novy e-mail sa musi lisit od aktualneho e-mailu.', 'EMAIL_SAME_AS_CURRENT', 422);
+            return $this->errorResponse('Nový e-mail sa musí líšiť od aktuálneho e-mailu.', 'EMAIL_SAME_AS_CURRENT', 422);
         }
 
         $emailTaken = User::query()
@@ -160,9 +160,9 @@ class AccountEmailController extends Controller
             ->exists();
 
         if ($emailTaken) {
-            return $this->errorResponse('E-mail sa uz pouziva.', 'EMAIL_ALREADY_IN_USE', 422, [
+            return $this->errorResponse('E-mail sa už používa.', 'EMAIL_ALREADY_IN_USE', 422, [
                 'errors' => [
-                    'new_email' => ['E-mail sa uz pouziva.'],
+                    'new_email' => ['E-mail sa už používa.'],
                 ],
             ]);
         }
@@ -178,7 +178,7 @@ class AccountEmailController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Potvrdte aktualny e-mail pred pouzitim noveho e-mailu.',
+                'message' => 'Potvrďte aktuálny e-mail pred použitím nového e-mailu.',
                 'data' => $this->statusPayload($user->fresh()),
             ]);
         }
@@ -204,7 +204,7 @@ class AccountEmailController extends Controller
         }
 
         return response()->json([
-            'message' => 'E-mail bol aktualizovany. Overte novu e-mailovu adresu.',
+            'message' => 'E-mail bol aktualizovaný. Overte novú e-mailovú adresu.',
             'data' => array_merge(
                 $this->statusPayload($user->fresh()),
                 [
@@ -226,12 +226,12 @@ class AccountEmailController extends Controller
         $pending = $this->activePendingChangeRequest($user);
 
         if (! $pending) {
-            return $this->errorResponse('Nenasla sa ziadna cakajuca poziadavka na zmenu e-mailu.', 'EMAIL_CHANGE_NOT_PENDING', 422);
+            return $this->errorResponse('Nenašla sa žiadna čakajúca požiadavka na zmenu e-mailu.', 'EMAIL_CHANGE_NOT_PENDING', 422);
         }
 
         if ($pending->new_email_applied_at !== null) {
             return response()->json([
-                'message' => 'Aktualny e-mail je uz potvrdeny.',
+                'message' => 'Aktuálny e-mail je už potvrdený.',
                 'data' => $this->statusPayload($user->fresh()),
             ]);
         }
@@ -255,7 +255,7 @@ class AccountEmailController extends Controller
             }
 
             return response()->json([
-                'message' => 'Potvrdzovaci kod bol odoslany na aktualny e-mail.',
+                'message' => 'Potvrdzovací kód bol odoslaný na aktuálny e-mail.',
                 'data' => array_merge(
                     $this->statusPayload($user->fresh()),
                     [
@@ -288,7 +288,7 @@ class AccountEmailController extends Controller
         ])->save();
 
         return response()->json([
-            'message' => 'Aktualny e-mail bol potvrdeny.',
+            'message' => 'Aktuálny e-mail bol potvrdený.',
             'data' => $this->statusPayload($user->fresh()),
         ]);
     }
@@ -300,19 +300,19 @@ class AccountEmailController extends Controller
         $pending = $this->activePendingChangeRequest($user);
 
         if (! $pending) {
-            return $this->errorResponse('Nenasla sa ziadna cakajuca poziadavka na zmenu e-mailu.', 'EMAIL_CHANGE_NOT_PENDING', 422);
+            return $this->errorResponse('Nenašla sa žiadna čakajúca požiadavka na zmenu e-mailu.', 'EMAIL_CHANGE_NOT_PENDING', 422);
         }
 
         if ($pending->new_email_applied_at !== null) {
             return response()->json([
-                'message' => 'Novy e-mail je uz pouzity. Overte ho overovacim kodom.',
+                'message' => 'Nový e-mail je už použitý. Overte ho overovacím kódom.',
                 'data' => $this->statusPayload($user->fresh()),
             ]);
         }
 
         if ($pending->current_email_confirmed_at === null) {
             return $this->errorResponse(
-                'Najprv potvrdte aktualny e-mail.',
+                'Najprv potvrďte aktuálny e-mail.',
                 'EMAIL_CHANGE_CURRENT_CONFIRMATION_REQUIRED',
                 422
             );
@@ -346,7 +346,7 @@ class AccountEmailController extends Controller
         }
 
         return response()->json([
-            'message' => 'Novy e-mail bol pouzity. Overte ho kodom odoslanym na novu e-mailovu adresu.',
+            'message' => 'Nový e-mail bol použitý. Overte ho kódom odoslaným na novú e-mailovú adresu.',
             'data' => array_merge(
                 $this->statusPayload($user->fresh()),
                 [
@@ -384,7 +384,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 429,
                 'error_code' => 'EMAIL_VERIFICATION_SEND_RATE_LIMIT',
-                'message' => 'Prilis vela pokusov o odoslanie kodu. Skuste to neskor.',
+                'message' => 'Príliš veľa pokusov o odoslanie kódu. Skúste to neskôr.',
                 'meta' => [
                     'retry_after_seconds' => RateLimiter::availableIn($rateKey),
                 ],
@@ -397,7 +397,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 429,
                 'error_code' => 'EMAIL_VERIFICATION_RESEND_COOLDOWN',
-                'message' => 'Pred dalsou poziadavkou na kod este pockajte.',
+                'message' => 'Pred ďalšou požiadavkou na kód ešte počkajte.',
                 'meta' => [
                     'seconds_to_resend' => $secondsToResend,
                 ],
@@ -467,7 +467,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 422,
                 'error_code' => 'EMAIL_VERIFICATION_CODE_INVALID',
-                'message' => 'Overovaci kod je neplatny.',
+                'message' => 'Overovací kód je neplatný.',
             ];
         }
 
@@ -477,7 +477,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 429,
                 'error_code' => 'EMAIL_VERIFICATION_CONFIRM_RATE_LIMIT',
-                'message' => 'Prilis vela pokusov o overenie. Skuste to neskor.',
+                'message' => 'Príliš veľa pokusov o overenie. Skúste to neskôr.',
                 'meta' => [
                     'retry_after_seconds' => RateLimiter::availableIn($rateKey),
                 ],
@@ -500,7 +500,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 422,
                 'error_code' => 'EMAIL_VERIFICATION_CODE_INVALID',
-                'message' => 'Overovaci kod je neplatny.',
+                'message' => 'Overovací kód je neplatný.',
             ];
         }
 
@@ -509,7 +509,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 422,
                 'error_code' => 'EMAIL_VERIFICATION_CODE_EXPIRED',
-                'message' => 'Overovaciemu kodu vyprsala platnost.',
+                'message' => 'Overovaciemu kódu vypršala platnosť.',
             ];
         }
 
@@ -518,7 +518,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 429,
                 'error_code' => 'EMAIL_VERIFICATION_CODE_ATTEMPTS_EXCEEDED',
-                'message' => 'Prilis vela pokusov pre tento overovaci kod.',
+                'message' => 'Príliš veľa pokusov pre tento overovací kód.',
             ];
         }
 
@@ -531,7 +531,7 @@ class AccountEmailController extends Controller
                     'ok' => false,
                     'status' => 429,
                     'error_code' => 'EMAIL_VERIFICATION_CODE_ATTEMPTS_EXCEEDED',
-                    'message' => 'Prilis vela pokusov pre tento overovaci kod.',
+                    'message' => 'Príliš veľa pokusov pre tento overovací kód.',
                 ];
             }
 
@@ -539,7 +539,7 @@ class AccountEmailController extends Controller
                 'ok' => false,
                 'status' => 422,
                 'error_code' => 'EMAIL_VERIFICATION_CODE_INVALID',
-                'message' => 'Overovaci kod je neplatny.',
+                'message' => 'Overovací kód je neplatný.',
             ];
         }
 

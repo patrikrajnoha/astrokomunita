@@ -404,7 +404,7 @@ class AdminRoleAndBotGovernanceTest extends TestCase
             'email' => 'legacybot@example.test',
             'password' => 'secret-pass',
         ])->assertStatus(422)
-            ->assertJsonPath('message', 'Nespravny email alebo heslo.');
+            ->assertJsonPath('message', 'Nesprávny e-mail alebo heslo.');
     }
 
     public function test_legacy_astrobot_feed_endpoint_does_not_exist(): void

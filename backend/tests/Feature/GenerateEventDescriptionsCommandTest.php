@@ -675,7 +675,7 @@ TEXT;
     {
         $alreadyGenerated = $this->createEvent('evt-existing', 'Already generated');
         $alreadyGenerated->update([
-            'description' => 'Predgenerovany popis udalosti.',
+            'description' => 'Predgenerovaný popis udalosti.',
             'short' => 'Predgenerovane kratke zhrnutie.',
         ]);
         $alreadyGenerated->refresh();

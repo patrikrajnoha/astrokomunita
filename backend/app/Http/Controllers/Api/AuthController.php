@@ -78,7 +78,7 @@ class AuthController extends Controller
         $turnstileToken = (string) ($validated['turnstile_token'] ?? '');
         if (! $this->turnstileService->verify($turnstileToken, $request->ip())) {
             throw ValidationException::withMessages([
-                'turnstile_token' => 'Overenie proti botom zlyhalo. Skus to prosim znova.',
+                'turnstile_token' => 'Overenie proti botom zlyhalo. Skús to prosím znova.',
             ]);
         }
 
@@ -142,7 +142,7 @@ class AuthController extends Controller
 
         if (! $user || $user->is_bot || ! $this->credentialsMatchWithoutUserWrite($user, $password)) {
             return response()->json([
-                'message' => 'Nespravny email alebo heslo.',
+                'message' => 'Nesprávny e-mail alebo heslo.',
             ], 422);
         }
 
@@ -239,19 +239,19 @@ class AuthController extends Controller
         $user = User::query()->find($id);
         if (! $user) {
             return response()->json([
-                'message' => 'Overovaci odkaz je neplatny.',
+                'message' => 'Overovací odkaz je neplatný.',
             ], 404);
         }
 
         if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
             return response()->json([
-                'message' => 'Overovaci odkaz je neplatny.',
+                'message' => 'Overovací odkaz je neplatný.',
             ], 403);
         }
 
         if ($user->hasVerifiedEmail()) {
             return response()->json([
-                'message' => 'E-mail je uz overeny.',
+                'message' => 'E-mail je už overený.',
             ]);
         }
 
@@ -260,7 +260,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'message' => 'E-mail bol uspesne overeny.',
+            'message' => 'E-mail bol úspešne overený.',
         ]);
     }
 
@@ -280,14 +280,14 @@ class AuthController extends Controller
 
         if ($user->hasVerifiedEmail()) {
             return response()->json([
-                'message' => 'E-mail je uz overeny.',
+                'message' => 'E-mail je už overený.',
             ]);
         }
 
         $user->sendEmailVerificationNotification();
 
         return response()->json([
-            'message' => 'Overovaci odkaz bol odoslany.',
+            'message' => 'Overovací odkaz bol odoslaný.',
         ]);
     }
 
@@ -295,7 +295,7 @@ class AuthController extends Controller
     {
         return response()->json([
             'error_code' => 'EMAIL_VERIFY_DEPRECATED',
-            'message' => 'Overenie cez odkaz je zastarane. Pouzite overenie kodom v Nastaveniach.',
+            'message' => 'Overenie cez odkaz je zastarané. Použite overenie kódom v Nastaveniach.',
             'action' => 'GO_TO_SETTINGS_EMAIL',
         ], 410);
     }

@@ -23,9 +23,9 @@ class MeDataExportJobController extends Controller
 
         if (!Hash::check((string) $validated['current_password'], (string) $user->password)) {
             return response()->json([
-                'message' => 'Aktualne heslo nie je spravne.',
+                'message' => 'Aktuálne heslo nie je správne.',
                 'errors' => [
-                    'current_password' => ['Aktualne heslo nie je spravne.'],
+                    'current_password' => ['Aktuálne heslo nie je správne.'],
                 ],
             ], 422);
         }

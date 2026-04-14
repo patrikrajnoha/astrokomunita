@@ -111,7 +111,7 @@ class EventSourceController extends Controller
 
         if ($blockedKeys !== []) {
             return response()->json([
-                'message' => 'Jeden alebo viac zdrojov nie je v tomto prostredi dostupnych.',
+                'message' => 'Jeden alebo viac zdrojov nie je v tomto prostredí dostupných.',
                 'errors' => [
                     'source_keys' => [
                         sprintf('Source key(s) not allowed: %s', implode(', ', $blockedKeys)),
@@ -142,7 +142,7 @@ class EventSourceController extends Controller
                 $results[] = [
                     'source_key' => $key,
                     'status' => 'skipped',
-                    'message' => 'Zdroj je vypnuty.',
+                    'message' => 'Zdroj je vypnutý.',
                 ];
                 continue;
             }
@@ -152,7 +152,7 @@ class EventSourceController extends Controller
                 $results[] = [
                     'source_key' => $key,
                     'status' => 'unsupported',
-                    'message' => 'Manualny beh nie je pre tento zdroj podporovany.',
+                    'message' => 'Manuálny beh nie je pre tento zdroj podporovaný.',
                 ];
                 continue;
             }
@@ -164,7 +164,7 @@ class EventSourceController extends Controller
                     $catalogYears = array_map('intval', (array) ($snapshot['available_years'] ?? []));
                     $rangeHint = $catalogYears !== []
                         ? sprintf(
-                            ' Dostupny rozsah v katalogu: %d-%d.',
+                            ' Dostupný rozsah v katalógu: %d-%d.',
                             min($catalogYears),
                             max($catalogYears)
                         )
@@ -174,7 +174,7 @@ class EventSourceController extends Controller
                         'source_key' => $key,
                         'status' => 'skipped',
                         'message' => sprintf(
-                            'AstroPixels almanac pre rok %d este nie je publikovany.%s',
+                            'AstroPixels almanach pre rok %d ešte nie je publikovaný.%s',
                             $year,
                             $rangeHint
                         ),
@@ -268,7 +268,7 @@ class EventSourceController extends Controller
                 'status' => 'noop',
                 'dry_run' => $dryRun,
                 'source_keys' => [],
-                'message' => 'Neboli vybrane ziadne kluce crawl zdrojov.',
+                'message' => 'Neboli vybrané žiadne kľúče crawl zdrojov.',
             ]);
         }
 

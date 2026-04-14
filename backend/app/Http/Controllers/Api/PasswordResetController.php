@@ -24,7 +24,7 @@ class PasswordResetController extends Controller
         ]);
 
         $email = $this->normalizeEmail((string) $validated['email']);
-        $genericMessage = 'Ak ucet existuje, poslali sme obnovovaci kod na vas e-mail.';
+        $genericMessage = 'Ak účet existuje, poslali sme obnovovací kód na váš e-mail.';
 
         if ($email === '') {
             return response()->json(['message' => $genericMessage]);
@@ -87,7 +87,7 @@ class PasswordResetController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Obnovovaci kod sa nepodarilo odoslat. Skuste to znova neskor.',
+                'message' => 'Obnovovací kód sa nepodarilo odoslať. Skúste to znova neskôr.',
                 'error_code' => 'PASSWORD_RESET_DELIVERY_FAILED',
             ], 503);
         }
@@ -114,7 +114,7 @@ class PasswordResetController extends Controller
         $confirmRateKey = $this->confirmRateKey($email, (string) $request->ip());
         if (RateLimiter::tooManyAttempts($confirmRateKey, $this->maxConfirmAttemptsPerWindow())) {
             return response()->json([
-                'message' => 'Prilis vela pokusov o reset. Skuste to neskor.',
+                'message' => 'Príliš veľa pokusov o reset. Skúste to neskôr.',
                 'error_code' => 'PASSWORD_RESET_ATTEMPTS_EXCEEDED',
             ], 429);
         }
@@ -132,14 +132,14 @@ class PasswordResetController extends Controller
 
         if ($verification->expires_at === null || now()->greaterThan($verification->expires_at)) {
             return response()->json([
-                'message' => 'Platnost obnovovacieho kodu vyprsala. Vyziadajte si novy.',
+                'message' => 'Platnosť obnovovacieho kódu vypršala. Vyžiadajte si nový.',
                 'error_code' => 'PASSWORD_RESET_CODE_EXPIRED',
             ], 422);
         }
 
         if ((int) $verification->attempts >= $this->maxConfirmAttemptsPerToken()) {
             return response()->json([
-                'message' => 'Prilis vela pokusov pre tento obnovovaci kod.',
+                'message' => 'Príliš veľa pokusov pre tento obnovovací kód.',
                 'error_code' => 'PASSWORD_RESET_CODE_ATTEMPTS_EXCEEDED',
             ], 429);
         }
@@ -150,7 +150,7 @@ class PasswordResetController extends Controller
 
             if ((int) $verification->attempts >= $this->maxConfirmAttemptsPerToken()) {
                 return response()->json([
-                    'message' => 'Prilis vela pokusov pre tento obnovovaci kod.',
+                    'message' => 'Príliš veľa pokusov pre tento obnovovací kód.',
                     'error_code' => 'PASSWORD_RESET_CODE_ATTEMPTS_EXCEEDED',
                 ], 429);
             }
@@ -187,7 +187,7 @@ class PasswordResetController extends Controller
     private function invalidCodeResponse(): JsonResponse
     {
         return response()->json([
-            'message' => 'Zadali ste neplatny kod. Mal by mat tvar XXXXX-XXXXX.',
+            'message' => 'Zadali ste neplatný kód. Mal by mať tvar XXXXX-XXXXX.',
             'error_code' => 'PASSWORD_RESET_CODE_INVALID',
         ], 422);
     }

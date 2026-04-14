@@ -92,7 +92,7 @@ class ProfileController extends Controller
 
             if ($requestedEmail !== '' && $requestedEmail !== $currentEmail) {
                 return response()->json([
-                    'message' => 'Na zmenu e-mailu pouzite tok overenia e-mailu uctu.',
+                    'message' => 'Na zmenu e-mailu použite tok overenia e-mailu účtu.',
                     'error_code' => 'EMAIL_CHANGE_REQUIRES_VERIFICATION_FLOW',
                 ], 422);
             }
@@ -140,9 +140,9 @@ class ProfileController extends Controller
 
         if (!Hash::check((string) $validated['current_password'], (string) $user->password)) {
             return response()->json([
-                'message' => 'Aktualne heslo nie je spravne.',
+                'message' => 'Aktuálne heslo nie je správne.',
                 'errors' => [
-                    'current_password' => ['Aktualne heslo nie je spravne.'],
+                    'current_password' => ['Aktuálne heslo nie je správne.'],
                 ],
             ], 422);
         }
@@ -172,7 +172,7 @@ class ProfileController extends Controller
             $request->session()->regenerateToken();
         }
 
-        return response()->json(['message' => 'Ucet bol deaktivovany.']);
+        return response()->json(['message' => 'Účet bol deaktivovaný.']);
     }
 
     public function uploadMedia(Request $request)

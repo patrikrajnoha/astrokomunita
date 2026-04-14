@@ -65,7 +65,7 @@ class ProfileAccountDeletionCleanupTest extends TestCase
             'current_password' => 'password',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Ucet bol deaktivovany.');
+            ->assertJsonPath('message', 'Účet bol deaktivovaný.');
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         Storage::disk('public')->assertMissing('avatars/10/avatar.png');
@@ -95,7 +95,7 @@ class ProfileAccountDeletionCleanupTest extends TestCase
             'current_password' => 'password',
         ])
             ->assertOk()
-            ->assertJsonPath('message', 'Ucet bol deaktivovany.');
+            ->assertJsonPath('message', 'Účet bol deaktivovaný.');
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
     }
@@ -109,7 +109,7 @@ class ProfileAccountDeletionCleanupTest extends TestCase
             'current_password' => 'wrong-password',
         ])
             ->assertStatus(422)
-            ->assertJsonPath('errors.current_password.0', 'Aktualne heslo nie je spravne.');
+            ->assertJsonPath('errors.current_password.0', 'Aktuálne heslo nie je správne.');
 
         $this->assertDatabaseHas('users', ['id' => $user->id]);
     }
