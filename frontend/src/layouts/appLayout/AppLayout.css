@@ -454,11 +454,30 @@
     height: clamp(24px, 6vw, 30px);
     max-width: 180px;
   }
+
+  .authFallbackBanner {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .authFallbackRetry {
+    width: 100%;
+  }
 }
 
 @media (max-width: 480px) {
   .appMobileHeader__logo {
     max-width: 160px;
+  }
+}
+
+@media (max-width: 360px) {
+  .sidebarGuestAuth {
+    flex-direction: column;
+  }
+
+  .sidebarGuestAuth__btn {
+    white-space: normal;
   }
 }
 

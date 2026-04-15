@@ -245,8 +245,9 @@ function eventIcon(type) {
 
 /* Single-line row: date · icon title */
 .eventRow {
-  display: flex;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.26rem;
   text-decoration: none;
   padding: 0.24rem 0;
@@ -284,8 +285,9 @@ function eventIcon(type) {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   transition: color 0.12s ease;
 }
 
@@ -306,5 +308,15 @@ function eventIcon(type) {
 .showAllLink:hover {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+@media (max-width: 420px) {
+  .eventRow {
+    grid-template-columns: auto auto auto;
+  }
+
+  .eventRowTitle {
+    grid-column: 1 / -1;
+  }
 }
 </style>

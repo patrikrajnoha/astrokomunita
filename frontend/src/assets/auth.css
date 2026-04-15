@@ -936,3 +936,38 @@
     min-height: 52px;
   }
 }
+
+@media (max-width: 430px) {
+  .authProgress {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .authProgress__step {
+    white-space: normal;
+    padding-inline: 0.45rem;
+  }
+
+  .authProgress__step:last-child {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: min(100%, 12rem);
+  }
+
+  .authRegisterActions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .authProgress {
+    grid-template-columns: 1fr;
+  }
+
+  .authProgress__step:last-child {
+    width: 100%;
+  }
+
+  .authButton--withArrow::after {
+    display: none;
+  }
+}

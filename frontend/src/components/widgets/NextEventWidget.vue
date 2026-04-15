@@ -403,8 +403,9 @@ function formatUpdatedTime(value) {
   font-weight: 600;
   line-height: 1.25;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   min-width: 0;
 }
 
@@ -424,8 +425,7 @@ function formatUpdatedTime(value) {
   align-items: center;
   gap: 0.32rem;
   min-width: 0;
-  flex-wrap: nowrap;
-  overflow: hidden;
+  flex-wrap: wrap;
 }
 
 .eventIcon {
@@ -440,7 +440,6 @@ function formatUpdatedTime(value) {
   font-size: 0.72rem;
   font-weight: 400;
   line-height: 1.22;
-  white-space: nowrap;
   flex-shrink: 0;
 }
 
@@ -450,9 +449,7 @@ function formatUpdatedTime(value) {
   font-weight: 400;
   line-height: 1.22;
   opacity: 0.7;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .eventType::before {

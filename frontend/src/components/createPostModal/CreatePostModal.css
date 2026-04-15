@@ -660,3 +660,83 @@
     max-height: 156px;
   }
 }
+
+@media (max-width: 520px) {
+  .head {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .headRight {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .body {
+    grid-template-columns: 1fr;
+  }
+
+  .body > .avatar {
+    display: none;
+  }
+
+  .foot {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .counter {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .eventCard {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .eventRemove {
+    width: 100%;
+  }
+
+  .popWrap {
+    position: static;
+  }
+
+  .popMenu {
+    position: fixed;
+    left: 0.7rem;
+    right: 0.7rem;
+    bottom: max(0.7rem, env(safe-area-inset-bottom));
+    z-index: 1515;
+  }
+
+  .emojiMenu,
+  .actionsMenu {
+    min-width: 0;
+    width: auto;
+    max-width: none;
+  }
+
+  .emojiMenu {
+    max-height: min(58vh, 420px);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .ghost,
+  .primary {
+    width: 100%;
+  }
+
+  .emojiGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

@@ -305,7 +305,7 @@ function formatTime(value) {
 /* ── Launch row ── */
 .launch-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   padding: 0.56rem 0.6rem;
   border-radius: 0.64rem;
@@ -331,7 +331,7 @@ function formatTime(value) {
 /* ── Launch name line ── */
 .launch-name {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.38rem;
   min-width: 0;
 }
@@ -365,9 +365,10 @@ function formatTime(value) {
   font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.22;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* ── Countdown ── */
@@ -384,9 +385,10 @@ function formatTime(value) {
   color: var(--color-text-secondary);
   font-size: 0.68rem;
   line-height: 1.25;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 /* ── Chevron ── */
@@ -496,5 +498,15 @@ function formatTime(value) {
   line-height: 1.2;
   opacity: 0.55;
   text-align: right;
+}
+
+@media (max-width: 420px) {
+  .launch-row {
+    gap: 0.4rem;
+  }
+
+  .row-chevron {
+    margin-top: 0.1rem;
+  }
 }
 </style>

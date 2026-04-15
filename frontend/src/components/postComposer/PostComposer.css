@@ -665,3 +665,30 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+@media (max-width: 430px) {
+  .fileChip,
+  .eventAttachCard,
+  .actionsBar {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .eventAttachActions,
+  .leftActions,
+  .rightActions {
+    width: 100%;
+  }
+
+  .leftActions {
+    justify-content: space-between;
+  }
+
+  .rightActions {
+    justify-content: flex-end;
+  }
+
+  .publishBtn {
+    flex: 1 1 auto;
+  }
+}
