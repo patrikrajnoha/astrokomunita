@@ -6,10 +6,16 @@ import http from '@/services/api'
 const authState = vi.hoisted(() => ({
   bootstrapDone: true,
   isAuthed: true,
-  user: { id: 7 },
+  isAdmin: false,
+  user: { id: 7, email_verified_at: '2026-03-01T10:00:00Z' },
   waitForBootstrap: vi.fn(async () => {}),
   csrf: vi.fn(async () => {}),
   logout: vi.fn(async () => {}),
+}))
+const preferencesState = vi.hoisted(() => ({
+  loaded: true,
+  loading: false,
+  isOnboardingCompleted: true,
 }))
 
 const infoToast = vi.hoisted(() => vi.fn())
@@ -30,6 +36,10 @@ vi.mock('@/services/api', () => ({
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: () => authState,
+}))
+
+vi.mock('@/stores/eventPreferences', () => ({
+  useEventPreferencesStore: () => preferencesState,
 }))
 
 vi.mock('@/realtime/echo', () => ({
@@ -53,10 +63,14 @@ describe('notifications store realtime handler', () => {
     http.delete.mockReset()
     authState.bootstrapDone = true
     authState.isAuthed = true
-    authState.user = { id: 7 }
+    authState.isAdmin = false
+    authState.user = { id: 7, email_verified_at: '2026-03-01T10:00:00Z' }
     authState.waitForBootstrap.mockClear()
     authState.csrf.mockClear()
     authState.logout.mockClear()
+    preferencesState.loaded = true
+    preferencesState.loading = false
+    preferencesState.isOnboardingCompleted = true
     realtimeState.initEcho.mockReset()
     realtimeState.getEcho.mockReset()
     realtimeState.disconnectEcho.mockReset()
@@ -358,6 +372,43 @@ describe('notifications store realtime handler', () => {
     expect(http.get).toHaveBeenCalledWith('/notifications/unread-count', {
       meta: { skipErrorToast: true, skipAuthRedirect: true },
     })
+  })
+
+  it('skips unread count fetch while onboarding is still incomplete', async () => {
+    const store = useNotificationsStore()
+    preferencesState.isOnboardingCompleted = false
+
+    const count = await store.fetchUnreadCount()
+
+    expect(count).toBe(0)
+    expect(http.get).not.toHaveBeenCalled()
+    expect(store.unreadCount).toBe(0)
+    expect(store.unreadCountHydrated).toBe(true)
+  })
+
+  it('treats 403 unread count responses as non-fatal', async () => {
+    const store = useNotificationsStore()
+    http.get.mockRejectedValueOnce({
+      response: { status: 403 },
+      message: 'Request failed with status code 403',
+    })
+
+    const count = await store.fetchUnreadCount({ force: true })
+
+    expect(count).toBe(0)
+    expect(store.unreadCount).toBe(0)
+    expect(store.error).toBe('')
+    expect(store.unreadCountHydrated).toBe(true)
+  })
+
+  it('does not initialize realtime while onboarding is incomplete', async () => {
+    const store = useNotificationsStore()
+    preferencesState.isOnboardingCompleted = false
+
+    await store.startRealtime()
+
+    expect(authState.csrf).not.toHaveBeenCalled()
+    expect(realtimeState.initEcho).not.toHaveBeenCalled()
   })
 
   it('deleteNotification removes unread notification and updates unread count', async () => {

@@ -430,7 +430,7 @@ describe('ProfileView avatar panel', () => {
   })
 
   it('renders bookmarked post author from the original post user, not from auth user', async () => {
-    apiMock.get.mockImplementation((url, config = {}) => {
+    apiMock.get.mockImplementation((url) => {
       if (url === '/me/bookmarks') {
         return Promise.resolve({
           data: {

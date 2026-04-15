@@ -32,4 +32,14 @@ class UnreadCountTest extends TestCase
         $res = $this->getJson('/api/notifications/unread-count');
         $res->assertOk()->assertJson(['count' => 1]);
     }
+
+    public function test_unread_count_requires_verified_user(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/notifications/unread-count')
+            ->assertStatus(403);
+    }
 }

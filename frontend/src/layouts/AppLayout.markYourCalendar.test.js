@@ -155,6 +155,8 @@ describe('AppLayout mark-your-calendar popup', () => {
     vi.clearAllMocks()
     authStore.isAdmin = false
     authStore.user = { email_verified_at: '2026-02-17T10:00:00Z', location_meta: null, location: null }
+    preferencesStore.loaded = true
+    preferencesStore.loading = false
     preferencesStore.isOnboardingCompleted = false
     getEnabledSidebarSectionsMock.mockImplementation(() => [])
     getSidebarWidgetBundleMock.mockResolvedValue({ requested_sections: [], data: {} })
@@ -279,8 +281,9 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
   })
 
-  it('fetches unread count immediately and defers realtime bootstrap', async () => {
+  it('fetches unread count only after onboarding is complete and defers realtime bootstrap', async () => {
     vi.useFakeTimers()
+    preferencesStore.isOnboardingCompleted = true
     authStore.user = {
       id: 7,
       email_verified_at: '2026-02-17T10:00:00Z',
@@ -307,6 +310,36 @@ describe('AppLayout mark-your-calendar popup', () => {
     await vi.advanceTimersByTimeAsync(1200)
 
     expect(notificationsStore.startRealtime).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not bootstrap notifications while onboarding is still active', async () => {
+    vi.useFakeTimers()
+    preferencesStore.loaded = false
+    preferencesStore.loading = true
+    preferencesStore.isOnboardingCompleted = false
+    authStore.user = {
+      id: 7,
+      email_verified_at: '2026-02-17T10:00:00Z',
+      location_meta: null,
+      location: null,
+    }
+
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+
+    shallowMount(AppLayout, {
+      global: {
+        plugins: [router],
+      },
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(1200)
+
+    expect(notificationsStore.fetchUnreadCount).not.toHaveBeenCalled()
+    expect(notificationsStore.startRealtime).not.toHaveBeenCalled()
   })
 
   it('keeps profile layout landmarks for profile subroutes', async () => {
