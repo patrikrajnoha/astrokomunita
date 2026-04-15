@@ -98,7 +98,7 @@
             <div :class="mainContentClass">
               <RouterView v-slot="{ Component, route: activeRoute }">
                 <transition name="appRoute">
-                  <component :is="Component" :key="activeRoute.fullPath" />
+                  <component :is="Component" :key="activeRoute.path" />
                 </transition>
               </RouterView>
             </div>

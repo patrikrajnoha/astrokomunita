@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, shallowMount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { defineComponent, onMounted, onUnmounted } from 'vue'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AdminHubLayout from '@/layouts/AdminHubLayout.vue'
 
@@ -139,6 +140,37 @@ function makeAdminRouter() {
                 component: { template: '<div class="admin-dashboard-stub">admin dashboard</div>' },
               },
             ],
+          },
+        ],
+      },
+    ],
+  })
+}
+
+function makeSearchRouter(component) {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/',
+        component: AppLayout,
+        children: [
+          {
+            path: 'privacy',
+            component: { template: '<div>privacy</div>' },
+          },
+          {
+            path: 'terms',
+            component: { template: '<div>terms</div>' },
+          },
+          {
+            path: 'cookies',
+            component: { template: '<div>cookies</div>' },
+          },
+          {
+            path: 'search',
+            name: 'search',
+            component,
           },
         ],
       },
@@ -462,6 +494,57 @@ describe('AppLayout mark-your-calendar popup', () => {
     expect(wrapper.find('.adminHub .admin-dashboard-stub').exists()).toBe(true)
     expect(wrapper.find('[data-testid="layout-right"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="right-rail"]').exists()).toBe(true)
+  })
+
+  it('does not remount the active route component when only the query string changes', async () => {
+    const lifecycle = {
+      mounted: 0,
+      unmounted: 0,
+    }
+
+    const SearchProbe = defineComponent({
+      name: 'SearchProbe',
+      setup() {
+        onMounted(() => {
+          lifecycle.mounted += 1
+        })
+
+        onUnmounted(() => {
+          lifecycle.unmounted += 1
+        })
+
+        return () => 'search probe'
+      },
+    })
+
+    const router = makeSearchRouter(SearchProbe)
+    await router.push('/search?q=astro')
+    await router.isReady()
+
+    mount(AppLayout, {
+      global: {
+        plugins: [router],
+        stubs: {
+          MainNavbar: { template: '<nav class="main-nav-stub">main nav</nav>' },
+          DynamicSidebar: { template: '<aside class="dynamic-sidebar-stub">sidebar</aside>' },
+          MobileFab: { template: '<button class="mobile-fab-stub">fab</button>' },
+          MobileBottomNav: { template: '<nav class="mobile-bottom-nav-stub">bottom nav</nav>' },
+          AdminSubNav: { template: '<aside class="admin-subnav-stub">admin nav</aside>' },
+          MarkYourCalendarModal: { template: '<div class="calendar-modal-stub">calendar</div>' },
+          OnboardingTour: { template: '<div class="onboarding-tour-stub">tour</div>' },
+        },
+      },
+    })
+
+    await flush()
+    expect(lifecycle.mounted).toBe(1)
+    expect(lifecycle.unmounted).toBe(0)
+
+    await router.replace('/search?q=astrolab')
+    await flush()
+
+    expect(lifecycle.mounted).toBe(1)
+    expect(lifecycle.unmounted).toBe(0)
   })
 
   it('calls seen endpoint once when modal closes', async () => {
