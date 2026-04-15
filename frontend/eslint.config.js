@@ -10,7 +10,12 @@ export default defineConfig([
     files: ['**/*.{vue,js,mjs,jsx,cjs}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores([
+    '**/dist/**',
+    '**/dist-ssr/**',
+    '**/coverage/**',
+    '**/vite.config.js.timestamp-*.mjs',
+  ]),
 
   {
     languageOptions: {
