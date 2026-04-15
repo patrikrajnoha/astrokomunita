@@ -92,7 +92,7 @@
             :class="{ active: activeTab === t.key }"
             @click="setActiveTab(t.key)"
           >
-            {{ t.label }}
+            <span class="tabLabel">{{ t.label }}</span>
             <span v-if="tabState[t.key].total !== null" class="tabCount">{{ tabState[t.key].total }}</span>
           </button>
         </div>
