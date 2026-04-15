@@ -49,7 +49,7 @@
   },
   {
     "id": "south_taurids",
-    "name": "Juzne Tauridy",
+    "name": "Južné Tauridy",
     "active_start": "09-10",
     "active_end": "11-20",
     "peak_date": "10-10",
@@ -57,7 +57,7 @@
   },
   {
     "id": "north_taurids",
-    "name": "Severne Tauridy",
+    "name": "Severné Tauridy",
     "active_start": "10-20",
     "active_end": "12-10",
     "peak_date": "11-12",

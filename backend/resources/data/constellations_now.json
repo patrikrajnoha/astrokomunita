@@ -5,11 +5,11 @@
     "season": "winter",
     "primary_months": [12, 1, 2],
     "secondary_months": [11, 3],
-    "direction": "juhovychod",
+    "direction": "juhovýchod",
     "best_time": "20:00-22:00",
     "visibility_level": "high",
-    "visibility_text": "Lahko viditelne",
-    "short_hint": "Vyrazny pas a jasne orientacne hviezdy."
+    "visibility_text": "Ľahko viditeľné",
+    "short_hint": "Výrazný pás a jasné orientačné hviezdy."
   },
   {
     "name": "Cassiopeia",
@@ -19,35 +19,35 @@
     "secondary_months": [12, 1, 2, 3, 4, 5, 6, 7, 8],
     "is_circumpolar": true,
     "direction": "sever",
-    "best_time": "cely vecer",
+    "best_time": "celý večer",
     "visibility_level": "high",
-    "visibility_text": "Velmi dobre viditelne",
-    "short_hint": "Tvar W je dobre citatelny aj v meste."
+    "visibility_text": "Veľmi dobre viditeľné",
+    "short_hint": "Tvar W je dobre čitateľný aj v meste."
   },
   {
     "name": "Ursa Major",
-    "display_name": "Velka medvedica",
+    "display_name": "Veľká medvedica",
     "season": "spring",
     "primary_months": [3, 4, 5],
     "secondary_months": [1, 2, 6, 7, 8, 9, 10, 11, 12],
     "is_circumpolar": true,
-    "direction": "severozapad až sever",
+    "direction": "severozápad až sever",
     "best_time": "21:00-23:30",
     "visibility_level": "high",
-    "visibility_text": "Velmi dobre viditelne",
+    "visibility_text": "Veľmi dobre viditeľné",
     "short_hint": "Veľký voz pomáha nájsť Polárku."
   },
   {
     "name": "Ursa Minor",
-    "display_name": "Mala medvedica",
+    "display_name": "Malá medvedica",
     "season": "autumn",
     "primary_months": [9, 10, 11, 12, 1],
     "secondary_months": [2, 3, 4, 5, 6, 7, 8],
     "is_circumpolar": true,
     "direction": "sever",
-    "best_time": "cely vecer",
+    "best_time": "celý večer",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
+    "visibility_text": "Stredne viditeľné",
     "short_hint": "Polárka na konci malého voza je stabilný orientačný bod."
   },
   {
@@ -56,47 +56,47 @@
     "season": "spring",
     "primary_months": [3, 4, 5],
     "secondary_months": [2, 6],
-    "direction": "juhovychod až juh",
+    "direction": "juhovýchod až juh",
     "best_time": "21:00-23:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Asterizmus srp je dobry zaciatok na orientaciu."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Asterizmus srp je dobrý začiatok na orientáciu."
   },
   {
     "name": "Gemini",
-    "display_name": "Blizenci",
+    "display_name": "Blíženci",
     "season": "winter",
     "primary_months": [12, 1, 2],
     "secondary_months": [11, 3, 4],
-    "direction": "vychod až juhovychod",
+    "direction": "východ až juhovýchod",
     "best_time": "20:30-23:00",
     "visibility_level": "high",
-    "visibility_text": "Lahko viditelne",
-    "short_hint": "Castor a Pollux vytvaraju dobre rozoznatelnu dvojicu."
+    "visibility_text": "Ľahko viditeľné",
+    "short_hint": "Castor a Pollux vytvárajú dobre rozoznateľnú dvojicu."
   },
   {
     "name": "Taurus",
-    "display_name": "Byk",
+    "display_name": "Býk",
     "season": "winter",
     "primary_months": [11, 12, 1, 2],
     "secondary_months": [3],
-    "direction": "juhovychod",
+    "direction": "juhovýchod",
     "best_time": "19:30-22:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Aldebaran a Plejady sú dobre orientacne body."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Aldebaran a Plejády sú dobre orientačné body."
   },
   {
     "name": "Cygnus",
-    "display_name": "Labut",
+    "display_name": "Labuť",
     "season": "summer",
     "primary_months": [6, 7, 8, 9],
     "secondary_months": [5, 10],
-    "direction": "vychod až juhovychod",
+    "direction": "východ až juhovýchod",
     "best_time": "22:00-00:00",
     "visibility_level": "high",
-    "visibility_text": "Lahko viditelne",
-    "short_hint": "Severny kriz je vyrazny aj bez mapy."
+    "visibility_text": "Ľahko viditeľné",
+    "short_hint": "Severný kríž je výrazný aj bez mapy."
   },
   {
     "name": "Lyra",
@@ -104,11 +104,11 @@
     "season": "summer",
     "primary_months": [6, 7, 8, 9],
     "secondary_months": [5, 10],
-    "direction": "vychod až juh",
+    "direction": "východ až juh",
     "best_time": "21:30-23:30",
     "visibility_level": "high",
-    "visibility_text": "Lahko viditelne",
-    "short_hint": "Vega patri medzi najjasnejsie hviezdy vecernej oblohy."
+    "visibility_text": "Ľahko viditeľné",
+    "short_hint": "Vega patrí medzi najjasnejšie hviezdy večernej oblohy."
   },
   {
     "name": "Aquila",
@@ -116,11 +116,11 @@
     "season": "summer",
     "primary_months": [6, 7, 8, 9],
     "secondary_months": [5, 10],
-    "direction": "juhovychod až juh",
+    "direction": "juhovýchod až juh",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Altair doplna letny trojuholnik s Vegou a Denebom."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Altair dopĺňa letný trojuholník s Vegou a Denebom."
   },
   {
     "name": "Andromeda",
@@ -128,11 +128,11 @@
     "season": "autumn",
     "primary_months": [9, 10, 11],
     "secondary_months": [8, 12],
-    "direction": "vychod až severovychod",
+    "direction": "východ až severovýchod",
     "best_time": "20:00-22:30",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Pri dobrej oblohe je viditelna aj galaxia M31."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Pri dobrej oblohe je viditeľná aj galaxia M31."
   },
   {
     "name": "Pegasus",
@@ -140,10 +140,10 @@
     "season": "autumn",
     "primary_months": [9, 10, 11],
     "secondary_months": [8, 12],
-    "direction": "juhovychod",
+    "direction": "juhovýchod",
     "best_time": "20:00-22:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
+    "visibility_text": "Stredne viditeľné",
     "short_hint": "Veľký štvorec Pegasa je ľahký orientačný útvar."
   },
   {
@@ -152,11 +152,11 @@
     "season": "autumn",
     "primary_months": [10, 11, 12, 1],
     "secondary_months": [9, 2],
-    "direction": "severovychod",
+    "direction": "severovýchod",
     "best_time": "21:00-23:30",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Lezi medzi Kasiopejou a Bylom."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Leží medzi Kasiopejou a Býkom."
   },
   {
     "name": "Auriga",
@@ -164,11 +164,11 @@
     "season": "winter",
     "primary_months": [12, 1, 2],
     "secondary_months": [11, 3],
-    "direction": "vychod až severovychod",
+    "direction": "východ až severovýchod",
     "best_time": "20:00-23:00",
     "visibility_level": "high",
-    "visibility_text": "Lahko viditelne",
-    "short_hint": "Capella je veľmi jasna a dobre rozoznatelna."
+    "visibility_text": "Ľahko viditeľné",
+    "short_hint": "Capella je veľmi jasná a dobre rozoznateľná."
   },
   {
     "name": "Bootes",
@@ -176,23 +176,23 @@
     "season": "spring",
     "primary_months": [4, 5, 6],
     "secondary_months": [3, 7],
-    "direction": "vychod až juhovychod",
+    "direction": "východ až juhovýchod",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
+    "visibility_text": "Stredne viditeľné",
     "short_hint": "Arcturus je veľmi jasný orientačný bod jarnej oblohy."
   },
   {
     "name": "Scorpius",
-    "display_name": "Skorpion",
+    "display_name": "Škorpión",
     "season": "summer",
     "primary_months": [6, 7, 8],
     "secondary_months": [5, 9],
     "direction": "juh",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Nizko nad juznym horizontom, najlepsie mimo mesta."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Nízko nad južným horizontom, najlepšie mimo mesta."
   },
   {
     "name": "Sagittarius",
@@ -203,8 +203,8 @@
     "direction": "juh",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Asterizmus cajnika ukazuje smer ku stredu Galaxie."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Asterizmus čajníka ukazuje smer ku stredu Galaxie."
   },
   {
     "name": "Canis Major",
@@ -215,8 +215,8 @@
     "direction": "juh",
     "best_time": "21:00-23:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Sirius je najjasnejsia hviezda nocnej oblohy."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Sirius je najjasnejšia hviezda nočnej oblohy."
   },
   {
     "name": "Virgo",
@@ -224,10 +224,10 @@
     "season": "spring",
     "primary_months": [3, 4, 5],
     "secondary_months": [2, 6],
-    "direction": "juhovychod až juh",
+    "direction": "juhovýchod až juh",
     "best_time": "22:00-00:00",
     "visibility_level": "medium",
-    "visibility_text": "Stredne viditelne",
-    "short_hint": "Spika je hlavna orientacna hviezda suhvezdia."
+    "visibility_text": "Stredne viditeľné",
+    "short_hint": "Spika je hlavná orientačná hviezda súhvezdia."
   }
 ]
