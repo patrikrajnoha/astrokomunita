@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
 import http from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { useToast } from '@/composables/useToast'
 import { disconnectEcho, getEcho, initEcho } from '@/realtime/echo'
+import { canUseNotificationFeatures } from '@/utils/notificationAccess'
 
 let activePrivateChannel = ''
 let restrictionFlowActive = false
+let realtimeStartSequence = 0
 const UNREAD_COUNT_FRESH_MS = 30 * 1000
 
 function normalizeNotificationId(value) {
@@ -340,14 +343,15 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async fetchUnreadCount(options = {}) {
       const auth = useAuthStore()
+      const preferences = useEventPreferencesStore()
       await waitForAuthBootstrap(auth)
-      if (!auth.isAuthed) {
+      if (!canUseNotificationFeatures({ auth, preferences })) {
         this.unreadCountFetchSeq += 1
         this.unreadCount = 0
         this.unreadCountLoading = false
         this.unreadCountFetchedAt = 0
         this.unreadCountHydrated = true
-        return
+        return 0
       }
 
       const hasFreshUnreadCount =
@@ -376,6 +380,11 @@ export const useNotificationsStore = defineStore('notifications', {
       } catch (err) {
         if (fetchSeq !== this.unreadCountFetchSeq) return
         const status = err?.response?.status
+        if (status === 401 || status === 403) {
+          this.unreadCount = 0
+          this.unreadCountFetchedAt = 0
+          return 0
+        }
         if (status === 403 && !this.error) {
           this.error = 'Tento účet nemá prístup k notifikáciám.'
         }
@@ -449,10 +458,11 @@ export const useNotificationsStore = defineStore('notifications', {
 
     async startRealtime(options = {}) {
       const auth = useAuthStore()
+      const preferences = useEventPreferencesStore()
       await waitForAuthBootstrap(auth)
       const userId = Number(auth.user?.id || 0)
 
-      if (!auth.isAuthed || !userId) {
+      if (!canUseNotificationFeatures({ auth, preferences }) || !userId) {
         this.stopRealtime({ disconnect: options.disconnectOnGuest === true })
         return
       }
@@ -462,7 +472,17 @@ export const useNotificationsStore = defineStore('notifications', {
         return
       }
 
-      this.stopRealtime({ disconnect: false })
+      const startSequence = realtimeStartSequence + 1
+      realtimeStartSequence = startSequence
+
+      const existingEcho = getEcho()
+      if (existingEcho && activePrivateChannel && activePrivateChannel !== channelName) {
+        existingEcho.leaveChannel(`private-${activePrivateChannel}`)
+      }
+
+      activePrivateChannel = ''
+      this.realtimeReady = false
+      this.realtimeChannel = ''
 
       try {
         await auth.csrf()
@@ -470,7 +490,15 @@ export const useNotificationsStore = defineStore('notifications', {
         console.warn('Notifications realtime CSRF bootstrap failed:', error?.message || error)
       }
 
+      if (startSequence !== realtimeStartSequence) {
+        return
+      }
+
       const echo = await initEcho()
+      if (startSequence !== realtimeStartSequence) {
+        return
+      }
+
       if (!echo) {
         this.realtimeReady = false
         this.realtimeChannel = ''
@@ -489,11 +517,17 @@ export const useNotificationsStore = defineStore('notifications', {
       }
 
       const channel = echo.private(channelName)
+      if (startSequence !== realtimeStartSequence) {
+        echo.leaveChannel(`private-${channelName}`)
+        return
+      }
+
       channel.listen('.notification.created', onCreated)
       channel.listen('NotificationCreated', onCreated)
     },
 
     stopRealtime(options = {}) {
+      realtimeStartSequence += 1
       const echo = getEcho()
       if (echo && activePrivateChannel) {
         echo.leaveChannel(`private-${activePrivateChannel}`)

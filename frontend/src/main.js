@@ -1,6 +1,6 @@
 import './assets/main.css'
 
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 
 import App from './App.vue'
@@ -8,9 +8,13 @@ import router from './router'
 import { appInitState, setInitError, setInitializing, setMounted } from '@/bootstrap/appInitState'
 import { clearPreloadRecoveryState, installPreloadRecovery } from '@/bootstrap/preloadRecovery'
 import { useAuthStore } from '@/stores/auth'
+import { useEventPreferencesStore } from '@/stores/eventPreferences'
 import { captureClientError } from '@/services/errorTracker'
+import { canUseNotificationFeatures } from '@/utils/notificationAccess'
 
 installPreloadRecovery()
+let globalPostsRealtimeReady = false
+let stopGlobalRealtimeEligibilityWatch = null
 
 function formatError(errorLike) {
   if (!errorLike) return { message: 'Neznáma chyba', stack: '' }
@@ -118,6 +122,73 @@ function enforceDevCanonicalHost() {
   return true
 }
 
+function clearGlobalRealtimeEligibilityWatch() {
+  if (typeof stopGlobalRealtimeEligibilityWatch === 'function') {
+    stopGlobalRealtimeEligibilityWatch()
+  }
+
+  stopGlobalRealtimeEligibilityWatch = null
+}
+
+function watchGlobalRealtimeEligibility({ auth, preferences, pinia }) {
+  if (!auth?.isAuthed || !preferences || stopGlobalRealtimeEligibilityWatch || globalPostsRealtimeReady) {
+    return
+  }
+
+  stopGlobalRealtimeEligibilityWatch = watch(
+    () => canUseNotificationFeatures({ auth, preferences }),
+    (eligible) => {
+      if (!eligible || globalPostsRealtimeReady) return
+      clearGlobalRealtimeEligibilityWatch()
+      void bootstrapGlobalRealtime({ auth, pinia })
+    },
+    { flush: 'post' },
+  )
+}
+
+async function bootstrapGlobalRealtime({ auth, pinia }) {
+  if (globalPostsRealtimeReady) {
+    return
+  }
+
+  let preferences = null
+
+  if (auth.isAuthed && (auth.isAdmin || auth.user?.email_verified_at)) {
+    preferences = useEventPreferencesStore(pinia)
+
+    if (!auth.isAdmin && !preferences.loaded && !preferences.loading) {
+      try {
+        await preferences.fetchPreferences()
+      } catch {
+        watchGlobalRealtimeEligibility({ auth, preferences, pinia })
+        return
+      }
+    }
+  }
+
+  if (auth.isAuthed && !canUseNotificationFeatures({ auth, preferences })) {
+    watchGlobalRealtimeEligibility({ auth, preferences, pinia })
+    return
+  }
+
+  clearGlobalRealtimeEligibilityWatch()
+
+  const { initEcho, getEcho } = await import('@/realtime/echo')
+  await initEcho()
+  globalPostsRealtimeReady = true
+
+  // Allow the Echo client to finish its internal handshake before attaching listeners.
+  setTimeout(() => {
+    const echo = getEcho()
+    if (!echo) return
+
+    echo.channel('posts')
+      .listen('.PostUpdated', (event) => {
+        window.dispatchEvent(new CustomEvent('post:updated', { detail: event?.post ?? event }))
+      })
+  }, 1000)
+}
+
 async function bootstrap() {
   if (enforceDevCanonicalHost()) {
     return
@@ -153,20 +224,6 @@ async function bootstrap() {
     setMounted(true)
     console.info('[APP INIT] mounted')
 
-    const { initEcho, getEcho } = await import('@/realtime/echo')
-    await initEcho()
-
-    // Allow the Echo client to finish its internal handshake before attaching listeners.
-    setTimeout(() => {
-      const echo = getEcho()
-      if (!echo) return
-
-      echo.channel('posts')
-        .listen('.PostUpdated', (event) => {
-          window.dispatchEvent(new CustomEvent('post:updated', { detail: event?.post ?? event }))
-        })
-    }, 1000)
-
     clearPreloadRecoveryState()
   } catch (error) {
     setInitError(formatError(error))
@@ -182,6 +239,12 @@ async function bootstrap() {
     ensureFatalOverlay(error, 'auth.bootstrapAuth')
   } finally {
     setInitializing(false)
+  }
+
+  try {
+    await bootstrapGlobalRealtime({ auth, pinia })
+  } catch (error) {
+    console.warn('[APP INIT] realtime bootstrap skipped', error)
   }
 
   if (import.meta.env.PROD && 'serviceWorker' in navigator) {

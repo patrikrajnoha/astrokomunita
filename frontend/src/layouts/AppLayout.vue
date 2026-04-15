@@ -36,6 +36,7 @@ import {
   resolveSidebarIcon,
 } from '@/sidebar/engine'
 import { resolvePreferredSidebarWidgetKeys } from '@/sidebar/preferences'
+import { canUseNotificationFeatures } from '@/utils/notificationAccess'
 
 const DynamicSidebar = defineAsyncComponent(() => import('@/components/DynamicSidebar.vue'))
 const CreatePostModal = defineAsyncComponent(() => import('@/components/CreatePostModal.vue'))
@@ -215,6 +216,10 @@ const isOnboardingFlowActive = computed(() => {
     !preferences.isOnboardingCompleted
   )
 })
+const canBootstrapNotificationFeatures = computed(() => canUseNotificationFeatures({
+  auth,
+  preferences,
+}))
 const {
   calendarPopupPayload,
   cancelScheduledCalendarPopupCheck,
@@ -443,9 +448,9 @@ watch(
 )
 
 watch(
-  () => auth.user?.id,
-  (nextUserId) => {
-    if (nextUserId) {
+  () => canBootstrapNotificationFeatures.value,
+  (canBootstrap) => {
+    if (canBootstrap) {
       void notifications.fetchUnreadCount()
       scheduleNotificationsRealtimeBootstrap()
       return
