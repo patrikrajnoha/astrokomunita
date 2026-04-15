@@ -51,7 +51,7 @@
             v-model.trim="name"
             type="text"
             autocomplete="name"
-            placeholder="Ako sa voláš?"
+            placeholder="Ako sa voláte?"
             class="authControl"
           />
         </label>
@@ -63,8 +63,9 @@
             type="text"
             autocomplete="username"
             maxlength="20"
-            placeholder="napr. astro_nickname"
+            placeholder="napr. astro_patrik"
             class="authControl"
+            @input="onUsernameInput"
           />
           <span
             v-if="usernameHint"
@@ -78,6 +79,18 @@
           >
             {{ usernameHint }}
           </span>
+          <div v-if="usernameAlternatives.length" class="mt-2 flex flex-wrap items-center gap-1.5">
+            <span class="text-xs text-[#ABB8C9]">Skúste:</span>
+            <button
+              v-for="alt in usernameAlternatives"
+              :key="alt"
+              type="button"
+              class="rounded-full border border-[#0F73FF]/40 px-2.5 py-0.5 text-xs text-[#0F73FF] transition-colors hover:bg-[#0F73FF]/10"
+              @click="useAlternative(alt)"
+            >
+              {{ alt }}
+            </button>
+          </div>
         </label>
 
         <div class="block">
