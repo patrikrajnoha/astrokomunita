@@ -153,6 +153,13 @@
                 </template>
               </div>
 
+              <SharedPostPreview
+                v-if="!observationForPost(p)"
+                :post="p"
+                :is-authed="auth.isAuthed"
+                @login-required="onPollLoginRequired"
+              />
+
               <PollCard
                 v-if="!observationForPost(p) && p.poll"
                 :poll="p.poll"

@@ -11,6 +11,7 @@ import { useToast } from '@/composables/useToast'
 import ProfileEventCard from '@/components/profile/ProfileEventCard.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
 import PollCard from '@/components/PollCard.vue'
+import SharedPostPreview from '@/components/SharedPostPreview.vue'
 import BaseModal from '@/components/ui/BaseModal.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
@@ -137,6 +138,23 @@ const handle = computed(() => {
 
   return 'user'
 })
+
+function profilePostAuthor(post) {
+  if (post?.user && typeof post.user === 'object') {
+    return post.user
+  }
+
+  return auth.user
+}
+
+function profilePostAuthorName(post) {
+  const author = profilePostAuthor(post)
+  const name = toNonEmptyText(author?.name)
+  if (name && !looksLikeEmail(name)) return name
+
+  const username = toNonEmptyText(author?.username)
+  return username || 'Pouzivatel'
+}
 
 function goHome() {
   router.push({ name: 'home' })
@@ -307,4 +325,3 @@ onMounted(async () => {
 </script>
 
 <style scoped src="./profile/ProfileView.css"></style>
-

@@ -355,4 +355,36 @@ class PostThreadsTest extends TestCase
             ->assertJsonPath('root.attached_event.id', $event->id)
             ->assertJsonPath('root.attached_event.title', 'Lunar Eclipse');
     }
+
+    public function test_reply_payloads_include_parent_poll_data(): void
+    {
+        $user = User::factory()->create([
+            'username' => 'poll-parent',
+        ]);
+        Sanctum::actingAs($user);
+
+        $rootResponse = $this->postJson('/api/posts', [
+            'content' => 'Root poll post',
+            'poll' => [
+                'duration_seconds' => 3600,
+                'options' => [
+                    ['text' => 'Mars'],
+                    ['text' => 'Jupiter'],
+                ],
+            ],
+        ]);
+
+        $rootResponse->assertCreated();
+        $rootId = (int) $rootResponse->json('id');
+
+        $this->postJson("/api/posts/{$rootId}/reply", [
+            'content' => 'Reply to poll',
+        ])->assertCreated();
+
+        $this->getJson('/api/users/poll-parent/posts?kind=replies')
+            ->assertOk()
+            ->assertJsonPath('data.0.parent.id', $rootId)
+            ->assertJsonPath('data.0.parent.poll.options.0.text', 'Mars')
+            ->assertJsonPath('data.0.parent.poll.options.1.text', 'Jupiter');
+    }
 }

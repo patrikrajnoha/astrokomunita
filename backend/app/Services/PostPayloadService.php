@@ -48,17 +48,7 @@ class PostPayloadService
 
     public function serializePost(Post $post, ?User $viewer = null): array
     {
-        $data = $post->toArray();
-        $data = $this->sanitizePostPayload($data);
-        $data['poll'] = $this->polls->toPayload(
-            $post->relationLoaded('poll') ? $post->getRelation('poll') : null,
-            $viewer?->id
-        );
-        $data['attached_event'] = $this->resolveAttachedEventPayload($post);
-        $data['attached_observation'] = $this->resolveAttachedObservationPayload($post, $viewer);
-        $data['feed_item_type'] = $data['attached_observation'] ? 'observation' : 'post';
-
-        return $data;
+        return $this->serializePostModel($post, $viewer, true);
     }
 
     public function serializePaginator(LengthAwarePaginator $paginator, ?User $viewer = null): LengthAwarePaginator
@@ -229,22 +219,40 @@ class PostPayloadService
             $postData['user'] = $this->publicUsers->fromArray($postData['user']);
         }
 
+        return $postData;
+    }
+
+    private function serializePostModel(Post $post, ?User $viewer = null, bool $includeNestedRelations = true): array
+    {
+        $data = $this->sanitizePostPayload($post->toArray());
+        $data['poll'] = $this->polls->toPayload(
+            $post->relationLoaded('poll') ? $post->getRelation('poll') : null,
+            $viewer?->id
+        );
+        $data['attached_event'] = $this->resolveAttachedEventPayload($post);
+        $data['attached_observation'] = $this->resolveAttachedObservationPayload($post, $viewer);
+        $data['feed_item_type'] = $data['attached_observation'] ? 'observation' : 'post';
+
+        if (!$includeNestedRelations) {
+            unset($data['parent'], $data['root'], $data['replies']);
+            return $data;
+        }
+
         foreach (['parent', 'root'] as $relationKey) {
-            if (isset($postData[$relationKey]) && is_array($postData[$relationKey])) {
-                $postData[$relationKey] = $this->sanitizePostPayload($postData[$relationKey]);
+            if ($post->relationLoaded($relationKey) && $post->getRelation($relationKey) instanceof Post) {
+                /** @var Post $relatedPost */
+                $relatedPost = $post->getRelation($relationKey);
+                $data[$relationKey] = $this->serializePostModel($relatedPost, $viewer, false);
             }
         }
 
-        if (isset($postData['replies']) && is_array($postData['replies'])) {
-            $postData['replies'] = array_map(function ($reply) {
-                if (!is_array($reply)) {
-                    return $reply;
-                }
-
-                return $this->sanitizePostPayload($reply);
-            }, $postData['replies']);
+        if ($post->relationLoaded('replies')) {
+            $rawReplies = $post->getRelation('replies');
+            $data['replies'] = $rawReplies instanceof Collection
+                ? $rawReplies->map(fn (Post $reply): array => $this->serializePostModel($reply, $viewer, true))->values()->all()
+                : [];
         }
 
-        return $postData;
+        return $data;
     }
 }

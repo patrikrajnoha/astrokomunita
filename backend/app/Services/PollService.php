@@ -33,14 +33,42 @@ class PollService
 
     public function pollRelations(?int $viewerUserId = null): array
     {
+        return $this->pollRelationsForPrefix('poll', $viewerUserId);
+    }
+
+    /**
+     * @param  list<string>  $prefixes
+     * @return array<int|string, mixed>
+     */
+    public function nestedPollRelations(array $prefixes, ?int $viewerUserId = null): array
+    {
+        $relations = [];
+
+        foreach ($prefixes as $prefix) {
+            $relations = array_merge($relations, $this->pollRelationsForPrefix($prefix . '.poll', $viewerUserId));
+        }
+
+        return $relations;
+    }
+
+    /**
+     * @return array<int|string, mixed>
+     */
+    private function pollRelationsForPrefix(string $prefix, ?int $viewerUserId = null): array
+    {
+        $normalizedPrefix = trim($prefix);
+        if ($normalizedPrefix === '') {
+            return [];
+        }
+
         if ($viewerUserId) {
             return [
-                'poll.options',
-                'poll.pollVotes' => fn ($query) => $query->where('user_id', $viewerUserId),
+                $normalizedPrefix . '.options',
+                $normalizedPrefix . '.pollVotes' => fn ($query) => $query->where('user_id', $viewerUserId),
             ];
         }
 
-        return ['poll.options'];
+        return [$normalizedPrefix . '.options'];
     }
 
     public function createForPost(Post $post, array $pollInput): Poll

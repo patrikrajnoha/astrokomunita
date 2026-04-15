@@ -428,4 +428,83 @@ describe('ProfileView avatar panel', () => {
 
     wrapper.unmount()
   })
+
+  it('renders bookmarked post author from the original post user, not from auth user', async () => {
+    apiMock.get.mockImplementation((url, config = {}) => {
+      if (url === '/me/bookmarks') {
+        return Promise.resolve({
+          data: {
+            data: [
+              {
+                id: 512,
+                content: 'Cudzi bookmarknuty post',
+                bookmarked_at: '2026-03-20T20:30:00Z',
+                user: {
+                  id: 99,
+                  name: 'Denys',
+                  username: 'denys',
+                },
+              },
+            ],
+            total: 1,
+            next_page_url: null,
+          },
+        })
+      }
+
+      if (url === '/posts') {
+        return Promise.resolve({
+          data: {
+            data: [],
+            total: 0,
+            next_page_url: null,
+          },
+        })
+      }
+
+      if (url === '/observations' || url === '/me/followed-events') {
+        return Promise.resolve({
+          data: {
+            data: [],
+            total: 0,
+            current_page: 1,
+            last_page: 1,
+            next_page_url: null,
+          },
+        })
+      }
+
+      return Promise.resolve({
+        data: {
+          data: [],
+          total: 0,
+          next_page_url: null,
+        },
+      })
+    })
+
+    const { wrapper } = await mountProfile({
+      stubs: {
+        UserAvatar: {
+          props: ['user', 'alt'],
+          template: '<div class="user-avatar-stub" :data-username="user?.username" :data-alt="alt"></div>',
+        },
+      },
+    })
+
+    const bookmarksTab = wrapper.findAll('.tab').find((tab) => tab.text().includes('Záložky'))
+    expect(bookmarksTab).toBeTruthy()
+
+    await bookmarksTab.trigger('click')
+    await flush()
+    await flush()
+
+    const bookmarkedItem = wrapper.find('.postItem')
+    expect(bookmarkedItem.exists()).toBe(true)
+    expect(bookmarkedItem.find('.postName').text()).toBe('Denys')
+    expect(bookmarkedItem.find('.user-avatar-stub').attributes('data-username')).toBe('denys')
+    expect(bookmarkedItem.text()).not.toContain('Test User')
+
+    wrapper.unmount()
+  })
 })

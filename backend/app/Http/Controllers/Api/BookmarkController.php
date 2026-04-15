@@ -66,7 +66,7 @@ class BookmarkController extends Controller
                 'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'tags:id,name',
                 'hashtags:id,name',
-            ], $this->polls->pollRelations($viewer->id)))
+            ], $this->polls->pollRelations($viewer->id), $this->polls->nestedPollRelations(['parent'], $viewer->id)))
             ->withCount('likes')
             ->withExists([
                 'likes as liked_by_me' => fn ($likesQuery) => $likesQuery->where('user_id', $viewer->id),

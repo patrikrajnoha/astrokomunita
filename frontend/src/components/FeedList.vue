@@ -9,6 +9,7 @@ import HashtagText from './HashtagText.vue'
 import PostActionBar from '@/components/PostActionBar.vue'
 import PostMediaImage from '@/components/media/PostMediaImage.vue'
 import ObservationCard from '@/components/observations/ObservationCard.vue'
+import SharedPostPreview from '@/components/SharedPostPreview.vue'
 import InlineStatus from '@/components/ui/InlineStatus.vue'
 import AsyncState from '@/components/ui/AsyncState.vue'
 import api from '@/services/api'
@@ -418,4 +419,3 @@ defineExpose({ load, prepend, upsert })
 </script>
 
 <style scoped src="./feedList/FeedList.css"></style>
-

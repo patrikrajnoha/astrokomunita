@@ -170,6 +170,13 @@
               </div>
               <HashtagText v-else class="postContent ui-stream-item__body" :content="p.content" />
 
+              <SharedPostPreview
+                v-if="!observationForPost(p)"
+                :post="p"
+                :is-authed="Boolean(auth.user)"
+                @login-required="onPollLoginRequired"
+              />
+
               <div v-if="!observationForPost(p) && p.poll" @click.stop>
                 <PollCard
                   :poll="p.poll"

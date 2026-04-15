@@ -495,14 +495,14 @@
               <div class="avatar sm">
                 <UserAvatar
                   class="avatarImg"
-                  :user="auth.user"
-                  :alt="`${displayName} avatar`"
+                  :user="profilePostAuthor(p)"
+                  :alt="`${profilePostAuthorName(p)} avatar`"
                 />
               </div>
 
               <div class="postBody">
                 <div class="postMeta">
-                  <div class="postName">{{ displayName }}</div>
+                  <div class="postName">{{ profilePostAuthorName(p) }}</div>
                   <div class="dot">&middot;</div>
                   <div class="postTime">{{ formatPostTimestamp(p) }}</div>
                 </div>
@@ -521,6 +521,13 @@
                   />
                 </div>
                 <HashtagText v-else class="postContent" :content="p.content" />
+
+                <SharedPostPreview
+                  v-if="!observationForPost(p)"
+                  :post="p"
+                  :is-authed="Boolean(auth.user)"
+                  @login-required="onPollLoginRequired"
+                />
 
                 <div v-if="!observationForPost(p) && p.poll" @click.stop>
                   <PollCard

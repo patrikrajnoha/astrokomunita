@@ -35,7 +35,7 @@ class FeedQueryBuilder
             'parent.user:id,name,username,location,bio,is_admin,is_bot,role,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
             'tags:id,name',
             'hashtags:id,name',
-        ], $this->polls->pollRelations($viewer?->id)));
+        ], $this->polls->pollRelations($viewer?->id), $this->polls->nestedPollRelations(['parent'], $viewer?->id)));
 
         if ($withCounts) {
             $query->withCount(['likes', 'replies']);

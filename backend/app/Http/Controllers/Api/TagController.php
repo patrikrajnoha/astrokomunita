@@ -98,7 +98,7 @@ class TagController extends Controller
                 'tags:id,name',
                 'replies.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
                 'parent.user:id,name,username,location,bio,is_admin,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
-            ], $this->polls->pollRelations($viewer?->id)))
+            ], $this->polls->pollRelations($viewer?->id), $this->polls->nestedPollRelations(['parent'], $viewer?->id)))
             ->withCount(['likes', 'replies'])
             ->publiclyVisible()
             ->notExpired() // Exclude expired bot posts
@@ -115,4 +115,3 @@ class TagController extends Controller
         ]);
     }
 }
-

@@ -77,6 +77,13 @@
           </div>
         </div>
 
+        <SharedPostPreview
+          v-if="root"
+          :post="root"
+          :is-authed="auth.isAuthed"
+          @login-required="onPollLoginRequired"
+        />
+
         <!-- Poll -->
         <PollCard
           v-if="root?.poll"
@@ -243,6 +250,12 @@
                 <HashtagText v-else :content="r.content" />
               </div>
 
+              <SharedPostPreview
+                :post="r"
+                :is-authed="auth.isAuthed"
+                @login-required="onPollLoginRequired"
+              />
+
               <div v-if="postGifUrl(r)" class="pdReplyMedia">
                 <img class="pdGif" :src="postGifUrl(r)" :alt="postGifTitle(r)" loading="lazy" />
               </div>
@@ -336,6 +349,12 @@
                       </template>
                       <HashtagText v-else :content="c.content" />
                     </div>
+
+                    <SharedPostPreview
+                      :post="c"
+                      :is-authed="auth.isAuthed"
+                      @login-required="onPollLoginRequired"
+                    />
 
                     <div v-if="postGifUrl(c)" class="pdReplyMedia">
                       <img class="pdGif" :src="postGifUrl(c)" :alt="postGifTitle(c)" loading="lazy" />

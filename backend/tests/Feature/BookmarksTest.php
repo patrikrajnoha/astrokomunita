@@ -119,6 +119,37 @@ class BookmarksTest extends TestCase
         $this->assertNotNull(data_get($response->json(), 'data.0.bookmarked_at'));
     }
 
+    public function test_bookmarks_index_preserves_original_post_author_identity(): void
+    {
+        $bookmarkOwner = User::factory()->create([
+            'name' => 'Patrik',
+            'username' => 'patrik',
+        ]);
+        $postAuthor = User::factory()->create([
+            'name' => 'Denys',
+            'username' => 'denys',
+        ]);
+
+        $post = Post::factory()->for($postAuthor)->create([
+            'content' => 'Cudzi prispevok',
+        ]);
+
+        DB::table('post_user_bookmarks')->insert([
+            'user_id' => $bookmarkOwner->id,
+            'post_id' => $post->id,
+            'created_at' => now(),
+        ]);
+
+        Sanctum::actingAs($bookmarkOwner);
+
+        $this->getJson('/api/me/bookmarks?per_page=10')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $post->id)
+            ->assertJsonPath('data.0.user.id', $postAuthor->id)
+            ->assertJsonPath('data.0.user.name', 'Denys')
+            ->assertJsonPath('data.0.user.username', 'denys');
+    }
+
     public function test_bookmark_unique_constraint_rejects_duplicates(): void
     {
         $user = User::factory()->create();

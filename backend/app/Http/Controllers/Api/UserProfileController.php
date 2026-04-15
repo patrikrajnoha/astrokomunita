@@ -70,7 +70,7 @@ class UserProfileController extends Controller
         $query = $user->posts()
             ->with(array_merge([
                 'user:id,name,username,location,bio,is_admin,is_bot,avatar_path,avatar_mode,avatar_color,avatar_icon,avatar_seed',
-            ], $this->polls->pollRelations($viewer?->id)))
+            ], $this->polls->pollRelations($viewer?->id), $this->polls->nestedPollRelations(['parent'], $viewer?->id)))
             ->withCount(['replies', 'likes'])
             ->latest();
 
@@ -106,4 +106,3 @@ class UserProfileController extends Controller
         );
     }
 }
-
